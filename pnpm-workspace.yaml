@@ -1,0 +1,7 @@
+# pnpm 11 默认拦截依赖的安装脚本，这里逐个声明是否允许执行。
+# sharp / unrs-resolver 使用预编译二进制，不需要安装脚本。
+# lefthook 由 package.json 的 prepare 脚本安装 git hooks，不需要它自己的 postinstall。
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
+  lefthook: false

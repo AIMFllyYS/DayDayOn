@@ -1,0 +1,25 @@
+# Git hooks。由 package.json 的 prepare 脚本在 pnpm install 时自动安装。
+# 只检查暂存文件，保持提交速度；完整检查在 CI 里跑。
+
+# 不使用交互式终端渲染：在 IDE、AI 代理等非交互环境里提交时不会卡住
+no_tty: true
+
+pre-commit:
+  parallel: true
+  commands:
+    eslint:
+      glob: '*.{js,mjs,cjs,ts,tsx}'
+      run: pnpm exec eslint --cache --fix {staged_files}
+      stage_fixed: true
+    prettier:
+      glob: '*.{js,mjs,cjs,ts,tsx,json,css,yml,yaml}'
+      run: pnpm exec prettier --write {staged_files}
+      stage_fixed: true
+    gitleaks:
+      # 本机未安装 gitleaks 时跳过（CI 会再扫一次）。用 Node 脚本而不是 shell，避免 Windows 下的换行与 PATH 问题
+      run: node scripts/dev/gitleaks-staged.mjs
+
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm exec commitlint --edit {1}

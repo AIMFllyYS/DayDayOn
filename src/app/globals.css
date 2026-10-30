@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+/*
+ * 占位配色。正式的设计 token（色板、圆角、阴影、字体）在 Pencil 设计稿定稿后替换，
+ * 见 docs/designs/architecture-baseline.md 第 7.4 节。
+ */
+:root {
+  --background: #fff8f0;
+  --foreground: #4a3f35;
+  --muted: #8c7b6b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --font-sans:
+    'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}

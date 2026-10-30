@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+.next/
+out/
+node_modules/
+public/
+*.md

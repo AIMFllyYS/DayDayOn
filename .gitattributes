@@ -1,0 +1,12 @@
+# 统一 LF 换行：本地是 Windows，构建与运行在 Linux
+* text=auto eol=lf
+
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.woff binary
+*.woff2 binary
+*.riv binary

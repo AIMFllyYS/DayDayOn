@@ -1,0 +1,142 @@
+# ========================
+# Dependencies
+# ========================
+node_modules/
+.pnp
+.pnp.*
+
+# ========================
+# Build outputs（锚定到仓库根目录，scripts/build/ 等源码目录不受影响）
+# ========================
+/.next/
+/out/
+/dist/
+/build/
+/artifact/
+*.tar.gz
+*.tsbuildinfo
+next-env.d.ts
+
+# ========================
+# Environment variables（只提交 .env.example）
+# ========================
+.env*
+!.env.example
+
+# ========================
+# Secrets & keys
+# ========================
+*.pem
+*.key
+*.p12
+*.keystore
+*.jks
+
+# ========================
+# Local data（本地 Docker PG、备份、导出）
+# ========================
+/.data/
+/backups/
+*.dump
+*.sql.gz
+
+# ========================
+# 用户图片永不落盘：防止调试时误存的上传文件进入仓库
+# ========================
+/uploads/
+/tmp-uploads/
+
+# ========================
+# PWA（Serwist 构建产物）
+# ========================
+/public/sw.js
+/public/sw.js.map
+/public/swe-worker-*.js
+
+# ========================
+# Test & coverage
+# ========================
+/coverage/
+/test-results/
+/playwright-report/
+/.nyc_output/
+
+# ========================
+# 未来 Capacitor Android 壳
+# ========================
+/android/app/build/
+/android/.gradle/
+/android/local.properties
+
+# ========================
+# Debug & logs
+# ========================
+npm-debug.log*
+pnpm-debug.log*
+*.log
+/logs/
+
+# ========================
+# Cache
+# ========================
+.cache/
+.turbo/
+.eslintcache
+.prettiercache
+
+# ========================
+# Lock files（只保留 pnpm-lock.yaml）
+# ========================
+package-lock.json
+yarn.lock
+bun.lockb
+
+# ========================
+# IDE / Agent 工具
+# ========================
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.iml
+.cursor/
+.cursorrules
+.windsurf/
+.windsurfrules
+.zed/
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+*~
+# Kiro：提交 steering 与 hooks（项目规范），忽略 settings（可能含 MCP 密钥）
+.kiro/settings/
+.vercel
+
+# ========================
+# OS generated files
+# ========================
+.DS_Store
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ========================
+# Temporary files
+# ========================
+/tmp/
+/temp/
+*.tmp
+*.temp
+
+# ========================
+# 大媒体文件不进仓库（制品要传到武汉服务器，越小越好）
+# ========================
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.zip
+*.7z
