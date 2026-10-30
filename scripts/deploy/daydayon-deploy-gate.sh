@@ -28,7 +28,8 @@ INCOMING="$ROOT/.incoming"
 LOCK="$ROOT/.deploy.lock"
 LOG="$ROOT/logs/deploy.log"
 STATE="$ROOT/logs/deploy-state"
-HEALTH_URL=http://127.0.0.1:3043/api/health
+# 端口约定见 docs/conventions/ports.md
+HEALTH_URL=http://127.0.0.1:23329/api/health
 MAX_BYTES=$((300 * 1024 * 1024))
 
 log() { printf '%s gate[%s] %s\n' "$(date -Is)" "$$" "$*" >> "$LOG"; }

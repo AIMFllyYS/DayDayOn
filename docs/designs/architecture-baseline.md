@@ -67,7 +67,7 @@ demo-init 面向"腾讯云 EdgeOne Pages + SSG 静态导出"，本项目部署�
 
 1. **不在服务器上执行 `next build`**。2 核且已经在用 swap，构建会拖慢同机的其他应用。改为在 Linux 环境（GitHub Actions）构建 standalone 产物，再上传并 `pm2 reload`。
 2. **不能在 Windows 本地构建后直接上传**。`sharp` 等原生依赖与平台绑定，产物必须在 Linux x64 上构建。
-3. PG 容器限制 512MB 内存，只绑定 `127.0.0.1:<空闲端口>`，不对公网开放。
+3. PG 容器限制 512MB 内存，只绑定 `127.0.0.1:23432`，不对公网开放（端口约定见 [ports.md](../conventions/ports.md)）。
 4. 独立用户和目录方案（初稿，已被 deploy-aliyun-ecs.md 取代）：
 
 ```

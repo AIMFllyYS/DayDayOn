@@ -10,6 +10,7 @@
 - [code-style.md](./code-style.md) — 代码风格
 - [code-review.md](./code-review.md) — Code review 检查清单
 - [git-workflow.md](./git-workflow.md) — 分支、提交、PR、发布
+- [ports.md](./ports.md) — 端口约定（应用 23329、数据库 23432）及所有引用位置
 
 ## 与 AGENTS.md 的关系
 

@@ -54,7 +54,7 @@ if [[ ! -f "$ROOT/.env" ]]; then
     cat > "$ROOT/.env" <<EOF
 # DayDayOn 生产环境变量（权限 600，属主 daydayon）。留空的项由负责人填写，改完后重新部署或 pm2 restart。
 NEXT_PUBLIC_APP_URL=https://$DOMAIN
-DATABASE_URL=postgres://daydayon:$dbpass@127.0.0.1:55438/daydayon
+DATABASE_URL=postgres://daydayon:$dbpass@127.0.0.1:23432/daydayon
 BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 BETTER_AUTH_URL=https://$DOMAIN
 SMTP_HOST=smtpdm.aliyun.com

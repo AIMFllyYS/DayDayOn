@@ -33,7 +33,8 @@ module.exports = {
       env: {
         ...fileEnv,
         NODE_ENV: 'production',
-        PORT: '3043',
+        // 端口约定见 docs/conventions/ports.md
+        PORT: '23329',
         HOSTNAME: '127.0.0.1',
         APP_COMMIT_SHA: commit,
       },
