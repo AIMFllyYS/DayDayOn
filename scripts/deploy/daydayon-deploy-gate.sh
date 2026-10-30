@@ -35,12 +35,15 @@ log() { printf '%s gate[%s] %s\n' "$(date -Is)" "$$" "$*" >> "$LOG"; }
 reject() { echo "gate: $1" >&2; log "REJECT $1"; exit 2; }
 
 [[ "$(id -un)" == "daydayon" ]] || { echo "gate: must run as daydayon" >&2; exit 2; }
+# 固定工作目录：被 sudo 从其他目录调用时，find 等命令不会因为无权回到原目录而报错
+cd "$ROOT"
 
 read -r -a argv <<< "${SSH_ORIGINAL_COMMAND:-}"
 (( ${#argv[@]} <= 2 )) || reject "too many arguments"
 action="${argv[0]:-}"
 sha="${argv[1]:-}"
-log "cmd=${action} ${sha} from=${SSH_CLIENT%% *}"
+client="${SSH_CLIENT:-local}"
+log "cmd=${action} ${sha} from=${client%% *}"
 
 case "$action" in
   status)
