@@ -14,8 +14,10 @@
 
 ```powershell
 pnpm install   # 同时安装 git hooks（lefthook）
-pnpm dev       # http://localhost:3000
+pnpm dev       # http://localhost:23329
 ```
+
+端口：应用 23329，本地数据库 23432，与服务器一致，见 [ports.md](../conventions/ports.md)。
 
 环境变量：复制 `.env.example` 为 `.env.local` 后填写。`.env.local` 不会被提交。
 

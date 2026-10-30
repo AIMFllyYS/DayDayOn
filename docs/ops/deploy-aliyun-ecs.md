@@ -18,6 +18,7 @@
 | 资源 | 2 vCPU、7.3 GiB 内存 |
 | 运行时 | Node 24.19（`/www/server/nodejs/v24.19.0`）、PM2、Docker 26.1、宝塔 Nginx 1.28 |
 | 域名 | `daydayon.husteread.com` |
+| 端口 | 应用 `127.0.0.1:23329`，数据库 `127.0.0.1:23432`（约定见 [ports.md](../conventions/ports.md)） |
 
 ## 3. 目录
 
@@ -25,7 +26,7 @@
 /www/wwwroot/daydayon/              属主 daydayon，0751
 ├── .env                            运行时环境变量（0600）
 ├── ecosystem.config.cjs            PM2 进程定义
-├── app/                            当前版本（node server.js，监听 127.0.0.1:3043）
+├── app/                            当前版本（node server.js，监听 127.0.0.1:23329）
 ├── app.prev/                       上一个成功版本
 ├── app.failed/                     最近一次健康检查失败的版本（排查用）
 ├── logs/                           app.out.log、app.err.log、deploy.log、deploy-state
@@ -49,11 +50,11 @@
 | 部署公钥 | — | `/www/wwwroot/daydayon/home/.ssh/authorized_keys`，forced-command 绑定闸门，禁止 pty 与端口转发 |
 | PM2 服务 | `scripts/deploy/pm2-daydayon.service` | `/etc/systemd/system/pm2-daydayon.service`（独立守护进程） |
 | PM2 进程定义 | `scripts/deploy/ecosystem.config.cjs` | `/www/wwwroot/daydayon/ecosystem.config.cjs` |
-| 数据库 | `scripts/deploy/docker-compose.db.yml` | 容器 `daydayon-db`，`postgres:18.6-alpine3.24`，只绑定 `127.0.0.1:55438`，内存上限 512MB |
+| 数据库 | `scripts/deploy/docker-compose.db.yml` | 容器 `daydayon-db`，`postgres:18.6-alpine3.24`，只绑定 `127.0.0.1:23432`，内存上限 512MB |
 | 数据库备份 | `scripts/deploy/backup-db.sh` | `/etc/cron.d/daydayon-backup`，每天 04:30 |
 | 日志轮转 | `scripts/deploy/logrotate-daydayon` | `/etc/logrotate.d/daydayon`，每周轮转，保留 8 份 |
 | Nginx 第一阶段 | `scripts/deploy/nginx-daydayon.http.conf` | 只开 80 端口做证书验证，其余返回 503 |
-| Nginx 正式站点 | `scripts/deploy/nginx-daydayon.conf` | HTTPS，反代到 `127.0.0.1:3043`，用对端地址覆盖 `X-Forwarded-For` |
+| Nginx 正式站点 | `scripts/deploy/nginx-daydayon.conf` | HTTPS，反代到 `127.0.0.1:23329`，用对端地址覆盖 `X-Forwarded-For` |
 
 Nginx 站点文件位于 `/www/server/panel/vhost/nginx/daydayon.husteread.com.conf`。它是手工维护的配置，**不会出现在宝塔面板的网站列表里**，不要在面板里为这个域名再建站点。
 

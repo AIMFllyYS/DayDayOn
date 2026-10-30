@@ -21,7 +21,8 @@ services:
       - -c
       - timezone=UTC
     ports:
-      - '127.0.0.1:55438:5432'
+      # 数据库端口，约定见 docs/conventions/ports.md
+      - '127.0.0.1:23432:5432'
     volumes:
       # PostgreSQL 18 的官方镜像把数据放在 /var/lib/postgresql/18/docker，挂载点是 /var/lib/postgresql
       - /mnt/data/daydayon/postgres:/var/lib/postgresql

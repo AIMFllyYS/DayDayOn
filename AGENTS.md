@@ -25,7 +25,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Key Commands
 
-- Install: `pnpm install` | Dev: `pnpm dev` | Build: `pnpm build` | Start: `pnpm start`
+- Install: `pnpm install` | Dev: `pnpm dev`（http://localhost:23329）| Build: `pnpm build` | Start: `pnpm start`
+- 端口：应用 **23329**，数据库 **23432**，本地与服务器一致。不要改用 3000 / 5432（详见 [ports.md](docs/conventions/ports.md)）
 - Lint: `pnpm lint` | Typecheck: `pnpm typecheck` | Format: `pnpm format`
 - 一次跑完 lint + typecheck + 格式检查: `pnpm check`
 
@@ -142,6 +143,7 @@ public/          静态资源（制品要传到武汉服务器，保持小体积
 - [code-style.md](docs/conventions/code-style.md) — 代码风格
 - [code-review.md](docs/conventions/code-review.md) — Code review 检查清单
 - [git-workflow.md](docs/conventions/git-workflow.md) — 分支、提交、PR、发布
+- [ports.md](docs/conventions/ports.md) — 端口约定（应用 23329、数据库 23432）及所有引用位置
 
 ### docs/designs/ — 设计与决策
 
