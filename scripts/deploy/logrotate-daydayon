@@ -1,0 +1,11 @@
+# 应用与部署日志轮转。安装位置：/etc/logrotate.d/daydayon
+/www/wwwroot/daydayon/logs/*.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su daydayon daydayon
+}

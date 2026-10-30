@@ -1,0 +1,22 @@
+# 独立的 PM2 守护进程，与服务器上其他项目的 PM2 互不影响。
+# 安装位置：/etc/systemd/system/pm2-daydayon.service
+[Unit]
+Description=PM2 process manager (daydayon)
+Documentation=https://pm2.keymetrics.io/
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=forking
+User=daydayon
+LimitNOFILE=65535
+Environment=PATH=/www/server/nodejs/v24.19.0/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PM2_HOME=/www/wwwroot/daydayon/home/.pm2
+PIDFile=/www/wwwroot/daydayon/home/.pm2/pm2.pid
+Restart=on-failure
+ExecStart=/www/server/nodejs/v24.19.0/lib/node_modules/pm2/bin/pm2 resurrect
+ExecReload=/www/server/nodejs/v24.19.0/lib/node_modules/pm2/bin/pm2 reload all
+ExecStop=/www/server/nodejs/v24.19.0/lib/node_modules/pm2/bin/pm2 kill
+
+[Install]
+WantedBy=multi-user.target

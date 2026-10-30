@@ -11,6 +11,13 @@ const eslintConfig = defineConfig([
       '@typescript-eslint/no-explicit-any': 'error',
     },
   },
+  {
+    // PM2 只能加载 CommonJS 配置，这类文件允许 require()
+    files: ['**/*.cjs'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
   globalIgnores([
     // eslint-config-next 的默认忽略项
     '.next/**',
