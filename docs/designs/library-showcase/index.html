@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>总览 · DayDayOn 组件库对齐</title><style>
+:root{--paper:#f5f1ea;--card:#fbf9f5;--ink:#2b2925;--muted:#6f685e;--rule:#e2dacd;--accent:#d97757}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.75 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",system-ui,sans-serif}
+main{max-width:880px;margin:0 auto;padding:56px 24px 96px}
+h1,h2,h3{font-family:"Iowan Old Style","Source Han Serif SC","Noto Serif SC","Songti SC",Georgia,serif;font-weight:600;line-height:1.3;letter-spacing:.01em}
+h1{font-size:34px;margin:0 0 8px}h2{font-size:22px;margin:56px 0 12px}h3{font-size:19px;margin:0}
+p{margin:8px 0}a{color:inherit;text-decoration-color:var(--rule);text-underline-offset:3px}a:hover{text-decoration-color:var(--ink)}
+.eyebrow{color:var(--muted);font-size:13px;letter-spacing:.08em}
+.lede{color:var(--muted);font-size:17px}
+ul{padding-left:1.2em;margin:8px 0}li{margin:2px 0}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:24px;margin:16px 0}
+.card header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.tag{font-size:12px;border:1px solid var(--rule);border-radius:4px;padding:1px 8px;color:var(--muted)}
+.tag.pick{border-color:var(--accent);color:var(--accent)}
+.pkg{font:13px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:7px 10px 7px 0;border-top:1px solid var(--rule)}
+th{width:84px;color:var(--muted);font-weight:500;white-space:nowrap}
+.flag{color:var(--muted);font-size:12px;margin-left:6px;border-bottom:1px dotted var(--muted)}
+pre{background:#f0ebe2;border-radius:6px;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+code{font:0.9em ui-monospace,SFMono-Regular,Consolas,monospace;background:#efe9df;border-radius:3px;padding:0 4px}
+.fit{border-left:2px solid var(--rule);padding-left:12px;margin-top:12px}
+.warn li{color:var(--muted)}
+.bars{margin:16px 0 8px}
+.bar{display:grid;grid-template-columns:220px 1fr 72px;gap:12px;align-items:center;font-size:14px;margin:6px 0}
+.bar .track{display:block;height:8px;background:#ebe4d8;border-radius:4px;overflow:hidden}
+.bar .fill{display:block;height:100%;background:#b9ad9c}
+.bar.pick .fill{background:var(--accent)}
+.bar .v{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.decision{border-top:1px solid var(--ink);padding-top:8px}
+.history li{list-style:none;margin-left:-1.2em;padding:4px 0;border-top:1px solid var(--rule)}
+.history time{color:var(--muted);font-size:13px;margin-right:10px}
+.src{font-size:13px;color:var(--muted)}
+.overview td:first-child{white-space:nowrap;color:var(--muted)}
+@media (max-width:640px){main{padding:32px 16px 72px}h1{font-size:28px}.bar{grid-template-columns:1fr 64px}.bar .track{grid-column:1/-1;order:3}}
+</style></head>
+<body><main><p class="eyebrow">demo-init Phase 3 · 组件库对齐 · 2026-10-31</p>
+<h1>DayDayOn 组件库选型总览</h1>
+<p class="lede">17 个关注点，每个只有一个所有者。原则：能用浏览器和已有依赖解决的不加库；要加库就只加一个、并经封装层使用。2026-10-31 负责人全部采纳，下表即最终结论。</p>
+<h2>决定一览</h2>
+<table class="overview"><tr><th>#</th><th>关注点</th><th>所有者</th><th>决策记录</th></tr><tr><td>1</td><td><a href="./01-interaction-primitives.html">交互原语</a></td><td>Base UI（@base-ui/react）</td><td>ADR-0004</td></tr><tr><td>2</td><td><a href="./02-motion.html">动效</a></td><td>不引入动效库：CSS 预设 + React &lt;ViewTransition&gt;</td><td>ADR-0005</td></tr><tr><td>3</td><td><a href="./03-toast.html">提示消息</a></td><td>Base UI Toast</td><td>ADR-0006</td></tr><tr><td>4</td><td><a href="./04-date-time-picker.html">日期与时间选择</a></td><td>输入：原生控件；日历：React DayPicker</td><td>ADR-0007</td></tr><tr><td>5</td><td><a href="./05-date-time-calc.html">日期与时区计算</a></td><td>date-fns + @date-fns/tz</td><td>ADR-0008</td></tr><tr><td>6</td><td><a href="./06-forms.html">表单与动态表单</a></td><td>不引入表单库：Base UI Form / Field + zod</td><td>ADR-0009</td></tr><tr><td>7</td><td><a href="./07-charts.html">图表</a></td><td>自研 SVG 图表 + d3-shape</td><td>ADR-0010</td></tr><tr><td>8</td><td><a href="./08-image-pipeline.html">浏览器端图片压缩与传输</a></td><td>不引入库：原生 canvas 压缩为 JPEG</td><td>ADR-0011</td></tr><tr><td>9</td><td><a href="./09-client-data.html">客户端数据请求</a></td><td>TanStack Query</td><td>ADR-0012</td></tr><tr><td>10</td><td><a href="./10-validation.html">数据校验</a></td><td>zod</td><td>ADR-0013</td></tr><tr><td>11</td><td><a href="./11-auth.html">鉴权与会话</a></td><td>Better Auth</td><td>ADR-0014</td></tr><tr><td>12</td><td><a href="./12-data-access.html">数据访问</a></td><td>Drizzle ORM + drizzle-kit + pg</td><td>ADR-0015</td></tr><tr><td>13</td><td><a href="./13-api-layer.html">接口层与契约</a></td><td>Hono + @hono/zod-openapi</td><td>ADR-0016</td></tr><tr><td>14</td><td><a href="./14-smtp.html">SMTP 发信</a></td><td>Nodemailer</td><td>ADR-0017</td></tr><tr><td>15</td><td><a href="./15-testing.html">测试</a></td><td>Vitest</td><td>ADR-0018</td></tr><tr><td>16</td><td><a href="./16-pwa.html">PWA 与 Service Worker</a></td><td>不引入库：原生 manifest + 手写 Service Worker</td><td>ADR-0019</td></tr><tr><td>17</td><td><a href="./17-jobs.html">定时任务</a></td><td>不引入库：周期键懒计算 + 系统 cron</td><td>ADR-0020</td></tr></table>
+<h2>需要新增的依赖</h2>
+<p>前端（进客户端包）：<code>@base-ui/react</code>、<code>react-day-picker</code>、<code>date-fns</code>、<code>@date-fns/tz</code>、<code>d3-shape</code>、<code>@tanstack/react-query</code>、<code>zod</code>。</p>
+<p>服务端：<code>better-auth</code>、<code>drizzle-orm</code>、<code>pg</code>、<code>hono</code>、<code>@hono/zod-openapi</code>、<code>nodemailer</code>，以及已由负责人指定的 <code>ai</code>、<code>@ai-sdk/deepseek</code>、<code>@ai-sdk/react</code>。</p>
+<p>开发：<code>drizzle-kit</code>、<code>vitest</code>、<code>vite</code>、<code>@types/pg</code>（Nodemailer 10 自带类型，不装 <code>@types/nodemailer</code>）。</p>
+<p>明确不引入：动效库、表单库、图表库、图片压缩库、Service Worker 工具库、任务队列、tailwind-merge。</p>
+<h2>已由负责人指定的所有者</h2>
+<ul><li>AI：Vercel AI SDK（<code>ai</code> 7.0.159、<code>@ai-sdk/deepseek</code> 3.0.77、<code>@ai-sdk/react</code> 4.0.163），模型只用 <code>deepseek-flash</code>。AI SDK 文档说明：直接写字符串模型 id 时默认走 Vercel AI Gateway，所以必须用 <code>deepSeek('deepseek-flash')</code> 这种 provider 实例，不能写字符串。</li>
+<li>图标、吉祥物：自研（ui-design-system.md 第 6、9 节）。</li></ul>
+<h2>方法</h2><ul class="src"><li><strong>registry</strong>：registry.npmjs.org 完整 packument：latest 版本、发布时间、12 个月内发布次数、维护者数、许可证、直接依赖、peer 依赖、安装脚本</li><li><strong>downloads</strong>：api.npmjs.org/downloads/point/last-week（部分包被限流，值为 null 表示未取到）</li><li><strong>github</strong>：gh api repos/&lt;owner&gt;/&lt;repo&gt;：stars、最近 push、是否归档</li><li><strong>transitive</strong>：在临时目录用 pnpm 11.7 安装候选后，沿 dependencies / optionalDependencies 遍历 node_modules，统计传递依赖数、copyleft 许可证、preinstall / install / postinstall 脚本（不含 peer 依赖）</li><li><strong>size</strong>：在临时目录用 esbuild 按本项目实际会用到的导出组合打包，minify，react / react-dom 外置，gzip -9；数值单位 KB。不同用例之间共享代码，单项相加会高估</li><li><strong>bundlephobia</strong>：bundlephobia.com/api/size：整包 min+gzip（不做 tree-shaking），只在没有实测用例时参考</li></ul></main></body></html>

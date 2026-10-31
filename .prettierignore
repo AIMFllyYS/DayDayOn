@@ -4,3 +4,5 @@ out/
 node_modules/
 public/
 *.md
+# 由 scripts/dev/library-showcase/build.mjs 生成
+docs/designs/library-showcase/

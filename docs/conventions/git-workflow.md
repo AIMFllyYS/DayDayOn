@@ -18,6 +18,7 @@
 
 - 工作分支 → `dev`：**squash merge**，一个 PR 在 `dev` 上留一个提交。
 - `dev` → `main`：**merge commit**，保留发布边界。**必须得到项目负责人对这一次合并的明确同意**，AI 代理不得自行合并或推送 `main`。
+- AI 代理 push、开 PR、合并任何 PR（包括合进 `dev`）前，都要得到负责人对这一次操作的同意。规范、ADR、lessons 类改动先作为未提交 diff 在会话末尾批量确认，再提交。
 - 合并后自动删除工作分支。
 - `main`、`dev` 均开启分支保护：禁止 force push 和删除，必须通过 PR 合并，CI 必须通过。
 
@@ -58,6 +59,7 @@ docs(deploy): 补充回滚步骤
 
 ## Issue 与 PR
 
+- 创建 issue、拆 issue、开 PR 前，**先查 [skills-registry.md](../skills-registry.md) 并调用对应 skill**；issue / PR 正文注明引用了哪些 skill。
 - 创建 issue、拆分子 issue：使用 issue-creator skill。
 - 按 issue 做 PR：使用 issue-to-pr skill，**PR 目标分支是 `dev`**，正文末尾写 `Closes #<issue号>`。
 - PR 描述写清楚：改了什么、为什么、怎么验证的（含 ego-browser 截图或步骤）。
