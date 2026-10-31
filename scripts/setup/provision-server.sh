@@ -57,12 +57,12 @@ NEXT_PUBLIC_APP_URL=https://$DOMAIN
 DATABASE_URL=postgres://daydayon:$dbpass@127.0.0.1:23432/daydayon
 BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 BETTER_AUTH_URL=https://$DOMAIN
+BETTER_AUTH_TELEMETRY=0
 SMTP_HOST=smtpdm.aliyun.com
 SMTP_PORT=465
 SMTP_USER=
 SMTP_PASS=
 DEEPSEEK_API_KEY=
-DEEPSEEK_MODEL=deepseek-flash
 EOF
   )
   chown daydayon:daydayon "$ROOT/.env"
