@@ -21,6 +21,8 @@ pnpm dev       # http://localhost:23329
 
 环境变量：复制 `.env.example` 为 `.env.local` 后填写。`.env.local` 不会被提交。
 
+本地数据库（Docker 运行 `postgres:18.6-alpine3.24`，绑定 `127.0.0.1:23432`）、`pnpm db:*` 和 `pnpm test` 命令在 M3 接入，启动步骤届时补到本节；规则先见 [database.md](../conventions/database.md)、[testing.md](../conventions/testing.md)。
+
 ## 常用检查
 
 ```powershell

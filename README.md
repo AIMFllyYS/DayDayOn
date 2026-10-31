@@ -16,7 +16,12 @@
 
 ## 技术栈
 
-Next.js 16 · React 19 · TypeScript 6 · Tailwind CSS 4 · PostgreSQL 18 · Drizzle ORM · Better Auth · AI SDK 7 + DeepSeek
+- 前端：Next.js 16 · React 19 · TypeScript 6 · Tailwind CSS 4 · Base UI · TanStack Query · zod
+- 服务端：PostgreSQL 18 · Drizzle ORM · Better Auth · Hono（`/api/v1`，OpenAPI）· Nodemailer（阿里云邮件推送）
+- AI：Vercel AI SDK 7 + DeepSeek（只用 `deepseek-flash`）
+- 部署：阿里云 ECS + PM2 + Nginx，GitHub Actions 构建制品
+
+每个库为什么选、怎么用，见 [docs/libraries.md](./docs/libraries.md) 和 [docs/conventions/](./docs/conventions/README.md)。除 Next.js、React、Tailwind 外，其余库按 [路线图](./docs/plans/roadmap.md) 在后续里程碑安装。
 
 ## 本地开发
 

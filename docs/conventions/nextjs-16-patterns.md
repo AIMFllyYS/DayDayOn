@@ -55,6 +55,7 @@ export default async function Page({ params }: PageProps<'/goals/[id]'>) {
 
 - `error.tsx` 必须是 Client Component（`'use client'`）
 - `route.ts` 与 `page.tsx` 不能放在同一目录
+- 业务接口不直接写 Route Handler：`/api/v1/[[...route]]/route.ts` 只把请求转给 Hono（[api-conventions.md](./api-conventions.md)）；`/api/auth/[...all]` 挂 Better Auth（[auth.md](./auth.md)）
 - 用 `metadata` / `generateMetadata()` 管理页面元信息；`viewport` 单独导出
 - `next lint` 已移除，用 `eslint .`
 - `next dev` 会自动在 `AGENTS.md` 顶部写入 Next 的提示块，保留它即可
