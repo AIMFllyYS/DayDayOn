@@ -23,10 +23,11 @@ M1、M2 只在 `/dev/playbook` 里做，用假数据，不接后端，可以和 
 - [x] ADR-0004 至 0020 改为 Accepted；libraries.md 定稿（所有者总表、"不需要单独安装的包"、互斥禁令全部生效）
 - [x] 编写 9 份落地规范：api-conventions、database、auth、ai-and-quota、time-and-dates、client-data-and-forms、ui-primitives、testing、pwa
 - [x] 为 11 个选定的库建 lessons 文件，预置调研时核实的坑
-- [ ] 负责人确认批量结算清单后，切工作分支，按主题分 PR 提交到 `dev`（规范与 ADR、自进化文档、组件库对比页）
-- [ ] 工作区里其他会话的设计系统改动（Playbook、原子组件、Agent 组件、团团、批注工具）单独整理成 `feat/design-system` PR
-- [ ] skills 注册表绑定方案确认（Phase 4.1）
-- [ ] 交接说明（Phase 4.7）
+- [x] 按主题分 PR 提交到 `dev`：#4（ADR、选型、规范、lessons）、#6（入口文档与配置同步）
+- [x] 其他会话的设计系统改动（Playbook、原子组件、Agent 组件、团团、批注工具）单独作为 #5 合并
+- [x] skills 注册表按默认绑定定稿（Phase 4.1）
+- [x] 交接说明（Phase 4.7，见 plan-demo-init-alignment.md 第 8 节）
+- [ ] 服务器 `.env` 与仓库模板对齐（加 `BETTER_AUTH_TELEMETRY=0`、去掉 `DEEPSEEK_MODEL`）
 
 **完成标准**：`dev` 上 `pnpm check`、`pnpm build` 通过；ADR-0004 至 0020 都有结论。
 
@@ -77,7 +78,6 @@ M1、M2 只在 `/dev/playbook` 里做，用假数据，不接后端，可以和 
 - TanStack Query 客户端、query key 工厂、错误码文案表
 - Vitest：`src/lib/time/`、计价与额度、邮箱规范化的单元测试；`pnpm test` 加入 CI 和 Definition of Done
 - 部署闸门增加"切换版本前执行迁移、迁移前备份"（服务器操作，先问）
-- 服务器 `.env` 增加 `BETTER_AUTH_TELEMETRY=0`、删除不再使用的 `DEEPSEEK_MODEL`（服务器操作，先问）
 - ESLint（修改前确认）：按各规范第"工具强制"节落地——`drizzle-orm` / `pg` 只在 `src/server/`；`hono` 只在接口层；`ai` / `@ai-sdk/deepseek` 只在 `src/server/ai/`；禁止 `uploadFile`；`src/server/ai/` 禁止 `node:fs`
 - 实战中修订规范：上面 9 份规范的条目被证实或推翻后，同步更新规范和对应的 lessons 文件
 

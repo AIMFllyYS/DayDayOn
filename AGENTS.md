@@ -20,7 +20,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Framework**: Next.js 16.4（App Router only；`cacheComponents` 开启；`output: 'standalone'`）
 - **React** 19.3 · **TypeScript** 6.0.3（锁定：typescript-eslint 还不支持 7）· **pnpm** 11.7 · **Node** 24
 - **UI**: Tailwind CSS 4 + `globals.css` token；原子组件与图标自研；交互原语 Base UI 1.9；数据请求 TanStack Query 5；校验 zod 4
-- **Server**: PostgreSQL 18（Docker）+ Drizzle 0.45 · Better Auth 1.7 · Hono 4 + zod-openapi（`/api/v1`）· Nodemailer · Vitest。全部以 [docs/libraries.md](docs/libraries.md) 为准
+- **Server**: PostgreSQL 18（Docker）+ Drizzle 0.45 · Better Auth 1.7 · Hono 4 + zod-openapi（`/api/v1`）· Nodemailer · Vitest。以 [docs/libraries.md](docs/libraries.md) 为准：除 Next / React / Tailwind 外都还没安装（按 roadmap 在 M1–M3 安装），import 前先查 `package.json`
 - **AI**: AI SDK 7 + `@ai-sdk/deepseek`，**只用 `deepseek-flash`**
 - **Deploy**: 阿里云 ECS（武汉）。GitHub Actions 构建制品 → SSH 部署闸门 → PM2。**不使用腾讯云的任何服务**
 
@@ -79,7 +79,7 @@ public/          静态资源（制品要传到武汉服务器，保持小体积
 - 默认 Server Component，`'use client'` 只放在叶子组件
 
 **架构**（详见 [api-conventions.md](docs/conventions/api-conventions.md)、[database.md](docs/conventions/database.md)）
-- **业务写操作只走 `/api/v1` Route Handlers**，不用 Server Actions 写业务（APK 壳和未来 Kotlin 客户端要复用同一套接口）
+- **业务写操作只走 `/api/v1`**（Hono，挂在 Route Handler 上），不用 Server Actions 写业务（APK 壳和未来 Kotlin 客户端要复用同一套接口）
 - 业务逻辑放 `src/server/services/`，不 import `next/*`
 - 错误响应体统一为 `{ "code": "...", "detail": "..." }`，前端只认 `code`
 - 时间存 `timestamptz`（UTC）；"打卡日"另存用户本地日期；时区计算只经 `src/lib/time/`，不依赖系统时区

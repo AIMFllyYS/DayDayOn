@@ -11,7 +11,7 @@
 | Phase 1 需求对齐 | ✅ 负责人 2026-10-31 确认 | [ADR-0003 项目范围](../adr/0003-project-scope.md)（Accepted） |
 | Phase 2 通用规范 | ✅ 负责人 2026-10-31 全部采用，无偏离项 | 第 3 节 |
 | Phase 3 组件库对齐 | ✅ 负责人 2026-10-31 全部采纳：ADR-0004 至 0020 改为 Accepted，[libraries.md](../libraries.md) 定稿，并编写 9 份落地规范 | 第 4 节 |
-| Phase 4 落盘交接 | 🔶 自进化四件套、lessons 文件、落地规范已建；**待确认**：批量结算提交、skills 绑定；封装层骨架随依赖安装（M1、M3）；交接说明最后写 | 第 5 节；后续里程碑见 [roadmap.md](./roadmap.md) |
+| Phase 4 落盘交接 | ✅ 2026-10-31 全部提交进 `dev`（#4 文档、#5 设计系统代码、#6 入口文档与配置同步）；skills 绑定按默认方案定稿；封装层骨架随依赖安装（M1、M3） | 第 5、8 节；后续里程碑见 [roadmap.md](./roadmap.md) |
 
 当前阶段的定位（负责人 2026-10-31）：还没有正式开发，目前只有 `/dev/playbook`。正式搭建业务之前，先把基础组件库和各打卡板块的专用组件做扎实。所以 Phase 3 先做前端关注点，后端关注点放在搭建业务之前。
 
@@ -150,10 +150,10 @@
 | `docs/designs/library-showcase/` | ✅ 总览 + 17 个对比页 + data.json；生成脚本 `scripts/dev/library-showcase/build.mjs` |
 | `docs/adr/` 0004–0021 | ✅ 全部 Accepted |
 | 落地规范（4.2 未内置的栈） | ✅ 9 份：api-conventions、database、auth、ai-and-quota、time-and-dates、client-data-and-forms、ui-primitives、testing、pwa |
-| `docs/skills-registry.md` | 🔶 采用默认绑定 + 本项目在用的 skill，**绑定方案待负责人确认** |
+| `docs/skills-registry.md` | ✅ 默认绑定 + 本项目在用的 skill，2026-10-31 定稿 |
 | lessons 文件（每个选定的库一个） | ✅ 11 个，预置已核实的坑；d3-shape 用到时再建 |
 | 封装层骨架 | ⬜ 随依赖安装一起做（M1 前端、M3 服务端，见 roadmap.md），不先建空目录 |
-| 交接说明 | ⬜ 批量结算提交后写 |
+| 交接说明 | ✅ 第 8 节 |
 
 ## 6. 与 skill 默认值的偏差
 
@@ -165,9 +165,17 @@
 | 部署平台没有内置规则包 | 阿里云 ECS 部署已实测通过，文档写在 deploy-aliyun-ecs.md，不标"未经实战验证" |
 | PR #1–#3 由 AI 直接合并 | 违反了"Push / 创建 PR 先确认"。之后按 AGENTS.md 执行，不再发生 |
 
-## 7. 本次会话的未提交改动（批量结算清单）
+## 7. 批量结算清单（已结算）
 
-按新版规则，以下改动目前都是未提交 diff，等整个流程走完（或负责人要求）时一次性确认后再提交：
+2026-10-31 负责人要求"全部更新后正式提交，保证本地和云端都是最新"，以下改动已按主题合并进 `dev`：
+
+| PR | 内容 |
+|---|---|
+| #4 `docs(docs)` | ADR 0001–0021、libraries.md、对比页与生成脚本、lessons、全部规范、AGENTS.md、roadmap 与本文件 |
+| #5 `feat(ui)` | 设计 token、字体、原子组件、应用外壳、团团、Agent 组件、Playbook 与批注工具（另一个会话的工作） |
+| #6 `docs(docs)` | 入口文档补齐（AGENTS.md 安装状态说明、根 README 技术栈、部署与本地文档、skills 注册表定稿、本节与第 8 节）、`.env.example` 与服务器初始化模板去掉 `DEEPSEEK_MODEL`、加 `BETTER_AUTH_TELEMETRY=0` |
+
+以下是结算前记录的清单原文：
 
 - 新建：`docs/adr/README.md`、`docs/adr/0003-project-scope.md`、`docs/libraries.md`、`docs/skills-registry.md`、`docs/lessons/`（5 个文件）、本文件
 - 新建（Phase 3）：`docs/adr/0004`–`0021`（18 份）、`docs/designs/library-showcase/`（19 个文件）、`scripts/dev/library-showcase/`（3 个文件）、`docs/plans/roadmap.md`；`.prettierignore` 加一行排除生成的对比页
@@ -177,3 +185,20 @@
 - 迁移：`docs/designs/adr-000{1,2}-*.md` → `docs/adr/000{1,2}-*.md`（只补元数据、修链接、追加"何时重审"）
 - 修改：AGENTS.md、`docs/README.md`、`docs/designs/README.md`、`docs/conventions/README.md`、`project-structure.md`、`code-review.md`、`git-workflow.md`、`architecture-baseline.md`（改为快照）、`ui-design-system.md`（第 13 节加一行指向 libraries.md）
 - 工作区里另有其他会话未提交的设计系统改动（Playbook、原子组件、Agent 组件、团团、批注工具等）。本次只在 AGENTS.md、project-structure.md、code-review.md、ui-design-system.md 上做了增补，没有回退或改写它们的内容。
+
+## 8. 交接（Phase 4.7）
+
+**现状**：`dev` 上有完整的规范体系和第一版设计系统，还没有业务代码，也没有安装 Phase 3 选定的任何库。`main` 仍是初始化骨架，等第一次发布。
+
+**文档入口**：
+
+- AGENTS.md 是索引：高频命令、硬规则、"触发条件 → 必读文档"表。先通读它，细则按触发条件去读。
+- 选型看 [libraries.md](../libraries.md)，为什么这么选看 [docs/adr/](../adr/README.md)，怎么用看 [docs/conventions/](../conventions/README.md)，有什么坑看 [docs/lessons/](../lessons/README.md)。
+
+**下一步**：按 [roadmap.md](./roadmap.md) 从 M1 开始。M1 第一件事是安装 `@base-ui/react`、`date-fns`、`@date-fns/tz`（装之前问负责人），然后在 Playbook 里把 `Sheet` 改成 Base UI Drawer。
+
+**自进化机制**（三句话）：
+
+1. AI 因为对某个库的错误认知出错、被纠正后，会申请往 `docs/lessons/<库>.md` 追加一条，下次写代码前先读。
+2. lessons、规范、ADR、libraries.md 的修改先留作未提交的改动，会话结束时一次性交给负责人确认，确认后才提交。
+3. 条目会定期合并压缩；能写成 lint 规则、脚本或封装层的就"毕业"成硬约束，从文档里删掉。

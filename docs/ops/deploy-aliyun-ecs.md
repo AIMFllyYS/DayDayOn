@@ -114,5 +114,6 @@ sudo -u daydayon env PM2_HOME=/www/wwwroot/daydayon/home/.pm2 PATH=/www/server/n
      --reloadcmd "nginx -s reload"
    ```
 
-3. **运行时密钥**：在 `/www/wwwroot/daydayon/.env` 填写 `SMTP_USER`、`SMTP_PASS`、`DEEPSEEK_API_KEY`。
-4. 以上完成后，把 `MAINECS_DEPLOY_ENABLED` 改为 `true`，发起第一次 `dev → main` 发布。
+3. **运行时密钥**：在 `/www/wwwroot/daydayon/.env` 填写 `SMTP_USER`、`SMTP_PASS`、`DEEPSEEK_API_KEY`。`.env` 的完整变量清单以仓库的 `.env.example` 为准（2026-10-31 起包含 `BETTER_AUTH_TELEMETRY=0`，不再有 `DEEPSEEK_MODEL`）。
+4. **数据库迁移**（M3）：接入 Drizzle 后，部署闸门要在切换版本前执行迁移、迁移前先备份，失败则不切换（[database.md](../conventions/database.md) 第 7 节）。闸门脚本改动属于服务器操作，先征得负责人同意。
+5. 以上完成后，把 `MAINECS_DEPLOY_ENABLED` 改为 `true`，发起第一次 `dev → main` 发布。
