@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>提示消息 · DayDayOn 组件库对齐</title><style>
+:root{--paper:#f5f1ea;--card:#fbf9f5;--ink:#2b2925;--muted:#6f685e;--rule:#e2dacd;--accent:#d97757}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.75 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",system-ui,sans-serif}
+main{max-width:880px;margin:0 auto;padding:56px 24px 96px}
+h1,h2,h3{font-family:"Iowan Old Style","Source Han Serif SC","Noto Serif SC","Songti SC",Georgia,serif;font-weight:600;line-height:1.3;letter-spacing:.01em}
+h1{font-size:34px;margin:0 0 8px}h2{font-size:22px;margin:56px 0 12px}h3{font-size:19px;margin:0}
+p{margin:8px 0}a{color:inherit;text-decoration-color:var(--rule);text-underline-offset:3px}a:hover{text-decoration-color:var(--ink)}
+.eyebrow{color:var(--muted);font-size:13px;letter-spacing:.08em}
+.lede{color:var(--muted);font-size:17px}
+ul{padding-left:1.2em;margin:8px 0}li{margin:2px 0}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:24px;margin:16px 0}
+.card header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.tag{font-size:12px;border:1px solid var(--rule);border-radius:4px;padding:1px 8px;color:var(--muted)}
+.tag.pick{border-color:var(--accent);color:var(--accent)}
+.pkg{font:13px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:7px 10px 7px 0;border-top:1px solid var(--rule)}
+th{width:84px;color:var(--muted);font-weight:500;white-space:nowrap}
+.flag{color:var(--muted);font-size:12px;margin-left:6px;border-bottom:1px dotted var(--muted)}
+pre{background:#f0ebe2;border-radius:6px;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+code{font:0.9em ui-monospace,SFMono-Regular,Consolas,monospace;background:#efe9df;border-radius:3px;padding:0 4px}
+.fit{border-left:2px solid var(--rule);padding-left:12px;margin-top:12px}
+.warn li{color:var(--muted)}
+.bars{margin:16px 0 8px}
+.bar{display:grid;grid-template-columns:220px 1fr 72px;gap:12px;align-items:center;font-size:14px;margin:6px 0}
+.bar .track{display:block;height:8px;background:#ebe4d8;border-radius:4px;overflow:hidden}
+.bar .fill{display:block;height:100%;background:#b9ad9c}
+.bar.pick .fill{background:var(--accent)}
+.bar .v{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.decision{border-top:1px solid var(--ink);padding-top:8px}
+.history li{list-style:none;margin-left:-1.2em;padding:4px 0;border-top:1px solid var(--rule)}
+.history time{color:var(--muted);font-size:13px;margin-right:10px}
+.src{font-size:13px;color:var(--muted)}
+.overview td:first-child{white-space:nowrap;color:var(--muted)}
+@media (max-width:640px){main{padding:32px 16px 72px}h1{font-size:28px}.bar{grid-template-columns:1fr 64px}.bar .track{grid-column:1/-1;order:3}}
+</style></head>
+<body><main><p class="eyebrow">关注点 3 · A 基础组件库 · ADR-0006</p>
+<h1>提示消息</h1>
+<p class="lede">跟随交互原语的所有者，避免出现第二套弹层、焦点和动画体系。</p>
+<h2>我们需要什么</h2><ul><li>打卡成功、保存失败</li><li>删除待办后&quot;撤销&quot;</li><li>AI 识别&quot;处理中 → 完成 / 失败&quot;</li><li>在非 React 代码里也能调用（例如请求封装里统一提示错误）</li></ul>
+
+<h2>候选</h2><div class="bars" aria-label="客户端体积对比（min+gzip）"><div class="bar pick"><span>Base UI Toast</span><span class="track"><span class="fill" style="width:100.0%"></span></span><span class="v">25.7 KB</span></div><div class="bar"><span>Sonner</span><span class="track"><span class="fill" style="width:37.0%"></span></span><span class="v">9.5 KB</span></div></div><p class="src">体积按本项目会用到的导出组合实测（esbuild minify，react 外置，gzip -9）；用例之间共享代码，相加会高估。方法见 data.json 的 method 字段。</p>
+<section class="card"><header><h3>Base UI Toast</h3><span class="tag pick">推荐</span><span class="pkg">@base-ui/react</span></header>
+<p class="src">npm 描述："Base UI is a library of headless ('unstyled') React components and low-level hooks. You gain complete control over your app's CSS and accessibility features."</p>
+
+<ul><li>全局 toastManager：在 React 树之外也能 add / close / update / promise</li><li>promise 三态（loading / success / error）、actionProps 撤销按钮、按 id 更新</li><li>滑动关闭、数量上限、F6 跳到提示区域</li></ul>
+<table><tr><th>最近发布</th><td>1.9.0（2026-10-09；12 个月内 13 次）</td></tr><tr><th>维护</th><td>npm 维护者账号 8 个；GitHub ★11,270，最近提交 2026-10-31</td></tr><tr><th>体积</th><td>实测 25.7 KB（min+gzip）；直接依赖 5 个，传递依赖 8 个</td></tr><tr><th>安装脚本</th><td>包本身与传递依赖都没有 preinstall / install / postinstall</td></tr><tr><th>许可证</th><td>MIT；依赖树无 copyleft</td></tr><tr><th>兼容性</th><td>peer：react ^17 || ^18 || ^19；react-dom ^17 || ^18 || ^19</td></tr><tr><th>类型</th><td>包内自带类型声明</td></tr><tr><th>补充</th><td>单独打包的体积；和 Drawer、Dialog 一起打包时大部分代码共享</td></tr></table>
+
+
+<p class="fit"><strong>适合我们吗：</strong>覆盖全部需求，和关注点 1 是同一个依赖，不新增包。</p></section>
+<section class="card"><header><h3>Sonner</h3><span class="tag alt">备选</span><span class="pkg">sonner</span></header>
+<p class="src">npm 描述："An opinionated toast component for React."</p>
+
+<ul><li>开箱即用的堆叠动画、promise、撤销</li></ul>
+<table><tr><th>最近发布</th><td>2.0.8（2026-08-09；12 个月内 1 次）</td></tr><tr><th>维护</th><td>npm 维护者账号 1 个；GitHub ★13,116，最近提交 2026-08-10<span class="flag">单个 npm 账号发布（bus factor）</span></td></tr><tr><th>体积</th><td>实测 9.5 KB（min+gzip）；直接依赖 0 个，传递依赖 0 个</td></tr><tr><th>安装脚本</th><td>包本身与传递依赖都没有 preinstall / install / postinstall</td></tr><tr><th>许可证</th><td>MIT；依赖树无 copyleft</td></tr><tr><th>兼容性</th><td>peer：react ^18.0.0 || ^19.0.0 || ^19.0.0-rc；react-dom ^18.0.0 || ^19.0.0 || ^19.0.0-rc</td></tr><tr><th>类型</th><td>包内自带类型声明</td></tr></table>
+<ul class="warn"><li>单人维护；12 个月内 1 次发布</li></ul>
+
+<p class="fit"><strong>适合我们吗：</strong>更小、默认效果好，但会多一个依赖和一套独立的样式与动画写法。</p></section>
+<section class="card"><header><h3>react-hot-toast</h3><span class="tag no">不采用</span><span class="pkg">react-hot-toast</span></header>
+<p class="src">npm 描述："Smoking hot React Notifications. Lightweight, customizable and beautiful by default."</p>
+
+<ul><li>轻量提示</li></ul>
+<table><tr><th>最近发布</th><td>2.6.1（2026-09-16；12 个月内 1 次）</td></tr><tr><th>维护</th><td>npm 维护者账号 1 个；GitHub 未核实<span class="flag">单个 npm 账号发布（bus factor）</span></td></tr><tr><th>体积</th><td>未实测；直接依赖 2 个，传递依赖 未扫描 个</td></tr><tr><th>安装脚本</th><td>未扫描</td></tr><tr><th>许可证</th><td>MIT；依赖树未扫描</td></tr><tr><th>兼容性</th><td>peer：react &gt;=16；react-dom &gt;=16</td></tr><tr><th>类型</th><td>包内自带类型声明</td></tr></table>
+<ul class="warn"><li>单人维护</li></ul>
+
+<p class="fit"><strong>适合我们吗：</strong>同样是额外依赖，能力不如前两者。</p></section>
+
+<h2>决定</h2><div class="decision">
+<p><strong>所有者：</strong>Base UI Toast，版本 跟随 @base-ui/react 1.9.0</p>
+<p><strong>封装层入口：</strong>src/components/ui/toast.tsx（导出 Toaster 和全局 toast 管理器）</p>
+<ul><li>全站只有一个 Toast.Provider，放在根布局</li><li>错误提示的文案从统一的错误码映射表取（见接口层规范）</li></ul>
+<p><strong>放弃了什么：</strong></p><ul><li>Sonner：多一个依赖和一套样式体系</li><li>react-hot-toast：同上，能力更弱</li></ul>
+<p><strong>已知代价：</strong>堆叠动画要自己用 CSS 变量写。</p>
+<p><strong>何时重审：</strong></p><ul><li>Base UI Toast 出现无法绕过的问题时</li></ul></div>
+<h2>决策历史</h2><ul class="history">
+<li><time>2026-10-31</time>负责人确认功能盘点（头像用预设方案），委托 AI 系统性分析各关注点的选型。</li>
+<li><time>2026-10-31</time>AI 完成联网调研与本地实测，给出建议（ADR-0006 为 Proposed）。</li>
+<li><time>2026-10-31</time>负责人拍板：17 项建议全部采纳，按 AI 的最终分析执行。<strong>状态：已定</strong>（ADR-0006 为 Accepted）。落地规则见 <a href="../../conventions/README.md">docs/conventions/</a>。</li>
+</ul>
+<h2>来源</h2><ul class="src"><li><a href="https://base-ui.com/react/components/toast">Base UI Toast</a>（抓取于 2026-10-31）</li>
+<li>npm registry、GitHub、体积与依赖树扫描：<a href="./data.json">data.json</a>（采集于 2026-10-31）</li></ul>
+<p class="src"><a href="./index.html">← 返回总览</a></p></main></body></html>

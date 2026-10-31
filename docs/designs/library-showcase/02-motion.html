@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>动效 · DayDayOn 组件库对齐</title><style>
+:root{--paper:#f5f1ea;--card:#fbf9f5;--ink:#2b2925;--muted:#6f685e;--rule:#e2dacd;--accent:#d97757}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.75 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",system-ui,sans-serif}
+main{max-width:880px;margin:0 auto;padding:56px 24px 96px}
+h1,h2,h3{font-family:"Iowan Old Style","Source Han Serif SC","Noto Serif SC","Songti SC",Georgia,serif;font-weight:600;line-height:1.3;letter-spacing:.01em}
+h1{font-size:34px;margin:0 0 8px}h2{font-size:22px;margin:56px 0 12px}h3{font-size:19px;margin:0}
+p{margin:8px 0}a{color:inherit;text-decoration-color:var(--rule);text-underline-offset:3px}a:hover{text-decoration-color:var(--ink)}
+.eyebrow{color:var(--muted);font-size:13px;letter-spacing:.08em}
+.lede{color:var(--muted);font-size:17px}
+ul{padding-left:1.2em;margin:8px 0}li{margin:2px 0}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:24px;margin:16px 0}
+.card header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.tag{font-size:12px;border:1px solid var(--rule);border-radius:4px;padding:1px 8px;color:var(--muted)}
+.tag.pick{border-color:var(--accent);color:var(--accent)}
+.pkg{font:13px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:7px 10px 7px 0;border-top:1px solid var(--rule)}
+th{width:84px;color:var(--muted);font-weight:500;white-space:nowrap}
+.flag{color:var(--muted);font-size:12px;margin-left:6px;border-bottom:1px dotted var(--muted)}
+pre{background:#f0ebe2;border-radius:6px;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+code{font:0.9em ui-monospace,SFMono-Regular,Consolas,monospace;background:#efe9df;border-radius:3px;padding:0 4px}
+.fit{border-left:2px solid var(--rule);padding-left:12px;margin-top:12px}
+.warn li{color:var(--muted)}
+.bars{margin:16px 0 8px}
+.bar{display:grid;grid-template-columns:220px 1fr 72px;gap:12px;align-items:center;font-size:14px;margin:6px 0}
+.bar .track{display:block;height:8px;background:#ebe4d8;border-radius:4px;overflow:hidden}
+.bar .fill{display:block;height:100%;background:#b9ad9c}
+.bar.pick .fill{background:var(--accent)}
+.bar .v{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.decision{border-top:1px solid var(--ink);padding-top:8px}
+.history li{list-style:none;margin-left:-1.2em;padding:4px 0;border-top:1px solid var(--rule)}
+.history time{color:var(--muted);font-size:13px;margin-right:10px}
+.src{font-size:13px;color:var(--muted)}
+.overview td:first-child{white-space:nowrap;color:var(--muted)}
+@media (max-width:640px){main{padding:32px 16px 72px}h1{font-size:28px}.bar{grid-template-columns:1fr 64px}.bar .track{grid-column:1/-1;order:3}}
+</style></head>
+<body><main><p class="eyebrow">关注点 2 · A 基础组件库 · ADR-0005</p>
+<h1>动效</h1>
+<p class="lede">本项目是组件微交互和庆祝动画，不是滚动叙事长卷。先看 CSS 和浏览器原生能力够不够，不够再上 JS 动画库。</p>
+<h2>我们需要什么</h2><ul><li>按钮按压回弹、开关和勾选</li><li>弹层进出场</li><li>列表增删（待办勾选后移走）</li><li>打卡成功盖章、团团欢呼</li><li>团团的 13 种动作</li><li>页面切换</li></ul>
+
+<h2>候选</h2><div class="bars" aria-label="客户端体积对比（min+gzip）"><div class="bar pick"><span>CSS 预设 + React &lt;ViewTransition&gt;</span><span class="track"><span class="fill" style="width:1.0%"></span></span><span class="v">0 KB</span></div><div class="bar"><span>Motion</span><span class="track"><span class="fill" style="width:100.0%"></span></span><span class="v">44.1 KB</span></div></div><p class="src">体积按本项目会用到的导出组合实测（esbuild minify，react 外置，gzip -9）；用例之间共享代码，相加会高估。方法见 data.json 的 method 字段。</p>
+<section class="card"><header><h3>CSS 预设 + React &lt;ViewTransition&gt;</h3><span class="tag pick">推荐</span></header>
+
+<p class="src">0 KB</p>
+<ul><li>globals.css 里已有 fade-up、pop-in、sheet-up、stamp、wiggle 等预设和&quot;减少动态效果&quot;适配；团团的动作也是 CSS 动画类（interactive-pet.tsx）</li><li>Base UI 弹层和 Toast 提供 data-starting-style / data-ending-style，进退场用 CSS 写</li><li>React 19.3 内置 &lt;ViewTransition&gt; 和 addTransitionType；Next 16.4 App Router 无需配置即可使用（node_modules/next/dist/docs 的 View transitions 指南）</li><li>浏览器不支持时页面照常工作，只是没有过渡动画</li></ul>
+
+<ul class="warn"><li>Next 文档提示部分动画在 Safari 上表现可能不同</li><li>没有弹簧物理和拖拽手势（手势由 Base UI 的 Drawer、Toast 提供）</li></ul>
+
+<p class="fit"><strong>适合我们吗：</strong>覆盖全部需求，不增加任何依赖。</p></section>
+<section class="card"><header><h3>Motion</h3><span class="tag alt">备选</span><span class="pkg">motion</span></header>
+<p class="src">npm 描述："An animation library for JavaScript and React."</p>
+
+<ul><li>弹簧、手势、布局动画、退场动画</li></ul>
+<table><tr><th>最近发布</th><td>14.9.0（2026-10-30；12 个月内 102 次）</td></tr><tr><th>维护</th><td>npm 维护者账号 2 个；GitHub ★34,704，最近提交 2026-10-31</td></tr><tr><th>体积</th><td>实测 44.1 KB（min+gzip）；直接依赖 2 个，传递依赖 4 个</td></tr><tr><th>安装脚本</th><td>包本身与传递依赖都没有 preinstall / install / postinstall</td></tr><tr><th>许可证</th><td>MIT；依赖树无 copyleft</td></tr><tr><th>兼容性</th><td>peer：react ^18.0.0 || ^19.0.0；react-dom ^18.0.0 || ^19.0.0</td></tr><tr><th>类型</th><td>包内自带类型声明</td></tr><tr><th>补充</th><td>LazyMotion + m 29.9 KB；mini animate 3.2 KB</td></tr></table>
+
+
+<p class="fit"><strong>适合我们吗：</strong>能力最强，但本项目需要的手势已经由 Base UI 提供，列表和页面过渡由 ViewTransition 提供，剩下的用不到。</p></section>
+<section class="card"><header><h3>Rive</h3><span class="tag no">不采用</span><span class="pkg">@rive-app/react-canvas</span></header>
+<p class="src">npm 描述："React wrapper around the @rive-app/canvas library"</p>
+
+<ul><li>状态机驱动的矢量动画，需要 Rive 编辑器制作 .riv 文件</li></ul>
+<table><tr><th>最近发布</th><td>4.38.0（2026-10-27；12 个月内 41 次）</td></tr><tr><th>维护</th><td>npm 维护者账号 5 个；GitHub 未核实</td></tr><tr><th>体积</th><td>未实测；直接依赖 1 个，传递依赖 未扫描 个</td></tr><tr><th>安装脚本</th><td>未扫描</td></tr><tr><th>许可证</th><td>MIT；依赖树未扫描</td></tr><tr><th>兼容性</th><td>peer：react ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0</td></tr><tr><th>类型</th><td>包内自带类型声明</td></tr></table>
+
+
+<p class="fit"><strong>适合我们吗：</strong>团团目前是 SVG + CSS。等团团需要复杂的状态机动画、并且有人用 Rive 编辑器做素材时再评估。</p></section>
+<section class="card"><header><h3>Lottie</h3><span class="tag no">不采用</span><span class="pkg">lottie-react</span></header>
+<p class="src">npm 描述："Lottie animations in React: one component for the easy path, the whole engine when you need control."</p>
+
+<ul><li>播放 After Effects 导出的 JSON 动画</li></ul>
+<table><tr><th>最近发布</th><td>3.1.2（2026-09-07；12 个月内 7 次）</td></tr><tr><th>维护</th><td>npm 维护者账号 1 个；GitHub 未核实<span class="flag">单个 npm 账号发布（bus factor）</span></td></tr><tr><th>体积</th><td>未实测；直接依赖 1 个，传递依赖 未扫描 个</td></tr><tr><th>安装脚本</th><td>未扫描</td></tr><tr><th>许可证</th><td>MIT；依赖树未扫描</td></tr><tr><th>兼容性</th><td>peer：react ^18.2.0 || ^19.0.0；react-dom ^18.2.0 || ^19.0.0</td></tr><tr><th>类型</th><td>包内自带类型声明</td></tr></table>
+
+
+<p class="fit"><strong>适合我们吗：</strong>整包约 191 KB，本项目没有 AE 素材。</p></section>
+<section class="card"><header><h3>AutoAnimate</h3><span class="tag no">不采用</span><span class="pkg">@formkit/auto-animate</span></header>
+<p class="src">npm 描述："Add motion to your apps with a single line of code."</p>
+
+<ul><li>给列表增删自动加动画</li></ul>
+<table><tr><th>最近发布</th><td>0.10.0（2026-07-10；12 个月内 1 次）</td></tr><tr><th>维护</th><td>npm 维护者账号 4 个；GitHub 未核实</td></tr><tr><th>体积</th><td>未实测；直接依赖 0 个，传递依赖 未扫描 个</td></tr><tr><th>安装脚本</th><td>未扫描</td></tr><tr><th>许可证</th><td>MIT；依赖树未扫描</td></tr><tr><th>兼容性</th><td>无相关 peer 依赖</td></tr><tr><th>类型</th><td>包内自带类型声明</td></tr></table>
+
+
+<p class="fit"><strong>适合我们吗：</strong>和 ViewTransition 能力重叠，12 个月内只有 1 次发布。</p></section>
+
+<h2>决定</h2><div class="decision">
+<p><strong>所有者：</strong>不引入动效库：CSS 预设 + React &lt;ViewTransition&gt;</p>
+<p><strong>封装层入口：</strong>src/app/globals.css（预设）；列表和页面过渡的写法在 Playbook 动效页示范</p>
+<ul><li>只动 transform 和 opacity（进度条宽度、圆环描边除外）</li><li>弹层和 Toast 的进退场用 Base UI 的 data-starting-style / data-ending-style 写 CSS</li><li>列表增删和页面切换用 &lt;ViewTransition&gt;；不在组件里临时写 keyframes</li></ul>
+<p><strong>放弃了什么：</strong></p><ul><li>Motion：需要的手势和过渡已有 Base UI 与 ViewTransition 覆盖</li><li>Rive / Lottie：没有对应的动画素材和制作流程</li><li>AutoAnimate：与 ViewTransition 重叠</li></ul>
+<p><strong>已知代价：</strong>没有弹簧物理；Safari 上的部分过渡效果可能不同。</p>
+<p><strong>何时重审：</strong></p><ul><li>需要拖拽排序（自定义仪表盘，v0.2）或弹簧物理时</li><li>团团需要状态机动画时（评估 Rive）</li></ul></div>
+<h2>决策历史</h2><ul class="history">
+<li><time>2026-10-31</time>负责人确认功能盘点（头像用预设方案），委托 AI 系统性分析各关注点的选型。</li>
+<li><time>2026-10-31</time>AI 完成联网调研与本地实测，给出建议（ADR-0005 为 Proposed）。</li>
+<li><time>2026-10-31</time>负责人拍板：17 项建议全部采纳，按 AI 的最终分析执行。<strong>状态：已定</strong>（ADR-0005 为 Accepted）。落地规则见 <a href="../../conventions/README.md">docs/conventions/</a>。</li>
+</ul>
+<h2>来源</h2><ul class="src"><li><a href="https://nextjs.org/docs/app/guides/view-transitions">Next.js 16.4 View transitions 指南（本地 node_modules/next/dist/docs/01-app/02-guides/view-transitions.md）</a>（抓取于 2026-10-31）</li><li><a href="https://base-ui.com/react/components/toast">Base UI Toast（data-starting-style / data-ending-style）</a>（抓取于 2026-10-31）</li>
+<li>npm registry、GitHub、体积与依赖树扫描：<a href="./data.json">data.json</a>（采集于 2026-10-31）</li></ul>
+<p class="src"><a href="./index.html">← 返回总览</a></p></main></body></html>
