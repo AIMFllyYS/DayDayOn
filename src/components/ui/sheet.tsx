@@ -14,9 +14,10 @@ interface SheetProps {
 }
 
 /**
- * 弹层：手机端从底部滑出，≥768px 变成居中对话框。两端共用同一份内容（见架构基线 7.2）。
- * 基于原生 <dialog>：焦点圈定、Esc 关闭、背景不可点由浏览器负责。
- * 只做了进场动画；退场动画等引入 shadcn Drawer（vaul）时再统一。
+ * 底部弹层：手机和桌面都从底部向上滑出（2026-11-01 评审：打卡入口要像菜单一样从下往上拉）。
+ * 手机贴底全宽；≥768px 宽度收到 lg，离底部留 16px，像一张浮起来的卡片。
+ * 基于原生 <dialog>：焦点圈定、背景不可点由浏览器负责；Esc、点遮罩、关闭按钮都先播退场动画再关闭。
+ * M1 换成 Base UI Drawer 时对外接口不变（ui-primitives.md 第 4 节）。
  */
 export function Sheet({ open, onOpenChange, title, description, children, footer }: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null)
@@ -26,15 +27,30 @@ export function Sheet({ open, onOpenChange, title, description, children, footer
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
-    if (open && !dialog.open) dialog.showModal()
-    if (!open && dialog.open) dialog.close()
-    if (!open) return
-    // 弹层打开时锁住背后页面的滚动，避免手机上滑动穿透
-    const root = document.documentElement
-    const prev = root.style.overflow
-    root.style.overflow = 'hidden'
+    // 退场动画播放期间 dialog 仍然打开，data-closing 驱动退场动画，结束后才真正 close()
+    if (open) {
+      delete dialog.dataset.closing
+      if (!dialog.open) dialog.showModal()
+      // 弹层打开时锁住背后页面的滚动，避免手机上滑动穿透
+      const root = document.documentElement
+      const prev = root.style.overflow
+      root.style.overflow = 'hidden'
+      return () => {
+        root.style.overflow = prev
+      }
+    }
+    if (!dialog.open) return
+    // 系统开启"减少动态效果"时动画只有 1ms，animationend 照常触发；兜底计时防止事件丢失
+    dialog.dataset.closing = ''
+    const finish = () => {
+      delete dialog.dataset.closing
+      dialog.close()
+    }
+    const fallback = window.setTimeout(finish, 400)
+    dialog.addEventListener('animationend', finish, { once: true })
     return () => {
-      root.style.overflow = prev
+      window.clearTimeout(fallback)
+      dialog.removeEventListener('animationend', finish)
     }
   }, [open])
 
@@ -43,7 +59,11 @@ export function Sheet({ open, onOpenChange, title, description, children, footer
       ref={ref}
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
-      onClose={() => onOpenChange(false)}
+      onCancel={(e) => {
+        // Esc：拦下浏览器的立即关闭，交给上面的退场动画
+        e.preventDefault()
+        onOpenChange(false)
+      }}
       onClick={(e) => {
         // 点在 dialog 本身（即内容区以外的遮罩）时关闭
         if (e.target === e.currentTarget) onOpenChange(false)
@@ -51,12 +71,13 @@ export function Sheet({ open, onOpenChange, title, description, children, footer
       className={
         'bg-surface text-foreground shadow-float fixed inset-x-0 top-auto bottom-0 m-0 max-h-[88dvh] w-full max-w-none overflow-hidden rounded-t-3xl border-0 p-0 ' +
         'open:animate-sheet-up backdrop:bg-foreground/30 backdrop:animate-fade-in ' +
-        'md:open:animate-pop-in md:inset-0 md:m-auto md:h-fit md:max-h-[80dvh] md:max-w-lg md:rounded-3xl'
+        'data-closing:animate-sheet-down data-closing:backdrop:animate-fade-out ' +
+        'md:right-0 md:bottom-4 md:left-0 md:mx-auto md:max-h-[80dvh] md:max-w-lg md:rounded-3xl'
       }
     >
       <div className="flex max-h-[inherit] flex-col pb-(--safe-bottom) md:pb-0">
-        <div className="bg-border-strong mx-auto mt-2.5 h-1.5 w-10 rounded-full md:hidden" />
-        <header className="flex items-start gap-3 px-5 pt-3 pb-2 md:px-6 md:pt-5">
+        <div className="bg-border-strong mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full" />
+        <header className="flex items-start gap-3 px-5 pt-2 pb-3 md:px-6">
           <div className="min-w-0 flex-1">
             <h2 id={titleId} className="text-heading font-bold">
               {title}

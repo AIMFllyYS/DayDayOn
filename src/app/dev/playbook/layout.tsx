@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { BrandMark } from '@/components/layout/brand'
 import { PlaybookNav } from './_components/playbook-nav'
+import { ThemeSwitch } from './_components/theme-switch'
 
 export const metadata: Metadata = {
   title: { default: 'Playbook', template: '%s · Playbook · DayDayOn' },
@@ -20,10 +21,11 @@ export default function PlaybookLayout({ children }: LayoutProps<'/dev/playbook'
             <BrandMark size={32} />
             <span className="leading-tight">
               <span className="font-display text-subhead block font-semibold">Playbook</span>
-              <span className="text-tiny text-muted block">DayDayOn 设计系统 v0.1</span>
+              <span className="text-tiny text-muted block">DayDayOn 设计系统 v0.2</span>
             </span>
           </Link>
           <PlaybookNav />
+          <ThemeSwitch />
         </aside>
         <main className="min-w-0 flex-1">{children}</main>
       </div>

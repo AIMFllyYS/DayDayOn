@@ -9,10 +9,9 @@ import { IconTile } from '@/components/ui/badge'
 import { IconButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ProgressBar } from '@/components/ui/progress'
-import { Sheet } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
-import { moduleMeta, moduleTones } from '@/components/ui/tone'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
+import { CheckinSheet } from './checkin-sheet'
 import { DesktopFrame, PhoneFrame } from './device-frame'
 
 const titles: Record<string, string> = {
@@ -53,38 +52,6 @@ function DemoBody({ path }: { path: string }) {
         </Card>
       ))}
     </div>
-  )
-}
-
-function CheckinSheet({
-  open,
-  onOpenChange,
-}: {
-  open: boolean
-  onOpenChange: (v: boolean) => void
-}) {
-  return (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title="记录点什么？"
-      description="选一个板块开始打卡"
-    >
-      <ul className="grid grid-cols-3 gap-2.5">
-        {moduleTones.map((t) => (
-          <li key={t}>
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              className="bg-surface-sunken flex w-full flex-col items-center gap-2 rounded-2xl py-4 font-semibold active:scale-95"
-            >
-              <IconTile icon={moduleMeta[t].icon} tone={t} size="lg" />
-              {moduleMeta[t].label}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </Sheet>
   )
 }
 

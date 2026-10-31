@@ -1,16 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/field'
 import { MenuItem, MenuList } from '@/components/ui/menu-list'
-import { ProgressBar } from '@/components/ui/progress'
 import { Rating, type RatingValue } from '@/components/ui/rating'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { Sheet } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
-import { moduleMeta, moduleTones } from '@/components/ui/tone'
+import { CheckinSheet } from './checkin-sheet'
 
 const rangeOptions = [
   { value: 'day', label: '日' },
@@ -58,11 +55,18 @@ export function SwitchDemo() {
 }
 
 export function RatingDemo() {
-  const [value, setValue] = useState<RatingValue | null>(4)
+  const [value, setValue] = useState<RatingValue | null>(null)
+  const [diet, setDiet] = useState<RatingValue | null>(4)
   return (
-    <div className="w-full sm:max-w-sm">
-      <p className="text-caption mb-2 font-semibold">今天的睡眠感觉怎么样？</p>
-      <Rating value={value} onValueChange={setValue} tone="sleep" label="睡眠满意度" />
+    <div className="grid w-full gap-4 sm:grid-cols-2">
+      <div>
+        <p className="text-caption mb-2 font-semibold">今天的睡眠感觉怎么样？</p>
+        <Rating value={value} onValueChange={setValue} tone="sleep" label="睡眠满意度" />
+      </div>
+      <div>
+        <p className="text-caption mb-2 font-semibold">今天吃得开心吗？</p>
+        <Rating value={diet} onValueChange={setDiet} tone="diet" label="饮食满意度" />
+      </div>
     </div>
   )
 }
@@ -122,7 +126,7 @@ export function MenuDemo() {
   )
 }
 
-/** 打卡入口弹层：手机端底部滑出、桌面端居中。缩放浏览器宽度可以看到两种形态 */
+/** 打卡入口弹层：从底部拉出的菜单列表，手机和桌面一致 */
 export function SheetDemo() {
   const [open, setOpen] = useState(false)
   return (
@@ -130,37 +134,7 @@ export function SheetDemo() {
       <Button icon="plus" onClick={() => setOpen(true)}>
         打开打卡弹层
       </Button>
-      <Sheet
-        open={open}
-        onOpenChange={setOpen}
-        title="记录点什么？"
-        description="选一个板块开始打卡"
-        footer={
-          <Button variant="secondary" icon="camera" className="w-full">
-            拍照，让 AI 帮我识别
-          </Button>
-        }
-      >
-        <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          {moduleTones.map((t, i) => (
-            <li key={t}>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="animate-fade-up bg-surface-sunken ease-spring flex w-full flex-col items-center gap-2 rounded-2xl py-4 font-semibold transition-transform duration-(--dur-fast) active:scale-95"
-                style={{ animationDelay: `${i * 50}ms` }}
-              >
-                <IconTile icon={moduleMeta[t].icon} tone={t} size="lg" />
-                {moduleMeta[t].label}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="bg-surface-sunken mt-4 rounded-2xl p-3">
-          <p className="text-tiny text-muted mb-2 font-semibold">今日进度</p>
-          <ProgressBar value={3} max={5} label="今日完成板块" />
-        </div>
-      </Sheet>
+      <CheckinSheet open={open} onOpenChange={setOpen} />
     </>
   )
 }

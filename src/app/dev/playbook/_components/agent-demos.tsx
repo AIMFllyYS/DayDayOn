@@ -12,7 +12,7 @@ import { buildLunchFrames, errorTurn, PLAYBACK_TICK_MS } from './agent-script'
 export function AgentPlayback() {
   const [frames] = useState(buildLunchFrames)
   const [index, setIndex] = useState(-1)
-  const [traceOpen, setTraceOpen] = useState(false)
+  const [round, setRound] = useState(0)
   const timer = useRef<number | null>(null)
 
   useEffect(
@@ -25,6 +25,8 @@ export function AgentPlayback() {
   function play() {
     if (timer.current) window.clearInterval(timer.current)
     setIndex(0)
+    // 换 key 重置活动条的"用户手动开合"状态，回放时重新走一遍自动展开 → 自动收起
+    setRound((r) => r + 1)
     timer.current = window.setInterval(() => {
       setIndex((i) => {
         if (i >= frames.length - 1) {
@@ -41,17 +43,10 @@ export function AgentPlayback() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* 2026-11-01 评审：这里的按钮颜色太重。回放控制是辅助操作，用 soft，不和草稿卡的"确认记录"抢主色 */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button icon="camera" onClick={play}>
+        <Button variant="soft" icon="camera" onClick={play}>
           {index < 0 ? '回放：拍照识别午餐' : '重新回放'}
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setTraceOpen((v) => !v)}
-          aria-pressed={traceOpen}
-        >
-          {traceOpen ? '回放时收起过程' : '回放时展开过程'}
         </Button>
         {turn && (
           <span className="text-tiny text-muted font-mono">
@@ -62,7 +57,7 @@ export function AgentPlayback() {
       {turn && (
         <div className="bg-paper border-border flex max-w-2xl flex-col gap-3 rounded-3xl border p-4">
           <UserMessage attachments="1 张照片 · 识别后不保存">帮我记一下午餐</UserMessage>
-          <AgentTurn key={traceOpen ? 'open' : 'closed'} turn={turn} traceOpen={traceOpen}>
+          <AgentTurn key={round} turn={turn}>
             {done && (
               <AiDraftCard
                 module="diet"

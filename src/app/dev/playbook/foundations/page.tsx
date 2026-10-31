@@ -4,6 +4,7 @@ import { Icon, iconNames } from '@/components/ui/icon'
 import { moduleMeta, moduleTones } from '@/components/ui/tone'
 import { PageHeader, Rules, Section, Specimen } from '../_components/section'
 import { TokenValue } from '../_components/token-value'
+import { PaletteRationale, ThemeGallery } from '../_components/theme-demos'
 
 export const metadata: Metadata = { title: '色彩与字体' }
 
@@ -73,10 +74,26 @@ export default function FoundationsPage() {
 
       <Section
         ann="playbook.foundations.brand"
-        title="品牌主色 · 珊瑚"
-        description="主色实底上用深色字（on-primary）。白字在珊瑚色上对比度只有 2.4:1，达不到 WCAG AA。"
+        title="品牌主色 · 跟随主题"
+        description="默认主题是奶茶焦糖。主色是低饱和的深色，实底上用奶油色字；用左侧的主题色切换，本页色值实时更新。"
       >
         <SwatchGrid items={brand} />
+      </Section>
+
+      <Section
+        ann="playbook.foundations.palette-why"
+        title="为什么这样配色"
+        description="2026-11-01 评审：珊瑚实底按钮显得廉价，而徽章、图标很舒服。对比两者的差别，得出下面三条。"
+      >
+        <PaletteRationale />
+      </Section>
+
+      <Section
+        ann="playbook.foundations.themes"
+        title="主题色"
+        description="用户可以在「我的 → 外观」里选。只换主色这一组，板块色、状态色、底色固定，保证板块一眼认得出。"
+      >
+        <ThemeGallery />
       </Section>
 
       <Section

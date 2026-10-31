@@ -56,11 +56,31 @@ export default function ComponentsPage() {
             <Button loading>识别中</Button>
             <Button disabled>不可用</Button>
           </Specimen>
-          <Specimen ann="playbook.components.button.icon" label="图标按钮" note="必须传 label">
+          <Specimen
+            ann="playbook.components.button.icon"
+            label="图标按钮"
+            note="必须传 label；默认 ghost，实底只给唯一的主操作"
+          >
             <IconButton icon="bell" label="提醒" />
             <IconButton icon="sliders" label="设置" variant="secondary" />
-            <IconButton icon="plus" label="新建" variant="primary" />
+            <IconButton icon="plus" label="新建" variant="soft" />
+            <IconButton icon="plus" label="新建（主操作）" variant="primary" />
             <IconButton icon="x" label="关闭" size="sm" />
+          </Specimen>
+          <Specimen
+            ann="playbook.components.button.usage"
+            label="一个区域里的搭配"
+            note="主操作一个实底，其余退到 soft / secondary / ghost"
+          >
+            <div className="flex w-full flex-wrap items-center gap-2">
+              <Button icon="check" className="flex-1">
+                确认记录
+              </Button>
+              <Button variant="soft" icon="edit">
+                修改
+              </Button>
+              <Button variant="ghost">稍后</Button>
+            </div>
           </Specimen>
         </div>
       </Section>
@@ -185,7 +205,7 @@ export default function ComponentsPage() {
           <Specimen
             ann="playbook.components.form.rating"
             label="Rating"
-            note="每天每个板块的满意度 1–5，选中项用板块色"
+            note="满意度 1–5，选中项用板块色。点一下有情绪反馈：很糟抖一下（手机轻震）、不太好摇一摇、一般波浪、不错 / 超棒撒彩纸"
           >
             <RatingDemo />
           </Specimen>
@@ -200,7 +220,7 @@ export default function ComponentsPage() {
         <Specimen
           ann="playbook.components.sheet.demo"
           label="Sheet"
-          note="基于原生 <dialog>：Esc 关闭、焦点圈定。手机底部滑出，≥768px 居中"
+          note="手机和桌面都从底部向上拉出（桌面收窄、离底 16px），像菜单列表；Esc、点遮罩、关闭按钮都带退场动画"
         >
           <SheetDemo />
         </Specimen>
@@ -229,14 +249,14 @@ export default function ComponentsPage() {
           </Specimen>
           <Specimen
             ann="playbook.components.identity.mascot"
-            label="Mascot（占位）"
-            note="四种情绪；正式形象定稿后替换 SVG"
+            label="Mascot · 团团 / 墩墩"
+            note="两个形象可选，表情共用；细节见「小宠物」页"
             bg="paper"
           >
             <Mascot mood="happy" size={64} />
             <Mascot mood="cheer" size={64} />
-            <Mascot mood="sleepy" size={64} />
-            <Mascot mood="thinking" size={64} />
+            <Mascot mood="happy" size={64} character="dun" />
+            <Mascot mood="cheer" size={64} character="dun" />
           </Specimen>
         </div>
       </Section>

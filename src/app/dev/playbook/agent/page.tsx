@@ -33,7 +33,7 @@ export default function AgentPage() {
       <Section
         ann="playbook.agent.playback"
         title="完整过程回放"
-        description="拍照识别午餐：3 个工具并行估算 → 搜索补充（其中一个网页打不开）→ 读取资料和今日记录 → 回答 → 草稿确认。"
+        description="拍照识别午餐：3 个工具并行估算 → 搜索补充（其中一个网页打不开）→ 读取资料和今日记录 → 回答 → 草稿确认。推理过程进行中自动展开，回答出来后自动收起成一行。"
       >
         <AgentPlayback />
       </Section>
@@ -65,7 +65,7 @@ export default function AgentPage() {
             data-ann="playbook.agent.many-tools.collapsed"
             className="flex min-w-0 flex-col gap-2"
           >
-            <p className="text-tiny text-muted font-semibold">默认（收起）</p>
+            <p className="text-tiny text-muted font-semibold">完成后（自动收起）</p>
             <UserMessage>帮我总结一下这周</UserMessage>
             <AgentTurn turn={manyToolsTurn} />
           </div>
@@ -171,7 +171,7 @@ export default function AgentPage() {
       <Section ann="playbook.agent.rules" title="规则">
         <Rules
           dos={[
-            '过程默认收起，进行中时在活动条里说清“正在做什么”',
+            '进行中默认展开推理过程，回答完成后自动收起成一行；用户手动开合过就以用户为准',
             '同一步的工具并行展示，失败的直接显示原因和降级方案',
             '工具中文名、进行时说法、图标在 tool-meta.ts 登记',
             '联网结果附上来源；热量、睡眠类结果标注“估算结果，非医疗建议”',

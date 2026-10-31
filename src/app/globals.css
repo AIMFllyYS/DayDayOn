@@ -19,12 +19,7 @@
   --border: #eadccb;
   --border-strong: #dcc8b2;
 
-  /* 品牌主色：珊瑚。主色按钮上用深色字（on-primary），白字对比度不够 */
-  --primary: #f28b74;
-  --primary-hover: #ee7a60;
-  --primary-soft: #fde4dc;
-  --primary-ink: #8f3b28;
-  --on-primary: #3f1d14;
+  /* 品牌主色在下面的主题块里定义（用户可选主题，默认奶茶焦糖） */
 
   /* 五个板块的马卡龙色：base 用于图形和进度，soft 用于底色，ink 用于 soft 上的文字 */
   --exercise: #7cc9a6;
@@ -66,7 +61,58 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/*
+ * 主题色：只覆盖品牌主色这一组，板块色、状态色、底色不随主题变。
+ * 配色原则（ui-design-system.md 第 2 节）：主色取低饱和的深色，实底上用奶油色字（对比度 ≥ 4.8:1）；
+ * 大面积只用 soft 底 + ink 字，实底只给小面积的主操作。
+ * 选择器不限定在 html 上：任何元素加 data-theme 都能局部换色（主题色板、对比演示就是这么做的）。
+ */
+:root,
+[data-theme='caramel'] {
+  --primary: #93603f;
+  --primary-hover: #7f5235;
+  --primary-soft: #f3e2cf;
+  --primary-ink: #6b3f26;
+  --on-primary: #fffaf3;
+}
+[data-theme='terracotta'] {
+  --primary: #b0533f;
+  --primary-hover: #9a4635;
+  --primary-soft: #fbe1d8;
+  --primary-ink: #873524;
+  --on-primary: #fffaf3;
+}
+[data-theme='matcha'] {
+  --primary: #4a7a52;
+  --primary-hover: #3f6b47;
+  --primary-soft: #e0eddb;
+  --primary-ink: #2e5835;
+  --on-primary: #fffaf3;
+}
+[data-theme='haze'] {
+  --primary: #51709b;
+  --primary-hover: #455f86;
+  --primary-soft: #e0e8f4;
+  --primary-ink: #2c4a74;
+  --on-primary: #fffaf3;
+}
+[data-theme='berry'] {
+  --primary: #a5557a;
+  --primary-hover: #904868;
+  --primary-soft: #f6e0e9;
+  --primary-ink: #7b3456;
+  --on-primary: #fffaf3;
+}
+
 @theme inline {
+  /*
+   * 主色按钮的投影跟随主题色，放在 inline 里才能在 data-theme 局部生效。
+   * 顶部一道很淡的内高光，让深色实底像釉面而不是一块平涂的色块。
+   */
+  --shadow-primary:
+    inset 0 1px 0 rgb(255 255 255 / 0.16),
+    0 6px 14px -8px color-mix(in srgb, var(--primary) 80%, transparent);
+
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-sunken: var(--surface-sunken);
@@ -148,7 +194,6 @@
   --shadow-card: 0 1px 2px rgb(74 63 53 / 0.06), 0 6px 18px -4px rgb(74 63 53 / 0.1);
   --shadow-float: 0 4px 10px -2px rgb(74 63 53 / 0.1), 0 16px 36px -8px rgb(74 63 53 / 0.18);
   --shadow-sticker: 0 0 0 3px #fffdf9, 0 6px 16px -6px rgb(74 63 53 / 0.28);
-  --shadow-primary: 0 6px 16px -6px rgb(242 139 116 / 0.65);
 
   /* 缓动曲线 */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
@@ -161,6 +206,12 @@
   --animate-fade-up: fade-up var(--dur-slow) var(--ease-out-soft) both;
   --animate-pop-in: pop-in var(--dur-slow) var(--ease-spring) both;
   --animate-sheet-up: sheet-up var(--dur-slow) var(--ease-out-soft) both;
+  --animate-sheet-down: sheet-down var(--dur-base) var(--ease-in-soft) both;
+  --animate-fade-out: fade-out var(--dur-base) var(--ease-in-soft) both;
+  /* 评分反馈：很糟抖一下、一般波浪、不错 / 超棒撒彩纸 */
+  --animate-shake: shake 420ms var(--ease-standard) both;
+  --animate-wave-bob: wave-bob 560ms var(--ease-spring) both;
+  --animate-confetti: confetti 900ms var(--ease-out-soft) both;
   --animate-stamp: stamp var(--dur-celebrate) var(--ease-spring) both;
   --animate-wiggle: wiggle 600ms var(--ease-standard) both;
   --animate-shimmer: shimmer 1.6s linear infinite;
@@ -376,9 +427,61 @@
       transform: scale(0.88);
     }
   }
+  /* 多移 2rem：桌面端弹层离底部有间距，只移 100% 时起点会露出一截 */
   @keyframes sheet-up {
     from {
-      transform: translateY(100%);
+      transform: translateY(calc(100% + 2rem));
+    }
+  }
+  @keyframes sheet-down {
+    to {
+      transform: translateY(calc(100% + 2rem));
+    }
+  }
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20% {
+      transform: translateX(-7px);
+    }
+    40% {
+      transform: translateX(6px);
+    }
+    60% {
+      transform: translateX(-4px);
+    }
+    80% {
+      transform: translateX(2px);
+    }
+  }
+  @keyframes wave-bob {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    40% {
+      transform: translateY(-7px);
+    }
+  }
+  /* 彩纸：方向和距离由 --dx / --dy / --rot 决定 */
+  @keyframes confetti {
+    0% {
+      opacity: 0;
+      transform: translate(0, 0) rotate(0) scale(0.5);
+    }
+    15% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(var(--dx, 0px), var(--dy, -40px)) rotate(var(--rot, 180deg)) scale(1);
     }
   }
   /* 打卡印章：从上方放大落下，带一点旋转和回弹 */
@@ -470,6 +573,14 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 全站隐藏滚动条（负责人 2026-11-01 批注）：只是不显示，滚轮、触摸、键盘滚动照常 */
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
   }
 
   body {

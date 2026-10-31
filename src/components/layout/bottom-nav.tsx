@@ -16,7 +16,8 @@ interface BottomNavProps {
 }
 
 /**
- * 手机底部导航（<768px）：悬浮胶囊 + 中间凸起的"＋"打卡按钮。
+ * 手机底部导航（<768px）：悬浮胶囊，"＋"打卡按钮和其他四项排在同一行，像 Dock 里的一格。
+ * 2026-11-01 评审：凸出底栏的圆形"＋"太突兀，改为收在栏内的圆角方块。
  * 组件本身不定位，由应用外壳放到 fixed bottom 并处理安全区。
  */
 export function BottomNav({
@@ -73,13 +74,13 @@ export function BottomNav({
             aria-label={addOpen ? '关闭打卡' : '打卡'}
             aria-expanded={addOpen}
             className={cn(
-              'bg-primary text-on-primary shadow-primary ring-background -mt-7 flex size-15 items-center justify-center rounded-full ring-4',
-              'ease-spring transition-transform duration-(--dur-base) active:scale-90',
+              'bg-primary text-on-primary shadow-primary flex h-11 w-14 items-center justify-center rounded-2xl',
+              'ease-spring hover:bg-primary-hover transition-[transform,background-color] duration-(--dur-base) active:scale-90',
             )}
           >
             <Icon
               name="plus"
-              size={28}
+              size={24}
               strokeWidth={2.6}
               className={cn(
                 'ease-spring transition-transform duration-(--dur-base)',

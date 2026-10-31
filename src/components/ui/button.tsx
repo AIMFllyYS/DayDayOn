@@ -5,6 +5,10 @@ import { Icon, type IconName } from './icon'
 export type ButtonVariant = 'primary' | 'secondary' | 'soft' | 'ghost' | 'danger'
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
+/*
+ * primary 是深色低饱和的实底 + 奶油色字，只给一个区域里唯一的主操作；
+ * 其余操作优先用 soft（浅底 + 深字，和徽章同一套配色），大面积实底会显得廉价（2026-11-01 评审）。
+ */
 const variantClass: Record<ButtonVariant, string> = {
   primary: 'bg-primary text-on-primary shadow-primary hover:bg-primary-hover',
   secondary:
@@ -13,6 +17,9 @@ const variantClass: Record<ButtonVariant, string> = {
   ghost: 'text-foreground hover:bg-surface-sunken',
   danger: 'bg-danger-soft text-danger-ink hover:brightness-[0.97]',
 }
+
+// 实底按钮上的图标只画描边：22% 的同色色块叠在实底上会发灰
+const solidVariants = new Set<ButtonVariant>(['primary'])
 
 // md 高 44px，满足触控区域下限；sm 只用于桌面端密集区域或卡片内的次要操作
 const sizeClass: Record<ButtonSize, string> = {
@@ -65,7 +72,7 @@ export function Button({
       {loading ? (
         <Icon name="loader" size={iconSize[size]} className="animate-spin-slow" />
       ) : (
-        icon && <Icon name={icon} size={iconSize[size]} />
+        icon && <Icon name={icon} size={iconSize[size]} lineOnly={solidVariants.has(variant)} />
       )}
       {children}
     </button>
@@ -97,7 +104,12 @@ export function IconButton({
       className={cn(baseClass, variantClass[variant], iconOnlySizeClass[size], className)}
       {...rest}
     >
-      <Icon name={icon} size={iconSize[size]} />
+      <Icon
+        name={icon}
+        size={iconSize[size]}
+        lineOnly={solidVariants.has(variant)}
+        strokeWidth={solidVariants.has(variant) ? 2.4 : 2}
+      />
     </button>
   )
 }
