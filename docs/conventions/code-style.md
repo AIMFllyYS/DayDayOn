@@ -19,7 +19,9 @@
 
 - 使用 Tailwind CSS，不用 CSS Modules（覆盖第三方组件时除外）
 - 条件 className 用 `cn()`
-- 颜色、圆角、阴影等只引用设计 token，不在组件里写死色值
+- 颜色、圆角、阴影等只引用设计 token，不在组件里写死色值；字号用语义类（`text-body`、`text-caption`…），不用 `text-sm`
+- 着色统一走 `src/components/ui/tone.ts`，类名写完整字符串，不拼接 `bg-${tone}`
+- 页面不重新写按钮、卡片、进度条；缺组件先在 Playbook 里加（[ui-design-system.md](./ui-design-system.md)）
 
 ## 文案与注释
 
@@ -28,11 +30,16 @@
 
 ## 测试
 
-- 涉及钱和规则的纯函数必须有单元测试：额度预占 / 结算、热量计算、打卡日归属、连续打卡计算
+- 涉及钱和规则的纯函数必须有单元测试：额度预占 / 结算、热量计算、打卡日归属、连续打卡计算（完整清单与写法见 [testing.md](./testing.md)）
 - 界面改动用 ego-browser 在手机和桌面宽度下实际操作验收
 
-## _dev/ 调试区
+## 各库的落地规范
 
-- 调试 / 原型代码放在 `src/app/_dev/`，页面顶部必须有守卫：`if (process.env.NODE_ENV === 'production') notFound()`
-- `_dev/` 可以引用正式代码，正式代码不得引用 `_dev/`
-- 调试完成后迁移到正式路由，并清理 `_dev/`
+接口、数据库、鉴权、AI、时间、前端数据与表单、交互原语、PWA 各有一份规范，清单见 [conventions/README.md](./README.md)。写对应代码前先读。
+
+## dev/ 调试区
+
+- 调试 / 原型代码放在 `src/app/dev/`（URL `/dev/*`）。`dev/layout.tsx` 统一做生产守卫 `if (process.env.NODE_ENV === 'production') notFound()`，读数据的调试页在页面顶部再加一次
+- `dev/` 可以引用正式代码，正式代码不得引用 `dev/`
+- 演示区块加 `data-ann="playbook.<页面>.<区块>"`，批注工具才能稳定定位
+- 调试完成后迁移到正式路由，并清理对应的调试页（Playbook 长期保留）
