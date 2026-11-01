@@ -127,6 +127,10 @@ const BANNED = [
     '禁止腾讯云服务',
     ['tencentcloud-sdk-nodejs', 'tencentcloud-sdk-nodejs-*', 'cos-nodejs-sdk-v5', 'cos-js-sdk-v5'],
   ],
+  [
+    '人机验证用 @marsidev/react-turnstile（只经 src/components/ui/turnstile.tsx）',
+    ['react-turnstile', 'react-google-recaptcha', '@hcaptcha/*'],
+  ],
 ]
 
 /**
@@ -176,6 +180,15 @@ const RESTRICTIONS = [
       {
         regex: pkgRegex(['react-day-picker', 'react-day-picker/*']),
         message: pkgMessage('react-day-picker', 'src/components/ui/calendar.tsx'),
+      },
+    ],
+  },
+  {
+    allow: ['src/components/ui/turnstile.tsx'],
+    patterns: [
+      {
+        regex: pkgRegex(['@marsidev/react-turnstile', '@marsidev/react-turnstile/*']),
+        message: pkgMessage('@marsidev/react-turnstile', 'src/components/ui/turnstile.tsx'),
       },
     ],
   },
