@@ -44,3 +44,31 @@
 | D7 | 后台 | `src/app/admin/**`；`services/admin`、`routes/admin.ts`、`features/admin`、`queries/admin.ts` |
 
 跨领域依赖只通过 F1 定好的契约：D3 的饮食表单嵌入 D6 的 `features/diet/components/diet-recognizer.tsx`（F1 先放一个 props 已定的占位）；D7 调整额度调用 P1 的 `src/server/quota/ledger.ts`。
+
+### 3.1 审查后的归属补充（优先于上表）
+
+| 路径 / 契约 | 签名由 | 实现由 | 使用方 |
+|---|---|---|---|
+| `src/server/services/stats.ts`（PRD 7.2） | F1 | P2（带单测） | D1、D3、D4 |
+| `src/server/db/client.ts` 导出 `type Tx` | F1 | F1 | 所有 service；写函数一律接收 `tx` |
+| `src/features/goal/defaults.ts` `DEFAULT_GOALS` | F1 | F1 | D1、D2 |
+| `src/server/services/goals/create.ts` `createGoal(tx, userId, input)` | F1 桩 | D2 | D1（引导） |
+| `src/server/services/metrics/weight.ts` `upsertWeight(tx, userId, localDate, grams, opts)` | F1 桩 | D3 | D1（引导） |
+| `src/server/quota/ledger.ts`：`topUpWeekly`、`adjustBonus`、`reserve`、`settle`、`release`、`redeem` | F1 桩 | P1 | D1、D6、D7 |
+| `src/server/quota/redeem-code.ts`、`src/server/quota/alerts.ts` | F1 桩 | P1 | D6、D7 |
+| `src/server/settings-schema.ts` / `src/server/settings.ts` | F1 / F1 桩 | F1 / P1 | P1、D7 |
+| `src/server/auth/` 的 databaseHooks、hooks.after 审计、`ban` 错误体 | — | P1 | D1、D7 |
+| `src/features/checkin/launcher-store.ts` `useCheckinLauncher(): { open(view?: 'list' \| 'weight' \| 'mood'), close() }` | F1 | F3 | D3（弹层）、D4、外壳 |
+| `features/checkin/components/goal-checkin-calendar.tsx` `{ goalId, module }`、`goal-checkin-history.tsx` `{ goalId }` | F1 占位 | D3 | D2（详情页嵌入） |
+| `features/goal/components/schema-form.tsx` `{ fields, value, onChange, errors? }` | F1 占位 | D2 | D3（自定义打卡） |
+| `features/diet/components/diet-recognizer.tsx` `{ goalId, mealType, onConfirmed }` | F1 占位 | D6 | D3（饮食打卡） |
+| `src/features/agent/**`（`AiDraftCard` 改为可逐项编辑） | — | D6 | D3、D6 |
+| `src/components/ui/{avatar,rating,progress}.tsx`（预设头像渲染、评分反馈） | — | P4 | 全部 |
+| `src/components/layout/**`、`src/lib/theme.ts` | — | F3 | 全部 |
+| Playbook `pages/_screens/<页>.tsx` 改为引用正式组件 | — | login/me→D1，home/rank→D4，checkin→D3，todo→D5，app-shell→F3 | — |
+| Playbook `pages/_screens/registry.tsx`、`playbook-nav.tsx` | F1 | F1 | — |
+| `docs/specs/api/openapi.json` | — | 集成阶段导出 | — |
+
+- 领域 Agent 发现契约不够用时，可以在自己拥有的文件里加内部辅助函数；需要改别人的契约就写进返回结果的 `sharedChangeRequests`，不直接改。
+- 提交 scope：P1 用 `api` / `auth` / `quota` / `mail`；P2 用 `config`；P3、P4、F3 用 `ui`；D1 用 `auth` / `onboarding` / `profile`；D2 `goal`；D3 `checkin` / `metric`；D4 `dashboard` / `rank`；D5 `todo`；D6 `agent` / `quota`；D7 `admin`。
+- `wf/*` 分支只在本地，集成后删除，不推送。

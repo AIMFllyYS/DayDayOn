@@ -2,7 +2,7 @@
 
 > 创建：2026-11-01 · 更新：2026-11-01 · 状态：approved（负责人 2026-11-01 确认补卡规则、主页动态，并授权无人值守落地）
 > 范围以 [ADR-0003](../adr/0003-project-scope.md) 为准；视觉与交互以 `/dev/playbook`（含"页面预览"）为准；技术做法以 [docs/conventions/](../conventions/README.md) 为准。
-> 本文与规范冲突时以规范为准，并在同一次改动里修正本文。实施拆分见 [plan-mvp-build.md](../plans/plan-mvp-build.md)。
+> **第 7 节审查决议优先于第 0–6 节。** 本文与规范冲突时以规范为准，并在同一次改动里修正本文。实施拆分见 [plan-mvp-build.md](../plans/plan-mvp-build.md)。
 
 ## 背景
 
@@ -286,3 +286,61 @@ DayDayOn 是负责人和朋友（华科同学为主）互相督促的多人打�
 | 健康数据合规 | 单独同意、默认不公开、导出与注销在 v0.1 就提供 |
 | 额度盗刷 | 预占上限、全站日上限、限流、后台一键暂停，四层叠加 |
 
+
+## 7. 审查决议（2026-11-01，优先于第 0–6 节）
+
+三路审查（规范冲突、完整性、并行可实施性）后的定稿规则。与前文冲突时以本节为准。
+
+### 7.1 账号与引导
+
+- **profile 行在注册时建**：P1 在 Better Auth `databaseHooks.user.create.after` 里建 `profiles`（`signupIp`、`timeZone='Asia/Shanghai'`、`dayStartHour=4`、`theme='caramel'`、`mascot='tuan'`、`leaderboardOptIn=false`）和 `quota_accounts`（本周 2 元），并写一条 `grant` 流水；`session.create.after` 更新 `lastLoginIp`。`profiles.nickname`、`healthConsentAt`、`onboardedAt` 可空（引导完成前为空），引导是否完成只看 `onboardedAt`。引导接口只做 UPDATE。
+- 引导改为**六步**：昵称 → 头像 → 基础资料 → 板块 → 是否上榜（单独一步，ADR-0002 第 8 节）→ 健康数据同意。
+- 免引导检查的接口只有 `GET /me`、`POST /me/onboarding`、`DELETE /me`、`GET /me/export`。检查做成 `middleware/auth.ts` 的 `requireOnboarded`（P1），领域路由挂 `[requireUser, requireOnboarded]`；`/admin/*` 只挂 `requireAdmin`。
+- 登录页文案"5 分钟内有效"。封号用户登录失败时，P1 的 hook 返回 `ACCOUNT_BANNED` 并带 `ban: { reason, expiresAt }`；`/api/v1` 的 403 `ACCOUNT_BANNED` 同样带 `ban`。文案模板在 `error-messages.ts`。
+- **管理员两步验证**：未开启时，`/admin` 在页内显示绑定流程：调 `authClient.twoFactor.enable`，显示 `totpURI` 里的密钥文本供手动输入（不显示二维码、不引入二维码库），再输 6 位码确认（D7）。`/login` 在验证码登录返回需要两步验证时多一步"输入身份验证器上的 6 位码"（D1）。
+- **主题**：根布局不读会话。`src/app/layout.tsx` 的 `<head>` 里一段内联脚本在首帧前从 localStorage `daydayon:theme:v1` 读出主题写到 `<html data-theme>`（P3）。`GET /me` 返回 `theme`，外壳登录后调 `setTheme()` 同步（F3）；改偏好成功后前端调 `setTheme()`（D1）。`profiles.theme` 只作跨设备来源。
+- 打卡提醒：`remindAt` 为空表示关。设置后，过了提醒时间打开应用、今天还有计划目标没完成时，主页顶部显示可关闭的提示"今天还有 N 项没打卡"，当天关掉后不再出现（localStorage 记日期）。不发邮件、不推送（D4 显示，D1 设置）。
+- `/privacy` 放在无导航、不要求登录的 `(auth)` 组。
+
+### 7.2 目标、打卡与统计
+
+- **共享统计只有一份**：`src/server/services/stats.ts`（纯函数，不碰数据库），F1 定签名和类型，P2 实现并带单测；D1、D3、D4 只调用：
+  - `isPlannedOn(target, localDate)`、`goalDayProgress(target, module, checkinsOfDay) → { value, target, done }`
+  - `dayCompletion(goalsWithProgress) → { done, planned }`
+  - `computeStreak(checkinDates, today) → number`（含补卡）
+  - `countRankDays(rows) → number`（排除补卡，同日去重）
+  - `heatmapCell(goalsOfModule, progresses) → 0..1`
+- **目标量历史**：新增 `goal_targets(goalId, effectiveFrom date, targetKind, targetValue, weekdays)`，唯一 `(goalId, effectiveFrom)`。改目标量就插入（当天已有则覆盖）一行，`effectiveFrom` = 今天的打卡日；某天的进度用当天生效的那一行。`goals` 上的同名列是当前值的冗余副本。
+- **饮食计次** = 当天不同餐次数（`payload.mealType` 去重）；其余 count 类按记录数；睡眠取当天那条的时长。
+- **时刻由服务端定**：非睡眠打卡请求体不收 `occurredAt`，服务端取 now（补卡取昨天打卡日的 12:00，用户时区）。睡眠收 `bedAt`、`wakeAt`（前端用 `sleepRange()` 组合：起床 = 目标打卡日的该时分，入睡晚于起床则取前一天），服务端要求 `wakeAt ≤ now` 且 `localDateOf(wakeAt)` 等于今天（补卡时为昨天），否则 400 `MAKEUP_NOT_ALLOWED`。
+- **评分只存 `daily_ratings`**：打卡页的"这一项今天满意吗"调 `PUT /ratings`（`scope = 该板块`）。删除 `checkins.rating`。
+- **AI 打卡可改**：`PATCH /checkins/{checkinId}` 只允许改饮食条目（名称、份量、热量）和备注，保留 `parsedText`（D3）。其余打卡仍是删掉重记。
+- 打卡弹层：行 = 今天计划内的进行中目标（以 PRD 为准，原型只沿用列表样式），副标题"今天完成了 X / Y 个目标"；"拍照记一餐"在有进行中饮食目标时直达 `sortOrder` 最小的那个，没有就隐藏。
+- 热力图按用户打卡日的本周（周一起），格值 = `heatmapCell`：该板块当天已完成目标数 / 该板块当天计划目标数；没有计划但有打卡记满；都没有为 0。
+- 排行：先用 `weekKey(now)` / `monthKey(now)` 求北京时间的起止日期，再按 `checkins.localDate` 落在区间内计数，不按 `occurredAt` 过滤。
+- 体重：409 `WEIGHT_CHANGE_UNCONFIRMED` 额外带 `previousWeightGrams`。
+
+### 7.3 AI、额度与后台
+
+- **识别接口不流式**：`POST /ai/diet-recognitions` 返回 201 JSON `{ draft, aiRunId }`，走普通幂等重放。活动条由前端按请求状态拼一个本地的 tool part（"正在看照片"），识别中展开、完成后折叠；没有推理段。`features/diet` 不 import `ai`、`@ai-sdk/react`。
+- 失败：模型输出校验失败或超时返回 422 `AI_RECOGNITION_FAILED`，带 `aiRunId`，已产生费用照常结算，前端降级手动。`confidence < 0.6` 不是错误，正常返回草稿并提示核对。
+- 字段名：草稿 `items[{ name, portion, lowKcal, highKcal, proteinGrams, fatGrams, carbGrams }]`（三项营养素可空）、`totalLowKcal`、`totalHighKcal`、`confidence`、`summary`。`ai_runs` 的耗时列叫 `latencyMs`（内部耗时，不进接口）。
+- **全站设置**：F1 写 `src/server/settings-schema.ts`（`AppSettings` zod schema 与默认值）；P1 写 `src/server/settings.ts` 的 `getSettings()`（进程内 10 秒缓存）与 `updateSettings(tx, patch)`（写后失效），D7 只调用。后台可调项：全站日上限、每周额度、新账号首周额度、AI 每小时次数、AI 并发数、兑换失败锁定次数、同 IP 每日注册数、验证码每邮箱 / 每 IP 每日次数。验证码同 IP 每小时 5 次走 Better Auth `customRules`，写死不可调。
+- **暂停**：`aiPaused` 只表示手动暂停；日上限暂停 = 今日 `spentMicros >= dailySpendCapMicros`，实时判断。`/admin/ai/resume` 只清 `aiPaused`；当天已到上限时后台提示"先调高今日上限"，改上限当天立即生效。
+- **告警**：发给所有 `role = admin` 的邮箱，按 `alerts_sent(kind, dayKey)` 去重，由 P1 的 `src/server/quota/alerts.ts` 的 `maybeAlert(kind, dayKey, detail)` 负责。删除 `ai_daily_spend.alertedAt`。
+- **兑换码**：P1 的 `src/server/quota/redeem-code.ts` 是唯一实现：字符表 `23456789ABCDEFGHJKMNPQRSTUVWXYZ`，格式 `DDON-XXXX-XXXX-XXXX`；`normalizeCode()` 转大写、去空白和横线、校验长度与字符表；`hashCode()` SHA-256 十六进制；`codePrefix()`。D6、D7 只调用。兑换失败写只增表 `redeem_attempts(userId set null, ip, ok, createdAt)`，后台据此标异常。
+- `POST /admin/redeem-codes` 的幂等记录只存摘要和状态，不存 `responseBody`，明文码不落库；同键重放返回 409 `IDEMPOTENCY_KEY_REUSED`。
+- **封号走 Better Auth**：删除 `/api/v1/admin/users/{userId}/ban|unban`。后台调用 `authClient.admin.banUser / unbanUser`（`/api/auth/admin/*`）；P1 在 `auth.ts` 的 `hooks.after` 里按端点写 `admin_audit_logs`。`/api/v1/admin/users` 只保留列表和 `/quota-adjustments`（调用 P1 的 `ledger.adjustBonus(tx, …)`）。
+
+### 7.4 数据模型补充
+
+- 新增表：`goal_targets`、`redeem_attempts`（见上）。
+- 部分唯一索引：`checkins (goal_id, local_date) WHERE module = 'sleep'`；`goals (user_id) WHERE module = 'sleep' AND status = 'active'`；`checkins (ai_run_id) WHERE ai_run_id IS NOT NULL`。service 捕获唯一冲突映射成 `CHECKIN_EXISTS` / `GOAL_LIMIT_REACHED` / `IDEMPOTENCY_KEY_REUSED`。
+- `app_settings`、`ai_daily_spend`、`rate_limit_counters`、`alerts_sent` 用自然主键，不加 uuid `id`，保留时间列。
+- 所有 `set null` 外键可空，注释"注销后去关联，账本保留"；`redeem_codes.createdBy` 为 `set null`。
+
+### 7.5 接口补充
+
+- 状态码：`ONBOARDING_REQUIRED` 403、`ALREADY_ONBOARDED` 409、`GOAL_NOT_FOUND` / `CHECKIN_NOT_FOUND` / `TODO_NOT_FOUND` / `USER_NOT_FOUND` 404、`GOAL_LIMIT_REACHED` / `TODO_LIMIT_REACHED` / `CHECKIN_EXISTS` / `WEIGHT_CHANGE_UNCONFIRMED` 409、`MAKEUP_NOT_ALLOWED` / `REDEEM_CODE_INVALID` 400、`REDEEM_CODE_USED` 409、`REDEEM_LOCKED` 429（带 `Retry-After`）、`AI_RECOGNITION_FAILED` 422。
+- 分页：`/goals` 不分页（上限 100）；`/todos?status=open` 不分页（上限 500），`done` 游标分页；`/admin/users`、`/admin/redeem-codes` 偏移分页。
+- 路由文件写完整路径，`app.ts` 统一挂在根上：`me.ts`（D1：`/me`、`/me/onboarding`、`/me/profile`、`/me/preferences`、`/me/export`）、`quota.ts`（D6：`/me/quota`、`/me/ai-runs`）、`goals.ts`（D2：`/goals`、`/goals/{goalId}`）、`checkins.ts`（D3：`/goals/{goalId}/checkins`、`/goals/{goalId}/calendar`、`/checkins/today`、`/checkins/{checkinId}`）、`metrics.ts`（D3：`/metrics/weight`、`/ratings`）、`dashboard.ts`、`rank.ts`（D4）、`todos.ts`（D5）、`ai.ts`、`redeem.ts`（D6）、`admin.ts`（D7）。
