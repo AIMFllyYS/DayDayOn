@@ -8,7 +8,9 @@ import {
   type PetEvent,
   type PetHandle,
 } from '@/components/mascot/interactive-pet'
+import { mascotCharacters, type MascotCharacter } from '@/components/mascot/mascot-svg'
 import { Icon } from '@/components/ui/icon'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Stamp } from '@/components/ui/stamp'
 import { cn } from '@/lib/cn'
 
@@ -113,6 +115,7 @@ export function PetStage() {
     over: boolean
   } | null>(null)
   const [stampKey, setStampKey] = useState(0)
+  const [character, setCharacter] = useState<MascotCharacter>('tuan')
   const seq = useRef(0)
 
   const record = (text: string) => {
@@ -150,7 +153,7 @@ export function PetStage() {
           />
         )}
 
-        <InteractivePet ref={pet} size={200} onEvent={onEvent} />
+        <InteractivePet ref={pet} size={200} onEvent={onEvent} character={character} />
 
         <div className="bg-surface/90 shadow-soft relative mt-4 flex items-center gap-2 rounded-full px-3 py-1.5">
           <span className="text-tiny text-muted font-semibold">投喂</span>
@@ -205,6 +208,19 @@ export function PetStage() {
       </div>
 
       <div className="flex flex-col gap-3">
+        <div
+          data-ann="playbook.pet.character"
+          className="border-border bg-surface rounded-2xl border p-3"
+        >
+          <p className="text-tiny text-muted mb-2 font-semibold">形象（用户在「我的」里选）</p>
+          <SegmentedControl
+            options={mascotCharacters.map((c) => ({ value: c.id, label: c.name }))}
+            value={character}
+            onValueChange={setCharacter}
+            label="选择形象"
+            size="sm"
+          />
+        </div>
         <div
           data-ann="playbook.pet.actions"
           className="border-border bg-surface rounded-2xl border p-3"

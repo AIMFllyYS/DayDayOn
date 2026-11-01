@@ -37,6 +37,8 @@ const toolMeta: Record<string, ToolMeta> = {
     icon: 'calendar',
     tone: 'study',
   },
+  // 饮食拍照识别（features/diet/components/diet-recognizer.tsx 在前端拼的本地 tool part）
+  recognizeMeal: { label: '看照片认食物', verb: '正在看照片', icon: 'camera', tone: 'diet' },
   webSearch: { label: '联网搜索', verb: '正在搜索', icon: 'globe', tone: 'study' },
   webFetch: { label: '读取网页', verb: '正在读网页', icon: 'link', tone: 'study' },
 }

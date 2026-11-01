@@ -10,7 +10,13 @@ import {
   type Ref,
 } from 'react'
 import { cn } from '@/lib/cn'
-import { MascotSvg, type MascotArm, type MascotMood } from './mascot-svg'
+import {
+  characterName,
+  MascotSvg,
+  type MascotArm,
+  type MascotCharacter,
+  type MascotMood,
+} from './mascot-svg'
 
 export type PetAction =
   | 'hop'
@@ -140,6 +146,8 @@ interface InteractivePetProps {
   lookAtPointer?: boolean
   /** 是否显示说话气泡 */
   speech?: boolean
+  /** 形象：团团 / 墩墩 */
+  character?: MascotCharacter
   className?: string
 }
 
@@ -169,6 +177,7 @@ export function InteractivePet({
   idleSleepMs = 15000,
   lookAtPointer = true,
   speech = true,
+  character = 'tuan',
   className,
 }: InteractivePetProps) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -401,7 +410,7 @@ export function InteractivePet({
 
       <button
         type="button"
-        aria-label="团团：点一下、双击、长按或来回抚摸都会有反应"
+        aria-label={`${characterName(character)}：点一下、双击、长按或来回抚摸都会有反应`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -439,6 +448,7 @@ export function InteractivePet({
             blush={blush}
             arm={def?.arm ?? (charging ? 'hug' : undefined)}
             size={size}
+            character={character}
           />
         </div>
       </button>

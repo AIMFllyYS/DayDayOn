@@ -104,6 +104,9 @@ bun.lockb
 .windsurf/
 .windsurfrules
 .zed/
+.claude/
+/wf_*/
+.worktrees/
 *.sublime-workspace
 *.sublime-project
 *.swp

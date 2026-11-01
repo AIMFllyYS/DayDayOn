@@ -15,24 +15,30 @@ const MOBILE_CHIPS = 3
 
 /**
  * 活动条：把一次回复里的"思考 + 工具调用"压成一行。
- * 收起时只占一行：左边是当前在做什么，右边是按步分组的工具小方块（同一步并行的叠在一起）；
- * 展开后是按步排列的时间线，每个工具一行，点开看参数和结果。
+ * 进行中默认展开成按步排列的时间线，用户能看着推理一步步推进；完成后自动收起成一行。
+ * 收起时：左边是完成摘要，右边是按步分组的工具小方块（同一步并行的叠在一起）；每个工具一行，点开看参数和结果。
  * 工具再多也只占一行高度，正文（AI 的回答）始终是视觉重点。
  */
 export function ActivityTrail({
   turn,
-  defaultOpen = false,
+  defaultOpen,
   className,
 }: {
   turn: AgentTurnView
+  /**
+   * 不传时自动：进行中展开（用户能看到推理过程），完成后自动收起成一行（2026-11-01 评审）。
+   * 传 true / false 则固定展开或收起，用户手动点过之后以用户为准。
+   */
   defaultOpen?: boolean
   className?: string
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const live = turn.status === 'submitted' || turn.status === 'streaming'
+  // 用户手动点过就不再自动开合
+  const [manual, setManual] = useState<boolean | null>(null)
+  const open = manual ?? defaultOpen ?? live
   const regionId = useId()
   const summary = summarizeTurn(turn)
   const steps = splitSteps(turn.parts)
-  const live = turn.status === 'submitted' || turn.status === 'streaming'
   const totalMs = turn.durationMs
 
   // 收起时这一行要和工具方块挤在一起，只放最关键的信息；步数在展开后的时间线里看，手机上再省掉耗时
@@ -56,7 +62,7 @@ export function ActivityTrail({
         aria-expanded={open}
         aria-controls={regionId}
         disabled={steps.length === 0}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setManual(!open)}
         className="flex min-h-11 w-full items-center gap-2.5 px-3 py-1.5 text-left disabled:cursor-default"
       >
         <StatusGlyph status={turn.status} failed={summary.failed > 0} />
@@ -226,7 +232,7 @@ function Thought({ part }: { part: ReasoningPart }) {
     <button
       type="button"
       onClick={() => setExpanded((v) => !v)}
-      className="hover:bg-surface-sunken flex gap-2 rounded-lg px-1.5 py-1 text-left"
+      className="hover:bg-surface-sunken flex min-h-11 items-start gap-2 rounded-lg px-1.5 py-2.5 text-left"
     >
       <Icon name="bulb" size={14} className="text-sleep mt-1 shrink-0" lineOnly />
       <span className={cn('text-caption text-muted', !expanded && 'line-clamp-2')}>
@@ -260,7 +266,7 @@ function ToolRow({ tool }: { tool: ToolPart }) {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="hover:bg-surface-sunken flex min-h-10 w-full items-center gap-2 px-2 py-1.5 text-left"
+        className="hover:bg-surface-sunken flex min-h-11 w-full items-center gap-2 px-2 py-1.5 text-left"
       >
         <span
           className={cn(

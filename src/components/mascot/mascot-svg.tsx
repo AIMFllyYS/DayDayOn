@@ -2,7 +2,7 @@ import { useId } from 'react'
 import { cn } from '@/lib/cn'
 
 /*
- * 吉祥物"团团"：一颗头顶小芽、戴着樱花色蝴蝶结的糯米团子（樱饼配色：米白身体 + 绿叶 + 粉色缎带）。
+ * 吉祥物：糯米团子，两个形象共用身体和表情——团团（樱花蝴蝶结）和墩墩（小棒球帽），见 MascotCharacter。
  * 这里只负责按参数画出一帧（表情、视线、眨眼、腮红、手臂姿势），不含任何状态和动画；
  * 静态展示用 <Mascot>，可互动的用 <InteractivePet>。
  *
@@ -70,15 +70,37 @@ export interface MascotSvgProps {
   blush?: number
   /** 不传时按表情自动选姿势 */
   arm?: MascotArm
+  /** 形象：团团（默认）/ 墩墩 */
+  character?: MascotCharacter
   size?: number
   /** 读屏名称；不传时作为装饰图形 */
   label?: string
   className?: string
 }
 
+/**
+ * 两个形象（2026-11-01 评审：用户可以选陪伴自己的小伙伴）。
+ * 团团：偏女孩，樱花粉波点蝴蝶结别在头顶左侧，头顶小芽。
+ * 墩墩：偏男孩，雾蓝色棒球帽（帽檐朝右）+ 帽顶一片小叶子，眉毛更有精神，腮红淡一些。
+ * 身体、表情、手臂两者完全共用，只换头饰和少量细节。
+ */
+export type MascotCharacter = 'tuan' | 'dun'
+
+export const mascotCharacters: { id: MascotCharacter; name: string; note: string }[] = [
+  { id: 'tuan', name: '团团', note: '樱花蝴蝶结，软软糯糯' },
+  { id: 'dun', name: '墩墩', note: '小棒球帽，元气满满' },
+]
+
+export const characterName = (c: MascotCharacter) =>
+  mascotCharacters.find((m) => m.id === c)?.name ?? '团团'
+
 const INK = 'var(--foreground)'
 const SKIN = '#fbead8'
 const SKIN_LINE = '#e1c6a8'
+// 腮红、嘴巴是插画专用色，不跟随主题色（主题换成抹茶绿时腮红不能变绿）
+const BLUSH = '#f4a091'
+const MOUTH = '#9b4a3a'
+const TONGUE = '#f28b74'
 const EYE_L = { x: 60, y: 80 }
 const EYE_R = { x: 100, y: 80 }
 
@@ -88,6 +110,7 @@ export function MascotSvg({
   blink = false,
   blush = 0.3,
   arm,
+  character = 'tuan',
   size = 96,
   label,
   className,
@@ -97,7 +120,10 @@ export function MascotSvg({
   const gaze = mood === 'thinking' ? { x: 0.7, y: -0.9 } : look
   const dx = Math.max(-1, Math.min(1, gaze.x)) * 3.2
   const dy = Math.max(-1, Math.min(1, gaze.y)) * 2.6
-  const cheek = mood === 'shy' || mood === 'love' ? 1 : Math.min(1, Math.max(0, blush))
+  const cheek =
+    mood === 'shy' || mood === 'love'
+      ? 1
+      : Math.min(1, Math.max(0, blush)) * (character === 'dun' ? 0.6 : 1)
   const cheekScale = mood === 'eating' ? 1.35 : 1
   const pose = arm ?? moodArm[mood]
   const [leftDeg, rightDeg] = armAngle[pose]
@@ -123,8 +149,8 @@ export function MascotSvg({
           <stop offset="100%" stopColor={SKIN} />
         </radialGradient>
         <radialGradient id={`${uid}-cheek`}>
-          <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
+          <stop offset="0%" stopColor={BLUSH} stopOpacity="0.85" />
+          <stop offset="100%" stopColor={BLUSH} stopOpacity="0" />
         </radialGradient>
         <linearGradient id={`${uid}-leaf`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#a6dfc4" />
@@ -133,6 +159,10 @@ export function MascotSvg({
         <linearGradient id={`${uid}-ribbon`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#fbc4d3" />
           <stop offset="100%" stopColor="var(--custom)" />
+        </linearGradient>
+        <linearGradient id={`${uid}-cap`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#b9d7f1" />
+          <stop offset="100%" stopColor="var(--study)" />
         </linearGradient>
       </defs>
 
@@ -164,31 +194,73 @@ export function MascotSvg({
       />
       <circle cx="74" cy="43" r="3" fill="#fff" opacity="0.85" />
 
-      {/* 头顶小芽 */}
+      {character === 'dun' ? <DunCap uid={uid} /> : <TuanBow uid={uid} />}
+
+      {/* 腮红 */}
+      <g opacity={0.45 + cheek * 0.55}>
+        <ellipse
+          cx="47"
+          cy="94"
+          rx={10 * cheekScale}
+          ry={6.5 * cheekScale}
+          fill={`url(#${uid}-cheek)`}
+        />
+        <ellipse
+          cx="113"
+          cy="94"
+          rx={10 * cheekScale}
+          ry={6.5 * cheekScale}
+          fill={`url(#${uid}-cheek)`}
+        />
+      </g>
+
+      <Eyes mood={mood} blink={blink} dx={dx} dy={dy} />
+      {character === 'dun' && <DunBrows mood={mood} />}
+      <Mouth mood={mood} />
+      <Extras mood={mood} />
+
+      {/* 手臂：最后画，保证任何姿势都不会被身体挡住 */}
+      <Arm side="left" deg={leftDeg} uid={uid} />
+      <Arm side="right" deg={rightDeg} uid={uid} waving={pose === 'wave'} />
+    </svg>
+  )
+}
+
+/**
+ * 团团的头饰：两片圆叶的小芽 + 樱花粉波点蝴蝶结。
+ * 2026-11-01 评审：蝴蝶结从头侧上移到头顶右上，小芽从尖叶改成圆叶，整体更软更像女孩子。
+ */
+function TuanBow({ uid }: { uid: string }) {
+  return (
+    <g>
+      {/* 小芽：一根短茎 + 两片圆叶 */}
       <path
-        d="M80 31c-.5-6 .8-11 4-15"
+        d="M78 31c-.4-5 .4-9 2.6-12"
         fill="none"
         stroke="#3f8a69"
         strokeWidth="3"
         strokeLinecap="round"
       />
-      <path d="M84 16c3-8 12-11 21-9-2 8-11 13-21 9Z" fill={`url(#${uid}-leaf)`} />
       <path
-        d="M83 18.5c-5-6.5-13.5-7.5-20-3 4.5 6.5 13 8 20 3Z"
+        d="M80.6 19c1-6.5 7.5-10 13.5-8.5-.6 6.5-7.5 10.5-13.5 8.5Z"
+        fill={`url(#${uid}-leaf)`}
+      />
+      <path
+        d="M79.6 20.5c-3.2-5.6-9.8-7.2-14.6-4.4 2.6 5.4 9.4 7.6 14.6 4.4Z"
         fill={`url(#${uid}-leaf)`}
         opacity="0.85"
       />
       <path
-        d="M87 14.5c4-2.8 8.5-4 13-4"
+        d="M83 17c2.6-2.2 5.6-3.4 8.6-3.6"
         fill="none"
         stroke="#3f8a69"
-        strokeWidth="1.3"
+        strokeWidth="1.2"
         strokeLinecap="round"
-        opacity="0.55"
+        opacity="0.5"
       />
 
-      {/* 蝴蝶结：别在头顶右侧，樱花粉缎带 + 白色波点 + 两条飘带 */}
-      <g transform="translate(108 43) rotate(20)">
+      {/* 蝴蝶结：别在头顶右上，樱花粉缎带 + 白色波点 + 两条飘带 */}
+      <g transform="translate(104 35) rotate(16) scale(0.95)">
         <g fill={`url(#${uid}-ribbon)`} stroke="#d97c97" strokeWidth="1.6" strokeLinejoin="round">
           <path d="M-1.5 3 -7 14.5l4-1.2 1.6 3.4L1 4Z" />
           <path d="M1.5 3 6.5 14l-3.8-.9-1.4 3.2L-1 4Z" />
@@ -216,33 +288,76 @@ export function MascotSvg({
         />
         <ellipse cx="-1" cy="-0.3" rx="1.2" ry="1.5" fill="#fff" opacity="0.6" />
       </g>
+    </g>
+  )
+}
 
-      {/* 腮红 */}
-      <g opacity={0.45 + cheek * 0.55}>
-        <ellipse
-          cx="47"
-          cy="94"
-          rx={10 * cheekScale}
-          ry={6.5 * cheekScale}
-          fill={`url(#${uid}-cheek)`}
-        />
-        <ellipse
-          cx="113"
-          cy="94"
-          rx={10 * cheekScale}
-          ry={6.5 * cheekScale}
-          fill={`url(#${uid}-cheek)`}
-        />
+/** 墩墩的头饰：雾蓝色棒球帽（帽檐朝右）+ 帽顶一片小叶子 */
+function DunCap({ uid }: { uid: string }) {
+  return (
+    <g strokeLinejoin="round">
+      {/* 帽顶小叶子 */}
+      <path
+        d="M80 21c0-3 .6-5.6 2.2-7.6"
+        fill="none"
+        stroke="#3f8a69"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+      />
+      <path d="M82 13.6c2.4-5.6 8.6-7.6 13.6-6-1.6 5.6-8 8.6-13.6 6Z" fill={`url(#${uid}-leaf)`} />
+      {/* 帽檐 */}
+      <path
+        d="M102 45.5c13-3.6 26-2.2 34 3.4-6.6 6.2-20.4 7.4-33 4Z"
+        fill="#6f9bc8"
+        stroke="#4f78a3"
+        strokeWidth="2"
+      />
+      {/* 帽身 */}
+      <path
+        d="M45 50c-1-17 14-29 35-29s36 12 35 29c-21-6.6-49-6.6-70 0Z"
+        fill={`url(#${uid}-cap)`}
+        stroke="#4f78a3"
+        strokeWidth="2.2"
+      />
+      {/* 分片缝线和顶扣 */}
+      <g fill="none" stroke="#4f78a3" strokeWidth="1.3" strokeLinecap="round" opacity="0.55">
+        <path d="M80 22c-2.6 7-3 15-1.6 22.4M80 22c8 4.6 12.6 12 13.8 20.4" />
       </g>
+      <circle cx="80" cy="21.6" r="2.8" fill="#4f78a3" />
+      {/* 帽子正面的小星星徽章 */}
+      <path
+        d="m64 37.5 1.3 2.7 3 .4-2.2 2 .6 3-2.7-1.4-2.7 1.4.6-3-2.2-2 3-.4z"
+        fill="var(--diet)"
+        stroke="#d9a93a"
+        strokeWidth="0.9"
+      />
+      {/* 高光 */}
+      <path
+        d="M54 39c3-7 9-11.5 16-13"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+    </g>
+  )
+}
 
-      <Eyes mood={mood} blink={blink} dx={dx} dy={dy} />
-      <Mouth mood={mood} />
-      <Extras mood={mood} />
-
-      {/* 手臂：最后画，保证任何姿势都不会被身体挡住 */}
-      <Arm side="left" deg={leftDeg} uid={uid} />
-      <Arm side="right" deg={rightDeg} uid={uid} waving={pose === 'wave'} />
-    </svg>
+/** 墩墩的眉毛：短而粗，显得有精神；失落表情自带眉毛，不重复画 */
+function DunBrows({ mood }: { mood: MascotMood }) {
+  if (mood === 'sad') return null
+  const lift = mood === 'surprised' ? -3 : 0
+  return (
+    <g
+      fill="none"
+      stroke={INK}
+      strokeWidth="3"
+      strokeLinecap="round"
+      transform={`translate(0 ${lift})`}
+    >
+      <path d="M53 66.5q6-3 12.5-1.2M94.5 65.3q6.5-1.8 12.5 1.2" />
+    </g>
   )
 }
 
@@ -371,12 +486,12 @@ function Mouth({ mood }: { mood: MascotMood }) {
     case 'love':
       return (
         <g>
-          <path d="M70 94q10 13 20 0Z" fill="var(--primary-ink)" />
-          <path d="M75.5 99.5q4.5 3.8 9 0" fill="var(--primary)" />
+          <path d="M70 94q10 13 20 0Z" fill={MOUTH} />
+          <path d="M75.5 99.5q4.5 3.8 9 0" fill={TONGUE} />
         </g>
       )
     case 'surprised':
-      return <ellipse cx="80" cy="100" rx="4.5" ry="5.5" fill="var(--primary-ink)" />
+      return <ellipse cx="80" cy="100" rx="4.5" ry="5.5" fill={MOUTH} />
     case 'sleepy':
       return <path d="M76 98.5q4 2.5 8 0" {...line} />
     case 'thinking':

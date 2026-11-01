@@ -19,6 +19,10 @@ cp -a .next/static "$work/.next/static"
 if [[ -d public ]]; then
   cp -a public "$work/public"
 fi
+if [[ -d src/server/db/migrations ]]; then
+  mkdir -p "$work/src/server/db"
+  cp -a src/server/db/migrations "$work/src/server/db/migrations"
+fi
 
 # 制品里不能有 .env 文件
 if [[ -n "$(find "$work" -name '.env*' -print -quit)" ]]; then

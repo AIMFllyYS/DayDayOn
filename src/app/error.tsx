@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+
 export default function Error({
   reset,
 }: {
@@ -8,15 +10,11 @@ export default function Error({
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-      <h2 className="text-2xl font-bold">出了点小问题</h2>
-      <p className="text-muted">页面加载失败，可以再试一次。</p>
-      <button
-        type="button"
-        onClick={reset}
-        className="bg-foreground text-background rounded-full px-5 py-2"
-      >
+      <h2 className="text-title font-bold">出了点小问题</h2>
+      <p className="text-body text-muted">页面加载失败，可以再试一次。</p>
+      <Button icon="undo" onClick={reset}>
         重试
-      </button>
+      </Button>
     </div>
   )
 }

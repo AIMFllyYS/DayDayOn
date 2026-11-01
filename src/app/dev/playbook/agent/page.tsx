@@ -4,6 +4,7 @@ import { AiDraftCard } from '@/features/agent/components/ai-draft-card'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
 import { UserMessage } from '@/features/agent/components/user-message'
 import { AgentPlayback, ErrorTurnDemo } from '../_components/agent-demos'
+import { EditableDraftDemo, QuotaCardDemo, RecognizerPhasesDemo } from './_d6-demos'
 import { manyToolsTurn, quickTurn, runningTurn } from '../_components/agent-script'
 import { PageHeader, Rules, Section, Specimen } from '../_components/section'
 
@@ -33,7 +34,7 @@ export default function AgentPage() {
       <Section
         ann="playbook.agent.playback"
         title="完整过程回放"
-        description="拍照识别午餐：3 个工具并行估算 → 搜索补充（其中一个网页打不开）→ 读取资料和今日记录 → 回答 → 草稿确认。"
+        description="拍照识别午餐：3 个工具并行估算 → 搜索补充（其中一个网页打不开）→ 读取资料和今日记录 → 回答 → 草稿确认。推理过程进行中自动展开，回答出来后自动收起成一行。"
       >
         <AgentPlayback />
       </Section>
@@ -65,7 +66,7 @@ export default function AgentPage() {
             data-ann="playbook.agent.many-tools.collapsed"
             className="flex min-w-0 flex-col gap-2"
           >
-            <p className="text-tiny text-muted font-semibold">默认（收起）</p>
+            <p className="text-tiny text-muted font-semibold">完成后（自动收起）</p>
             <UserMessage>帮我总结一下这周</UserMessage>
             <AgentTurn turn={manyToolsTurn} />
           </div>
@@ -150,6 +151,32 @@ export default function AgentPage() {
       </Section>
 
       <Section
+        ann="playbook.agent.draft-edit"
+        title="可编辑的饮食草稿"
+        description="传 items 时草稿卡逐项列出，点“修改”可以改名称、份量、热量，可删可加；合计自动重算。热量初值取 AI 区间的中值。"
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <EditableDraftDemo />
+        </div>
+      </Section>
+
+      <Section
+        ann="playbook.agent.diet-recognizer"
+        title="拍照识别饮食"
+        description="正式组件 DietRecognizer 的展示部分：识别中活动条展开（“正在看照片”），完成后收起，草稿卡接在后面；失败给出原因和“手动填写”。"
+      >
+        <RecognizerPhasesDemo />
+      </Section>
+
+      <Section
+        ann="playbook.agent.quota-card"
+        title="额度卡（我的页）"
+        description="QuotaMeter + 加购余额 + “兑换额度”抽屉 + “使用记录”抽屉。演示里以 DDON 开头的码算兑换成功。"
+      >
+        <QuotaCardDemo />
+      </Section>
+
+      <Section
         ann="playbook.agent.quota"
         title="AI 额度"
         description="显示“还剩多少”。金额用整数微元传入，组件只负责展示。"
@@ -171,7 +198,7 @@ export default function AgentPage() {
       <Section ann="playbook.agent.rules" title="规则">
         <Rules
           dos={[
-            '过程默认收起，进行中时在活动条里说清“正在做什么”',
+            '进行中默认展开推理过程，回答完成后自动收起成一行；用户手动开合过就以用户为准',
             '同一步的工具并行展示，失败的直接显示原因和降级方案',
             '工具中文名、进行时说法、图标在 tool-meta.ts 登记',
             '联网结果附上来源；热量、睡眠类结果标注“估算结果，非医疗建议”',

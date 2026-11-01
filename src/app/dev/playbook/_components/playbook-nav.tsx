@@ -9,19 +9,19 @@ export const playbookPages = [
   { href: '/dev/playbook/foundations', label: '色彩与字体' },
   { href: '/dev/playbook/motion', label: '动效' },
   { href: '/dev/playbook/components', label: '原子组件' },
+  { href: '/dev/playbook/primitives', label: '交互原语' },
+  { href: '/dev/playbook/data', label: '数据与时间' },
   { href: '/dev/playbook/navigation', label: '导航与布局' },
   { href: '/dev/playbook/pet', label: '小宠物' },
   { href: '/dev/playbook/agent', label: 'Agent 组件' },
+  { href: '/dev/playbook/pages', label: '页面预览' },
 ] as const
 
 /** 手机端横向滚动的标签，桌面端竖排在左侧 */
 export function PlaybookNav() {
   const pathname = usePathname()
   return (
-    <nav
-      aria-label="Playbook 目录"
-      className="-mx-4 [scrollbar-width:none] overflow-x-auto px-4 md:mx-0 md:px-0"
-    >
+    <nav aria-label="Playbook 目录" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
       <ul className="flex gap-1.5 md:flex-col">
         {playbookPages.map((p) => {
           const active = pathname === p.href

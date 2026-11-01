@@ -14,3 +14,9 @@
 - 规则：共用 schema 只从 `zod` 导入，命名用 `.meta({ id })`；`@hono/zod-openapi` 的 `z` 只在 `src/server/api/` 里用于参数元数据。
 - 元：zod@4.6.7、@hono/zod-openapi@1.6.3 | 2026-10-31 | 候选毕业方向：lint
 
+### zod 4 的错误定制参数是 `{ error: '...' }`，且扁平化用顶层 `z.flattenError(err)`
+- 症状：写 `{ message: '...' }`、`required_error`、`invalid_type_error` 或调 `err.flatten()` 时报类型错误或弃用。
+- 根因：zod 4 统一把校验错误文案收口为 `{ error: '...' }`，并把实例方法 `.flatten()` 移到了命名空间函数 `z.flattenError(err)`；字符串格式校验优先用顶层 `z.email()`、`z.url()`、`z.uuid()`。
+- 规则：错误文案写 `{ error: '...' }`；提取字段错误一律调 `z.flattenError(r.error).fieldErrors`。
+- 元：zod@4.6.7 | 2026-11-01 | 候选毕业方向：规范（`client-data-and-forms.md`）
+

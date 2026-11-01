@@ -34,22 +34,30 @@ export function DesktopFrame({
   children,
   className,
   label,
+  height = 460,
+  minWidth = 640,
 }: {
   children: ReactNode
   className?: string
   label: string
+  /** 内容区高度（px），页面预览用更高的 */
+  height?: number
+  /** 最小宽度（px），窄屏上横向滚动 */
+  minWidth?: number
 }) {
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
       {/* 在手机上看桌面演示时横向滚动，不撑宽页面 */}
       <div className="border-border-strong bg-surface shadow-card overflow-x-auto rounded-2xl border">
-        <div className="min-w-[640px]">
+        <div style={{ minWidth }}>
           <div className="border-border bg-surface-sunken flex h-8 items-center gap-1.5 border-b px-3">
             <span className="bg-danger/70 size-2.5 rounded-full" />
             <span className="bg-diet size-2.5 rounded-full" />
             <span className="bg-exercise size-2.5 rounded-full" />
           </div>
-          <div className={cn('bg-paper flex h-[460px]', className)}>{children}</div>
+          <div className={cn('bg-paper flex', className)} style={{ height }}>
+            {children}
+          </div>
         </div>
       </div>
       <span className="text-tiny text-subtle font-mono">{label}</span>

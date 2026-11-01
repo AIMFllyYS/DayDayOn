@@ -1,6 +1,6 @@
 # 路由统一规范
 
-> 日期：2026-10-31 · 状态：草案。第 2 节的页面路由是规划，PRD 定稿后修正。
+> 日期：2026-10-31 · 状态：草案。第 2 节的页面路由已按 PRD v0.1 第 7.1 节修正（2026-11-01）。
 > Next.js 本身的约定（`params` 要 `await`、Cache Components 等）见 [nextjs-16-patterns.md](./nextjs-16-patterns.md)。
 
 ## 1. 原则
@@ -10,7 +10,7 @@
 - 不带结尾斜杠（Next 默认行为，不改）。
 - 一个页面只有一个地址。视图状态（筛选、范围、标签页）放查询参数，不另开路由。
 
-## 2. 页面路由（规划）
+## 2. 页面路由（PRD v0.1）
 
 | 路径 | 页面 | 路由组 | 导航 |
 |---|---|---|---|
@@ -19,17 +19,18 @@
 | `/rank` | 排行榜；`?range=week\|month` | `(app)` | 一级 |
 | `/me` | 我的 | `(app)` | 一级 |
 | `/me/profile` | 个人资料（身高、体重、时区…） | `(app)` | 二级 |
-| `/me/settings` | 偏好设置（提醒、日切换时间、公开范围） | `(app)` | 二级 |
 | `/goals` | 我的目标列表 | `(app)` | 二级 |
 | `/goals/new` | 新建目标 | `(app)` | 二级 |
 | `/goals/[goalId]` | 目标详情与历史 | `(app)` | 二级 |
 | `/goals/[goalId]/checkin` | 打卡表单（手动 / AI 识别） | `(app)` | 二级 |
 | `/login` | 邮箱验证码登录 | `(auth)` | 无 |
-| `/onboarding` | 新人引导 | `(auth)` | 无 |
+| `/onboarding` | 新人引导（六步） | `(auth)` | 无 |
+| `/privacy` | 隐私说明（静态，不要求登录） | `(auth)` | 无 |
 | `/admin` | 后台首页（额度监控） | `admin/` | 后台侧栏 |
 | `/admin/users`、`/admin/codes`、`/admin/settings` | 用户与封禁、兑换码、全站配置 | `admin/` | 后台侧栏 |
 | `/dev`、`/dev/playbook/*` | 调试区与设计系统 | `dev/` | 无，生产 404 |
 
+- 偏好（主题、形象、上榜、日切换时间、提醒）在 `/me` 页内修改，不单独开 `/me/settings`（PRD 2.11）。
 - 打卡入口（"＋"弹层）是客户端状态，不是路由；选好板块后进入 `/goals/[goalId]/checkin`。
 - 一级页面就是导航项，定义在 `src/components/layout/nav-items.ts`，改这里要同步改上表。
 

@@ -14,3 +14,9 @@
 - 规则：查文档去 `github.com/date-fns/date-fns/tree/main/pkgs/tz`。
 - 元：@date-fns/tz@1.5.0 | 2026-10-31 | 候选毕业方向：无
 
+### ISO 周数跨年时不能用 `getYear(date)` 拼周期键
+- 症状：2026-12-28 至 2026-12-31（屬於 2027-W01，或年初属于上一年 W52/W53）用 `getYear()` 拼成 `2026-W01`，和上一年的第一周撞键。
+- 根因：ISO 8601 周的所属年份是 `getISOWeekYear(date)`，在年初/年末几天与公历年 `getYear(date)` 不同。
+- 规则：周周期键一律用 `getISOWeekYear` + `getISOWeek`（已封装在 `src/lib/time/` 与 `src/server/quota/period.ts`），禁止手写 `getYear`。
+- 元：date-fns@4.4.0 | 2026-11-01 | 候选毕业方向：已沉淀到 `src/lib/time/`
+

@@ -21,7 +21,22 @@ pnpm dev       # http://localhost:23329
 
 环境变量：复制 `.env.example` 为 `.env.local` 后填写。`.env.local` 不会被提交。
 
-本地数据库（Docker 运行 `postgres:18.6-alpine3.24`，绑定 `127.0.0.1:23432`）、`pnpm db:*` 和 `pnpm test` 命令在 M3 接入，启动步骤届时补到本节；规则先见 [database.md](../conventions/database.md)、[testing.md](../conventions/testing.md)。
+本地数据库与测试（规则见 [database.md](../conventions/database.md)、[testing.md](../conventions/testing.md)）：
+
+```powershell
+pnpm db:up        # 启动 Docker PG（postgres:18.6-alpine3.24，127.0.0.1:23432），等到健康检查通过
+pnpm db:generate  # 改完 src/server/db/schema/ 后生成迁移（drizzle-kit generate）
+pnpm db:migrate   # 执行迁移（scripts/dev/migrate.ts，drizzle-orm 的 migrate()）
+pnpm db:seed      # 写入本地假数据
+pnpm test         # 单元测试（vitest run，不进入监听模式）
+pnpm db:down      # 停止并移除容器，数据保留在 .data/postgres
+```
+
+- 本地库的用户、库名都是 `daydayon`，口令 `daydayon-dev`（只用于本机，写在 `scripts/dev/docker-compose.db.yml`）。`.env.local` 的 `DATABASE_URL` 填 `postgres://daydayon:daydayon-dev@127.0.0.1:23432/daydayon`。
+- 数据目录是仓库根的 `.data/postgres`（已 gitignore）。要清空本地库：`pnpm db:down` 后删除 `.data/postgres`。
+- `db:migrate` 选用程序化的 `migrate(db, { migrationsFolder })` 而不是 `drizzle-kit migrate`：和生产部署闸门将来调用的方式一致；还没有迁移文件时直接跳过。
+- `drizzle.config.ts` 和 `scripts/dev/migrate.ts` 会自己读取 `.env.local`（drizzle-kit 不会自动加载）。
+- 没有 `db:push`：所有环境都走 generate + migrate，禁止 `drizzle-kit push`。
 
 ## 常用检查
 

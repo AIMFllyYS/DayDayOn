@@ -17,7 +17,7 @@ const avatarMood: Record<AgentTurnView['status'], MascotMood> = {
 
 interface AgentTurnProps {
   turn: AgentTurnView
-  /** 活动条默认展开（用于调试或演示） */
+  /** 不传时自动：进行中展开、完成后收起；传 true / false 固定展开或收起（演示用） */
   traceOpen?: boolean
   /** 正文之后的产物：草稿卡、图表等 */
   children?: ReactNode
@@ -29,13 +29,7 @@ interface AgentTurnProps {
  * 一次助手回复。思考、工具调用、文字输出是同一个回合的三种 part，合在一个组件里按固定顺序呈现：
  *   活动条（思考 + 工具，一行，可展开）→ 正文 → 产物（草稿卡）→ 来源 → 错误与重试
  */
-export function AgentTurn({
-  turn,
-  traceOpen = false,
-  children,
-  onRetry,
-  className,
-}: AgentTurnProps) {
+export function AgentTurn({ turn, traceOpen, children, onRetry, className }: AgentTurnProps) {
   const { text, streaming } = turnText(turn)
   const sources = turnSources(turn)
   const hasProcess =

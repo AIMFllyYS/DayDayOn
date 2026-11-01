@@ -1,0 +1,425 @@
+{
+  "schema": "daydayon.annotations/v2",
+  "app": "DayDayOn",
+  "exportedAt": "2026-10-31T22:41:20.577Z",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+  "items": [
+    {
+      "id": "62ee1244-1f4c-4a84-9264-127549b226fc",
+      "route": "/dev/playbook/components",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.components.button.variants",
+        "selector": "[data-ann=\"playbook.components.button\"] > div:nth-of-type(2) > figure:nth-of-type(1)",
+        "tag": "figure",
+        "text": "确认记录取消稍后提醒跳过删除变体一个区域只放一个 primary；危险操作用 danger 并二次确认",
+        "rect": {
+          "x": 544,
+          "y": 248,
+          "width": 414,
+          "height": 208
+        }
+      },
+      "point": {
+        "rx": 0.16183574879227053,
+        "ry": 0.23841983692708862
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T08:07:35.847Z",
+      "updatedAt": "2026-10-31T08:07:35.847Z",
+      "comment": "这个按钮的颜色感觉非常不舒适。首先，大面积的背景加上文字，给人一种很廉价的感觉。\n\n其次，分析一下我们整个颜色的搭配，我感觉还是有问题，尤其是这个按钮的颜色搭配以及我们整体的体系。因为我想要那种温馨的感觉，你看一看应该用什么样的颜色来搭配一下。\n\n这应该是全局性的问题。",
+      "category": "visual",
+      "priority": "P0"
+    },
+    {
+      "id": "54d0d791-a6bb-40fd-bcd6-fa2e240bfd8c",
+      "route": "/dev/playbook/components",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.components.badge.tones",
+        "selector": "[data-ann=\"playbook.components.badge\"] > div:nth-of-type(2) > figure:nth-of-type(1)",
+        "tag": "figure",
+        "text": "运动饮食睡眠学习自定义连续 12 天已完成待确认草稿Badgesoft 底 + ink 字",
+        "rect": {
+          "x": 544,
+          "y": 713,
+          "width": 414,
+          "height": 160
+        }
+      },
+      "point": {
+        "rx": 0.3647342995169082,
+        "ry": 0.10195541355717622
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T08:07:56.938Z",
+      "updatedAt": "2026-10-31T08:07:56.938Z",
+      "comment": "这里也接续我批注的第一点。我感觉这里面的颜色很舒适，右面的图标也很舒适。你可以从这个角度分析一下为什么",
+      "category": "visual",
+      "priority": "P1"
+    },
+    {
+      "id": "a5b8510c-51d4-4eee-9592-86bab2d29eae",
+      "route": "/dev/playbook/components",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.components.button.icon",
+        "selector": "[data-ann=\"playbook.components.button\"] > div:nth-of-type(2) > figure:nth-of-type(3)",
+        "tag": "figure",
+        "text": "图标按钮必须传 label",
+        "rect": {
+          "x": 544,
+          "y": 468,
+          "width": 414,
+          "height": 144
+        }
+      },
+      "point": {
+        "rx": 0.10869565217391304,
+        "ry": 0.31816863551464947
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T08:09:28.228Z",
+      "updatedAt": "2026-10-31T08:09:28.228Z",
+      "comment": "这个铃铛图标和旁边的菜单图标看着就很舒适。但是还是老问题，中间这个偏红色水彩虹的圆圈，加上黑色的“10”字，看着真的很不舒服。\n\n我觉得以下两点很重要：\n1. 要系统性地分析整个颜色配色的选取。\n2. 允许用户可以选择颜色主题。",
+      "category": "visual",
+      "priority": "P1"
+    },
+    {
+      "id": "9357c294-fdaa-4a35-8a72-83eef278000e",
+      "route": "/dev/playbook/components",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.components.form.rating",
+        "selector": "[data-ann=\"playbook.components.form\"] > div:nth-of-type(2) > figure:nth-of-type(2)",
+        "tag": "figure",
+        "text": "今天的睡眠感觉怎么样？很糟不太好一般不错超棒Rating每天每个板块的满意度 1–5，选中项用板块色",
+        "rect": {
+          "x": 544,
+          "y": 2007,
+          "width": 840,
+          "height": 188
+        }
+      },
+      "point": {
+        "rx": 0.425,
+        "ry": 0.23722788584696483
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T08:10:06.679Z",
+      "updatedAt": "2026-10-31T08:10:06.679Z",
+      "comment": "这个板块点击之后，还要有一个交互反馈。比如说：\n1. 很糟的时候：有一个不太好的效果，就是屏幕震动。\n2. 一般的话：有什么样的波浪效果。\n3. 不错、超好的时候：有那种撒庆祝花的效果。",
+      "category": "visual",
+      "priority": "P1"
+    },
+    {
+      "id": "b3cd67b3-d512-4299-b750-543ab7369bff",
+      "route": "/dev/playbook/components",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.components.sheet.demo",
+        "selector": "[data-ann=\"playbook.components.sheet\"] > figure",
+        "tag": "figure",
+        "text": "打开打卡弹层记录点什么？选一个板块开始打卡运动饮食睡眠学习自定义今日进度拍照，让 AI 帮我识别Sheet基于原生 <dialog>：Esc 关闭、焦点圈定。手",
+        "rect": {
+          "x": 544,
+          "y": 2597,
+          "width": 840,
+          "height": 144
+        }
+      },
+      "point": {
+        "rx": 0.2857142857142857,
+        "ry": 0.3625036093158711
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T08:10:51.739Z",
+      "updatedAt": "2026-10-31T08:10:51.739Z",
+      "comment": "点击打卡弹层之后，它的页面应该类似于我们的菜单列表，是从下往上拉的，应该是这样的一个设计",
+      "category": "visual",
+      "priority": "P1"
+    },
+    {
+      "id": "5ebe6683-1cd0-4311-9aa9-6275db501d30",
+      "route": "/dev/playbook/components",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.components.identity.stamp",
+        "selector": "[data-ann=\"playbook.components.identity\"] > div:nth-of-type(2) > figure:nth-of-type(2)",
+        "tag": "figure",
+        "text": "已打卡10.31已打卡10.30补卡10.29Stamp打卡完成的标志，历史记录里静态显示",
+        "rect": {
+          "x": 828,
+          "y": 2841,
+          "width": 272,
+          "height": 264
+        }
+      },
+      "point": {
+        "rx": 0.5588235294117647,
+        "ry": 0.47259509162850305
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T08:11:09.140Z",
+      "updatedAt": "2026-10-31T08:11:09.140Z",
+      "comment": "像这个我感觉就非常的不错",
+      "category": "visual",
+      "priority": "P1"
+    },
+    {
+      "id": "debc3705-e220-4d4b-8d2d-1fdb00a92c61",
+      "route": "/dev/playbook/components",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.components.identity.mascot",
+        "selector": "[data-ann=\"playbook.components.identity\"] > div:nth-of-type(2) > figure:nth-of-type(3)",
+        "tag": "figure",
+        "text": "zzMascot（占位）四种情绪；正式形象定稿后替换 SVG",
+        "rect": {
+          "x": 1112,
+          "y": 2841,
+          "width": 272,
+          "height": 264
+        }
+      },
+      "point": {
+        "rx": 0.6617647058823529,
+        "ry": 0.779655563918525
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T08:11:40.978Z",
+      "updatedAt": "2026-10-31T08:11:40.978Z",
+      "comment": "到时候我们的宠物形象是可以选择的，应该做两个 IP：一个是偏女性化的，一个是偏男性化的。\n\n因为目前这个形象比较偏女性化，我认为可以对宠物的样式进行优化：\n1. 偏女性化：蝴蝶结可能位置偏上，或者把顶上的三叶草改一下。\n2. 偏男性化：可以用另一个，自己分析一下。",
+      "category": "visual",
+      "priority": "P1"
+    },
+    {
+      "id": "97285e7b-bf6e-4b19-b3aa-3c600b51fb51",
+      "route": "/dev/playbook/pet",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": null,
+        "selector": "body > div:nth-of-type(2) > div > main",
+        "tag": "main",
+        "text": "团团头顶小芽、系着珊瑚色蝴蝶结的糯米团子。它陪用户打卡：会看你、会害羞、会吃零食，打卡成功时会跳起来庆祝。docs/conventions/ui-design-",
+        "rect": {
+          "x": 544,
+          "y": 40,
+          "width": 840,
+          "height": 2223
+        }
+      },
+      "point": {
+        "rx": 0.919047619047619,
+        "ry": 0.06972657622829831
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T22:37:31.425Z",
+      "updatedAt": "2026-10-31T22:37:31.425Z",
+      "comment": "我感觉我们可以设置两个宠物形象",
+      "category": "visual",
+      "priority": "P1"
+    },
+    {
+      "id": "1ca0c8ed-bbe4-441a-a686-be8d263aabec",
+      "route": "/dev/playbook/navigation",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.navigation.mobile",
+        "selector": "body > div:nth-of-type(2) > div > main > section:nth-of-type(2)",
+        "tag": "section",
+        "text": "手机：底部导航playbook.navigation.mobile点导航项切换高亮，点“＋”打开打卡弹层（＋会旋转成 ×）。真实页面里底栏 fixed 在底部，",
+        "rect": {
+          "x": 544,
+          "y": 455,
+          "width": 840,
+          "height": 750
+        }
+      },
+      "point": {
+        "rx": 0.5,
+        "ry": 0.8609182843981258
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T22:38:24.970Z",
+      "updatedAt": "2026-10-31T22:38:24.970Z",
+      "comment": "这个加号太往上了  太难看了  这个按钮应该也在底部Docker中",
+      "category": "visual",
+      "priority": "P1"
+    },
+    {
+      "id": "cd243daf-f4ea-40b6-b310-ab65e170395d",
+      "route": "/dev/playbook/navigation",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.navigation.desktop",
+        "selector": "body > div:nth-of-type(2) > div > main > section:nth-of-type(3)",
+        "tag": "section",
+        "text": "桌面：侧栏playbook.navigation.desktopauto 模式下 768–1023px 是窄栏、≥1024px 是宽栏。下面强制展示两种形态。D",
+        "rect": {
+          "x": 544,
+          "y": 1253,
+          "width": 840,
+          "height": 1146
+        }
+      },
+      "point": {
+        "rx": 0.2642857142857143,
+        "ry": 0.2989964153887945
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T22:38:44.298Z",
+      "updatedAt": "2026-10-31T22:38:44.298Z",
+      "comment": "所有滚动条必须完全隐藏",
+      "category": "visual",
+      "priority": "P1"
+    },
+    {
+      "id": "10825d23-98c4-4e32-b0f7-241b949b662f",
+      "route": "/dev/playbook/navigation",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.navigation.desktop",
+        "selector": "body > div:nth-of-type(2) > div > main > section:nth-of-type(3)",
+        "tag": "section",
+        "text": "桌面：侧栏playbook.navigation.desktopauto 模式下 768–1023px 是窄栏、≥1024px 是宽栏。下面强制展示两种形态。D",
+        "rect": {
+          "x": 544,
+          "y": 1253,
+          "width": 840,
+          "height": 1146
+        }
+      },
+      "point": {
+        "rx": 0.05952380952380952,
+        "ry": 0.6646425242480573
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T22:39:07.776Z",
+      "updatedAt": "2026-10-31T22:39:07.776Z",
+      "comment": "左侧侧边栏按钮太胖",
+      "category": "visual",
+      "priority": "P1"
+    },
+    {
+      "id": "50c83dbd-1f35-43c2-b222-73c7b4a3a2fd",
+      "route": "/dev/playbook/agent",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.agent.playback",
+        "selector": "body > div:nth-of-type(2) > div > main > section:nth-of-type(1)",
+        "tag": "section",
+        "text": "完整过程回放playbook.agent.playback拍照识别午餐：3 个工具并行估算 → 搜索补充（其中一个网页打不开）→ 读取资料和今日记录 → 回答 ",
+        "rect": {
+          "x": 544,
+          "y": 196,
+          "width": 840,
+          "height": 1448
+        }
+      },
+      "point": {
+        "rx": 0.5666666666666667,
+        "ry": 0.1693037928216042
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T22:40:24.072Z",
+      "updatedAt": "2026-10-31T22:40:24.072Z",
+      "comment": "Agent交互默认展开推理链  推理后再自动折叠",
+      "category": "visual",
+      "priority": "P1"
+    },
+    {
+      "id": "2c075d66-b7bf-4bb5-8547-e9610d7aeccd",
+      "route": "/dev/playbook/agent",
+      "viewport": {
+        "width": 1695,
+        "height": 930,
+        "dpr": 1.5
+      },
+      "target": {
+        "annId": "playbook.agent.playback",
+        "selector": "body > div:nth-of-type(2) > div > main > section:nth-of-type(1)",
+        "tag": "section",
+        "text": "完整过程回放playbook.agent.playback拍照识别午餐：3 个工具并行估算 → 搜索补充（其中一个网页打不开）→ 读取资料和今日记录 → 回答 ",
+        "rect": {
+          "x": 544,
+          "y": 196,
+          "width": 840,
+          "height": 1448
+        }
+      },
+      "point": {
+        "rx": 0.32142857142857145,
+        "ry": 0.924654777720924
+      },
+      "status": "open",
+      "sketchId": null,
+      "createdAt": "2026-10-31T22:40:52.953Z",
+      "updatedAt": "2026-10-31T22:40:52.953Z",
+      "comment": "这里按钮还是颜色问题  可以尝试微微修复",
+      "category": "visual",
+      "priority": "P1"
+    }
+  ],
+  "sketches": []
+}
