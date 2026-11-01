@@ -1,14 +1,16 @@
 import type { Metadata } from 'next'
 import { AppPage } from '@/components/layout/app-page'
-import { ComingSoon } from '@/components/layout/coming-soon'
+import { ProfileScreen } from '@/features/me/components/profile-form'
 
 export const metadata: Metadata = { title: '个人资料' }
 
-/** 占位页（F3），由领域 Agent 替换 */
+/** 出生年份下拉以构建时的年份为准（静态外壳，精确到年足够） */
+const THIS_YEAR = 2026
+
 export default function Page() {
   return (
     <AppPage title="个人资料" backHref="/me">
-      <ComingSoon />
+      <ProfileScreen thisYear={THIS_YEAR} />
     </AppPage>
   )
 }
