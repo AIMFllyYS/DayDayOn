@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TimeField } from '@/components/ui/time-field'
 import { toast } from '@/components/ui/toast'
 import type { UpdatePreferences } from '@/features/me/schemas'
+import { QuotaCard } from '@/features/quota/components/quota-card'
 import { LocalTimeSchema } from '@/features/shared/schemas'
 import { errorMessage, isApiError, useQuery, useQueryClient } from '@/lib/api'
 import {
@@ -28,12 +29,6 @@ import { MeView } from './me-view'
 const ConfirmDialog = dynamic(() =>
   import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
 )
-
-/*
- * 额度卡：D6 的 features/quota/components/quota-card.tsx 在 2659b27 还不存在。
- * 集成时在这里改成 <QuotaCard />（见 sharedChangeRequests）。
- */
-const QUOTA_SLOT = null
 
 function failToast(e: unknown) {
   toast.error(isApiError(e) ? errorMessage(e) : '网络好像不太稳，稍后再试试')
@@ -83,7 +78,7 @@ export function MeScreen() {
     <>
       <MeView
         me={me}
-        quota={QUOTA_SLOT}
+        quota={<QuotaCard />}
         onPreferencesChange={changePreferences}
         remindControl={
           <TimeField

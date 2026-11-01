@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { IconButton } from '@/components/ui/button'
+import { AdminScreen } from './admin'
 import { CheckinScreen } from './checkin'
+import { GoalsScreen } from './goals'
 import { HomeScreen } from './home'
 import { LoginScreen } from './login'
 import { MeScreen } from './me'
@@ -12,7 +14,7 @@ import { TodoScreen } from './todo'
  * shell：app 用应用外壳（一级页面带主导航，二级页面带返回）；bare 是无导航的独立页面（登录、引导）。
  * 页面上线后，正式页面应该和这里的预览长得一样；改样式先改这里，再改正式页面。
  */
-export type ScreenId = 'home' | 'todo' | 'rank' | 'me' | 'checkin' | 'login'
+export type ScreenId = 'home' | 'todo' | 'rank' | 'me' | 'goals' | 'checkin' | 'login' | 'admin'
 
 export interface ScreenDef {
   id: ScreenId
@@ -69,6 +71,14 @@ export const screens: ScreenDef[] = [
     render: ({ thumb }) => <MeScreen thumb={thumb} />,
   },
   {
+    id: 'goals',
+    route: '/goals',
+    title: '我的目标',
+    note: '列表 / 选板块 / 表单 / 详情 / 动态表单（正式组件 + 演示数据）',
+    shell: 'app',
+    render: () => <GoalsScreen />,
+  },
+  {
     id: 'checkin',
     route: '/goals/[goalId]/checkin',
     title: '饮食打卡',
@@ -83,6 +93,14 @@ export const screens: ScreenDef[] = [
     note: '无导航；邮箱验证码，只接受白名单域名',
     shell: 'bare',
     render: () => <LoginScreen />,
+  },
+  {
+    id: 'admin',
+    route: '/admin',
+    title: '后台',
+    note: '桌面优先；额度监控 / 用户 / 兑换码 / 设置 / 两步验证绑定，全部渲染正式组件',
+    shell: 'bare',
+    render: () => <AdminScreen />,
   },
 ]
 

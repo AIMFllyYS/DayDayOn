@@ -36,6 +36,8 @@ export type Reminder = z.infer<typeof ReminderSchema>
 export const DashboardTodaySchema = z
   .object({
     localDate: LocalDateSchema,
+    /** 用户时区（IANA），动态里的时刻按它显示 */
+    timeZone: z.string(),
     /** 1 今日总览：完成的目标数 / 今天计划的目标数 */
     completion: z.object({ done: z.number().int(), planned: z.number().int() }),
     streak: z.number().int().min(0),

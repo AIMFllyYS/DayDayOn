@@ -2,6 +2,7 @@ import { Suspense, type ReactNode } from 'react'
 import { AppShell } from '@/components/layout/app-shell'
 import { PageSkeleton } from '@/components/layout/page-skeleton'
 import { ThemeSync } from '@/components/layout/theme-sync'
+import { SidebarQuota } from '@/features/quota/components/sidebar-quota'
 import { ApiProvider } from '@/lib/api'
 import { requireOnboardedUser } from '@/server/auth'
 
@@ -12,7 +13,7 @@ import { requireOnboardedUser } from '@/server/auth'
 export default function AppLayout({ children }: LayoutProps<'/'>) {
   return (
     <ApiProvider>
-      <AppShell>
+      <AppShell sidebarFooter={<SidebarQuota />}>
         <Suspense fallback={<PageSkeleton />}>
           <SessionGate>{children}</SessionGate>
         </Suspense>

@@ -4,13 +4,12 @@ import { ErrorState } from '@/components/ui/error-state'
 import { useCheckinLauncher } from '@/features/checkin/launcher-store'
 import { errorMessage, isApiError, useQuery } from '@/lib/api'
 import { dashboardTodayQuery } from '@/lib/api/queries/dashboard'
-import { BUSINESS_TIME_ZONE } from '@/lib/time'
 import { HomeDashboard } from './home-dashboard'
 import { HomeSkeleton } from './home-skeleton'
 
 /*
  * 主页（/）的数据容器：GET /dashboard/today → HomeDashboard。加载骨架、错误态、空状态都在这里或下一层。
- * 动态时间暂按北京时间显示：DashboardToday 还没有带用户时区（已在 sharedChangeRequests 申请加 timeZone）。
+ * 动态时间按 DashboardToday.timeZone（用户时区）显示。
  */
 export function HomeView() {
   const query = useQuery(dashboardTodayQuery())
@@ -31,7 +30,7 @@ export function HomeView() {
     <HomeDashboard
       data={query.data}
       now={query.dataUpdatedAt}
-      timeZone={BUSINESS_TIME_ZONE}
+      timeZone={query.data.timeZone}
       onOpenWeight={() => launcher.open('weight')}
       onOpenMood={() => launcher.open('mood')}
     />

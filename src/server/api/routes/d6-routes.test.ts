@@ -185,7 +185,8 @@ describe('已登录', () => {
     expect(mocks.redeem).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'u1', body: { code: 'DDON-AAAA-BBBB-CCCC' } }),
     )
-  })
+    // 首次 import 整个根应用（全部路由）在并行跑满时会超过默认 5 秒
+  }, 30_000)
 
   it('GET /me/quota 返回 service 的 DTO', async () => {
     login()

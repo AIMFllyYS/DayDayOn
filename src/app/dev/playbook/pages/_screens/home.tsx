@@ -14,6 +14,7 @@ const id = (n: number) => `0193f6b2-0000-7000-8000-${String(n).padStart(12, '0')
 
 const demo: DashboardToday = {
   localDate: '2026-11-01',
+  timeZone: 'Asia/Shanghai',
   completion: { done: 3, planned: 4 },
   streak: 12,
   hasGoals: true,

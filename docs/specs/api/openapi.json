@@ -1,0 +1,5166 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DayDayOn API",
+    "version": "0.1.0",
+    "description": "业务接口 /api/v1。鉴权用 Better Auth 的会话 cookie（/api/auth/*，不在本文档内）。错误体统一为 { code, detail }。"
+  },
+  "components": {
+    "schemas": {
+      "Me": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "twoFactorEnabled": {
+            "type": "boolean"
+          },
+          "onboarded": {
+            "type": "boolean"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/Profile"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/Preferences"
+          },
+          "streak": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "userId",
+          "email",
+          "role",
+          "twoFactorEnabled",
+          "onboarded",
+          "profile",
+          "preferences",
+          "streak",
+          "createdAt"
+        ]
+      },
+      "Role": {
+        "type": "string",
+        "enum": ["user", "admin"]
+      },
+      "Profile": {
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "type": ["string", "null"]
+          },
+          "avatar": {
+            "type": ["string", "null"]
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          },
+          "birthYear": {
+            "type": ["integer", "null"]
+          },
+          "heightCm": {
+            "type": ["integer", "null"]
+          },
+          "timeZone": {
+            "type": "string"
+          }
+        },
+        "required": ["nickname", "avatar", "gender", "birthYear", "heightCm", "timeZone"]
+      },
+      "Gender": {
+        "type": ["string", "null"],
+        "enum": ["female", "male", "other", null]
+      },
+      "Preferences": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          },
+          "mascot": {
+            "$ref": "#/components/schemas/MascotCharacter"
+          },
+          "leaderboardOptIn": {
+            "type": "boolean"
+          },
+          "dayStartHour": {
+            "type": "integer"
+          },
+          "remindAt": {
+            "type": ["string", "null"],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          }
+        },
+        "required": ["theme", "mascot", "leaderboardOptIn", "dayStartHour", "remindAt"]
+      },
+      "Theme": {
+        "type": "string",
+        "enum": ["caramel", "terracotta", "matcha", "haze", "berry"]
+      },
+      "MascotCharacter": {
+        "type": "string",
+        "enum": ["tuan", "dun"]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "VALIDATION_FAILED",
+              "EMAIL_DOMAIN_NOT_ALLOWED",
+              "MAKEUP_NOT_ALLOWED",
+              "REDEEM_CODE_INVALID",
+              "UNAUTHENTICATED",
+              "QUOTA_INSUFFICIENT",
+              "FORBIDDEN",
+              "ACCOUNT_BANNED",
+              "TWO_FACTOR_REQUIRED",
+              "ONBOARDING_REQUIRED",
+              "NOT_FOUND",
+              "GOAL_NOT_FOUND",
+              "CHECKIN_NOT_FOUND",
+              "TODO_NOT_FOUND",
+              "USER_NOT_FOUND",
+              "REDEEM_CODE_NOT_FOUND",
+              "ALREADY_ONBOARDED",
+              "GOAL_LIMIT_REACHED",
+              "TODO_LIMIT_REACHED",
+              "CHECKIN_EXISTS",
+              "WEIGHT_CHANGE_UNCONFIRMED",
+              "REDEEM_CODE_USED",
+              "IDEMPOTENCY_KEY_REUSED",
+              "REQUEST_IN_PROGRESS",
+              "PAYLOAD_TOO_LARGE",
+              "UNSUPPORTED_MEDIA_TYPE",
+              "AI_RECOGNITION_FAILED",
+              "RATE_LIMITED",
+              "REDEEM_LOCKED",
+              "INTERNAL",
+              "NOT_IMPLEMENTED",
+              "AI_PAUSED"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "ban": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": ["string", "null"]
+              },
+              "expiresAt": {
+                "type": ["string", "null"],
+                "format": "date-time"
+              }
+            },
+            "required": ["reason", "expiresAt"]
+          },
+          "previousWeightGrams": {
+            "type": "integer"
+          },
+          "aiRunId": {
+            "type": "string"
+          },
+          "retryAfterSeconds": {
+            "type": "integer"
+          }
+        },
+        "required": ["code", "detail"]
+      },
+      "Onboarding": {
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "minLength": 1
+          },
+          "avatar": {
+            "$ref": "#/components/schemas/Avatar"
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          },
+          "birthYear": {
+            "type": ["integer", "null"],
+            "minimum": 1900,
+            "maximum": 2100,
+            "default": null
+          },
+          "heightCm": {
+            "type": ["integer", "null"],
+            "minimum": 80,
+            "maximum": 250,
+            "default": null
+          },
+          "weightGrams": {
+            "type": ["integer", "null"],
+            "minimum": 20000,
+            "maximum": 300000,
+            "default": null
+          },
+          "timeZone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "default": "Asia/Shanghai"
+          },
+          "modules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Module"
+            },
+            "minItems": 1,
+            "maxItems": 5
+          },
+          "leaderboardOptIn": {
+            "type": "boolean",
+            "default": false
+          },
+          "healthConsent": {
+            "type": "boolean",
+            "enum": [true]
+          }
+        },
+        "required": ["nickname", "modules", "healthConsent"]
+      },
+      "Avatar": {
+        "type": ["string", "null"],
+        "pattern": "^mascot:(tuan|dun):(happy|cheer|sleepy|thinking|love|surprised|shy|sad|eating):(primary|exercise|diet|sleep|study|custom)$",
+        "default": null
+      },
+      "Module": {
+        "type": "string",
+        "enum": ["exercise", "diet", "sleep", "study", "custom"]
+      },
+      "UpdateProfile": {
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "minLength": 1
+          },
+          "avatar": {
+            "$ref": "#/components/schemas/Avatar"
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          },
+          "birthYear": {
+            "type": ["integer", "null"],
+            "minimum": 1900,
+            "maximum": 2100
+          },
+          "heightCm": {
+            "type": ["integer", "null"],
+            "minimum": 80,
+            "maximum": 250
+          },
+          "timeZone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "UpdatePreferences": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          },
+          "mascot": {
+            "$ref": "#/components/schemas/MascotCharacter"
+          },
+          "leaderboardOptIn": {
+            "type": "boolean"
+          },
+          "dayStartHour": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "remindAt": {
+            "type": ["string", "null"],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          }
+        }
+      },
+      "Export": {
+        "type": "object",
+        "properties": {
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "me": {
+            "$ref": "#/components/schemas/Me"
+          },
+          "goals": {
+            "type": "array",
+            "items": {}
+          },
+          "checkins": {
+            "type": "array",
+            "items": {}
+          },
+          "weights": {
+            "type": "array",
+            "items": {}
+          },
+          "ratings": {
+            "type": "array",
+            "items": {}
+          },
+          "todos": {
+            "type": "array",
+            "items": {}
+          }
+        },
+        "required": ["exportedAt", "me", "goals", "checkins", "weights", "ratings", "todos"]
+      },
+      "DeleteMe": {
+        "type": "object",
+        "properties": {
+          "confirm": {
+            "type": "string",
+            "enum": ["注销"]
+          }
+        },
+        "required": ["confirm"]
+      },
+      "QuotaView": {
+        "type": "object",
+        "properties": {
+          "periodKey": {
+            "type": "string"
+          },
+          "weeklyLimitMicros": {
+            "type": "integer"
+          },
+          "weeklyUsedMicros": {
+            "type": "integer"
+          },
+          "weeklyRemainingMicros": {
+            "type": "integer"
+          },
+          "bonusMicros": {
+            "type": "integer"
+          },
+          "reservedMicros": {
+            "type": "integer"
+          },
+          "periodEndsAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "periodKey",
+          "weeklyLimitMicros",
+          "weeklyUsedMicros",
+          "weeklyRemainingMicros",
+          "bonusMicros",
+          "reservedMicros",
+          "periodEndsAt"
+        ]
+      },
+      "AiRunList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiRunItem"
+            },
+            "maxItems": 20
+          }
+        },
+        "required": ["items"]
+      },
+      "AiRunItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/AiPurpose"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AiRunStatus"
+          },
+          "costMicros": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["id", "purpose", "status", "costMicros", "createdAt"]
+      },
+      "AiPurpose": {
+        "type": "string",
+        "enum": ["diet-recognition"]
+      },
+      "AiRunStatus": {
+        "type": "string",
+        "enum": ["running", "succeeded", "failed", "invalid-output", "timeout"]
+      },
+      "GoalList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Goal"
+            }
+          }
+        },
+        "required": ["items"]
+      },
+      "Goal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": ["string", "null"]
+          },
+          "target": {
+            "$ref": "#/components/schemas/Target"
+          },
+          "weekdays": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            },
+            "minItems": 1,
+            "maxItems": 7
+          },
+          "plannedTime": {
+            "type": ["string", "null"],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GoalStatus"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "fieldVersion": {
+            "type": ["integer", "null"]
+          },
+          "fields": {
+            "type": ["array", "null"],
+            "items": {
+              "$ref": "#/components/schemas/FieldDef"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "module",
+          "title",
+          "description",
+          "target",
+          "weekdays",
+          "plannedTime",
+          "status",
+          "sortOrder",
+          "fieldVersion",
+          "fields",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "Target": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/TargetKind"
+          },
+          "value": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400
+          }
+        },
+        "required": ["kind", "value"]
+      },
+      "TargetKind": {
+        "type": "string",
+        "enum": ["duration", "count"]
+      },
+      "GoalStatus": {
+        "type": "string",
+        "enum": ["active", "archived"]
+      },
+      "FieldDef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,31}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20
+              },
+              "required": {
+                "type": "boolean",
+                "default": false
+              },
+              "type": {
+                "type": "string",
+                "enum": ["number"]
+              },
+              "unit": {
+                "type": "string",
+                "maxLength": 8
+              },
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "integer": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "required": ["key", "label", "type"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,31}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20
+              },
+              "required": {
+                "type": "boolean",
+                "default": false
+              },
+              "type": {
+                "type": "string",
+                "enum": ["text"]
+              },
+              "maxLength": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500,
+                "default": 100
+              }
+            },
+            "required": ["key", "label", "type"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,31}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20
+              },
+              "required": {
+                "type": "boolean",
+                "default": false
+              },
+              "type": {
+                "type": "string",
+                "enum": ["single-select"]
+              },
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 20
+                },
+                "minItems": 2,
+                "maxItems": 20
+              }
+            },
+            "required": ["key", "label", "type", "options"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,31}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20
+              },
+              "required": {
+                "type": "boolean",
+                "default": false
+              },
+              "type": {
+                "type": "string",
+                "enum": ["multi-select"]
+              },
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 20
+                },
+                "minItems": 2,
+                "maxItems": 20
+              }
+            },
+            "required": ["key", "label", "type", "options"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,31}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20
+              },
+              "required": {
+                "type": "boolean",
+                "default": false
+              },
+              "type": {
+                "type": "string",
+                "enum": ["boolean"]
+              }
+            },
+            "required": ["key", "label", "type"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,31}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20
+              },
+              "required": {
+                "type": "boolean",
+                "default": false
+              },
+              "type": {
+                "type": "string",
+                "enum": ["duration"]
+              },
+              "maxSeconds": {
+                "type": "integer",
+                "minimum": 60,
+                "maximum": 86400,
+                "default": 86400
+              }
+            },
+            "required": ["key", "label", "type"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,31}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20
+              },
+              "required": {
+                "type": "boolean",
+                "default": false
+              },
+              "type": {
+                "type": "string",
+                "enum": ["rating"]
+              }
+            },
+            "required": ["key", "label", "type"]
+          }
+        ]
+      },
+      "CreateGoal": {
+        "type": "object",
+        "properties": {
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20
+          },
+          "description": {
+            "type": ["string", "null"],
+            "maxLength": 100
+          },
+          "target": {
+            "$ref": "#/components/schemas/Target"
+          },
+          "weekdays": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            },
+            "minItems": 1,
+            "maxItems": 7,
+            "default": [1, 2, 3, 4, 5, 6, 7]
+          },
+          "plannedTime": {
+            "type": ["string", "null"],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/FieldDefs"
+          }
+        },
+        "required": ["module", "title", "target"]
+      },
+      "FieldDefs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/FieldDef"
+        },
+        "minItems": 1,
+        "maxItems": 10
+      },
+      "GoalDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": ["string", "null"]
+          },
+          "target": {
+            "$ref": "#/components/schemas/Target"
+          },
+          "weekdays": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            },
+            "minItems": 1,
+            "maxItems": 7
+          },
+          "plannedTime": {
+            "type": ["string", "null"],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GoalStatus"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "fieldVersion": {
+            "type": ["integer", "null"]
+          },
+          "fields": {
+            "type": ["array", "null"],
+            "items": {
+              "$ref": "#/components/schemas/FieldDef"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fieldVersions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoalFieldVersion"
+            }
+          },
+          "targetHistory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "$ref": "#/components/schemas/TargetKind"
+                },
+                "value": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "weekdays": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 7
+                  },
+                  "minItems": 1,
+                  "maxItems": 7
+                },
+                "effectiveFrom": {
+                  "type": "string",
+                  "format": "date"
+                }
+              },
+              "required": ["kind", "value", "weekdays", "effectiveFrom"]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "module",
+          "title",
+          "description",
+          "target",
+          "weekdays",
+          "plannedTime",
+          "status",
+          "sortOrder",
+          "fieldVersion",
+          "fields",
+          "createdAt",
+          "updatedAt",
+          "fieldVersions",
+          "targetHistory"
+        ]
+      },
+      "GoalFieldVersion": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldDef"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["version", "fields", "createdAt"]
+      },
+      "UpdateGoal": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20
+          },
+          "description": {
+            "type": ["string", "null"],
+            "maxLength": 100
+          },
+          "target": {
+            "$ref": "#/components/schemas/Target"
+          },
+          "weekdays": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            },
+            "minItems": 1,
+            "maxItems": 7
+          },
+          "plannedTime": {
+            "type": ["string", "null"],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GoalStatus"
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "fields": {
+            "$ref": "#/components/schemas/FieldDefs"
+          }
+        }
+      },
+      "CheckinHistory": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Checkin"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": ["items", "nextCursor"]
+      },
+      "Checkin": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "goalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CheckinSource"
+          },
+          "isMakeup": {
+            "type": "boolean"
+          },
+          "durationSeconds": {
+            "type": ["integer", "null"]
+          },
+          "count": {
+            "type": "integer"
+          },
+          "intakeKcal": {
+            "type": ["integer", "null"]
+          },
+          "burnKcal": {
+            "type": ["integer", "null"]
+          },
+          "note": {
+            "type": ["string", "null"]
+          },
+          "parsedText": {
+            "type": ["string", "null"]
+          },
+          "payload": {
+            "$ref": "#/components/schemas/CheckinPayload"
+          },
+          "fieldVersion": {
+            "type": ["integer", "null"]
+          },
+          "aiRunId": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "goalId",
+          "module",
+          "localDate",
+          "occurredAt",
+          "source",
+          "isMakeup",
+          "durationSeconds",
+          "count",
+          "intakeKcal",
+          "burnKcal",
+          "note",
+          "parsedText",
+          "payload",
+          "fieldVersion",
+          "aiRunId",
+          "createdAt"
+        ]
+      },
+      "CheckinSource": {
+        "type": "string",
+        "enum": ["manual", "ai"]
+      },
+      "CheckinPayload": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": ["exercise"]
+              },
+              "category": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10
+              },
+              "intensity": {
+                "$ref": "#/components/schemas/Intensity"
+              }
+            },
+            "required": ["module", "category", "intensity"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": ["diet"]
+              },
+              "method": {
+                "$ref": "#/components/schemas/DietMethod"
+              },
+              "mealType": {
+                "$ref": "#/components/schemas/MealType"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DietItem"
+                },
+                "minItems": 1,
+                "maxItems": 20
+              }
+            },
+            "required": ["module", "method", "mealType", "items"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": ["sleep"]
+              },
+              "bedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "wakeAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "quality": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              }
+            },
+            "required": ["module", "bedAt", "wakeAt", "quality"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": ["study"]
+              },
+              "what": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              }
+            },
+            "required": ["module", "what"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": ["custom"]
+              },
+              "values": {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["module", "values"]
+          }
+        ]
+      },
+      "Intensity": {
+        "type": "string",
+        "enum": ["easy", "moderate", "hard"]
+      },
+      "DietMethod": {
+        "type": "string",
+        "enum": ["photo", "manual"]
+      },
+      "MealType": {
+        "type": "string",
+        "enum": ["breakfast", "lunch", "dinner", "snack"]
+      },
+      "DietItem": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "portion": {
+            "type": "string",
+            "maxLength": 30,
+            "default": ""
+          },
+          "kcal": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "maximum": 5000
+          }
+        },
+        "required": ["name", "kcal"]
+      },
+      "CreateCheckinResult": {
+        "type": "object",
+        "properties": {
+          "checkin": {
+            "$ref": "#/components/schemas/Checkin"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/GoalProgress"
+          }
+        },
+        "required": ["checkin", "progress"]
+      },
+      "GoalProgress": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "integer"
+          },
+          "target": {
+            "type": "integer"
+          },
+          "done": {
+            "type": "boolean"
+          }
+        },
+        "required": ["value", "target", "done"]
+      },
+      "CreateCheckin": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "isMakeup": {
+                "type": "boolean",
+                "default": false
+              },
+              "note": {
+                "type": ["string", "null"],
+                "maxLength": 200
+              },
+              "module": {
+                "type": "string",
+                "enum": ["exercise"]
+              },
+              "category": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10
+              },
+              "intensity": {
+                "$ref": "#/components/schemas/Intensity"
+              },
+              "durationSeconds": {
+                "type": "integer",
+                "minimum": 60,
+                "maximum": 36000
+              }
+            },
+            "required": ["module", "category", "intensity", "durationSeconds"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "isMakeup": {
+                "type": "boolean",
+                "default": false
+              },
+              "note": {
+                "type": ["string", "null"],
+                "maxLength": 200
+              },
+              "module": {
+                "type": "string",
+                "enum": ["diet"]
+              },
+              "source": {
+                "$ref": "#/components/schemas/CheckinSource"
+              },
+              "aiRunId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "parsedText": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "method": {
+                "$ref": "#/components/schemas/DietMethod"
+              },
+              "mealType": {
+                "$ref": "#/components/schemas/MealType"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DietItem"
+                },
+                "minItems": 1,
+                "maxItems": 20
+              }
+            },
+            "required": ["module", "method", "mealType", "items"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "isMakeup": {
+                "type": "boolean",
+                "default": false
+              },
+              "note": {
+                "type": ["string", "null"],
+                "maxLength": 200
+              },
+              "module": {
+                "type": "string",
+                "enum": ["sleep"]
+              },
+              "bedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "wakeAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "quality": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              }
+            },
+            "required": ["module", "bedAt", "wakeAt", "quality"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "isMakeup": {
+                "type": "boolean",
+                "default": false
+              },
+              "note": {
+                "type": ["string", "null"],
+                "maxLength": 200
+              },
+              "module": {
+                "type": "string",
+                "enum": ["study"]
+              },
+              "what": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "durationSeconds": {
+                "type": "integer",
+                "minimum": 60,
+                "maximum": 86400
+              }
+            },
+            "required": ["module", "what"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "isMakeup": {
+                "type": "boolean",
+                "default": false
+              },
+              "note": {
+                "type": ["string", "null"],
+                "maxLength": 200
+              },
+              "module": {
+                "type": "string",
+                "enum": ["custom"]
+              },
+              "fieldVersion": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "values": {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["module", "fieldVersion", "values"]
+          }
+        ]
+      },
+      "CheckinCalendar": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDay"
+            }
+          }
+        },
+        "required": ["month", "days"]
+      },
+      "CalendarDay": {
+        "type": "object",
+        "properties": {
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "makeupOnly": {
+            "type": "boolean"
+          }
+        },
+        "required": ["localDate", "count", "done", "makeupOnly"]
+      },
+      "CheckinToday": {
+        "type": "object",
+        "properties": {
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodayGoal"
+            }
+          },
+          "completion": {
+            "type": "object",
+            "properties": {
+              "done": {
+                "type": "integer"
+              },
+              "planned": {
+                "type": "integer"
+              }
+            },
+            "required": ["done", "planned"]
+          },
+          "weightGrams": {
+            "type": ["integer", "null"]
+          },
+          "mood": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 5
+          },
+          "dietPhotoGoalId": {
+            "type": ["string", "null"],
+            "format": "uuid"
+          }
+        },
+        "required": ["localDate", "goals", "completion", "weightGrams", "mood", "dietPhotoGoalId"]
+      },
+      "TodayGoal": {
+        "type": "object",
+        "properties": {
+          "goalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "title": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/components/schemas/Target"
+          },
+          "planned": {
+            "type": "boolean"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/GoalProgress"
+          },
+          "sortOrder": {
+            "type": "integer"
+          }
+        },
+        "required": ["goalId", "module", "title", "target", "planned", "progress", "sortOrder"]
+      },
+      "UpdateCheckin": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DietItem"
+            },
+            "minItems": 1,
+            "maxItems": 20
+          },
+          "note": {
+            "type": ["string", "null"],
+            "maxLength": 200
+          }
+        }
+      },
+      "WeightEntry": {
+        "type": "object",
+        "properties": {
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "weightGrams": {
+            "type": "integer"
+          },
+          "measuredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["localDate", "weightGrams", "measuredAt"]
+      },
+      "PutWeight": {
+        "type": "object",
+        "properties": {
+          "weightGrams": {
+            "type": "integer",
+            "minimum": 20000,
+            "maximum": 300000
+          },
+          "confirmLargeChange": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": ["weightGrams"]
+      },
+      "WeightTrend": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeightEntry"
+            }
+          },
+          "latest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WeightEntry"
+              },
+              {
+                "type": ["object", "null"]
+              }
+            ]
+          },
+          "deltaGrams7d": {
+            "type": ["integer", "null"]
+          }
+        },
+        "required": ["entries", "latest", "deltaGrams7d"]
+      },
+      "Rating": {
+        "type": "object",
+        "properties": {
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/RatingScope"
+          },
+          "value": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          }
+        },
+        "required": ["localDate", "scope", "value"]
+      },
+      "RatingScope": {
+        "type": "string",
+        "enum": ["overall", "exercise", "diet", "sleep", "study", "custom"]
+      },
+      "PutRating": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/RatingScope"
+          },
+          "value": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          }
+        },
+        "required": ["scope", "value"]
+      },
+      "DashboardToday": {
+        "type": "object",
+        "properties": {
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "completion": {
+            "type": "object",
+            "properties": {
+              "done": {
+                "type": "integer"
+              },
+              "planned": {
+                "type": "integer"
+              }
+            },
+            "required": ["done", "planned"]
+          },
+          "streak": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hasGoals": {
+            "type": "boolean"
+          },
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodayGoal"
+            }
+          },
+          "weight": {
+            "$ref": "#/components/schemas/WeightTrend"
+          },
+          "mood": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": 5
+          },
+          "heatmap": {
+            "$ref": "#/components/schemas/WeekHeatmap"
+          },
+          "feed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedItem"
+            }
+          },
+          "reminder": {
+            "$ref": "#/components/schemas/Reminder"
+          }
+        },
+        "required": [
+          "localDate",
+          "timeZone",
+          "completion",
+          "streak",
+          "hasGoals",
+          "goals",
+          "weight",
+          "mood",
+          "heatmap",
+          "feed",
+          "reminder"
+        ]
+      },
+      "WeekHeatmap": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "$ref": "#/components/schemas/Module"
+                },
+                "cells": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              },
+              "required": ["module", "cells"]
+            }
+          }
+        },
+        "required": ["days", "rows"]
+      },
+      "FeedItem": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": ["string", "null"]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["userId", "nickname", "avatar", "id", "module", "occurredAt"]
+      },
+      "Reminder": {
+        "type": ["object", "null"],
+        "properties": {
+          "remaining": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": ["remaining"]
+      },
+      "RankBoard": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "$ref": "#/components/schemas/RankRange"
+          },
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RankEntry"
+            },
+            "maxItems": 50
+          },
+          "me": {
+            "$ref": "#/components/schemas/RankMe"
+          }
+        },
+        "required": ["range", "from", "to", "entries", "me"]
+      },
+      "RankRange": {
+        "type": "string",
+        "enum": ["week", "month"]
+      },
+      "RankEntry": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": ["string", "null"]
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "days": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "streak": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["userId", "nickname", "avatar", "rank", "days", "streak"]
+      },
+      "RankMe": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "optedIn": {
+                "type": "boolean",
+                "enum": [false]
+              }
+            },
+            "required": ["optedIn"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "optedIn": {
+                "type": "boolean",
+                "enum": [true]
+              },
+              "entry": {
+                "$ref": "#/components/schemas/RankEntry"
+              },
+              "daysToNext": {
+                "type": ["integer", "null"],
+                "minimum": 1
+              }
+            },
+            "required": ["optedIn", "entry", "daysToNext"]
+          }
+        ]
+      },
+      "Feed": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeedItem"
+            },
+            "maxItems": 10
+          }
+        },
+        "required": ["items"]
+      },
+      "TodoList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Todo"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": ["items", "nextCursor"]
+      },
+      "Todo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "dueAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/TodoPriority"
+          },
+          "doneAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["id", "title", "dueAt", "priority", "doneAt", "createdAt", "updatedAt"]
+      },
+      "TodoPriority": {
+        "type": "string",
+        "enum": ["normal", "important"]
+      },
+      "TodoStatus": {
+        "type": "string",
+        "enum": ["open", "done"],
+        "default": "open"
+      },
+      "CreateTodo": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "dueAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "default": null
+          },
+          "priority": {
+            "$ref": "#/components/schemas/TodoPriority"
+          }
+        },
+        "required": ["title"]
+      },
+      "UpdateTodo": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "dueAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/TodoPriority"
+          },
+          "done": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DietRecognitionResult": {
+        "type": "object",
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/DietDraft"
+          },
+          "aiRunId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": ["draft", "aiRunId"]
+      },
+      "DietDraft": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DietDraftItem"
+            },
+            "minItems": 1,
+            "maxItems": 20
+          },
+          "totalLowKcal": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalHighKcal": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": ["items", "totalLowKcal", "totalHighKcal", "confidence", "summary"]
+      },
+      "DietDraftItem": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "portion": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "lowKcal": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "highKcal": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "proteinGrams": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "fatGrams": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "carbGrams": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "maximum": 2000
+          }
+        },
+        "required": [
+          "name",
+          "portion",
+          "lowKcal",
+          "highKcal",
+          "proteinGrams",
+          "fatGrams",
+          "carbGrams"
+        ]
+      },
+      "RedeemResult": {
+        "type": "object",
+        "properties": {
+          "addedMicros": {
+            "type": "integer"
+          },
+          "quota": {
+            "$ref": "#/components/schemas/QuotaView"
+          }
+        },
+        "required": ["addedMicros", "quota"]
+      },
+      "Redeem": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          }
+        },
+        "required": ["code"]
+      },
+      "AdminOverview": {
+        "type": "object",
+        "properties": {
+          "dayKey": {
+            "type": "string"
+          },
+          "todaySpentMicros": {
+            "type": "integer"
+          },
+          "dailySpendCapMicros": {
+            "type": "integer"
+          },
+          "aiPaused": {
+            "type": "boolean"
+          },
+          "capReached": {
+            "type": "boolean"
+          },
+          "spendSeries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dayKey": {
+                  "type": "string"
+                },
+                "spentMicros": {
+                  "type": "integer"
+                }
+              },
+              "required": ["dayKey", "spentMicros"]
+            },
+            "maxItems": 31
+          },
+          "anomalies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Anomaly"
+            }
+          }
+        },
+        "required": [
+          "dayKey",
+          "todaySpentMicros",
+          "dailySpendCapMicros",
+          "aiPaused",
+          "capReached",
+          "spendSeries",
+          "anomalies"
+        ]
+      },
+      "Anomaly": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/AnomalyKind"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "label": {
+            "type": ["string", "null"]
+          },
+          "value": {
+            "type": "number"
+          },
+          "detectedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["kind", "subject", "label", "value", "detectedAt"]
+      },
+      "AnomalyKind": {
+        "type": "string",
+        "enum": ["user-daily-spend", "user-hourly-calls", "ip-multi-account", "redeem-failures"]
+      },
+      "AiSwitchResult": {
+        "type": "object",
+        "properties": {
+          "aiPaused": {
+            "type": "boolean"
+          },
+          "capReached": {
+            "type": "boolean"
+          }
+        },
+        "required": ["aiPaused", "capReached"]
+      },
+      "AdminUserPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminUserRow"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["items", "total"]
+      },
+      "AdminUserRow": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "nickname": {
+            "type": ["string", "null"]
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "signupIp": {
+            "type": ["string", "null"]
+          },
+          "sameIpCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "weekSpentMicros": {
+            "type": "integer"
+          },
+          "weekCalls": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "bonusMicros": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/UserStatus"
+          },
+          "banReason": {
+            "type": ["string", "null"]
+          },
+          "banExpiresAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "userId",
+          "nickname",
+          "email",
+          "role",
+          "createdAt",
+          "signupIp",
+          "sameIpCount",
+          "weekSpentMicros",
+          "weekCalls",
+          "bonusMicros",
+          "status",
+          "banReason",
+          "banExpiresAt"
+        ]
+      },
+      "UserStatus": {
+        "type": "string",
+        "enum": ["active", "banned"]
+      },
+      "QuotaAdjustmentResult": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "bonusMicros": {
+            "type": "integer"
+          }
+        },
+        "required": ["userId", "bonusMicros"]
+      },
+      "QuotaAdjustment": {
+        "type": "object",
+        "properties": {
+          "amountMicros": {
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": ["amountMicros", "reason"]
+      },
+      "AdminCodePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminCodeRow"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["items", "total"]
+      },
+      "AdminCodeRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "valueMicros": {
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RedeemCodeStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "redeemedBy": {
+            "type": ["object", "null"],
+            "properties": {
+              "userId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "nickname": {
+                "type": ["string", "null"]
+              },
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": ["userId", "nickname", "email"]
+          },
+          "redeemedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "prefix",
+          "valueMicros",
+          "status",
+          "createdAt",
+          "redeemedBy",
+          "redeemedAt"
+        ]
+      },
+      "RedeemCodeStatus": {
+        "type": "string",
+        "enum": ["unused", "redeemed", "void"]
+      },
+      "GeneratedCodes": {
+        "type": "object",
+        "properties": {
+          "codes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "code": {
+                  "type": "string"
+                }
+              },
+              "required": ["id", "code"]
+            }
+          },
+          "valueMicros": {
+            "type": "integer"
+          }
+        },
+        "required": ["codes", "valueMicros"]
+      },
+      "GenerateCodes": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": ["count"]
+      },
+      "AppSettings": {
+        "type": "object",
+        "properties": {
+          "dailySpendCapMicros": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "weeklyQuotaMicros": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "newUserQuotaMicros": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "aiPaused": {
+            "type": "boolean"
+          },
+          "aiHourlyLimit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "aiConcurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "redeemFailLockThreshold": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "signupPerIpDaily": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "otpPerEmailDaily": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "otpPerIpDaily": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "dailySpendCapMicros",
+          "weeklyQuotaMicros",
+          "newUserQuotaMicros",
+          "aiPaused",
+          "aiHourlyLimit",
+          "aiConcurrency",
+          "redeemFailLockThreshold",
+          "signupPerIpDaily",
+          "otpPerEmailDaily",
+          "otpPerIpDaily"
+        ]
+      },
+      "AppSettingsPatch": {
+        "type": "object",
+        "properties": {
+          "dailySpendCapMicros": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "weeklyQuotaMicros": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "newUserQuotaMicros": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "aiPaused": {
+            "type": "boolean"
+          },
+          "aiHourlyLimit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "aiConcurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "redeemFailLockThreshold": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "signupPerIpDaily": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "otpPerEmailDaily": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "otpPerIpDaily": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          }
+        }
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/v1/me": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "当前用户",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteMe"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "已注销：业务数据级联删除，账本去关联保留，会话一并删除"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/onboarding": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Onboarding"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "引导完成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ALREADY_ONBOARDED | GOAL_LIMIT_REACHED | IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/profile": {
+      "patch": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfile"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已保存",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/preferences": {
+      "patch": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePreferences"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已保存",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/export": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "JSON 附件（Content-Disposition: attachment），只含本人数据",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Export"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/quota": {
+      "get": {
+        "summary": "本周 AI 额度、加购余额、周期结束时间",
+        "responses": {
+          "200": {
+            "description": "额度",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotaView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/ai-runs": {
+      "get": {
+        "summary": "最近 20 次 AI 调用（用途、时间、花费）",
+        "responses": {
+          "200": {
+            "description": "调用记录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiRunList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/goals": {
+      "get": {
+        "tags": ["goals"],
+        "summary": "目标列表",
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/GoalStatus"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "目标列表（按排序）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["goals"],
+        "summary": "新建目标",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGoal"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "已创建",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Goal"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "GOAL_LIMIT_REACHED | IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/goals/{goalId}": {
+      "get": {
+        "tags": ["goals"],
+        "summary": "目标详情",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "goalId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "目标 + 字段版本 + 目标量历史",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "GOAL_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["goals"],
+        "summary": "修改目标（含归档、恢复、自定义字段）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "goalId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGoal"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "修改后的目标",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Goal"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "GOAL_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "GOAL_LIMIT_REACHED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["goals"],
+        "summary": "删除目标（连同打卡记录）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "goalId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已删除"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "GOAL_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/goals/{goalId}/checkins": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "goalId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "打卡历史（游标分页）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckinHistory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "GOAL_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "goalId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCheckin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "已打卡",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateCheckinResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED | MAKEUP_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "GOAL_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CHECKIN_EXISTS | IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/goals/{goalId}/calendar": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "goalId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "required": true,
+            "name": "month",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "这个月每天的打卡情况",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckinCalendar"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "GOAL_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/checkins/today": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "打卡弹层：今天各目标状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckinToday"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/checkins/{checkinId}": {
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "checkinId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCheckin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已修改（只允许饮食条目与备注）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Checkin"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CHECKIN_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "checkinId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已删除"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CHECKIN_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/weight": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutWeight"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已记录今天的体重",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeightEntry"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "WEIGHT_CHANGE_UNCONFIRMED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 30
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "体重走势",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeightTrend"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ratings": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutRating"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已记录今天的满意度",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rating"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/today": {
+      "get": {
+        "tags": ["dashboard"],
+        "summary": "主页全部数据",
+        "responses": {
+          "200": {
+            "description": "今日完成度、连续天数、目标进度、体重、心情、本周热力图、榜单动态、提醒",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardToday"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "USER_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rank": {
+      "get": {
+        "tags": ["rank"],
+        "summary": "排行榜 + 我的位置",
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/RankRange"
+            },
+            "required": false,
+            "name": "range",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "北京时间本周 / 本月的上榜用户，最多 50 名",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankBoard"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rank/feed": {
+      "get": {
+        "tags": ["rank"],
+        "summary": "榜单动态",
+        "responses": {
+          "200": {
+            "description": "已上榜用户最近 24 小时的打卡事件，最多 10 条",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Feed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todos": {
+      "get": {
+        "tags": ["todo"],
+        "summary": "待办列表",
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/TodoStatus"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "待办列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["todo"],
+        "summary": "新建待办",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTodo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "已创建",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TODO_LIMIT_REACHED | IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todos/{todoId}": {
+      "patch": {
+        "tags": ["todo"],
+        "summary": "修改待办（含勾选）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "todoId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTodo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "修改后的待办",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TODO_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TODO_LIMIT_REACHED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["todo"],
+        "summary": "删除待办",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "todoId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已删除"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TODO_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/diet-recognitions": {
+      "post": {
+        "summary": "饮食拍照识别（返回草稿，不入库）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mealType": {
+                    "$ref": "#/components/schemas/MealType"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "JPEG，≤ 4 MB"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "识别草稿；confidence < 0.6 时前端提示核对",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DietRecognitionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "QUOTA_INSUFFICIENT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "AI_RECOGNITION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI_PAUSED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/redeem-codes/redeem": {
+      "post": {
+        "summary": "兑换额度码，加到长期有效的加购余额",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Redeem"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "兑换成功：本次加了多少、兑换后的额度",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedeemResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED | REDEEM_CODE_INVALID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "REDEEM_CODE_USED | IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "REDEEM_LOCKED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/overview": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "今日花费、AI 开关、30 天曲线、异常",
+        "responses": {
+          "200": {
+            "description": "后台首页数据",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOverview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | FORBIDDEN | TWO_FACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/pause": {
+      "post": {
+        "tags": ["admin"],
+        "summary": "暂停全站 AI",
+        "responses": {
+          "200": {
+            "description": "暂停后的状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSwitchResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | FORBIDDEN | TWO_FACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/resume": {
+      "post": {
+        "tags": ["admin"],
+        "summary": "恢复全站 AI（只清手动暂停；capReached 为 true 时仍处于日上限暂停）",
+        "responses": {
+          "200": {
+            "description": "恢复后的状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSwitchResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | FORBIDDEN | TWO_FACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "用户表（偏移分页，按邮箱搜索）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "一页用户",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | FORBIDDEN | TWO_FACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{userId}/quota-adjustments": {
+      "post": {
+        "tags": ["admin"],
+        "summary": "调整加购余额（± 金额 + 原因，写流水）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "userId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuotaAdjustment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "调整后的加购余额",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotaAdjustmentResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | FORBIDDEN | TWO_FACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "USER_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/redeem-codes": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "兑换码列表（偏移分页）",
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/RedeemCodeStatus"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "一页兑换码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCodePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | FORBIDDEN | TWO_FACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["admin"],
+        "summary": "批量生成兑换码（明文只在本响应里出现一次）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateCodes"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "已生成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneratedCodes"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | FORBIDDEN | TWO_FACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/redeem-codes/{codeId}/void": {
+      "post": {
+        "tags": ["admin"],
+        "summary": "作废未使用的兑换码",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "codeId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "作废后的兑换码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCodeRow"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | FORBIDDEN | TWO_FACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "REDEEM_CODE_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "REDEEM_CODE_USED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/settings": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "全站配置",
+        "responses": {
+          "200": {
+            "description": "当前配置",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | FORBIDDEN | TWO_FACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["admin"],
+        "summary": "修改全站配置（只传要改的项）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppSettingsPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "修改后的配置",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | FORBIDDEN | TWO_FACTOR_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

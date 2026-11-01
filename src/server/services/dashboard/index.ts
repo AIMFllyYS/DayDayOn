@@ -267,6 +267,7 @@ export async function getDashboardToday(
   const todaySection = buildToday(userGoals, index, today)
   return {
     localDate: today,
+    timeZone: profile.timeZone,
     completion: todaySection.completion,
     streak,
     hasGoals: userGoals.length > 0,
