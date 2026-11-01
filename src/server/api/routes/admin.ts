@@ -91,11 +91,22 @@ const adjustQuota = createRoute({
   path: '/admin/users/{userId}/quota-adjustments',
   tags: ['admin'],
   summary: '调整加购余额（± 金额 + 原因，写流水）',
-  middleware: [requireAdmin] as const,
-  request: { params: AdminUserIdParamSchema, ...body(QuotaAdjustmentSchema) },
+  // 改余额：同一次提交重试不能加两次（api-conventions.md 第 9 节）
+  middleware: [requireAdmin, idempotency()] as const,
+  request: {
+    params: AdminUserIdParamSchema,
+    headers: IdempotencyHeadersSchema,
+    ...body(QuotaAdjustmentSchema),
+  },
   responses: {
     200: json(QuotaAdjustmentResultSchema, '调整后的加购余额'),
-    ...errorResponses(...ADMIN_ERRORS, 'VALIDATION_FAILED', 'USER_NOT_FOUND'),
+    ...errorResponses(
+      ...ADMIN_ERRORS,
+      'VALIDATION_FAILED',
+      'USER_NOT_FOUND',
+      'IDEMPOTENCY_KEY_REUSED',
+      'REQUEST_IN_PROGRESS',
+    ),
   },
 })
 

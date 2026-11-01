@@ -22,6 +22,12 @@ vi.mock('@/server/auth/account-state', () => ({ loadAccountState: async () => mo
 vi.mock('@/server/db/client', () => ({
   db: { transaction: async (fn: (tx: object) => unknown) => fn({}) },
 }))
+vi.mock('@/server/idempotency', () => ({
+  requestHash: async () => 'hash',
+  beginIdempotent: async () => ({ kind: 'new' }),
+  completeIdempotent: async () => undefined,
+  abortIdempotent: async () => undefined,
+}))
 vi.mock('@/server/services/admin', () => ({
   getOverview: vi.fn(async () => ({
     dayKey: '2026-11-01',
@@ -130,10 +136,22 @@ describe('后台接口入参', () => {
     login()
     const res = await adminRoutes.request('/admin/users/u9/quota-adjustments', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() },
       body: JSON.stringify({ amountMicros: 0, reason: '补偿' }),
     })
     expect(res.status).toBe(400)
+    expect(services.adjustUserQuota).not.toHaveBeenCalled()
+  })
+
+  it('调额度：没有幂等键返回 400，不调 service', async () => {
+    login()
+    const res = await adminRoutes.request('/admin/users/u9/quota-adjustments', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ amountMicros: 5_000_000, reason: '补偿' }),
+    })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({ code: 'VALIDATION_FAILED' })
     expect(services.adjustUserQuota).not.toHaveBeenCalled()
   })
 
@@ -141,7 +159,7 @@ describe('后台接口入参', () => {
     login()
     const res = await adminRoutes.request('/admin/users/u9/quota-adjustments', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() },
       body: JSON.stringify({ amountMicros: 5_000_000, reason: '补偿' }),
     })
     expect(res.status).toBe(200)

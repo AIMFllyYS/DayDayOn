@@ -72,11 +72,26 @@ export function useSetAiPaused() {
   })
 }
 
+/** 调整加购余额：幂等键由调用方每次提交生成一个，失败重试复用同一个 */
 export function useAdjustQuota() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ userId, input }: { userId: string; input: QuotaAdjustment }) =>
-      unwrap(v1.users[':userId']['quota-adjustments'].$post({ param: { userId }, json: input })),
+    mutationFn: ({
+      userId,
+      input,
+      idempotencyKey,
+    }: {
+      userId: string
+      input: QuotaAdjustment
+      idempotencyKey: string
+    }) =>
+      unwrap(
+        v1.users[':userId']['quota-adjustments'].$post({
+          param: { userId },
+          json: input,
+          header: { 'idempotency-key': idempotencyKey },
+        }),
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: USERS_PREFIX }),
   })
 }

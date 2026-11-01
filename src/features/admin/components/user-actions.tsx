@@ -10,7 +10,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Select } from '@/components/ui/select'
 import { toast } from '@/components/ui/toast'
 import { type AdminUserRow, QuotaAdjustmentSchema } from '@/features/admin/schemas'
-import { isApiError } from '@/lib/api'
+import { isApiError, newIdempotencyKey } from '@/lib/api'
 import { useAdjustQuota, useBanUser, useUnbanUser } from '@/lib/api/queries/admin'
 import { formatYuan, yuanToMicros } from '../money'
 import { ConfirmDialog, messageOf, Sheet } from './shared'
@@ -166,6 +166,8 @@ function QuotaForm({
   const [direction, setDirection] = useState<Direction>('add')
   const [yuan, setYuan] = useState<number | null>(10)
   const [errors, setErrors] = useState<FormErrors>()
+  // 一次提交一个幂等键：内容不变的重试复用它（服务端不会加两次），改了内容换新键
+  const [attempt, setAttempt] = useState<{ key: string; payload: string } | null>(null)
 
   return (
     <Form
@@ -185,11 +187,22 @@ function QuotaForm({
           toast.info('演示：已调整')
           return onDone()
         }
+        const payload = JSON.stringify([user.userId, r.data])
+        const key = attempt?.payload === payload ? attempt.key : newIdempotencyKey()
+        setAttempt({ key, payload })
         try {
-          const res = await adjust.mutateAsync({ userId: user.userId, input: r.data })
+          const res = await adjust.mutateAsync({
+            userId: user.userId,
+            input: r.data,
+            idempotencyKey: key,
+          })
           toast.success(`已调整，加购余额 ${formatYuan(res.bonusMicros)}`)
           onDone()
         } catch (error) {
+          if (isApiError(error) && error.code === 'IDEMPOTENCY_KEY_REUSED') {
+            toast.info('这次调整已经提交过了，去列表里核对一下')
+            return onDone()
+          }
           if (isApiError(error) && error.fields) {
             setErrors({ amount: error.fields.amountMicros, reason: error.fields.reason })
           }
