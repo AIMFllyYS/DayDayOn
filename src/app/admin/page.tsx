@@ -1,14 +1,8 @@
 import type { Metadata } from 'next'
-import { ComingSoon } from '@/components/layout/coming-soon'
+import { OverviewPanel } from '@/features/admin/components/overview-panel'
 
-export const metadata: Metadata = { title: '后台' }
+export const metadata: Metadata = { title: '额度监控' }
 
-/** 占位页（F3），由领域 Agent 替换 */
 export default function Page() {
-  return (
-    <>
-      <h1 className="text-title text-center font-bold">后台</h1>
-      <ComingSoon />
-    </>
-  )
+  return <OverviewPanel />
 }
