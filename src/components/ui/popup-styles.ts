@@ -15,9 +15,9 @@ export const popupItemClass =
   'text-body flex min-h-11 cursor-default items-center gap-2.5 rounded-xl px-3 py-2 outline-none select-none ' +
   'data-highlighted:bg-surface-sunken data-disabled:opacity-50'
 
-/** 触发器（选择框外观）：和 Input 同一套边框与焦点环 */
+/** 触发器（选择框外观）：和 Input 同一套边框与焦点环（默认宽高由组件在未传入时补齐） */
 export const triggerBoxClass =
-  'border-border bg-surface text-body text-foreground flex h-12 w-full items-center gap-2 rounded-xl border px-4 text-left ' +
+  'border-border bg-surface text-body text-foreground flex items-center gap-2 rounded-xl border px-4 text-left ' +
   'transition-[border-color,box-shadow] duration-(--dur-fast) hover:border-border-strong ' +
   'focus-visible:border-primary focus-visible:ring-primary-soft focus-visible:ring-4 focus-visible:outline-none ' +
   'data-popup-open:border-primary aria-invalid:border-danger data-invalid:border-danger data-disabled:opacity-50'

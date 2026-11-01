@@ -57,9 +57,11 @@ export function MeView({
           ) : (
             <InteractivePet size={120} character={prefs.mascot} idleSleepMs={0} />
           )}
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex max-w-full items-center gap-2 px-2">
             <Avatar name={nickname} avatar={profile.avatar} size="sm" />
-            <p className="text-heading font-bold">{nickname}</p>
+            <p className="text-heading min-w-0 flex-1 truncate font-bold" title={nickname}>
+              {nickname}
+            </p>
           </div>
           <p className="text-caption text-muted break-all">{me.email}</p>
           <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
@@ -84,14 +86,16 @@ export function MeView({
             />
           </li>
           <li className="flex items-center gap-3 px-4 py-3">
-            <span className="min-w-0 flex-1 font-semibold">陪伴的小伙伴</span>
+            <span className="min-w-0 flex-1 truncate font-semibold" title="陪伴的小伙伴">
+              陪伴的小伙伴
+            </span>
             <SegmentedControl
               options={mascotCharacters.map((c) => ({ value: c.id, label: c.name }))}
               value={prefs.mascot}
               onValueChange={(mascot) => onPreferencesChange({ mascot })}
               label="选择形象"
               size="sm"
-              className="w-40"
+              className="w-40 shrink-0"
             />
           </li>
         </MenuList>
@@ -121,7 +125,7 @@ export function MeView({
                 options={DAY_START_OPTIONS}
                 value={String(prefs.dayStartHour)}
                 onValueChange={(v) => onPreferencesChange({ dayStartHour: Number(v) })}
-                className="w-36"
+                className="text-caption h-10 w-36 shrink-0 px-3"
               />
             }
           />

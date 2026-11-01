@@ -51,12 +51,21 @@ export function MenuItem({
     <>
       {icon && <IconTile icon={icon} tone={danger ? 'danger' : tone} size="sm" />}
       <span className="min-w-0 flex-1">
-        <span className={cn('block font-semibold', danger && 'text-danger-ink')}>{label}</span>
-        {description && <span className="text-tiny text-muted block">{description}</span>}
+        <span
+          className={cn('block truncate font-semibold', danger && 'text-danger-ink')}
+          title={label}
+        >
+          {label}
+        </span>
+        {description && (
+          <span className="text-tiny text-muted block truncate" title={description}>
+            {description}
+          </span>
+        )}
       </span>
-      {trailing}
+      {trailing && <div className="flex shrink-0 items-center">{trailing}</div>}
       {(href || onClick) && !trailing && (
-        <Icon name="chevron-right" size={18} className="text-subtle" />
+        <Icon name="chevron-right" size={18} className="text-subtle shrink-0" />
       )}
     </>
   )
