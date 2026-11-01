@@ -9,6 +9,8 @@ export const playbookPages = [
   { href: '/dev/playbook/foundations', label: '色彩与字体' },
   { href: '/dev/playbook/motion', label: '动效' },
   { href: '/dev/playbook/components', label: '原子组件' },
+  { href: '/dev/playbook/primitives', label: '交互原语' },
+  { href: '/dev/playbook/data', label: '数据与时间' },
   { href: '/dev/playbook/navigation', label: '导航与布局' },
   { href: '/dev/playbook/pet', label: '小宠物' },
   { href: '/dev/playbook/agent', label: 'Agent 组件' },
