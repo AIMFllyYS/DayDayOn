@@ -1,6 +1,7 @@
 'use client'
 
 import { NumberField as BaseNumberField } from '@base-ui/react/number-field'
+import { useCallback } from 'react'
 import { cn } from '@/lib/cn'
 import { Icon } from './icon'
 
@@ -55,6 +56,18 @@ export function NumberField({
   disabled,
   className,
 }: NumberFieldProps) {
+  /*
+   * Base UI 把 min / step 写到隐藏的原生 <input type="number"> 上，浏览器从 min 起算步长做 stepMismatch 校验：
+   * min=1、step=5 时 30 分钟会被判"无效值"，表单提交不了（lessons/base-ui.md）。
+   * step 在这里只是 −/+ 按钮的步进量，取值校验交给 zod，所以把原生步长校验关掉。
+   * 依赖 step：step 变化时 React 先改写属性，再重新执行本回调。
+   */
+  const disableNativeStep = useCallback(
+    (input: HTMLInputElement | null) => {
+      if (input && step) input.step = 'any'
+    },
+    [step],
+  )
   return (
     <BaseNumberField.Root
       id={id}
@@ -64,6 +77,7 @@ export function NumberField({
       min={min}
       max={max}
       step={step}
+      inputRef={disableNativeStep}
       largeStep={largeStep}
       format={format}
       required={required}
