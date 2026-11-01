@@ -11,6 +11,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TimeRangeField } from '@/components/ui/time-range-field'
 import { buildSchema } from '@/features/goal/build-schema'
 import { SchemaForm } from '@/features/goal/components/schema-form'
+import { clearChangedErrors } from '@/features/goal/form-errors'
 import type { FieldValues } from '@/features/goal/schemas'
 import { sleepRangeForDay } from '@/lib/time'
 import * as z from 'zod'
@@ -240,7 +241,16 @@ export function CustomForm({ goal, isMakeup, submitting, errors, onSubmit }: Mod
         })
       }}
     >
-      <SchemaForm fields={fields} value={values} onChange={setValues} errors={fieldErrors} />
+      <SchemaForm
+        fields={fields}
+        value={values}
+        onChange={(next) => {
+          setValues(next)
+          // Field 带 error 时 Base UI 判为无效、Form 不再调 onFormSubmit；改过的字段要先清掉错误才能重新提交
+          setFieldErrors((prev) => clearChangedErrors(prev, values, next))
+        }}
+        errors={fieldErrors}
+      />
       <NoteField value={note} onChange={setNote} />
       <SubmitButton submitting={submitting} />
     </Form>

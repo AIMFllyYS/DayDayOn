@@ -36,6 +36,24 @@ export function goalFormErrors(error: z.ZodError): GoalFormErrors {
   }
 }
 
+/**
+ * 动态表单改动后去掉"值变了"的键的错误。
+ * Field 收到 error 时 Base UI 把它判为无效，Form 提交前会拦下、不调 onFormSubmit，
+ * 所以改过的字段必须先清掉错误，用户才能重新提交。没有剩余错误时返回 undefined。
+ */
+export function clearChangedErrors(
+  errors: FieldErrors | undefined,
+  prev: Readonly<Record<string, unknown>>,
+  next: Readonly<Record<string, unknown>>,
+): FieldErrors | undefined {
+  if (!errors) return undefined
+  const kept: FieldErrors = {}
+  for (const [key, messages] of Object.entries(errors)) {
+    if (messages && messages.length > 0 && Object.is(prev[key], next[key])) kept[key] = messages
+  }
+  return Object.keys(kept).length > 0 ? kept : undefined
+}
+
 /** 服务端 400 的 fields（已按第一层键分组）→ 同一形状 */
 export function serverFormErrors(fields: Record<string, string[]> | undefined): GoalFormErrors {
   const { fields: fieldsErr, ...top } = fields ?? {}

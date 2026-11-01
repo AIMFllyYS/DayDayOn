@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { goalFormErrors, serverFormErrors } from './form-errors'
+import { clearChangedErrors, goalFormErrors, serverFormErrors } from './form-errors'
 import { CreateGoalSchema } from './schemas'
 
 describe('目标表单错误', () => {
@@ -48,6 +48,17 @@ describe('目标表单错误', () => {
     })
     if (r.success) throw new Error('应当失败')
     expect(goalFormErrors(r.error).fieldsForm).toEqual(['字段标识不能重复'])
+  })
+
+  it('改过的字段清掉错误，没改的保留', () => {
+    const errors = { f1: ['杯数要填数字'], f2: ['请填写感受'] }
+    expect(clearChangedErrors(errors, {}, { f1: 6 })).toEqual({ f2: ['请填写感受'] })
+  })
+
+  it('全部改过或本来没有错误时返回 undefined', () => {
+    expect(clearChangedErrors({ f1: ['杯数要填数字'] }, {}, { f1: 6 })).toBeUndefined()
+    expect(clearChangedErrors(undefined, {}, { f1: 6 })).toBeUndefined()
+    expect(clearChangedErrors({ f1: [] }, {}, {})).toBeUndefined()
   })
 
   it('服务端的 fields 错误拆出自定义字段部分', () => {
