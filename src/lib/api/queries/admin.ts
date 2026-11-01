@@ -63,12 +63,15 @@ export const adminSettingsQuery = () =>
     queryFn: () => unwrap(v1.settings.$get()),
   })
 
-/** 暂停 / 恢复全站 AI：成功后刷新首页数据 */
+/** 暂停 / 恢复全站 AI：成功后刷新首页与额度数据 */
 export function useSetAiPaused() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (paused: boolean) => unwrap(paused ? v1.ai.pause.$post() : v1.ai.resume.$post()),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.admin.overview() }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: keys.admin.overview() })
+      void qc.invalidateQueries({ queryKey: keys.me.quota() })
+    },
   })
 }
 

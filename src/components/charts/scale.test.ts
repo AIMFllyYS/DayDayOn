@@ -36,6 +36,9 @@ describe('paddedExtent', () => {
   it('值都相同时上下各留 minPad', () => {
     expect(paddedExtent([52, 52], 0.15, 2)).toEqual([50, 54])
   })
+  it('非负数据（例如全为 0）下界不低于 0', () => {
+    expect(paddedExtent([0, 0], 0.15, 1)).toEqual([0, 1])
+  })
 })
 
 describe('ticks', () => {

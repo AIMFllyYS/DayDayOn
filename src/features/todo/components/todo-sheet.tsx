@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { DateField } from '@/components/ui/date-field'
@@ -66,7 +66,7 @@ export function TodoSheet({
   const [due, setDue] = useState(todo?.dueAt ? toLocalDateTimeValue(todo.dueAt, timeZone) : '')
   const [priority, setPriority] = useState<TodoPriority>(todo?.priority ?? 'normal')
   const [errors, setErrors] = useState<FormErrors>()
-  const shown = { ...serverErrors, ...errors }
+  const shown = useMemo<FormErrors>(() => ({ ...serverErrors, ...errors }), [serverErrors, errors])
   // 未保存的改动：与打开时的值比较；有改动时下滑、点遮罩、Esc 关闭前先确认（client-data-and-forms.md 第 6 节）
   const [initial] = useState(() => JSON.stringify([title, due, priority]))
   const dirty = JSON.stringify([title, due, priority]) !== initial
@@ -126,7 +126,10 @@ export function TodoSheet({
             maxLength={TODO_TITLE_MAX}
             placeholder="比如：交实验报告"
             autoComplete="off"
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value)
+              setErrors((prev) => (prev?.title ? { ...prev, title: undefined } : prev))
+            }}
           />
         </Field>
         <DateField
@@ -134,13 +137,24 @@ export function TodoSheet({
           id="todo-due"
           withTime
           value={due}
-          onValueChange={setDue}
+          onValueChange={(next) => {
+            setDue(next)
+            setErrors((prev) => (prev?.dueAt ? { ...prev, dueAt: undefined } : prev))
+          }}
           aside="可选"
           hint="到点前 24 小时会标出“快到期”"
           error={typeof dueError === 'string' ? dueError : dueError?.[0]}
         />
         {due !== '' && (
-          <Button variant="ghost" size="sm" className="-mt-2 self-start" onClick={() => setDue('')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-mt-2 self-start"
+            onClick={() => {
+              setDue('')
+              setErrors((prev) => (prev?.dueAt ? { ...prev, dueAt: undefined } : prev))
+            }}
+          >
             不设 DDL
           </Button>
         )}

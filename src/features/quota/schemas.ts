@@ -48,6 +48,8 @@ export const QuotaViewSchema = z
     reservedMicros: MicrosSchema,
     /** 本周期结束（下周一 00:00 北京时间）的时刻 */
     periodEndsAt: InstantSchema,
+    /** 全站 AI 是否处于暂停或达到日上限状态（前端拍照界面提前提示降级） */
+    aiPaused: z.boolean().optional(),
   })
   .meta({ id: 'QuotaView' })
 export type QuotaView = z.infer<typeof QuotaViewSchema>

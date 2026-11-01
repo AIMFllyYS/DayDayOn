@@ -157,14 +157,28 @@ export function SleepForm({ day, isMakeup, clock, submitting, errors, onSubmit }
         label={isMakeup ? '昨天的睡眠' : '昨晚的睡眠'}
         start={bed}
         end={wake}
-        onStartChange={setBed}
-        onEndChange={setWake}
+        onStartChange={(v) => {
+          setBed(v)
+          setLocalError(undefined)
+        }}
+        onEndChange={(v) => {
+          setWake(v)
+          setLocalError(undefined)
+        }}
         error={wakeError}
         hint="记到起床那天"
       />
       <div className="flex flex-col gap-1.5">
         <span className="text-caption font-semibold">睡眠质量</span>
-        <Rating value={quality} onValueChange={setQuality} label="睡眠质量" tone="sleep" />
+        <Rating
+          value={quality}
+          onValueChange={(v) => {
+            setQuality(v)
+            setLocalError(undefined)
+          }}
+          label="睡眠质量"
+          tone="sleep"
+        />
       </div>
       <NoteField value={note} onChange={setNote} />
       <SubmitButton submitting={submitting} />

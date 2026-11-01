@@ -217,13 +217,19 @@ function QuotaForm({
           { value: 'subtract', label: '扣减' },
         ]}
         value={direction}
-        onValueChange={setDirection}
+        onValueChange={(next) => {
+          setDirection(next)
+          setErrors((prev) => (prev?.amount ? { ...prev, amount: undefined } : prev))
+        }}
       />
       <Field label="金额" htmlFor="quota-amount" name="amount" hint="单位元，最多两位小数">
         <NumberField
           id="quota-amount"
           value={yuan}
-          onValueChange={setYuan}
+          onValueChange={(v) => {
+            setYuan(v)
+            setErrors((prev) => (prev?.amount ? { ...prev, amount: undefined } : prev))
+          }}
           min={0.01}
           max={1000}
           step={1}

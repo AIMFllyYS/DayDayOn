@@ -15,7 +15,11 @@ export interface BalanceRow {
   reservedMicros: number
 }
 
-export function toQuotaView(balance: BalanceRow, periodEndsAt: Date): QuotaView {
+export function toQuotaView(
+  balance: BalanceRow,
+  periodEndsAt: Date,
+  aiPaused?: boolean,
+): QuotaView {
   return {
     periodKey: balance.periodKey,
     weeklyLimitMicros: balance.weeklyLimitMicros,
@@ -24,6 +28,7 @@ export function toQuotaView(balance: BalanceRow, periodEndsAt: Date): QuotaView 
     bonusMicros: Math.max(0, balance.bonusMicros),
     reservedMicros: Math.max(0, balance.reservedMicros),
     periodEndsAt: periodEndsAt.toISOString(),
+    ...(aiPaused === undefined ? {} : { aiPaused }),
   }
 }
 

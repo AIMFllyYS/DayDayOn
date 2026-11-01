@@ -4,8 +4,9 @@ import { useRef, useState } from 'react'
 import { toast } from '@/components/ui/toast'
 import type { DraftItem, DraftItemErrors } from '@/features/agent/draft'
 import type { Checkin, MealType } from '@/features/checkin/schemas'
-import { errorMessage, isApiError, newIdempotencyKey } from '@/lib/api'
+import { errorMessage, isApiError, newIdempotencyKey, useQuery } from '@/lib/api'
 import { useConfirmDietCheckin, useRecognizeDiet } from '@/lib/api/queries/ai'
+import { quotaQuery } from '@/lib/api/queries/quota'
 import { compressImage } from '@/lib/image'
 import { buildDietCheckin, draftToItems } from '../draft'
 import type { DietRecognitionResult } from '../schemas'
@@ -44,6 +45,7 @@ async function compress(file: File): Promise<Blob> {
 export function DietRecognizer({ goalId, mealType, onConfirmed, onManual }: DietRecognizerProps) {
   const recognize = useRecognizeDiet()
   const confirm = useConfirmDietCheckin()
+  const { data: quota } = useQuery(quotaQuery())
   const [phase, setPhase] = useState<RecognizerPhase>('idle')
   const [result, setResult] = useState<DietRecognitionResult | null>(null)
   const [items, setItems] = useState<DraftItem[]>([])
@@ -165,6 +167,7 @@ export function DietRecognizer({ goalId, mealType, onConfirmed, onManual }: Diet
       onItemsChange={handleItemsChange}
       onConfirm={handleConfirm}
       confirming={confirm.isPending}
+      aiPaused={quota?.aiPaused}
       onManual={onManual}
     />
   )

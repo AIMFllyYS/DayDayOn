@@ -42,6 +42,8 @@ export interface DietRecognizerViewProps {
   onItemsChange?: (items: DraftItem[]) => void
   onConfirm?: () => void
   confirming?: boolean
+  /** 全站 AI 已暂停或今日花费达上限时提前提示降级 */
+  aiPaused?: boolean
   onManual?: () => void
 }
 
@@ -90,18 +92,32 @@ export function DietRecognizerView({
   onItemsChange,
   onConfirm,
   confirming = false,
+  aiPaused = false,
   onManual,
 }: DietRecognizerViewProps) {
   const meal = MEAL_LABEL[mealType]
   const started = phase !== 'idle'
   return (
     <div className="flex flex-col gap-3">
+      {aiPaused && !started && (
+        <div
+          role="status"
+          className="border-border bg-surface-sunken flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5"
+        >
+          <p className="text-caption text-muted">AI 识别暂停中，可以先手动填写</p>
+          {onManual && (
+            <Button variant="soft" size="sm" icon="edit" onClick={onManual}>
+              手动填写
+            </Button>
+          )}
+        </div>
+      )}
       <ImagePicker
         compress={compress}
         onImage={onImage}
         onClear={onClear}
         recognizing={phase === 'recognizing'}
-        disabled={confirming}
+        disabled={confirming || aiPaused}
       />
 
       {started && (

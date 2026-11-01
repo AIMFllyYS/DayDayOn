@@ -56,35 +56,65 @@
       },
       "Role": {
         "type": "string",
-        "enum": ["user", "admin"]
+        "enum": [
+          "user",
+          "admin"
+        ]
       },
       "Profile": {
         "type": "object",
         "properties": {
           "nickname": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "avatar": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "gender": {
             "$ref": "#/components/schemas/Gender"
           },
           "birthYear": {
-            "type": ["integer", "null"]
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "heightCm": {
-            "type": ["integer", "null"]
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "timeZone": {
             "type": "string"
           }
         },
-        "required": ["nickname", "avatar", "gender", "birthYear", "heightCm", "timeZone"]
+        "required": [
+          "nickname",
+          "avatar",
+          "gender",
+          "birthYear",
+          "heightCm",
+          "timeZone"
+        ]
       },
       "Gender": {
-        "type": ["string", "null"],
-        "enum": ["female", "male", "other", null]
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "female",
+          "male",
+          "other",
+          null
+        ]
       },
       "Preferences": {
         "type": "object",
@@ -102,19 +132,37 @@
             "type": "integer"
           },
           "remindAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
           }
         },
-        "required": ["theme", "mascot", "leaderboardOptIn", "dayStartHour", "remindAt"]
+        "required": [
+          "theme",
+          "mascot",
+          "leaderboardOptIn",
+          "dayStartHour",
+          "remindAt"
+        ]
       },
       "Theme": {
         "type": "string",
-        "enum": ["caramel", "terracotta", "matcha", "haze", "berry"]
+        "enum": [
+          "caramel",
+          "terracotta",
+          "matcha",
+          "haze",
+          "berry"
+        ]
       },
       "MascotCharacter": {
         "type": "string",
-        "enum": ["tuan", "dun"]
+        "enum": [
+          "tuan",
+          "dun"
+        ]
       },
       "Error": {
         "type": "object",
@@ -172,14 +220,23 @@
             "type": "object",
             "properties": {
               "reason": {
-                "type": ["string", "null"]
+                "type": [
+                  "string",
+                  "null"
+                ]
               },
               "expiresAt": {
-                "type": ["string", "null"],
+                "type": [
+                  "string",
+                  "null"
+                ],
                 "format": "date-time"
               }
             },
-            "required": ["reason", "expiresAt"]
+            "required": [
+              "reason",
+              "expiresAt"
+            ]
           },
           "previousWeightGrams": {
             "type": "integer"
@@ -191,7 +248,10 @@
             "type": "integer"
           }
         },
-        "required": ["code", "detail"]
+        "required": [
+          "code",
+          "detail"
+        ]
       },
       "Onboarding": {
         "type": "object",
@@ -207,19 +267,28 @@
             "$ref": "#/components/schemas/Gender"
           },
           "birthYear": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 1900,
             "maximum": 2100,
             "default": null
           },
           "heightCm": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 80,
             "maximum": 250,
             "default": null
           },
           "weightGrams": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 20000,
             "maximum": 300000,
             "default": null
@@ -244,19 +313,34 @@
           },
           "healthConsent": {
             "type": "boolean",
-            "enum": [true]
+            "enum": [
+              true
+            ]
           }
         },
-        "required": ["nickname", "modules", "healthConsent"]
+        "required": [
+          "nickname",
+          "modules",
+          "healthConsent"
+        ]
       },
       "Avatar": {
-        "type": ["string", "null"],
+        "type": [
+          "string",
+          "null"
+        ],
         "pattern": "^mascot:(tuan|dun):(happy|cheer|sleepy|thinking|love|surprised|shy|sad|eating):(primary|exercise|diet|sleep|study|custom)$",
         "default": null
       },
       "Module": {
         "type": "string",
-        "enum": ["exercise", "diet", "sleep", "study", "custom"]
+        "enum": [
+          "exercise",
+          "diet",
+          "sleep",
+          "study",
+          "custom"
+        ]
       },
       "UpdateProfile": {
         "type": "object",
@@ -272,12 +356,18 @@
             "$ref": "#/components/schemas/Gender"
           },
           "birthYear": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 1900,
             "maximum": 2100
           },
           "heightCm": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 80,
             "maximum": 250
           },
@@ -306,7 +396,10 @@
             "maximum": 6
           },
           "remindAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
           }
         }
@@ -342,17 +435,29 @@
             "items": {}
           }
         },
-        "required": ["exportedAt", "me", "goals", "checkins", "weights", "ratings", "todos"]
+        "required": [
+          "exportedAt",
+          "me",
+          "goals",
+          "checkins",
+          "weights",
+          "ratings",
+          "todos"
+        ]
       },
       "DeleteMe": {
         "type": "object",
         "properties": {
           "confirm": {
             "type": "string",
-            "enum": ["注销"]
+            "enum": [
+              "注销"
+            ]
           }
         },
-        "required": ["confirm"]
+        "required": [
+          "confirm"
+        ]
       },
       "QuotaView": {
         "type": "object",
@@ -378,6 +483,9 @@
           "periodEndsAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "aiPaused": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -401,7 +509,9 @@
             "maxItems": 20
           }
         },
-        "required": ["items"]
+        "required": [
+          "items"
+        ]
       },
       "AiRunItem": {
         "type": "object",
@@ -424,15 +534,29 @@
             "format": "date-time"
           }
         },
-        "required": ["id", "purpose", "status", "costMicros", "createdAt"]
+        "required": [
+          "id",
+          "purpose",
+          "status",
+          "costMicros",
+          "createdAt"
+        ]
       },
       "AiPurpose": {
         "type": "string",
-        "enum": ["diet-recognition"]
+        "enum": [
+          "diet-recognition"
+        ]
       },
       "AiRunStatus": {
         "type": "string",
-        "enum": ["running", "succeeded", "failed", "invalid-output", "timeout"]
+        "enum": [
+          "running",
+          "succeeded",
+          "failed",
+          "invalid-output",
+          "timeout"
+        ]
       },
       "GoalList": {
         "type": "object",
@@ -444,7 +568,9 @@
             }
           }
         },
-        "required": ["items"]
+        "required": [
+          "items"
+        ]
       },
       "Goal": {
         "type": "object",
@@ -460,7 +586,10 @@
             "type": "string"
           },
           "description": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "target": {
             "$ref": "#/components/schemas/Target"
@@ -476,7 +605,10 @@
             "maxItems": 7
           },
           "plannedTime": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
           },
           "status": {
@@ -486,10 +618,16 @@
             "type": "integer"
           },
           "fieldVersion": {
-            "type": ["integer", "null"]
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "fields": {
-            "type": ["array", "null"],
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/FieldDef"
             }
@@ -531,15 +669,24 @@
             "maximum": 86400
           }
         },
-        "required": ["kind", "value"]
+        "required": [
+          "kind",
+          "value"
+        ]
       },
       "TargetKind": {
         "type": "string",
-        "enum": ["duration", "count"]
+        "enum": [
+          "duration",
+          "count"
+        ]
       },
       "GoalStatus": {
         "type": "string",
-        "enum": ["active", "archived"]
+        "enum": [
+          "active",
+          "archived"
+        ]
       },
       "FieldDef": {
         "oneOf": [
@@ -561,7 +708,9 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["number"]
+                "enum": [
+                  "number"
+                ]
               },
               "unit": {
                 "type": "string",
@@ -578,7 +727,11 @@
                 "default": false
               }
             },
-            "required": ["key", "label", "type"]
+            "required": [
+              "key",
+              "label",
+              "type"
+            ]
           },
           {
             "type": "object",
@@ -598,7 +751,9 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["text"]
+                "enum": [
+                  "text"
+                ]
               },
               "maxLength": {
                 "type": "integer",
@@ -607,7 +762,11 @@
                 "default": 100
               }
             },
-            "required": ["key", "label", "type"]
+            "required": [
+              "key",
+              "label",
+              "type"
+            ]
           },
           {
             "type": "object",
@@ -627,7 +786,9 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["single-select"]
+                "enum": [
+                  "single-select"
+                ]
               },
               "options": {
                 "type": "array",
@@ -640,7 +801,12 @@
                 "maxItems": 20
               }
             },
-            "required": ["key", "label", "type", "options"]
+            "required": [
+              "key",
+              "label",
+              "type",
+              "options"
+            ]
           },
           {
             "type": "object",
@@ -660,7 +826,9 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["multi-select"]
+                "enum": [
+                  "multi-select"
+                ]
               },
               "options": {
                 "type": "array",
@@ -673,7 +841,12 @@
                 "maxItems": 20
               }
             },
-            "required": ["key", "label", "type", "options"]
+            "required": [
+              "key",
+              "label",
+              "type",
+              "options"
+            ]
           },
           {
             "type": "object",
@@ -693,10 +866,16 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["boolean"]
+                "enum": [
+                  "boolean"
+                ]
               }
             },
-            "required": ["key", "label", "type"]
+            "required": [
+              "key",
+              "label",
+              "type"
+            ]
           },
           {
             "type": "object",
@@ -716,7 +895,9 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["duration"]
+                "enum": [
+                  "duration"
+                ]
               },
               "maxSeconds": {
                 "type": "integer",
@@ -725,7 +906,11 @@
                 "default": 86400
               }
             },
-            "required": ["key", "label", "type"]
+            "required": [
+              "key",
+              "label",
+              "type"
+            ]
           },
           {
             "type": "object",
@@ -745,10 +930,16 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["rating"]
+                "enum": [
+                  "rating"
+                ]
               }
             },
-            "required": ["key", "label", "type"]
+            "required": [
+              "key",
+              "label",
+              "type"
+            ]
           }
         ]
       },
@@ -764,7 +955,10 @@
             "maxLength": 20
           },
           "description": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "maxLength": 100
           },
           "target": {
@@ -779,17 +973,32 @@
             },
             "minItems": 1,
             "maxItems": 7,
-            "default": [1, 2, 3, 4, 5, 6, 7]
+            "default": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
           },
           "plannedTime": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
           },
           "fields": {
             "$ref": "#/components/schemas/FieldDefs"
           }
         },
-        "required": ["module", "title", "target"]
+        "required": [
+          "module",
+          "title",
+          "target"
+        ]
       },
       "FieldDefs": {
         "type": "array",
@@ -813,7 +1022,10 @@
             "type": "string"
           },
           "description": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "target": {
             "$ref": "#/components/schemas/Target"
@@ -829,7 +1041,10 @@
             "maxItems": 7
           },
           "plannedTime": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
           },
           "status": {
@@ -839,10 +1054,16 @@
             "type": "integer"
           },
           "fieldVersion": {
-            "type": ["integer", "null"]
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "fields": {
-            "type": ["array", "null"],
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/FieldDef"
             }
@@ -888,7 +1109,12 @@
                   "format": "date"
                 }
               },
-              "required": ["kind", "value", "weekdays", "effectiveFrom"]
+              "required": [
+                "kind",
+                "value",
+                "weekdays",
+                "effectiveFrom"
+              ]
             }
           }
         },
@@ -927,7 +1153,11 @@
             "format": "date-time"
           }
         },
-        "required": ["version", "fields", "createdAt"]
+        "required": [
+          "version",
+          "fields",
+          "createdAt"
+        ]
       },
       "UpdateGoal": {
         "type": "object",
@@ -938,7 +1168,10 @@
             "maxLength": 20
           },
           "description": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "maxLength": 100
           },
           "target": {
@@ -955,7 +1188,10 @@
             "maxItems": 7
           },
           "plannedTime": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
           },
           "status": {
@@ -980,10 +1216,16 @@
             }
           },
           "nextCursor": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
-        "required": ["items", "nextCursor"]
+        "required": [
+          "items",
+          "nextCursor"
+        ]
       },
       "Checkin": {
         "type": "object",
@@ -1014,31 +1256,52 @@
             "type": "boolean"
           },
           "durationSeconds": {
-            "type": ["integer", "null"]
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "count": {
             "type": "integer"
           },
           "intakeKcal": {
-            "type": ["integer", "null"]
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "burnKcal": {
-            "type": ["integer", "null"]
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "note": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "parsedText": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payload": {
             "$ref": "#/components/schemas/CheckinPayload"
           },
           "fieldVersion": {
-            "type": ["integer", "null"]
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "aiRunId": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uuid"
           },
           "createdAt": {
@@ -1068,7 +1331,10 @@
       },
       "CheckinSource": {
         "type": "string",
-        "enum": ["manual", "ai"]
+        "enum": [
+          "manual",
+          "ai"
+        ]
       },
       "CheckinPayload": {
         "oneOf": [
@@ -1077,7 +1343,9 @@
             "properties": {
               "module": {
                 "type": "string",
-                "enum": ["exercise"]
+                "enum": [
+                  "exercise"
+                ]
               },
               "category": {
                 "type": "string",
@@ -1088,14 +1356,20 @@
                 "$ref": "#/components/schemas/Intensity"
               }
             },
-            "required": ["module", "category", "intensity"]
+            "required": [
+              "module",
+              "category",
+              "intensity"
+            ]
           },
           {
             "type": "object",
             "properties": {
               "module": {
                 "type": "string",
-                "enum": ["diet"]
+                "enum": [
+                  "diet"
+                ]
               },
               "method": {
                 "$ref": "#/components/schemas/DietMethod"
@@ -1112,14 +1386,21 @@
                 "maxItems": 20
               }
             },
-            "required": ["module", "method", "mealType", "items"]
+            "required": [
+              "module",
+              "method",
+              "mealType",
+              "items"
+            ]
           },
           {
             "type": "object",
             "properties": {
               "module": {
                 "type": "string",
-                "enum": ["sleep"]
+                "enum": [
+                  "sleep"
+                ]
               },
               "bedAt": {
                 "type": "string",
@@ -1135,14 +1416,21 @@
                 "maximum": 5
               }
             },
-            "required": ["module", "bedAt", "wakeAt", "quality"]
+            "required": [
+              "module",
+              "bedAt",
+              "wakeAt",
+              "quality"
+            ]
           },
           {
             "type": "object",
             "properties": {
               "module": {
                 "type": "string",
-                "enum": ["study"]
+                "enum": [
+                  "study"
+                ]
               },
               "what": {
                 "type": "string",
@@ -1150,14 +1438,19 @@
                 "maxLength": 60
               }
             },
-            "required": ["module", "what"]
+            "required": [
+              "module",
+              "what"
+            ]
           },
           {
             "type": "object",
             "properties": {
               "module": {
                 "type": "string",
-                "enum": ["custom"]
+                "enum": [
+                  "custom"
+                ]
               },
               "values": {
                 "type": "object",
@@ -1182,21 +1475,36 @@
                 }
               }
             },
-            "required": ["module", "values"]
+            "required": [
+              "module",
+              "values"
+            ]
           }
         ]
       },
       "Intensity": {
         "type": "string",
-        "enum": ["easy", "moderate", "hard"]
+        "enum": [
+          "easy",
+          "moderate",
+          "hard"
+        ]
       },
       "DietMethod": {
         "type": "string",
-        "enum": ["photo", "manual"]
+        "enum": [
+          "photo",
+          "manual"
+        ]
       },
       "MealType": {
         "type": "string",
-        "enum": ["breakfast", "lunch", "dinner", "snack"]
+        "enum": [
+          "breakfast",
+          "lunch",
+          "dinner",
+          "snack"
+        ]
       },
       "DietItem": {
         "type": "object",
@@ -1212,12 +1520,18 @@
             "default": ""
           },
           "kcal": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 5000
           }
         },
-        "required": ["name", "kcal"]
+        "required": [
+          "name",
+          "kcal"
+        ]
       },
       "CreateCheckinResult": {
         "type": "object",
@@ -1229,7 +1543,10 @@
             "$ref": "#/components/schemas/GoalProgress"
           }
         },
-        "required": ["checkin", "progress"]
+        "required": [
+          "checkin",
+          "progress"
+        ]
       },
       "GoalProgress": {
         "type": "object",
@@ -1244,7 +1561,11 @@
             "type": "boolean"
           }
         },
-        "required": ["value", "target", "done"]
+        "required": [
+          "value",
+          "target",
+          "done"
+        ]
       },
       "CreateCheckin": {
         "oneOf": [
@@ -1256,12 +1577,17 @@
                 "default": false
               },
               "note": {
-                "type": ["string", "null"],
+                "type": [
+                  "string",
+                  "null"
+                ],
                 "maxLength": 200
               },
               "module": {
                 "type": "string",
-                "enum": ["exercise"]
+                "enum": [
+                  "exercise"
+                ]
               },
               "category": {
                 "type": "string",
@@ -1277,7 +1603,12 @@
                 "maximum": 36000
               }
             },
-            "required": ["module", "category", "intensity", "durationSeconds"]
+            "required": [
+              "module",
+              "category",
+              "intensity",
+              "durationSeconds"
+            ]
           },
           {
             "type": "object",
@@ -1287,12 +1618,17 @@
                 "default": false
               },
               "note": {
-                "type": ["string", "null"],
+                "type": [
+                  "string",
+                  "null"
+                ],
                 "maxLength": 200
               },
               "module": {
                 "type": "string",
-                "enum": ["diet"]
+                "enum": [
+                  "diet"
+                ]
               },
               "source": {
                 "$ref": "#/components/schemas/CheckinSource"
@@ -1320,7 +1656,12 @@
                 "maxItems": 20
               }
             },
-            "required": ["module", "method", "mealType", "items"]
+            "required": [
+              "module",
+              "method",
+              "mealType",
+              "items"
+            ]
           },
           {
             "type": "object",
@@ -1330,12 +1671,17 @@
                 "default": false
               },
               "note": {
-                "type": ["string", "null"],
+                "type": [
+                  "string",
+                  "null"
+                ],
                 "maxLength": 200
               },
               "module": {
                 "type": "string",
-                "enum": ["sleep"]
+                "enum": [
+                  "sleep"
+                ]
               },
               "bedAt": {
                 "type": "string",
@@ -1351,7 +1697,12 @@
                 "maximum": 5
               }
             },
-            "required": ["module", "bedAt", "wakeAt", "quality"]
+            "required": [
+              "module",
+              "bedAt",
+              "wakeAt",
+              "quality"
+            ]
           },
           {
             "type": "object",
@@ -1361,12 +1712,17 @@
                 "default": false
               },
               "note": {
-                "type": ["string", "null"],
+                "type": [
+                  "string",
+                  "null"
+                ],
                 "maxLength": 200
               },
               "module": {
                 "type": "string",
-                "enum": ["study"]
+                "enum": [
+                  "study"
+                ]
               },
               "what": {
                 "type": "string",
@@ -1379,7 +1735,10 @@
                 "maximum": 86400
               }
             },
-            "required": ["module", "what"]
+            "required": [
+              "module",
+              "what"
+            ]
           },
           {
             "type": "object",
@@ -1389,12 +1748,17 @@
                 "default": false
               },
               "note": {
-                "type": ["string", "null"],
+                "type": [
+                  "string",
+                  "null"
+                ],
                 "maxLength": 200
               },
               "module": {
                 "type": "string",
-                "enum": ["custom"]
+                "enum": [
+                  "custom"
+                ]
               },
               "fieldVersion": {
                 "type": "integer",
@@ -1423,7 +1787,11 @@
                 }
               }
             },
-            "required": ["module", "fieldVersion", "values"]
+            "required": [
+              "module",
+              "fieldVersion",
+              "values"
+            ]
           }
         ]
       },
@@ -1441,7 +1809,10 @@
             }
           }
         },
-        "required": ["month", "days"]
+        "required": [
+          "month",
+          "days"
+        ]
       },
       "CalendarDay": {
         "type": "object",
@@ -1461,7 +1832,12 @@
             "type": "boolean"
           }
         },
-        "required": ["localDate", "count", "done", "makeupOnly"]
+        "required": [
+          "localDate",
+          "count",
+          "done",
+          "makeupOnly"
+        ]
       },
       "CheckinToday": {
         "type": "object",
@@ -1486,22 +1862,41 @@
                 "type": "integer"
               }
             },
-            "required": ["done", "planned"]
+            "required": [
+              "done",
+              "planned"
+            ]
           },
           "weightGrams": {
-            "type": ["integer", "null"]
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "mood": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 1,
             "maximum": 5
           },
           "dietPhotoGoalId": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "uuid"
           }
         },
-        "required": ["localDate", "goals", "completion", "weightGrams", "mood", "dietPhotoGoalId"]
+        "required": [
+          "localDate",
+          "goals",
+          "completion",
+          "weightGrams",
+          "mood",
+          "dietPhotoGoalId"
+        ]
       },
       "TodayGoal": {
         "type": "object",
@@ -1529,7 +1924,15 @@
             "type": "integer"
           }
         },
-        "required": ["goalId", "module", "title", "target", "planned", "progress", "sortOrder"]
+        "required": [
+          "goalId",
+          "module",
+          "title",
+          "target",
+          "planned",
+          "progress",
+          "sortOrder"
+        ]
       },
       "UpdateCheckin": {
         "type": "object",
@@ -1543,7 +1946,10 @@
             "maxItems": 20
           },
           "note": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "maxLength": 200
           }
         }
@@ -1563,7 +1969,11 @@
             "format": "date-time"
           }
         },
-        "required": ["localDate", "weightGrams", "measuredAt"]
+        "required": [
+          "localDate",
+          "weightGrams",
+          "measuredAt"
+        ]
       },
       "PutWeight": {
         "type": "object",
@@ -1578,7 +1988,9 @@
             "default": false
           }
         },
-        "required": ["weightGrams"]
+        "required": [
+          "weightGrams"
+        ]
       },
       "WeightTrend": {
         "type": "object",
@@ -1595,15 +2007,25 @@
                 "$ref": "#/components/schemas/WeightEntry"
               },
               {
-                "type": ["object", "null"]
+                "type": [
+                  "object",
+                  "null"
+                ]
               }
             ]
           },
           "deltaGrams7d": {
-            "type": ["integer", "null"]
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
-        "required": ["entries", "latest", "deltaGrams7d"]
+        "required": [
+          "entries",
+          "latest",
+          "deltaGrams7d"
+        ]
       },
       "Rating": {
         "type": "object",
@@ -1621,11 +2043,22 @@
             "maximum": 5
           }
         },
-        "required": ["localDate", "scope", "value"]
+        "required": [
+          "localDate",
+          "scope",
+          "value"
+        ]
       },
       "RatingScope": {
         "type": "string",
-        "enum": ["overall", "exercise", "diet", "sleep", "study", "custom"]
+        "enum": [
+          "overall",
+          "exercise",
+          "diet",
+          "sleep",
+          "study",
+          "custom"
+        ]
       },
       "PutRating": {
         "type": "object",
@@ -1639,7 +2072,10 @@
             "maximum": 5
           }
         },
-        "required": ["scope", "value"]
+        "required": [
+          "scope",
+          "value"
+        ]
       },
       "DashboardToday": {
         "type": "object",
@@ -1661,7 +2097,10 @@
                 "type": "integer"
               }
             },
-            "required": ["done", "planned"]
+            "required": [
+              "done",
+              "planned"
+            ]
           },
           "streak": {
             "type": "integer",
@@ -1680,7 +2119,10 @@
             "$ref": "#/components/schemas/WeightTrend"
           },
           "mood": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 1,
             "maximum": 5
           },
@@ -1738,11 +2180,17 @@
                   }
                 }
               },
-              "required": ["module", "cells"]
+              "required": [
+                "module",
+                "cells"
+              ]
             }
           }
         },
-        "required": ["days", "rows"]
+        "required": [
+          "days",
+          "rows"
+        ]
       },
       "FeedItem": {
         "type": "object",
@@ -1755,7 +2203,10 @@
             "type": "string"
           },
           "avatar": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "type": "string",
@@ -1769,17 +2220,29 @@
             "format": "date-time"
           }
         },
-        "required": ["userId", "nickname", "avatar", "id", "module", "occurredAt"]
+        "required": [
+          "userId",
+          "nickname",
+          "avatar",
+          "id",
+          "module",
+          "occurredAt"
+        ]
       },
       "Reminder": {
-        "type": ["object", "null"],
+        "type": [
+          "object",
+          "null"
+        ],
         "properties": {
           "remaining": {
             "type": "integer",
             "minimum": 1
           }
         },
-        "required": ["remaining"]
+        "required": [
+          "remaining"
+        ]
       },
       "RankBoard": {
         "type": "object",
@@ -1806,11 +2269,20 @@
             "$ref": "#/components/schemas/RankMe"
           }
         },
-        "required": ["range", "from", "to", "entries", "me"]
+        "required": [
+          "range",
+          "from",
+          "to",
+          "entries",
+          "me"
+        ]
       },
       "RankRange": {
         "type": "string",
-        "enum": ["week", "month"]
+        "enum": [
+          "week",
+          "month"
+        ]
       },
       "RankEntry": {
         "type": "object",
@@ -1823,7 +2295,10 @@
             "type": "string"
           },
           "avatar": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "rank": {
             "type": "integer",
@@ -1838,7 +2313,14 @@
             "minimum": 0
           }
         },
-        "required": ["userId", "nickname", "avatar", "rank", "days", "streak"]
+        "required": [
+          "userId",
+          "nickname",
+          "avatar",
+          "rank",
+          "days",
+          "streak"
+        ]
       },
       "RankMe": {
         "oneOf": [
@@ -1847,27 +2329,40 @@
             "properties": {
               "optedIn": {
                 "type": "boolean",
-                "enum": [false]
+                "enum": [
+                  false
+                ]
               }
             },
-            "required": ["optedIn"]
+            "required": [
+              "optedIn"
+            ]
           },
           {
             "type": "object",
             "properties": {
               "optedIn": {
                 "type": "boolean",
-                "enum": [true]
+                "enum": [
+                  true
+                ]
               },
               "entry": {
                 "$ref": "#/components/schemas/RankEntry"
               },
               "daysToNext": {
-                "type": ["integer", "null"],
+                "type": [
+                  "integer",
+                  "null"
+                ],
                 "minimum": 1
               }
             },
-            "required": ["optedIn", "entry", "daysToNext"]
+            "required": [
+              "optedIn",
+              "entry",
+              "daysToNext"
+            ]
           }
         ]
       },
@@ -1882,7 +2377,9 @@
             "maxItems": 10
           }
         },
-        "required": ["items"]
+        "required": [
+          "items"
+        ]
       },
       "TodoList": {
         "type": "object",
@@ -1894,10 +2391,16 @@
             }
           },
           "nextCursor": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
-        "required": ["items", "nextCursor"]
+        "required": [
+          "items",
+          "nextCursor"
+        ]
       },
       "Todo": {
         "type": "object",
@@ -1910,14 +2413,20 @@
             "type": "string"
           },
           "dueAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           },
           "priority": {
             "$ref": "#/components/schemas/TodoPriority"
           },
           "doneAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           },
           "createdAt": {
@@ -1929,15 +2438,29 @@
             "format": "date-time"
           }
         },
-        "required": ["id", "title", "dueAt", "priority", "doneAt", "createdAt", "updatedAt"]
+        "required": [
+          "id",
+          "title",
+          "dueAt",
+          "priority",
+          "doneAt",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "TodoPriority": {
         "type": "string",
-        "enum": ["normal", "important"]
+        "enum": [
+          "normal",
+          "important"
+        ]
       },
       "TodoStatus": {
         "type": "string",
-        "enum": ["open", "done"],
+        "enum": [
+          "open",
+          "done"
+        ],
         "default": "open"
       },
       "CreateTodo": {
@@ -1949,7 +2472,10 @@
             "maxLength": 60
           },
           "dueAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time",
             "default": null
           },
@@ -1957,7 +2483,9 @@
             "$ref": "#/components/schemas/TodoPriority"
           }
         },
-        "required": ["title"]
+        "required": [
+          "title"
+        ]
       },
       "UpdateTodo": {
         "type": "object",
@@ -1968,7 +2496,10 @@
             "maxLength": 60
           },
           "dueAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           },
           "priority": {
@@ -1990,7 +2521,10 @@
             "format": "uuid"
           }
         },
-        "required": ["draft", "aiRunId"]
+        "required": [
+          "draft",
+          "aiRunId"
+        ]
       },
       "DietDraft": {
         "type": "object",
@@ -2021,7 +2555,13 @@
             "maxLength": 500
           }
         },
-        "required": ["items", "totalLowKcal", "totalHighKcal", "confidence", "summary"]
+        "required": [
+          "items",
+          "totalLowKcal",
+          "totalHighKcal",
+          "confidence",
+          "summary"
+        ]
       },
       "DietDraftItem": {
         "type": "object",
@@ -2046,17 +2586,26 @@
             "maximum": 5000
           },
           "proteinGrams": {
-            "type": ["number", "null"],
+            "type": [
+              "number",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 2000
           },
           "fatGrams": {
-            "type": ["number", "null"],
+            "type": [
+              "number",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 2000
           },
           "carbGrams": {
-            "type": ["number", "null"],
+            "type": [
+              "number",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 2000
           }
@@ -2081,7 +2630,10 @@
             "$ref": "#/components/schemas/QuotaView"
           }
         },
-        "required": ["addedMicros", "quota"]
+        "required": [
+          "addedMicros",
+          "quota"
+        ]
       },
       "Redeem": {
         "type": "object",
@@ -2092,7 +2644,9 @@
             "maxLength": 40
           }
         },
-        "required": ["code"]
+        "required": [
+          "code"
+        ]
       },
       "AdminOverview": {
         "type": "object",
@@ -2124,7 +2678,10 @@
                   "type": "integer"
                 }
               },
-              "required": ["dayKey", "spentMicros"]
+              "required": [
+                "dayKey",
+                "spentMicros"
+              ]
             },
             "maxItems": 31
           },
@@ -2155,7 +2712,10 @@
             "type": "string"
           },
           "label": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "value": {
             "type": "number"
@@ -2165,11 +2725,22 @@
             "format": "date-time"
           }
         },
-        "required": ["kind", "subject", "label", "value", "detectedAt"]
+        "required": [
+          "kind",
+          "subject",
+          "label",
+          "value",
+          "detectedAt"
+        ]
       },
       "AnomalyKind": {
         "type": "string",
-        "enum": ["user-daily-spend", "user-hourly-calls", "ip-multi-account", "redeem-failures"]
+        "enum": [
+          "user-daily-spend",
+          "user-hourly-calls",
+          "ip-multi-account",
+          "redeem-failures"
+        ]
       },
       "AiSwitchResult": {
         "type": "object",
@@ -2181,7 +2752,10 @@
             "type": "boolean"
           }
         },
-        "required": ["aiPaused", "capReached"]
+        "required": [
+          "aiPaused",
+          "capReached"
+        ]
       },
       "AdminUserPage": {
         "type": "object",
@@ -2197,7 +2771,10 @@
             "minimum": 0
           }
         },
-        "required": ["items", "total"]
+        "required": [
+          "items",
+          "total"
+        ]
       },
       "AdminUserRow": {
         "type": "object",
@@ -2207,7 +2784,10 @@
             "minLength": 1
           },
           "nickname": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "email": {
             "type": "string"
@@ -2220,7 +2800,10 @@
             "format": "date-time"
           },
           "signupIp": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "sameIpCount": {
             "type": "integer",
@@ -2240,10 +2823,16 @@
             "$ref": "#/components/schemas/UserStatus"
           },
           "banReason": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "banExpiresAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           }
         },
@@ -2265,7 +2854,10 @@
       },
       "UserStatus": {
         "type": "string",
-        "enum": ["active", "banned"]
+        "enum": [
+          "active",
+          "banned"
+        ]
       },
       "QuotaAdjustmentResult": {
         "type": "object",
@@ -2278,7 +2870,10 @@
             "type": "integer"
           }
         },
-        "required": ["userId", "bonusMicros"]
+        "required": [
+          "userId",
+          "bonusMicros"
+        ]
       },
       "QuotaAdjustment": {
         "type": "object",
@@ -2292,7 +2887,10 @@
             "maxLength": 200
           }
         },
-        "required": ["amountMicros", "reason"]
+        "required": [
+          "amountMicros",
+          "reason"
+        ]
       },
       "AdminCodePage": {
         "type": "object",
@@ -2308,7 +2906,10 @@
             "minimum": 0
           }
         },
-        "required": ["items", "total"]
+        "required": [
+          "items",
+          "total"
+        ]
       },
       "AdminCodeRow": {
         "type": "object",
@@ -2331,23 +2932,36 @@
             "format": "date-time"
           },
           "redeemedBy": {
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "userId": {
                 "type": "string",
                 "minLength": 1
               },
               "nickname": {
-                "type": ["string", "null"]
+                "type": [
+                  "string",
+                  "null"
+                ]
               },
               "email": {
                 "type": "string"
               }
             },
-            "required": ["userId", "nickname", "email"]
+            "required": [
+              "userId",
+              "nickname",
+              "email"
+            ]
           },
           "redeemedAt": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           }
         },
@@ -2363,7 +2977,11 @@
       },
       "RedeemCodeStatus": {
         "type": "string",
-        "enum": ["unused", "redeemed", "void"]
+        "enum": [
+          "unused",
+          "redeemed",
+          "void"
+        ]
       },
       "GeneratedCodes": {
         "type": "object",
@@ -2381,14 +2999,20 @@
                   "type": "string"
                 }
               },
-              "required": ["id", "code"]
+              "required": [
+                "id",
+                "code"
+              ]
             }
           },
           "valueMicros": {
             "type": "integer"
           }
         },
-        "required": ["codes", "valueMicros"]
+        "required": [
+          "codes",
+          "valueMicros"
+        ]
       },
       "GenerateCodes": {
         "type": "object",
@@ -2399,7 +3023,9 @@
             "maximum": 100
           }
         },
-        "required": ["count"]
+        "required": [
+          "count"
+        ]
       },
       "AppSettings": {
         "type": "object",
@@ -2907,7 +3533,9 @@
     },
     "/api/v1/goals": {
       "get": {
-        "tags": ["goals"],
+        "tags": [
+          "goals"
+        ],
         "summary": "目标列表",
         "parameters": [
           {
@@ -2963,7 +3591,9 @@
         }
       },
       "post": {
-        "tags": ["goals"],
+        "tags": [
+          "goals"
+        ],
         "summary": "新建目标",
         "parameters": [
           {
@@ -3042,7 +3672,9 @@
     },
     "/api/v1/goals/{goalId}": {
       "get": {
-        "tags": ["goals"],
+        "tags": [
+          "goals"
+        ],
         "summary": "目标详情",
         "parameters": [
           {
@@ -3109,7 +3741,9 @@
         }
       },
       "patch": {
-        "tags": ["goals"],
+        "tags": [
+          "goals"
+        ],
         "summary": "修改目标（含归档、恢复、自定义字段）",
         "parameters": [
           {
@@ -3196,7 +3830,9 @@
         }
       },
       "delete": {
-        "tags": ["goals"],
+        "tags": [
+          "goals"
+        ],
         "summary": "删除目标（连同打卡记录）",
         "parameters": [
           {
@@ -3883,7 +4519,9 @@
     },
     "/api/v1/dashboard/today": {
       "get": {
-        "tags": ["dashboard"],
+        "tags": [
+          "dashboard"
+        ],
         "summary": "主页全部数据",
         "responses": {
           "200": {
@@ -3931,7 +4569,9 @@
     },
     "/api/v1/rank": {
       "get": {
-        "tags": ["rank"],
+        "tags": [
+          "rank"
+        ],
         "summary": "排行榜 + 我的位置",
         "parameters": [
           {
@@ -3989,7 +4629,9 @@
     },
     "/api/v1/rank/feed": {
       "get": {
-        "tags": ["rank"],
+        "tags": [
+          "rank"
+        ],
         "summary": "榜单动态",
         "responses": {
           "200": {
@@ -4027,7 +4669,9 @@
     },
     "/api/v1/todos": {
       "get": {
-        "tags": ["todo"],
+        "tags": [
+          "todo"
+        ],
         "summary": "待办列表",
         "parameters": [
           {
@@ -4103,7 +4747,9 @@
         }
       },
       "post": {
-        "tags": ["todo"],
+        "tags": [
+          "todo"
+        ],
         "summary": "新建待办",
         "parameters": [
           {
@@ -4182,7 +4828,9 @@
     },
     "/api/v1/todos/{todoId}": {
       "patch": {
-        "tags": ["todo"],
+        "tags": [
+          "todo"
+        ],
         "summary": "修改待办（含勾选）",
         "parameters": [
           {
@@ -4269,7 +4917,9 @@
         }
       },
       "delete": {
-        "tags": ["todo"],
+        "tags": [
+          "todo"
+        ],
         "summary": "删除待办",
         "parameters": [
           {
@@ -4561,7 +5211,9 @@
     },
     "/api/v1/admin/overview": {
       "get": {
-        "tags": ["admin"],
+        "tags": [
+          "admin"
+        ],
         "summary": "今日花费、AI 开关、30 天曲线、异常",
         "responses": {
           "200": {
@@ -4599,7 +5251,9 @@
     },
     "/api/v1/admin/ai/pause": {
       "post": {
-        "tags": ["admin"],
+        "tags": [
+          "admin"
+        ],
         "summary": "暂停全站 AI",
         "responses": {
           "200": {
@@ -4637,7 +5291,9 @@
     },
     "/api/v1/admin/ai/resume": {
       "post": {
-        "tags": ["admin"],
+        "tags": [
+          "admin"
+        ],
         "summary": "恢复全站 AI（只清手动暂停；capReached 为 true 时仍处于日上限暂停）",
         "responses": {
           "200": {
@@ -4675,7 +5331,9 @@
     },
     "/api/v1/admin/users": {
       "get": {
-        "tags": ["admin"],
+        "tags": [
+          "admin"
+        ],
         "summary": "用户表（偏移分页，按邮箱搜索）",
         "parameters": [
           {
@@ -4689,7 +5347,10 @@
           },
           {
             "schema": {
-              "type": ["integer", "null"],
+              "type": [
+                "integer",
+                "null"
+              ],
               "minimum": 0,
               "default": 0
             },
@@ -4755,7 +5416,9 @@
     },
     "/api/v1/admin/users/{userId}/quota-adjustments": {
       "post": {
-        "tags": ["admin"],
+        "tags": [
+          "admin"
+        ],
         "summary": "调整加购余额（± 金额 + 原因，写流水）",
         "parameters": [
           {
@@ -4766,6 +5429,15 @@
             "required": true,
             "name": "userId",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -4828,13 +5500,25 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/v1/admin/redeem-codes": {
       "get": {
-        "tags": ["admin"],
+        "tags": [
+          "admin"
+        ],
         "summary": "兑换码列表（偏移分页）",
         "parameters": [
           {
@@ -4847,7 +5531,10 @@
           },
           {
             "schema": {
-              "type": ["integer", "null"],
+              "type": [
+                "integer",
+                "null"
+              ],
               "minimum": 0,
               "default": 0
             },
@@ -4911,7 +5598,9 @@
         }
       },
       "post": {
-        "tags": ["admin"],
+        "tags": [
+          "admin"
+        ],
         "summary": "批量生成兑换码（明文只在本响应里出现一次）",
         "parameters": [
           {
@@ -4990,7 +5679,9 @@
     },
     "/api/v1/admin/redeem-codes/{codeId}/void": {
       "post": {
-        "tags": ["admin"],
+        "tags": [
+          "admin"
+        ],
         "summary": "作废未使用的兑换码",
         "parameters": [
           {
@@ -5069,7 +5760,9 @@
     },
     "/api/v1/admin/settings": {
       "get": {
-        "tags": ["admin"],
+        "tags": [
+          "admin"
+        ],
         "summary": "全站配置",
         "responses": {
           "200": {
@@ -5105,7 +5798,9 @@
         }
       },
       "put": {
-        "tags": ["admin"],
+        "tags": [
+          "admin"
+        ],
         "summary": "修改全站配置（只传要改的项）",
         "requestBody": {
           "required": true,

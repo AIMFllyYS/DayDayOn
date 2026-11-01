@@ -39,6 +39,22 @@ describe('toQuotaView', () => {
     )
     expect(view.weeklyRemainingMicros).toBe(0)
   })
+
+  it('传入 aiPaused 时同步写入视图，不传时省略字段', () => {
+    const view = toQuotaView(
+      {
+        periodKey: '2026-W44',
+        weeklyLimitMicros: 2_000_000,
+        weeklyUsedMicros: 0,
+        bonusMicros: 0,
+        reservedMicros: 0,
+      },
+      new Date(0),
+      true,
+    )
+    expect(view.aiPaused).toBe(true)
+    expect(QuotaViewSchema.safeParse(view).success).toBe(true)
+  })
 })
 
 describe('toAiRunItem', () => {

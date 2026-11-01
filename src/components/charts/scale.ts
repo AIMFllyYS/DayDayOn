@@ -31,12 +31,13 @@ export function extentOf(values: readonly number[]): Extent | null {
 
 /**
  * 给 y 轴留白：上下各加 padRatio 倍的跨度；所有值相同时上下各留 minPad，
- * 这样一条水平线不会贴着图表边缘。
+ * 这样一条水平线不会贴着图表边缘。非负数据的下界不越过 0（全为 0 时不再出现 -1.00）。
  */
 export function paddedExtent(extent: Extent, padRatio = 0.15, minPad = 1): Extent {
   const [min, max] = extent
   const pad = Math.max((max - min) * padRatio, max === min ? minPad : 0)
-  return [min - pad, max + pad]
+  const low = min >= 0 ? Math.max(0, min - pad) : min - pad
+  return [low, max + pad]
 }
 
 /** 在 [min, max] 之间等分出 count 个刻度（含两端） */

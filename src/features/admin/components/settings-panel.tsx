@@ -89,7 +89,10 @@ export function SettingsForm({ settings, demo = false }: SettingsFormProps) {
                 <NumberField
                   id={`setting-${f.key}`}
                   value={draft[f.key]}
-                  onValueChange={(v) => setDraft((d) => ({ ...d, [f.key]: v }))}
+                  onValueChange={(v) => {
+                    setDraft((d) => ({ ...d, [f.key]: v }))
+                    setErrors((prev) => (prev?.[f.key] ? { ...prev, [f.key]: undefined } : prev))
+                  }}
                   min={f.money ? 0 : 1}
                   step={1}
                   unit={f.unit}

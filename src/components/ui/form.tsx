@@ -1,7 +1,7 @@
 'use client'
 
 import { Form as BaseForm } from '@base-ui/react/form'
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
 /*
@@ -54,11 +54,14 @@ export function Form({
   className,
   ...rest
 }: FormProps) {
+  // 保持引用稳定：受控字段每次输入都会触发父组件重绘，若每次返回新对象，
+  // BaseForm 的 useValueChanged(externalErrors) 会把刚清除的字段错误又重置回来，导致无法重新提交。
+  const cleanedErrors = useMemo(() => cleanErrors(errors), [errors])
   return (
     <BaseForm
       id={id}
       aria-label={rest['aria-label']}
-      errors={cleanErrors(errors)}
+      errors={cleanedErrors}
       validationMode={validationMode}
       onFormSubmit={(values) => onFormSubmit(values)}
       className={cn('flex flex-col gap-4', className)}

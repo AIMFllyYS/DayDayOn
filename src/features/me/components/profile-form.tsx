@@ -122,7 +122,10 @@ function ProfileForm({ me, thisYear }: { me: Me; thisYear: number }) {
             value={nickname}
             autoComplete="nickname"
             aria-invalid={errors.nickname ? true : undefined}
-            onChange={(e) => setNickname(e.target.value)}
+            onChange={(e) => {
+              setNickname(e.target.value)
+              setErrors((prev) => (prev.nickname ? { ...prev, nickname: undefined } : prev))
+            }}
           />
         </Field>
         <Field label="性别" htmlFor="pf-gender" aside="可选">
@@ -139,7 +142,10 @@ function ProfileForm({ me, thisYear }: { me: Me; thisYear: number }) {
             id="pf-birth"
             options={birthYearOptions(thisYear)}
             value={birthYear === null ? null : String(birthYear)}
-            onValueChange={(v) => setBirthYear(Number(v))}
+            onValueChange={(v) => {
+              setBirthYear(Number(v))
+              setErrors((prev) => (prev.birthYear ? { ...prev, birthYear: undefined } : prev))
+            }}
             placeholder="不填"
           />
         </Field>
@@ -147,7 +153,10 @@ function ProfileForm({ me, thisYear }: { me: Me; thisYear: number }) {
           <NumberField
             id="pf-height"
             value={heightCm}
-            onValueChange={(v) => setHeightCm(v === null ? null : Math.round(v))}
+            onValueChange={(v) => {
+              setHeightCm(v === null ? null : Math.round(v))
+              setErrors((prev) => (prev.heightCm ? { ...prev, heightCm: undefined } : prev))
+            }}
             min={80}
             max={250}
             unit="cm"
@@ -163,7 +172,10 @@ function ProfileForm({ me, thisYear }: { me: Me; thisYear: number }) {
             id="pf-tz"
             options={timeZoneOptions(timeZone)}
             value={timeZone}
-            onValueChange={setTimeZone}
+            onValueChange={(v) => {
+              setTimeZone(v)
+              setErrors((prev) => (prev.timeZone ? { ...prev, timeZone: undefined } : prev))
+            }}
           />
         </Field>
         <Button type="submit" className="w-full" loading={save.isPending}>

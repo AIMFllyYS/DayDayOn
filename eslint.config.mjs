@@ -395,6 +395,10 @@ const eslintConfig = defineConfig([
     'public/swe-worker-*.js',
     '.data/**',
     'artifact/**',
+    '.claude/**',
+    'wf_*/**',
+    '.worktrees/**',
+    'docs/designs/library-showcase/**',
   ]),
 ])
 

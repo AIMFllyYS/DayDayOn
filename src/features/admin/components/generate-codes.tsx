@@ -125,7 +125,10 @@ function GenerateFlow({
         <NumberField
           id="code-count"
           value={count}
-          onValueChange={setCount}
+          onValueChange={(v) => {
+            setCount(v)
+            setErrors((prev) => (prev?.count ? { ...prev, count: undefined } : prev))
+          }}
           min={1}
           max={100}
           step={1}

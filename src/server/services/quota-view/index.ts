@@ -2,9 +2,10 @@ import 'server-only'
 import { desc, eq } from 'drizzle-orm'
 import type { AiRunList, QuotaView } from '@/features/quota/schemas'
 import { db, type DbOrTx, type Tx } from '@/server/db/client'
-import { aiRuns } from '@/server/db/schema'
+import { aiDailySpend, aiRuns } from '@/server/db/schema'
 import { getBalance } from '@/server/quota/ledger'
-import { quotaPeriodEndsAt } from '@/server/quota/period'
+import { quotaPeriodEndsAt, spendDayKey } from '@/server/quota/period'
+import { getSettings } from '@/server/settings'
 import { toAiRunItem, toQuotaView } from './view'
 
 /*
@@ -21,7 +22,13 @@ export async function getQuotaView(userId: string, now: Date = new Date()): Prom
 /** 同一事务里读余额（兑换后直接返回最新额度） */
 export async function quotaViewIn(tx: Tx, userId: string, now: Date): Promise<QuotaView> {
   const balance = await getBalance(tx, userId, now)
-  return toQuotaView(balance, quotaPeriodEndsAt(now))
+  const settings = await getSettings()
+  const [daily] = await tx
+    .select({ spent: aiDailySpend.spentMicros })
+    .from(aiDailySpend)
+    .where(eq(aiDailySpend.dayKey, spendDayKey(now)))
+  const aiPaused = settings.aiPaused || (daily?.spent ?? 0) >= settings.dailySpendCapMicros
+  return toQuotaView(balance, quotaPeriodEndsAt(now), aiPaused)
 }
 
 /** 最近 20 次 AI 调用：用途、状态、花费、时间（不含 tokens、耗时等内部信息） */
