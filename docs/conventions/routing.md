@@ -23,6 +23,7 @@
 | `/goals/new` | 新建目标 | `(app)` | 二级 |
 | `/goals/[goalId]` | 目标详情与历史 | `(app)` | 二级 |
 | `/goals/[goalId]/checkin` | 打卡表单（手动 / AI 识别） | `(app)` | 二级 |
+| `/welcome` | 落地页（不要求登录；未登录打开 `/` 时由 proxy 送到这里，ADR-0022） | `(marketing)` | 无；应用内入口是「我的 → 关于 DayDayOn」 |
 | `/login` | 邮箱验证码登录 | `(auth)` | 无 |
 | `/onboarding` | 新人引导（六步） | `(auth)` | 无 |
 | `/privacy` | 隐私说明（静态，不要求登录） | `(auth)` | 无 |
@@ -38,6 +39,7 @@
 
 ```
 src/app/
+├── (marketing)/       落地页 /welcome：顶栏品牌 + 页脚，不读会话（ADR-0022）
 ├── (auth)/            登录、引导：无导航的简洁布局
 ├── (app)/             登录后的应用：layout.tsx 是应用外壳（底栏 / 侧栏）
 │   ├── page.tsx       → /

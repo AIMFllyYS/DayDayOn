@@ -9,10 +9,11 @@
 
 | 文件 | 作用 |
 |---|---|
-| `src/app/manifest.ts` | Web App Manifest |
+| `src/app/manifest.ts` | Web App Manifest（已实现，ADR-0022） |
 | `public/sw.js` | 手写的 Service Worker（ESLint 已忽略此文件） |
 | `src/app/offline/page.tsx` | 离线页，被预缓存 |
-| `public/icons/` | 192、512 尺寸图标和 maskable 图标 |
+| `src/app/icons/[name]/route.tsx` | 192、512 尺寸图标、maskable 图标、Android 自适应图标前景层，构建时由 `src/components/layout/logo-svg.ts` 生成（不放 `public/icons/`） |
+| `src/app/icon.tsx`、`src/app/apple-icon.tsx` | 标签页图标（团团大头）与 iPhone 主屏幕图标 |
 
 ## 2. manifest
 
@@ -40,11 +41,18 @@
   - `Content-Security-Policy: default-src 'self'; script-src 'self'`。
 - 修改 `next.config.ts` 属于"先问再做"。
 
-## 6. 暂不做
+## 6. 开屏与 APK 壳（ADR-0022）
+
+- 开屏只在手机上以 App 形式冷启动时播放：APK 壳（UA 含 `DayDayOnApp/`），或 `display-mode: standalone` 且触屏。浏览器和桌面不播；同一次启动不重播。
+- 首帧前由根布局 `<head>` 的内联脚本决定（`src/lib/splash.ts`），开屏是静态 HTML + CSS，不等水合。改开屏时保持第一帧底色等于 manifest 的 `background_color`。
+- 效果在 Playbook「动效 → 开屏」查看。
+- APK 壳在 WebView UA 末尾追加 `DayDayOnApp/<版本号>`，网页只经 `src/lib/native.ts` 判断运行环境。
+
+## 7. 暂不做
 
 - 推送通知、后台同步、离线草稿（v0.2 再评估；离线草稿可接 TanStack Query 的持久化）。
 
-## 7. 验收
+## 8. 验收
 
 - iPhone Safari 和安卓 Chrome 都能"添加到主屏幕"，从主屏幕打开后完成一次完整打卡（M5 完成标准）。
 - 断网时打开应用显示离线页，不白屏。
