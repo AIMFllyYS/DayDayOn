@@ -4,6 +4,7 @@ import { AiDraftCard } from '@/features/agent/components/ai-draft-card'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
 import { UserMessage } from '@/features/agent/components/user-message'
 import { AgentPlayback, ErrorTurnDemo } from '../_components/agent-demos'
+import { EditableDraftDemo, QuotaCardDemo, RecognizerPhasesDemo } from './_d6-demos'
 import { manyToolsTurn, quickTurn, runningTurn } from '../_components/agent-script'
 import { PageHeader, Rules, Section, Specimen } from '../_components/section'
 
@@ -147,6 +148,32 @@ export default function AgentPage() {
             ]}
           />
         </div>
+      </Section>
+
+      <Section
+        ann="playbook.agent.draft-edit"
+        title="可编辑的饮食草稿"
+        description="传 items 时草稿卡逐项列出，点“修改”可以改名称、份量、热量，可删可加；合计自动重算。热量初值取 AI 区间的中值。"
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <EditableDraftDemo />
+        </div>
+      </Section>
+
+      <Section
+        ann="playbook.agent.diet-recognizer"
+        title="拍照识别饮食"
+        description="正式组件 DietRecognizer 的展示部分：识别中活动条展开（“正在看照片”），完成后收起，草稿卡接在后面；失败给出原因和“手动填写”。"
+      >
+        <RecognizerPhasesDemo />
+      </Section>
+
+      <Section
+        ann="playbook.agent.quota-card"
+        title="额度卡（我的页）"
+        description="QuotaMeter + 加购余额 + “兑换额度”抽屉 + “使用记录”抽屉。演示里以 DDON 开头的码算兑换成功。"
+      >
+        <QuotaCardDemo />
       </Section>
 
       <Section
