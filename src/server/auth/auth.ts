@@ -39,8 +39,8 @@ export const auth = betterAuth({
     enabled: true,
     storage: 'database',
     customRules: {
-      // ADR-0002 第 6 节：同一 IP 每小时最多发 5 次验证码（写死不可调，PRD 7.3）
-      [AUTH_PATHS.sendOtp]: { window: 3600, max: 5 },
+      // ADR-0002 第 6 节：同一 IP 每小时最多发 20 次验证码（PRD 7.3）
+      [AUTH_PATHS.sendOtp]: { window: 3600, max: 20 },
     },
   },
   advanced: {
@@ -51,7 +51,7 @@ export const auth = betterAuth({
     emailOTP({
       otpLength: 6,
       expiresIn: 300,
-      allowedAttempts: 5,
+      allowedAttempts: 8,
       storeOTP: 'hashed',
       async sendVerificationOTP({ email, otp }) {
         // 不 await：避免从响应时间推断邮箱状态（官方建议），失败只记日志

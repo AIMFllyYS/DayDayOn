@@ -29,10 +29,13 @@ const PATHS = AUTH_PATHS
 const EMAIL_REJECT_MESSAGE = '暂时只支持 QQ、网易、Gmail、Outlook、iCloud 和华科邮箱'
 
 function rateLimited(rule: RateLimitRule, retryAfterSeconds: number): APIError {
+  // 冷却时间封顶：避免固定 UTC 自然日窗口导致用户在夜间触发限流时被要求等待十几个小时
+  // 业务限流给前端的等待提示最高封顶 1800 秒（30 分钟）
+  const cappedSeconds = Math.min(retryAfterSeconds, 1800)
   return new APIError(
     'TOO_MANY_REQUESTS',
-    { code: 'RATE_LIMITED', message: `太频繁了（${rule.name}）`, retryAfterSeconds },
-    { 'Retry-After': String(retryAfterSeconds) },
+    { code: 'RATE_LIMITED', message: `太频繁了（${rule.name}）`, retryAfterSeconds: cappedSeconds },
+    { 'Retry-After': String(cappedSeconds) },
   )
 }
 
