@@ -22,6 +22,7 @@
 | [nodemailer.md](./nodemailer.md) | Nodemailer 10 |
 | [vitest.md](./vitest.md) | Vitest 5 + Vite 8 |
 | [ai-sdk.md](./ai-sdk.md) | AI SDK 7、@ai-sdk/deepseek、DeepSeek API |
+| [turnstile.md](./turnstile.md) | Cloudflare Turnstile、@marsidev/react-turnstile 1.6 |
 
 不需要单独文件的：`d3-shape` 只在 `src/components/charts/` 里用到 4 个函数，踩到坑时再建。不引入库的关注点（动效、表单、图片压缩、PWA、定时任务）的规则写在对应规范里。
 
