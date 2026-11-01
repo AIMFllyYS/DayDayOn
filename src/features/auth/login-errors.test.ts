@@ -27,6 +27,10 @@ describe('toLoginError', () => {
     expect(toLoginError({ code: 'INVALID_OTP', status: 400 }).message).toBe(
       '验证码不对，再看一眼邮件',
     )
+    expect(toLoginError({ code: 'MISSING_RESPONSE', status: 400 }).message).toBe('请先完成人机验证')
+    expect(toLoginError({ code: 'VERIFICATION_FAILED', status: 403 }).message).toBe(
+      '人机验证未通过，刷新后再试一次吧',
+    )
   })
 
   it('未知 code 用兜底文案', () => {

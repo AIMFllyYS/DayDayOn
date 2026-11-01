@@ -26,6 +26,8 @@ const BETTER_AUTH_MESSAGES: Record<string, string> = {
   TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE: '输错太多次了，重新登录一下吧',
   ACCOUNT_TEMPORARILY_LOCKED: '尝试次数太多，过一会儿再来',
   BANNED_USER: '账号已被停用',
+  MISSING_RESPONSE: '请先完成人机验证',
+  VERIFICATION_FAILED: '人机验证未通过，刷新后再试一次吧',
 }
 
 export interface LoginError {

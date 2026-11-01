@@ -11,6 +11,7 @@ import { restoredOpening } from '@/server/quota/tombstone'
 import { claimTombstone } from '@/server/quota/tombstone-store'
 import { consume, type RateLimitRule } from '@/server/rate-limit'
 import { getSettings } from '@/server/settings'
+import { enforceTurnstile } from './captcha'
 import { checkEmail } from './email-policy'
 import { banInfo, isBanned } from './guards'
 import { clientIp, LOCAL_IP } from './ip'
@@ -77,8 +78,10 @@ export const beforeHook = createAuthMiddleware(async (ctx) => {
   }
 
   if (ctx.path === PATHS.sendOtp) {
-    const settings = await getSettings()
     const ip = clientIp(ctx.headers ?? ctx.request?.headers)
+    // 先校验 Turnstile 人机凭证，未通过时不消耗后续的邮箱 60s 冷却与每日限流计数
+    await enforceTurnstile(ctx.headers ?? ctx.request?.headers, ip)
+    const settings = await getSettings()
     await enforce({ name: 'otp-ip-daily', windowSeconds: 86_400, max: settings.otpPerIpDaily }, ip)
     await enforce({ name: 'otp-email-60s', windowSeconds: 60, max: 1 }, checked.email)
     await enforce(
