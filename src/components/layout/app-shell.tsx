@@ -41,9 +41,11 @@ export function AppShellFrame({
 }: AppShellFrameProps) {
   if (form === 'phone') {
     return (
-      <div className="relative flex h-full flex-col">
+      <div className="relative flex h-full w-full min-w-0 flex-col">
         {header}
-        <div className="@container min-h-0 flex-1 overflow-y-auto px-4 pb-28">{children}</div>
+        <div className="@container min-h-0 w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-28">
+          {children}
+        </div>
         {bottomNav && <div className="absolute inset-x-3 bottom-4 z-30">{bottomNav}</div>}
       </div>
     )
@@ -62,7 +64,7 @@ export function AppShellFrame({
   }
 
   return (
-    <div className="flex min-h-dvh">
+    <div className="flex min-h-dvh w-full max-w-full overflow-x-clip">
       <div className="sticky top-0 hidden h-dvh shrink-0 md:block">{sideNav}</div>
       {/* 手机底部留出悬浮导航的高度（64px 导航 + 间距 + 底部安全区） */}
       <main className="flex min-w-0 flex-1 flex-col pb-[calc(var(--safe-bottom)+6.5rem)] md:pb-8">

@@ -376,7 +376,7 @@ export function Annotator() {
       {/* 图钉：文档坐标，随页面滚动 */}
       <div
         data-annotator-ui=""
-        className="pointer-events-none absolute top-0 left-0 z-[2147483590]"
+        className="pointer-events-none absolute inset-x-0 top-0 z-[2147483590] overflow-x-clip"
       >
         {pins.map((p) => (
           <button
@@ -394,7 +394,10 @@ export function Annotator() {
               // 区块找不到时图钉半透明，提示"位置可能不准"
               !p.found && 'opacity-60',
             )}
-            style={{ left: p.x, top: p.y }}
+            style={{
+              left: Math.min(p.x, typeof window !== 'undefined' ? window.innerWidth - 24 : p.x),
+              top: p.y,
+            }}
           >
             {p.n}
           </button>
