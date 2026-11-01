@@ -1,13 +1,14 @@
 import 'server-only'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { admin, emailOTP, twoFactor } from 'better-auth/plugins'
+import { admin, emailOTP } from 'better-auth/plugins'
 import { db } from '@/server/db/client'
 import * as schema from '@/server/db/schema'
 import { env } from '@/server/env'
 import { sendOtp } from '@/server/mail'
 import { afterHook, beforeHook, databaseHooks } from './hooks'
 import { AUTH_PATHS } from './paths'
+import { twoFactorPlugins } from './two-factor-gate'
 
 /*
  * 全项目唯一的 Better Auth 实例（auth.md 第 1、2 节）。业务代码不直接 import 本文件，
@@ -60,8 +61,8 @@ export const auth = betterAuth({
       },
     }),
     admin(),
-    // 只有验证码登录、没有密码账号：不允许免密的话 twoFactor.enable 永远报 INVALID_PASSWORD
-    twoFactor({ issuer: 'DayDayOn', allowPasswordless: true }),
+    // twoFactor（免密开启）+ 门禁：验证码登录也要过两步验证；admin 插件端点只放行封号 / 解封 / 吊销会话
+    ...twoFactorPlugins(),
   ],
   // P1（实现在 hooks.ts）：
   // hooks.before —— 邮箱规范化与白名单、按邮箱 / IP 的验证码限流（auth.md 第 3、4 节）
