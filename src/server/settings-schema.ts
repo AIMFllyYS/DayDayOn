@@ -33,9 +33,9 @@ export const AppSettingsSchema = z
     /** 兑换失败多少次后锁定 1 小时 */
     redeemFailLockThreshold: Count(100),
     /** 同一 IP 每天最多新注册账号数 */
-    signupPerIpDaily: Count(100),
+    signupPerIpDaily: Count(200),
     /** 同一邮箱每天最多发送验证码次数 */
-    otpPerEmailDaily: Count(100),
+    otpPerEmailDaily: Count(200),
     /** 同一 IP 每天最多发送验证码次数 */
     otpPerIpDaily: Count(1000),
   })
@@ -49,7 +49,7 @@ export const AppSettingsPatchSchema = AppSettingsSchema.partial()
   .meta({ id: 'AppSettingsPatch' })
 export type AppSettingsPatch = z.infer<typeof AppSettingsPatchSchema>
 
-/** 默认值：ADR-0002 第 5、6 节的初始值 */
+/** 默认值：ADR-0002 第 5、6 节的初始值（注册与验证码已适当放宽以增强容错） */
 export const DEFAULT_SETTINGS: AppSettings = {
   dailySpendCapMicros: 10_000_000,
   weeklyQuotaMicros: 10_000_000,
@@ -58,9 +58,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   aiHourlyLimit: 60,
   aiConcurrency: 2,
   redeemFailLockThreshold: 5,
-  signupPerIpDaily: 3,
-  otpPerEmailDaily: 10,
-  otpPerIpDaily: 20,
+  signupPerIpDaily: 30,
+  otpPerEmailDaily: 30,
+  otpPerIpDaily: 100,
 }
 
 export const APP_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS) as AppSettingKey[]

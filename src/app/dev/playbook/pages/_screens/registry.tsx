@@ -8,13 +8,15 @@ import { LoginScreen } from './login'
 import { MeScreen } from './me'
 import { RankScreen } from './rank'
 import { TodoScreen } from './todo'
+import { WelcomeScreen } from './welcome'
 
 /*
  * 页面预览登记表：每个真实页面一项，路由与 docs/conventions/routing.md 第 2 节一致。
  * shell：app 用应用外壳（一级页面带主导航，二级页面带返回）；bare 是无导航的独立页面（登录、引导）。
  * 页面上线后，正式页面应该和这里的预览长得一样；改样式先改这里，再改正式页面。
  */
-export type ScreenId = 'home' | 'todo' | 'rank' | 'me' | 'goals' | 'checkin' | 'login' | 'admin'
+export type ScreenId =
+  'home' | 'todo' | 'rank' | 'me' | 'goals' | 'checkin' | 'welcome' | 'login' | 'admin'
 
 export interface ScreenDef {
   id: ScreenId
@@ -85,6 +87,14 @@ export const screens: ScreenDef[] = [
     note: '二级页面：隐藏底栏、顶栏带返回；拍照识别出草稿，确认后盖章',
     shell: 'app',
     render: () => <CheckinScreen />,
+  },
+  {
+    id: 'welcome',
+    route: '/welcome',
+    title: '落地页',
+    note: '未登录打开 / 时先到这里；已登录也能访问（「我的 → 关于 DayDayOn」）。演示全是写死的数据',
+    shell: 'bare',
+    render: ({ thumb }) => <WelcomeScreen thumb={thumb} />,
   },
   {
     id: 'login',

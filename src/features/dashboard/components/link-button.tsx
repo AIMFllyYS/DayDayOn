@@ -36,20 +36,30 @@ export function LinkButton({
   onClick?: () => void
   children: ReactNode
 }) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full font-semibold select-none',
-        'ease-spring transition-[transform,background-color,filter] duration-(--dur-fast) active:scale-[0.96]',
-        variantClass[variant],
-        sizeClass[size],
-        className,
-      )}
-    >
+  const classes = cn(
+    'inline-flex shrink-0 items-center justify-center rounded-full font-semibold select-none',
+    'ease-spring transition-[transform,background-color,filter] duration-(--dur-fast) active:scale-[0.96]',
+    variantClass[variant],
+    sizeClass[size],
+    className,
+  )
+  const body = (
+    <>
       {icon && <Icon name={icon} size={size === 'sm' ? 16 : 20} lineOnly={variant === 'primary'} />}
       {children}
+    </>
+  )
+  // 站外链接（GitHub Release 等）用普通 <a>：next/link 只用于站内路由
+  if (/^https?:\/\//.test(href)) {
+    return (
+      <a href={href} onClick={onClick} className={classes} rel="noopener noreferrer">
+        {body}
+      </a>
+    )
+  }
+  return (
+    <Link href={href} onClick={onClick} className={classes}>
+      {body}
     </Link>
   )
 }

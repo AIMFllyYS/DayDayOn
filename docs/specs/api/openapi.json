@@ -3066,12 +3066,12 @@
           "signupPerIpDaily": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 200
           },
           "otpPerEmailDaily": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 200
           },
           "otpPerIpDaily": {
             "type": "integer",
@@ -3131,12 +3131,12 @@
           "signupPerIpDaily": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 200
           },
           "otpPerEmailDaily": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 200
           },
           "otpPerIpDaily": {
             "type": "integer",

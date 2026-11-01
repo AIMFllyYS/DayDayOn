@@ -18,6 +18,12 @@
 - 规则：动态路由里访问用户数据的部分放在 `<Suspense>` 内，并在 `page.tsx` 导出 `export function generateStaticParams() { return [{ goalId: '_' }] }` 给构建验证一个占位参数（占位只用于预渲染外壳，真实请求按 URL 参数走 Suspense）。
 - 元：next@16.4.3 | 2026-11-01 | 候选毕业方向：规范（`nextjs-16-patterns.md`）
 
+### cacheComponents 开启时不能写 `export const dynamicParams`
+- 症状：`pnpm build` 报 `Route segment config "dynamicParams" is not compatible with nextConfig.cacheComponents. Please remove it.`
+- 根因：以为可以照旧用 `dynamicParams = false` 把动态路由限定在 `generateStaticParams` 的结果里；Cache Components 下这条路由段配置被禁用。
+- 规则：只导出 `generateStaticParams`，未知参数在处理函数里 `notFound()`（例：`src/app/icons/[name]/route.tsx`）。
+- 元：next@16.4.3 | 2026-11-02 | 候选毕业方向：规范（`nextjs-16-patterns.md`）
+
 ### Vitest 里 import 带 `import 'server-only'` 的模块报错
 - 症状：服务端模块的单元测试在 Vitest（Node 环境）下报 `Cannot find package 'server-only'`。
 - 根因：`server-only` 是 Next 打包器内置的虚拟边界，没有独立装进 `node_modules`，Vitest 原生解析不到。

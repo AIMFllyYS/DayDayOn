@@ -75,7 +75,7 @@ export const SETTING_GROUPS: { title: string; fields: SettingField[] }[] = [
       {
         key: 'otpPerEmailDaily',
         label: '同一邮箱每天验证码',
-        hint: '同 IP 每小时 5 次是固定的，不在这里',
+        hint: '同 IP 每小时 20 次是固定的，不在这里',
         unit: '次',
         money: false,
       },
