@@ -8,7 +8,7 @@ import { Field, Input } from './field'
 
 type NativeInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
-  'type' | 'value' | 'onChange' | 'id' | 'min' | 'max'
+  'type' | 'value' | 'defaultValue' | 'onChange' | 'id' | 'min' | 'max'
 >
 
 interface DateFieldProps extends NativeInputProps {

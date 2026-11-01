@@ -1,3 +1,4 @@
+import { formatBusinessDateTime } from '@/lib/time'
 import type { ErrorBody, ErrorCode } from '@/server/api/errors'
 
 /*
@@ -9,18 +10,6 @@ import type { ErrorBody, ErrorCode } from '@/server/api/errors'
 export type ApiErrorLike = Pick<ErrorBody, 'code'> & Partial<Omit<ErrorBody, 'code'>>
 
 type Message = string | ((e: ApiErrorLike) => string)
-
-/** 时刻 → "11月2日 08:00"（北京时间）。这里只做展示，避免依赖 src/lib/time/ 的加载顺序 */
-function formatUntil(iso: string): string {
-  return new Intl.DateTimeFormat('zh-CN', {
-    timeZone: 'Asia/Shanghai',
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(new Date(iso))
-}
 
 function minutesText(seconds: number | undefined): string {
   if (seconds === undefined || seconds <= 0) return '一会儿'
@@ -42,7 +31,7 @@ export const errorMessages: Record<ErrorCode, Message> = {
   FORBIDDEN: '这里暂时进不去',
   ACCOUNT_BANNED: (e) => {
     const reason = e.ban?.reason ? `，原因：${e.ban.reason}` : ''
-    const until = e.ban?.expiresAt ? `，${formatUntil(e.ban.expiresAt)} 后恢复` : ''
+    const until = e.ban?.expiresAt ? `，${formatBusinessDateTime(e.ban.expiresAt)} 后恢复` : ''
     return `账号已被停用${reason}${until}`
   },
   TWO_FACTOR_REQUIRED: '先开启两步验证，才能使用后台',

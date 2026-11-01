@@ -3,7 +3,7 @@ import { Field, Input } from './field'
 
 type NativeInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
-  'type' | 'value' | 'onChange' | 'id' | 'step'
+  'type' | 'value' | 'defaultValue' | 'onChange' | 'id' | 'step'
 >
 
 interface TimeFieldProps extends NativeInputProps {
