@@ -21,6 +21,6 @@ export const auth = betterAuth({
   plugins: [
     emailOTP({ async sendVerificationOTP() {} }),
     admin(),
-    twoFactor({ issuer: 'DayDayOn' }),
+    twoFactor({ issuer: 'DayDayOn', allowPasswordless: true }),
   ],
 })

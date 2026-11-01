@@ -60,7 +60,8 @@ export const auth = betterAuth({
       },
     }),
     admin(),
-    twoFactor({ issuer: 'DayDayOn' }),
+    // 只有验证码登录、没有密码账号：不允许免密的话 twoFactor.enable 永远报 INVALID_PASSWORD
+    twoFactor({ issuer: 'DayDayOn', allowPasswordless: true }),
   ],
   // P1（实现在 hooks.ts）：
   // hooks.before —— 邮箱规范化与白名单、按邮箱 / IP 的验证码限流（auth.md 第 3、4 节）
