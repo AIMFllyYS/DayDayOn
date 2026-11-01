@@ -95,7 +95,13 @@ done < <(find "$stage" -type l -print0)
 printf '%s\n' "$sha" > "$stage/.commit"
 log "artifact ok size=${size}"
 
-# 4. 切换
+# 4. 切换前备份数据库（备份脚本存在且可执行时执行；迁移在服务启动钩子 instrumentation.ts 中幂等执行）
+if [[ -x /mnt/data/daydayon/compose/backup-db.sh ]]; then
+  log "running pre-deploy db backup"
+  /mnt/data/daydayon/compose/backup-db.sh >> "$LOG" 2>&1 || log "pre-deploy backup skipped"
+fi
+
+# 5. 切换
 if [[ -d "$CUR" ]]; then
   rm -rf -- "$PREV"
   mv -- "$CUR" "$PREV"
