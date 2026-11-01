@@ -1,12 +1,13 @@
 import 'server-only'
 import { and, asc, eq } from 'drizzle-orm'
-import type {
-  CreateGoal,
-  Goal,
-  GoalDetail,
-  GoalList,
-  GoalStatus,
-  UpdateGoal,
+import {
+  type CreateGoal,
+  type Goal,
+  type GoalDetail,
+  type GoalList,
+  type GoalStatus,
+  targetKindError,
+  type UpdateGoal,
 } from '@/features/goal/schemas'
 import { ApiError } from '@/server/api/errors'
 import type { DbOrTx, Tx } from '@/server/db/client'
@@ -132,9 +133,10 @@ export async function updateGoal(
 
   const target = input.target ?? { kind: current.targetKind, value: current.targetValue }
   const weekdays = normalizeWeekdays(input.weekdays ?? current.weekdays)
-  if (!isTargetAllowed(current.module, target)) {
-    throw new ApiError('VALIDATION_FAILED', '睡眠目标按时长计', {
-      fields: { target: ['睡眠目标按时长计'] },
+  // 只校验这次提交的目标量：规则收紧前建的老目标仍能归档、改标题
+  if (input.target !== undefined && !isTargetAllowed(current.module, target)) {
+    throw new ApiError('VALIDATION_FAILED', targetKindError(current.module), {
+      fields: { target: [targetKindError(current.module)] },
     })
   }
   if (input.fields !== undefined && current.module !== 'custom') {

@@ -7,6 +7,7 @@ import {
   LocalTimeSchema,
   ModuleSchema,
   WeekdaysSchema,
+  type Module,
 } from '../shared/schemas'
 
 /*
@@ -37,6 +38,28 @@ export const TargetSchema = z
   })
   .meta({ id: 'Target' })
 export type Target = z.infer<typeof TargetSchema>
+
+/**
+ * 各板块可选的目标量类型。按时长只给打卡带时长的板块（运动、学习、睡眠）：
+ * 饮食和自定义的打卡不记时长，按时长的目标永远是 0（stats.goalDayProgress）。
+ */
+export const TARGET_KINDS_BY_MODULE: Record<Module, readonly TargetKind[]> = {
+  exercise: ['duration', 'count'],
+  study: ['duration', 'count'],
+  sleep: ['duration'],
+  diet: ['count'],
+  custom: ['count'],
+}
+
+/** 该板块是否允许这种目标量类型 */
+export function isTargetKindAllowed(module: Module, kind: TargetKind): boolean {
+  return TARGET_KINDS_BY_MODULE[module].includes(kind)
+}
+
+/** 目标量类型不被允许时的提示 */
+export function targetKindError(module: Module): string {
+  return module === 'sleep' ? '睡眠目标按时长计' : '这个板块的目标按次数计'
+}
 
 /** 某天生效的目标量与计划星期（goal_targets 一行，统计用） */
 export const TargetOnDaySchema = z.object({
@@ -214,9 +237,10 @@ export const CreateGoalSchema = z
     error: '只有自定义目标需要字段定义',
     path: ['fields'],
   })
-  .refine((g) => g.module !== 'sleep' || g.target.kind === 'duration', {
-    error: '睡眠目标按时长计',
-    path: ['target'],
+  .superRefine((g, ctx) => {
+    if (!isTargetKindAllowed(g.module, g.target.kind)) {
+      ctx.addIssue({ code: 'custom', message: targetKindError(g.module), path: ['target'] })
+    }
   })
   .meta({ id: 'CreateGoal' })
 export type CreateGoal = z.infer<typeof CreateGoalSchema>

@@ -1,5 +1,5 @@
 import 'server-only'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import type { Checkin } from '@/features/checkin/schemas'
 import type { FieldDef, TargetOnDay } from '@/features/goal/schemas'
 import type { LocalDate } from '@/features/shared/schemas'
@@ -58,7 +58,16 @@ export async function loadActiveGoals(db: DbOrTx, userId: string): Promise<GoalR
     .limit(100)
 }
 
-/** 多个目标的目标量历史：goalId → 行 */
+/**
+ * 每个目标最多读这么多行历史。goal_targets 每个目标每天最多一行，超过时丢掉的是最早的行，
+ * 当天生效的那一行（最新的）总在结果里。
+ */
+const TARGET_HISTORY_PER_GOAL = 400
+
+/**
+ * 多个目标的目标量历史：goalId → 行（PRD 7.2：每天按当天生效的目标量算）。
+ * 打卡和主页共用这一个函数，两边的目标量口径一致。
+ */
 export async function loadTargetHistory(
   db: DbOrTx,
   goalIds: readonly string[],
@@ -75,7 +84,9 @@ export async function loadTargetHistory(
     })
     .from(goalTargets)
     .where(inArray(goalTargets.goalId, [...goalIds]))
-    .limit(goalIds.length * 50)
+    // 新的在前：行数顶到上限时先丢最早的历史，不会丢掉当前生效的目标量
+    .orderBy(desc(goalTargets.effectiveFrom))
+    .limit(goalIds.length * TARGET_HISTORY_PER_GOAL)
   for (const { goalId, ...row } of rows) out.set(goalId, [...(out.get(goalId) ?? []), row])
   return out
 }

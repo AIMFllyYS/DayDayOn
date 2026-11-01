@@ -73,6 +73,19 @@ describe('进行中目标上限', () => {
     expect(isTargetAllowed('sleep', { kind: 'duration', value: 28_800 })).toBe(true)
     expect(isTargetAllowed('study', { kind: 'count', value: 2 })).toBe(true)
   })
+
+  it('饮食和自定义的打卡没有时长：只能按次数计', () => {
+    expect(isTargetAllowed('diet', { kind: 'duration', value: 1800 })).toBe(false)
+    expect(isTargetAllowed('custom', { kind: 'duration', value: 1800 })).toBe(false)
+    expect(isTargetAllowed('diet', { kind: 'count', value: 3 })).toBe(true)
+    expect(isTargetAllowed('custom', { kind: 'count', value: 1 })).toBe(true)
+  })
+
+  it('运动和学习两种都可以', () => {
+    expect(isTargetAllowed('exercise', { kind: 'duration', value: 1800 })).toBe(true)
+    expect(isTargetAllowed('exercise', { kind: 'count', value: 1 })).toBe(true)
+    expect(isTargetAllowed('study', { kind: 'duration', value: 1800 })).toBe(true)
+  })
 })
 
 describe('唯一冲突识别', () => {

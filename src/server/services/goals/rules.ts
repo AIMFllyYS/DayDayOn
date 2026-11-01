@@ -1,5 +1,5 @@
 import type { FieldDef, Target, TargetOnDay } from '@/features/goal/schemas'
-import { GOAL_ACTIVE_LIMIT } from '@/features/goal/schemas'
+import { GOAL_ACTIVE_LIMIT, isTargetKindAllowed } from '@/features/goal/schemas'
 import type { Module } from '@/features/shared/schemas'
 
 /*
@@ -56,9 +56,9 @@ export function checkActivation(
   return null
 }
 
-/** 睡眠目标按时长计；其他板块不限 */
+/** 睡眠只按时长；饮食、自定义只按次数（打卡不记时长）；运动、学习不限 */
 export function isTargetAllowed(module: Module, target: Target): boolean {
-  return module !== 'sleep' || target.kind === 'duration'
+  return isTargetKindAllowed(module, target.kind)
 }
 
 /**

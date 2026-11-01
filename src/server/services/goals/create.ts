@@ -1,6 +1,6 @@
 import 'server-only'
 import { eq, sql } from 'drizzle-orm'
-import type { CreateGoal, Goal } from '@/features/goal/schemas'
+import { type CreateGoal, type Goal, targetKindError } from '@/features/goal/schemas'
 import type { LocalDate } from '@/features/shared/schemas'
 import { ApiError } from '@/server/api/errors'
 import type { Tx } from '@/server/db/client'
@@ -32,8 +32,8 @@ export async function createGoal(
     })
   }
   if (!isTargetAllowed(input.module, input.target)) {
-    throw new ApiError('VALIDATION_FAILED', '睡眠目标按时长计', {
-      fields: { target: ['睡眠目标按时长计'] },
+    throw new ApiError('VALIDATION_FAILED', targetKindError(input.module), {
+      fields: { target: [targetKindError(input.module)] },
     })
   }
 

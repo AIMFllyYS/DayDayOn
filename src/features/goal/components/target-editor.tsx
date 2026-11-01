@@ -4,7 +4,7 @@ import { NumberField } from '@/components/ui/number-field'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { Module } from '@/features/shared/schemas'
 import { minutesToSeconds, secondsToMinutes } from '../format'
-import type { TargetKind } from '../schemas'
+import { TARGET_KINDS_BY_MODULE, type TargetKind } from '../schemas'
 
 /** 编辑中的目标量：value 可以暂时为空（NumberField 清空时） */
 export interface TargetDraft {
@@ -30,19 +30,22 @@ const MAX_MINUTES = 24 * 60
 const MAX_COUNT = 100
 
 /**
- * 每日目标量：先选按时长 / 按次数（睡眠只能按时长），再填数值。
+ * 每日目标量：先选按时长 / 按次数（睡眠只能按时长；饮食、自定义只能按次数），再填数值。
  * 时长界面单位是分钟，value 里存秒；切换类型时换成该类型的常用值。
  */
 export function TargetEditor({ module, value, onValueChange, id }: TargetEditorProps) {
-  const durationOnly = module === 'sleep'
+  // 当前值不在允许范围内（规则收紧前建的老目标）时也列出来，让用户能切走
+  const options = KIND_OPTIONS.filter(
+    (o) => TARGET_KINDS_BY_MODULE[module].includes(o.value) || o.value === value.kind,
+  )
   const minutes = value.value === null ? null : secondsToMinutes(value.value)
 
   return (
     <div className="flex flex-col gap-2">
-      {!durationOnly && (
+      {options.length > 1 && (
         <SegmentedControl
           label="目标量类型"
-          options={KIND_OPTIONS}
+          options={options}
           value={value.kind}
           onValueChange={(kind) => {
             if (kind === value.kind) return

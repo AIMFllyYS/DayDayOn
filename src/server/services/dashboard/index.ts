@@ -6,17 +6,10 @@ import type { LocalDate } from '@/features/shared/schemas'
 import { addDays, localDateOf, localTimeOf, weekDates } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import type { DbOrTx } from '@/server/db/client'
-import {
-  bodyMetrics,
-  checkins,
-  dailyRatings,
-  goals,
-  goalTargets,
-  profiles,
-} from '@/server/db/schema'
+import { bodyMetrics, checkins, dailyRatings, goals, profiles } from '@/server/db/schema'
+import { loadTargetHistory } from '@/server/services/checkins/goal'
 import { getRankFeed } from '@/server/services/rank'
 import { loadStreak } from '@/server/services/rank/streaks'
-import type { TargetVersion } from '@/server/services/stats'
 import {
   buildHeatmap,
   buildReminder,
@@ -76,35 +69,10 @@ async function loadGoals(db: DbOrTx, userId: string, zone: ProfileZone): Promise
   if (rows.length === 0) return []
 
   // goal_targets 没有 userId 列：goalId 来自上面按 userId 过滤过的目标
-  const history = await db
-    .select({
-      goalId: goalTargets.goalId,
-      effectiveFrom: goalTargets.effectiveFrom,
-      targetKind: goalTargets.targetKind,
-      targetValue: goalTargets.targetValue,
-      weekdays: goalTargets.weekdays,
-    })
-    .from(goalTargets)
-    .where(
-      inArray(
-        goalTargets.goalId,
-        rows.map((r) => r.id),
-      ),
-    )
-    .limit(rows.length * 400)
-
-  const byGoal = new Map<string, TargetVersion[]>()
-  for (const h of history) {
-    const v: TargetVersion = {
-      effectiveFrom: h.effectiveFrom,
-      kind: h.targetKind,
-      value: h.targetValue,
-      weekdays: h.weekdays,
-    }
-    const list = byGoal.get(h.goalId)
-    if (list) list.push(v)
-    else byGoal.set(h.goalId, [v])
-  }
+  const byGoal = await loadTargetHistory(
+    db,
+    rows.map((r) => r.id),
+  )
 
   return rows.map((r) => ({
     id: r.id,

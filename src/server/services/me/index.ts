@@ -1,11 +1,12 @@
 import 'server-only'
-import { and, desc, eq, gte } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import type { Export, Me, UpdatePreferences, UpdateProfile } from '@/features/me/schemas'
-import { addDays, calendarDateOf, localDateOf } from '@/lib/time'
+import { calendarDateOf, localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import type { DbOrTx, Tx } from '@/server/db/client'
-import { checkins, profiles, user } from '@/server/db/schema'
-import { computeStreak } from '@/server/services/stats'
+import { profiles, user } from '@/server/db/schema'
+// 与主页、排行榜共用：窗口按需扩大，连续天数总是准确的
+import { loadStreak } from '@/server/services/rank/streaks'
 import { toMeDto, type MeRow } from './dto'
 import { collectExport } from './export'
 import { preferenceColumns, profileColumns } from './patch'
@@ -17,8 +18,6 @@ import { preferenceColumns, profileColumns } from './patch'
 
 const DEFAULT_TIME_ZONE = 'Asia/Shanghai'
 const DEFAULT_DAY_START_HOUR = 4
-/** 连续天数往回最多看这么多天：足够覆盖一年多的连续打卡，又不扫全表 */
-const STREAK_LOOKBACK_DAYS = 400
 
 async function loadMeRow(db: DbOrTx, userId: string): Promise<MeRow | null> {
   const [row] = await db
@@ -60,24 +59,6 @@ async function loadMeRow(db: DbOrTx, userId: string): Promise<MeRow | null> {
 /** 今天的打卡日（用户时区 + 日切换时间） */
 export function todayOf(row: Pick<MeRow, 'timeZone' | 'dayStartHour'>, now: Date): string {
   return localDateOf(now, row.timeZone, row.dayStartHour)
-}
-
-async function loadStreak(db: DbOrTx, userId: string, today: string): Promise<number> {
-  const rows = await db
-    .selectDistinct({ localDate: checkins.localDate })
-    .from(checkins)
-    .where(
-      and(
-        eq(checkins.userId, userId),
-        gte(checkins.localDate, addDays(today, -STREAK_LOOKBACK_DAYS)),
-      ),
-    )
-    .orderBy(desc(checkins.localDate))
-    .limit(STREAK_LOOKBACK_DAYS + 1)
-  return computeStreak(
-    rows.map((r) => r.localDate),
-    today,
-  )
 }
 
 /** GET /me。用户不存在（注销后会话残留）时 401 */
