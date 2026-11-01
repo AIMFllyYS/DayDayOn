@@ -314,7 +314,7 @@ async function recordPendingUsage(aiRunId: string, outcome: RunOutcome): Promise
  * 对账：这个用户 running 超过 STALE_RUNNING_MS 的调用（结算失败、进程重启留下的）按记下的费用结算，
  * 没记下费用的全额释放，状态改为 failed。在持有额度行锁的预占事务里执行（懒对账，不需要定时任务）。
  */
-async function reconcileStaleRuns(tx: Tx, userId: string, now: Date): Promise<void> {
+export async function reconcileStaleRuns(tx: Tx, userId: string, now: Date): Promise<void> {
   const stale = await tx
     .select({
       id: aiRuns.id,
