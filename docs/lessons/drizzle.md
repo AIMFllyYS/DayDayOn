@@ -20,3 +20,15 @@
 - 规则：安装前向负责人说明，再在 pnpm 的 `allowBuilds` 里只放行 esbuild。
 - 元：drizzle-kit@0.31.11、pnpm@11.7.0 | 2026-10-31 | 候选毕业方向：无
 
+### PostgreSQL 的 sum / count 聚合返回字符串，直接比较或加减会出错
+- 症状：`sql<number>\`coalesce(sum(${col}), 0)\`` 运行时拿到的是 `'12000'`（string），做数值加法变成字符串拼接。
+- 根因：`pg` 驱动把 PostgreSQL 的 `bigint` / `numeric`（`sum`、`count` 的返回类型）解析为 JS string 以防精度丢失，TypeScript 泛型 `<number>` 只是编译期断言。
+- 规则：聚合列在 SQL 里显式 `::int`（不超过 2^31-1 时）或在 JS 侧套 `Number(row.total ?? 0)`。
+- 元：drizzle-orm@0.45.4、pg@8.23.1 | 2026-11-01 | 候选毕业方向：无
+
+### casing: 'snake_case' 下手写 sql 模板引用表字段仍要用列对象
+- 症状：在 `sql\`...\`` 里手写驼峰列名报错列不存在。
+- 根因：`casing: 'snake_case'` 只自动转换 Drizzle 生成的标识符，不解析原样字符串。
+- 规则：`sql` 模板里一律插值列对象（如 `sql\`${quotaAccounts.bonusMicros} + ${delta}\``），由 Drizzle 映射为对应的 snake_case 列名。
+- 元：drizzle-orm@0.45.4 | 2026-11-01 | 候选毕业方向：无
+

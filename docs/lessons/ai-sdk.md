@@ -32,3 +32,15 @@
 - 规则：以官方 Testing 文档为准写 mock。
 - 元：ai@7.0.159 | 2026-10-31 | 候选毕业方向：无
 
+### 结构化输出用 generateText + Output.object，不用已废弃的 generateObject
+- 症状：照旧版文档写 `generateObject({ model, schema })` 触发废弃警告，且与 DeepSeek 的响应格式配合不如 `Output.object` 稳健。
+- 根因：AI SDK 7 已将结构化输出统一收敛到 `generateText({ ..., output: Output.object({ schema }) })`，结果从 `result.output` 读取。
+- 规则：`src/server/ai/call-model.ts` 统一使用 `generateText` + `Output.object({ schema })`，并对 `NoObjectGeneratedError` 捕获后归类为 `'invalid-output'`（已消耗的 token 照常按实际用量结算）。
+- 元：ai@7.0.159 | 2026-11-01 | 候选毕业方向：已沉淀到 `src/server/ai/call-model.ts`
+
+### DeepSeek 缓存命中与未命中 token 从 inputTokenDetails 读取
+- 症状：直接用 `usage.inputTokens` 按未命中单价计费，缓存命中时多扣了用户的钱。
+- 根因：AI SDK 7 把细分缓存统计放在 `usage.inputTokenDetails`（`noCacheTokens`、`cacheReadTokens`），当 provider 未拆分时才回退到 `usage.inputTokens`。
+- 规则：通过 `src/server/ai/pricing.ts` 的 `normalizeUsage(usage)` 统一提取 `inputMissTokens` 与 `inputHitTokens`，再按 DeepSeek 命中/未命中单价精确算微元。
+- 元：ai@7.0.159、@ai-sdk/deepseek@3.0.77 | 2026-11-01 | 候选毕业方向：已沉淀到 `src/server/ai/pricing.ts`
+

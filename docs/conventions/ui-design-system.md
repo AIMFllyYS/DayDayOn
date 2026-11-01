@@ -1,6 +1,6 @@
-# 页面设计规范（设计系统 v0.1）
+# 页面设计规范（设计系统 v0.2）
 
-> 日期：2026-10-31 · 状态：草案，在 Playbook 里评审后定稿
+> 日期：2026-10-31 · 2026-11-01 按第一轮批注（[reviews/annotations-20261101-1141.json](../designs/reviews/annotations-20261101-1141.json)）修订 · 状态：草案，在 Playbook 里评审后定稿
 > 实际效果：本地 `pnpm dev` 后打开 <http://localhost:23329/dev/playbook>（只在开发环境可见）
 > 本文取代架构基线 7.4 节"在 Pencil 里先定设计 token"的做法：设计稿直接用代码写在 Playbook 里。
 
@@ -20,7 +20,8 @@
 | 层 | 位置 | 内容 |
 |---|---|---|
 | 设计 token | `src/app/globals.css` | 颜色、字号、圆角、阴影、缓动、动画预设 |
-| 原子组件 | `src/components/ui/` | 无业务逻辑：按钮、卡片、徽章、进度、表单、弹层、图标 |
+| 原子组件 | `src/components/ui/` | 无业务逻辑：按钮、卡片、徽章、进度、表单控件、弹层、反馈、日历、图标 |
+| 图表组件 | `src/components/charts/` | 热力图（Heatmap）、折线图（LineChart）、柱状图（BarChart）与线性比例尺 |
 | 布局组件 | `src/components/layout/` | 应用外壳：底部导航、侧栏、顶栏、导航项配置 |
 | 吉祥物 | `src/components/mascot/` | 团团的绘制（MascotSvg）、静态版（Mascot）、互动版（InteractivePet） |
 | 领域组件 | `src/features/<领域>/components/` | 带业务含义：Agent、打卡、目标 |
@@ -43,7 +44,25 @@
 | `subtle` | `#a8998a` | 占位符和装饰，**不用于正文** |
 | `border` / `border-strong` | `#eadccb` / `#dcc8b2` | 分隔线 / 次按钮描边 |
 
-**品牌主色：珊瑚** `primary #f28b74`，另有 `primary-hover`、`primary-soft`、`primary-ink`、`on-primary`。主色实底上的文字用 `on-primary`（深棕），因为白字在珊瑚色上对比度只有约 2.4:1，达不到 WCAG AA。
+**品牌主色：跟随主题，默认奶茶焦糖** `primary #93603f`，另有 `primary-hover`、`primary-soft`、`primary-ink`、`on-primary`（奶油色 `#fffaf3`）。
+
+2026-11-01 评审结论：原来的珊瑚实底（`#f28b74` + 深棕字）大面积铺开显得廉价，而徽章的"浅底 + 同色深字"很舒服。配色原则因此改为：
+
+1. 面积越大，颜色越要退后。高饱和色只出现在小面积的字、图标、进度上。
+2. 实底只用深而柔的低饱和色，上面用奶油色字，对比度 ≥ 4.8:1。
+3. 同一色相分浅（soft）/ 中（base）/ 深（ink）三档。一个区域只有一个实底主按钮，其他操作用 `soft`、`secondary` 或 `ghost`。
+
+**主题色**：用户可选，只换主色这一组（按钮、当前态、开关、焦点环、主色投影），板块色、状态色、底色不随主题变。色值在 `globals.css` 的 `[data-theme]` 块里，id 和名称在 `src/lib/theme.ts`，选择器是 `ThemePicker`。偏好暂存在 localStorage（`daydayon:theme:v1`），接入账号后改存用户设置，并在根布局提前写 `data-theme` 避免闪一下默认色。任何元素加 `data-theme` 都能局部换色。
+
+| 主题 | primary | soft | ink | 奶油字对比度 |
+|---|---|---|---|---|
+| `caramel` 奶茶焦糖（默认） | `#93603f` | `#f3e2cf` | `#6b3f26` | 5.1 |
+| `terracotta` 陶土红 | `#b0533f` | `#fbe1d8` | `#873524` | 4.9 |
+| `matcha` 抹茶绿 | `#4a7a52` | `#e0eddb` | `#2e5835` | 4.8 |
+| `haze` 雾霾蓝 | `#51709b` | `#e0e8f4` | `#2c4a74` | 4.9 |
+| `berry` 莓果紫 | `#a5557a` | `#f6e0e9` | `#7b3456` | 4.8 |
+
+吉祥物的腮红、嘴巴是插画专用色，不引用主色（否则换成抹茶绿时腮红会变绿）。
 
 **板块色**：每个板块三档。base 用于图形和进度，soft 用于底色，ink 用于 soft 底上的文字。
 
@@ -120,13 +139,14 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 
 **缓动**：`ease-standard` 普通过渡；`ease-out-soft` 进场；`ease-in-soft` 退场；`ease-spring` 按压回弹、开关、选中（有过冲）。
 
-**预设**：`animate-fade-in`、`fade-up`、`pop-in`、`sheet-up`、`stamp`、`wiggle`，以及循环类的 `breathe`、`float`、`shimmer`、`spin-slow`。
+**预设**：`animate-fade-in`、`fade-out`、`fade-up`、`pop-in`、`sheet-up`、`sheet-down`、`stamp`、`wiggle`、`shake`、`wave-bob`、`confetti`，以及循环类的 `breathe`、`float`、`shimmer`、`spin-slow`。
 
 **统一手感**：
 
 - 按压：`active:scale-[0.96]` + `ease-spring` + `dur-fast`（`Button` 已内置）。
 - 可点卡片：悬停上浮 2px 并换成 `float` 阴影，按下缩到 0.98（`Card interactive`）。
 - 打卡成功：盖章 + 吉祥物欢呼，只在完成打卡的那一刻出现。
+- 评分反馈（`Rating`）：很糟整组抖一下（支持的手机轻震 40ms）、不太好表情摇一摇、一般五个表情依次起伏、不错 / 超棒从选中项撒彩纸（板块色）。只在用户点击时播放。
 
 规则：
 
@@ -142,20 +162,41 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 
 | 组件 | 文件 | 要点 |
 |---|---|---|
-| `Button` / `IconButton` | `button.tsx` | 变体 primary / secondary / soft / ghost / danger；md 高 44px 是默认；`loading` 保持宽度；图标按钮必须传 `label` |
+| `Button` / `IconButton` | `button.tsx` | 变体 primary / secondary / soft / ghost / danger；md 高 44px 是默认；`loading` 保持宽度；图标按钮必须传 `label`。primary 只给一个区域里唯一的主操作，实底上的图标只画描边 |
 | `Card` / `CardHeader` | `card.tsx` | 变体 plain / sticker / sunken / outline；`interactive` 加悬停和按压 |
 | `Badge` / `IconTile` | `badge.tsx` | soft 底 + ink 字；`dot` 表示状态 |
 | `ProgressBar` / `ProgressRing` / `StepProgress` | `progress.tsx` | 都有 `role="progressbar"` 和 `label`；`active` 表示进行中；分段进度用于一天多次的目标 |
-| `Field` / `Input` / `Textarea` | `field.tsx` | 错误文案替换提示；`aria-invalid` 驱动错误样式 |
-| `Switch` | `switch.tsx` | `role="switch"`，外层 44px 触控区 |
-| `SegmentedControl` | `segmented-control.tsx` | 页面内视图切换，方向键可切换 |
-| `Rating` | `rating.tsx` | 满意度 1–5，选中项用板块色 |
+| `Field` / `Input` / `Textarea` | `field.tsx` | Base UI Field / Input：标签、提示、错误自动关联；错误文案替换提示；`aria-invalid` 驱动错误样式 |
+| `Form` | `form.tsx` | Base UI Form：接收客户端 zod `fieldErrors` 或服务端 `fields`，对应 `name` 的字段改动后自动清除错误 |
+| `Select` / `Combobox` | `select.tsx`、`combobox.tsx` | Base UI Select / Combobox：单选下拉与可筛选/可新建（`creatable`）组合框；弹层类页面级懒加载 |
+| `NumberField` | `number-field.tsx` | Base UI NumberField：步进按钮 + 滚轮微调 + 单位后缀；关闭原生 HTML5 `step` 校验，范围由 zod 把关 |
+| `OTPField` | `otp-field.tsx` | 6 位数字验证码输入：支持粘贴、自动跳格、退格回退，填满自动触发 `onComplete` |
+| `Checkbox` | `checkbox.tsx` | Base UI Checkbox：待办勾选与多选框，外层保证 44×44px 触控区 |
+| `DateField` / `TimeField` / `TimeRangeField` | `date-field.tsx`、`time-field.tsx`、`time-range-field.tsx` | 原生日期与时间输入（ADR-0007）；`TimeRangeField` 跨午夜自动标"次日"并实时计算睡眠时长 |
+| `ImagePicker` | `image-picker.tsx` | 选图 / 拍照 + 内存 Canvas 压缩预览（最长边 ≤ 1280px，WebP/JPEG ≤ 800KB），不落盘 |
+| `Switch` | `switch.tsx` | Base UI Switch，`role="switch"`，外层 44px 触控区 |
+| `SegmentedControl` | `segmented-control.tsx` | Base UI Tabs 驱动的页面内视图切换，方向键可切换 |
+| `Rating` | `rating.tsx` | 满意度 1–5，选中项用板块色；选中时有情绪反馈（第 5 节），`feedback={false}` 关闭 |
 | `MenuList` / `MenuItem` | `menu-list.tsx` | 设置列表；`danger` 用于退出登录、注销 |
-| `Sheet` | `sheet.tsx` | 原生 `<dialog>`：手机底部滑出，≥768px 居中；Esc、点遮罩关闭；打开时锁住背景滚动 |
-| `Avatar` / `AvatarStack` | `avatar.tsx` | 暂时只显示昵称首字；`ring` 表示连续打卡中 |
+| `Sheet` | `sheet.tsx` | Base UI Drawer（`<768px` 底部抽屉，支持下滑关闭）+ Dialog（`≥768px` 居中对话框），打开时锁住背景滚动 |
+| `ConfirmDialog` | `confirm-dialog.tsx` | Base UI AlertDialog：高危或丢数据操作二次确认（点遮罩不关闭），支持异步 `onConfirm` |
+| `Popover` / `Tooltip` / `Menu` / `Collapsible` | `popover.tsx`、`tooltip.tsx`、`menu.tsx`、`collapsible.tsx` | Base UI 浮层、行内操作菜单与折叠面板，统一 `z-50` 与 `data-starting-style` / `data-ending-style` 过渡 |
+| `ToastViewport` / `toast` | `toast.tsx` | Base UI Toast：`toast.success / error / info`，手机在底栏上方、桌面在右下角 |
+| `Calendar` | `calendar.tsx` | `react-day-picker` 唯一封装入口：周一起始、中文月份、板块色调选中态，支持补卡日期范围限制 |
+| `EmptyState` / `ErrorState` | `empty-state.tsx`、`error-state.tsx` | 空状态（配静态吉祥物 + 主操作）与加载失败重试卡片 |
+| `ThemePicker` | `theme-picker.tsx` | 主题色单选；每个色块自带 `data-theme`，组件里不写色值；`compact` 只显示色块 |
+| `Avatar` / `AvatarStack` | `avatar.tsx` | 支持预设头像（`preset:*`）或昵称首字；`ring` 表示连续打卡中 |
 | `Stamp` | `stamp.tsx` | 打卡印章，`animate` 只在刚完成时播放 |
 | `Skeleton` | `skeleton.tsx` | 形状接近真实内容，不用转圈代替 |
 | `Icon` | `icon.tsx` | 手绘双层图标，见下文；当前态描边加粗到 2.4px |
+
+此外，`src/components/charts/` 提供三类数据展示组件（只引 `d3-shape` 算路径，SVG 自绘，详见 [ui-primitives.md](./ui-primitives.md) 第 7 节）：
+
+| 组件 | 文件 | 要点 |
+|---|---|---|
+| `Heatmap` | `heatmap.tsx` | 周一到周日 × N 周打卡热力格，4 档强度（0 / 1–49% / 50–99% / ≥100%），点击格子看当天明细 |
+| `LineChart` | `line-chart.tsx` | 单折线 + 渐变面积图（体重趋势、每日 AI 花费），非负数据 Y 轴下界不低于 0，参考线支持目标值 |
+| `BarChart` | `bar-chart.tsx` | 按天/周柱状图（运动时长、睡眠时长），达标柱用板块主色、未达标用浅档 |
 
 - 组件对外的 `className` 只用来补充布局（间距、宽度）。`cn()` 目前不合并冲突类名，不要用它覆盖组件的颜色和尺寸。
 - 没有 hooks 的组件不加 `'use client'`，由使用它的客户端组件传入事件处理函数；只有 `Sheet` 这类用到 effect 的组件是客户端组件。
@@ -171,14 +212,15 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 
 | 视口宽度 | 主导航 | 打卡入口 |
 |---|---|---|
-| < 768px | 底部悬浮胶囊导航：主页 / 待办 / ＋ / 排行 / 我的 | "＋"打开底部弹层 |
+| < 768px | 底部悬浮胶囊导航：主页 / 待办 / ＋ / 排行 / 我的。"＋"是收在栏内的圆角方块，不凸出栏外 | "＋"打开底部弹层 |
 | 768–1023px | 左侧窄栏，只显示图标 | 侧栏顶部"＋"，打开居中对话框 |
-| ≥ 1024px | 左侧宽栏：品牌、图标 + 文字、AI 额度 | 侧栏顶部"打卡"按钮 |
+| ≥ 1024px | 左侧宽栏（224px）：品牌、图标 + 文字、AI 额度。导航项高 44px、圆角 xl、caption 字号 | 侧栏顶部"打卡"按钮 |
 
 - `BottomNav`、`SideNav`、`TopBar` 本身不定位，由应用外壳负责 `fixed` / `sticky` 和安全区（`--safe-top`、`--safe-bottom`）。
 - 导航项只在 `src/components/layout/nav-items.ts` 定义一次，手机和桌面共用；高亮规则见 `isNavActive()`（主页精确匹配，其余按前缀匹配）。
 - 一级页面显示主导航；二级页面隐藏底栏，顶栏带返回按钮。导航文字和页面标题一致，当前项加 `aria-current="page"`。
 - 弹层里不再打开弹层。底栏之外的悬浮按钮不放在右下角。
+- 全站隐藏滚动条（`globals.css` 的 base 层），滚动本身不受影响；需要提示"还能滚"时露出半张卡片或加渐隐，不靠滚动条。
 
 ## 8. Agent 组件
 
@@ -190,7 +232,7 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 
 | 区块 | 来源 | 规则 |
 |---|---|---|
-| 活动条 `ActivityTrail` | reasoning + tool | 默认收起，只占一行：左边说明正在做什么（"正在搜索等 3 件事"）或完成摘要（"12 个工具 · 11 秒"），右边是工具小方块。同一步并行的方块叠在一起，步与步之间留空；只显示最近 5 个，其余折成 +N；失败的方块带红点。点开是按步排列的时间线：思考是一段灰色小字（两行截断，点击展开），每个工具一行（图标、中文名、摘要、耗时），点行看参数和结果 |
+| 活动条 `ActivityTrail` | reasoning + tool | 进行中默认展开成时间线，回答完成后自动收起（用户手动开合过就以用户为准）。收起时只占一行：左边说明正在做什么（"正在搜索等 3 件事"）或完成摘要（"12 个工具 · 11 秒"），右边是工具小方块。同一步并行的方块叠在一起，步与步之间留空；只显示最近 5 个，其余折成 +N；失败的方块带红点。点开是按步排列的时间线：思考是一段灰色小字（两行截断，点击展开），每个工具一行（图标、中文名、摘要、耗时），点行看参数和结果 |
 | 正文 `AnswerText` | text | 回答是视觉重点。流式输出时末尾有闪烁光标；只支持空行分段和 `**加粗**`，按纯文本渲染，不用 innerHTML |
 | 产物 | 业务组件 | AI 草稿卡、图表等，放在正文后面 |
 | 来源 | source | 联网时引用的网页，去重后编号，显示域名 |
@@ -212,13 +254,19 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 规则：
 
 - 不要给每个工具一张大卡片；工具再多，收起时也只占一行。
+- 对话里的辅助按钮（重试、回放）用 `soft` / `ghost`，实底留给草稿卡的"确认记录"。
 - 失败的工具直接显示原因和降级方案（"网页打不开，已改用搜索结果"），不需要用户点开。
 - 过程里不显示 token 数、模型名等技术细节。
 - 不展示用户上传的原图（图片不落盘，见 ADR-0002 第 4 节）。
 
-## 9. 吉祥物团团
+## 9. 吉祥物：团团与墩墩
 
-头顶小芽、右侧别着樱花粉波点蝴蝶结的糯米团子。代码在 `src/components/mascot/`：
+两只糯米团子，用户在新人引导里选一只，之后在「我的 → 外观」里随时换（`MascotSvg` / `Mascot` / `InteractivePet` 的 `character` 属性，`'tuan' | 'dun'`）。身体、表情、手臂、动作完全共用：
+
+- **团团**（默认，偏女孩）：头顶两片圆叶小芽，樱花粉波点蝴蝶结别在头顶右上。
+- **墩墩**（偏男孩）：雾蓝棒球帽（帽檐朝右）+ 黄色小星星徽章，帽顶一片小叶子；短粗眉毛，腮红淡 40%。
+
+全站用用户选的那一只，AI 回复头像、空状态也跟着换。代码在 `src/components/mascot/`：
 
 | 文件 | 作用 |
 |---|---|
@@ -291,13 +339,22 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 
 给新的演示区块加 `data-ann="playbook.<页面>.<区块>"`，批注才能稳定定位；没有 `data-ann` 时退回 CSS 路径，页面结构变了可能对不上。
 
-## 13. 待定事项
+## 13. 页面预览
+
+`/dev/playbook/pages` 用 Playbook 组件和假数据拼出每个真实页面（主页、待办、排行、我的、打卡表单、登录），上面是全部页面的手机缩略图墙，下面同时看手机 360 和桌面 ≥1000 两种形态。预览里的底栏、侧栏、"＋"都能点。
+
+- 它是正式页面的对标样式：正式页面上线时要和预览长得一样；改页面样式先改预览，再改正式页面。
+- 页面登记在 `src/app/dev/playbook/pages/_screens/registry.tsx`，新增路由时同步登记一页。
+- 外壳 `app-shell.tsx` 和正式的 `(app)/layout.tsx` 同一套结构。演示框里断点不生效，所以外壳形态由参数决定，内容区用容器查询（`@container` / `@xl:`）适配宽度。
+- 一屏只放一只互动吉祥物：缩略图墙和"手机 + 桌面"并排时，桌面里用静态版。
+
+## 14. 待定事项
 
 > 2026-10-31 起，下表中涉及引入第三方库的事项统一在 demo-init Phase 3 对齐，结论以 [docs/libraries.md](../libraries.md) 为准。负责人已于 2026-10-31 拍板（ADR-0004 至 0020），第三方原语的接入方式见 [ui-primitives.md](./ui-primitives.md)。
 
 | 事项 | 现状 | 何时处理 |
 |---|---|---|
-| 交互原语 | 已定：Base UI（ADR-0004），不用 shadcn/ui、Radix。`Sheet` 目前仍是原生 `<dialog>`，只有进场动画 | M1：安装 Base UI 后改为 Drawer / Dialog，补齐下拉、组合框、菜单等 |
+| 交互原语 | 已完成：Base UI 1.9（ADR-0004），不用 shadcn/ui、Radix。`Sheet`、`ConfirmDialog`、`Select`、`Combobox`、`NumberField` 等已在 M1 落地 | 已完成（M1） |
 | 图标库 | 不引入。2026-10-31 决定所有图标手绘（第 6 节） | — |
 | clsx + tailwind-merge | 已定不引入：`cn()` 只做拼接（tailwind-merge 会吞掉语义字号，见 libraries.md） | — |
 | 动效库 | 已定不引入（ADR-0005） | — |
