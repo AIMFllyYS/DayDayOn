@@ -576,14 +576,21 @@
   }
 
   /* 全站隐藏滚动条（负责人 2026-11-01 批注）：只是不显示，滚轮、触摸、键盘滚动照常 */
-  * {
+  *,
+  *::before,
+  *::after {
     scrollbar-width: none;
+    -ms-overflow-style: none;
   }
   *::-webkit-scrollbar {
     display: none;
+    width: 0;
+    height: 0;
   }
 
+  /* iOS 26 起 Safari 的弹层遮罩用 position: absolute 盖满可视区域，需要 body 作为定位参照（ui-primitives.md 第 2 节） */
   body {
+    position: relative;
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
