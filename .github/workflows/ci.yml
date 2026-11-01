@@ -1,4 +1,4 @@
-# 质量检查：lint、类型检查、格式检查、构建、密钥扫描。
+# 质量检查：lint、类型检查、格式检查、单元测试、构建、密钥扫描。
 # 公开仓库的 Actions 分钟不计费，所以 PR 和 dev 推送都跑。
 name: ci
 
@@ -36,6 +36,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm format:check
+      - run: pnpm test
       - run: pnpm build
       # 每个 PR 都按生产方式组装一次部署制品，提前发现打包问题（.env 混入、符号链接越界、超大小）
       - run: bash scripts/build/pack-artifact.sh "$RUNNER_TEMP/artifact.tar.gz"

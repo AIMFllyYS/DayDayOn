@@ -28,7 +28,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - Install: `pnpm install` | Dev: `pnpm dev`（http://localhost:23329）| Build: `pnpm build` | Start: `pnpm start`
 - 端口：应用 **23329**，数据库 **23432**，本地与服务器一致。不要改用 3000 / 5432（详见 [ports.md](docs/conventions/ports.md)）
-- Lint: `pnpm lint` | Typecheck: `pnpm typecheck` | Format: `pnpm format` | 三项一起检查: `pnpm check`
+- Lint: `pnpm lint` | Typecheck: `pnpm typecheck` | Format: `pnpm format` | 三项一起检查: `pnpm check` | Test: `pnpm test`（`vitest run`）
+- 本地数据库: `pnpm db:up` / `pnpm db:down` | 迁移: `pnpm db:generate` → `pnpm db:migrate` | 假数据: `pnpm db:seed`（**没有 `db:push`**）
 
 ## Shell Environment（本机是 Windows + PowerShell，不是 bash/zsh）
 
@@ -40,9 +41,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Definition of Done
 
 1. `pnpm check` 退出码为 0（lint、typecheck、format:check）
-2. `pnpm build` 退出码为 0
-3. 涉及界面的改动，用 ego-browser 在手机和桌面两种宽度下实际操作一遍。**HTTP 200 不等于验收通过**
-4. 提交信息符合 Conventional Commits（commitlint 会拦截）
+2. `pnpm test` 退出码为 0
+3. `pnpm build` 退出码为 0
+4. 涉及界面的改动，用 ego-browser 在手机和桌面两种宽度下实际操作一遍。**HTTP 200 不等于验收通过**
+5. 提交信息符合 Conventional Commits（commitlint 会拦截）
 
 ## When Blocked
 
