@@ -56,3 +56,9 @@
 - 规则：邮箱规范化（`trim().toLowerCase()`）直接改 `ctx.body.email` 并返回 `{ context: ctx }`；拦截请求时抛 `new APIError('FORBIDDEN' | 'TOO_MANY_REQUESTS', { message })`。
 - 元：better-auth@1.7.14 | 2026-11-01 | 候选毕业方向：已沉淀到 `src/server/auth/auth.ts`
 
+### 内置限流对 `/sign-in/*` 默认设为 10 秒 3 次
+- 症状：只给 `/email-otp/send-verification-otp` 配置了 `customRules`，用户在登录页重试或同局域网多人登录 `/sign-in/email-otp` 时立即触发 429。
+- 根因：Better Auth 的 `getDefaultSpecialRules()` 对所有 `/sign-in*` 路径内置了 `window: 10, max: 3` 的严苛规则。
+- 规则：在 `rateLimit.customRules` 中显式为 `/sign-in/email-otp` 配置合理阈值（`{ window: 60, max: 30 }`），单验证码防爆破由 `emailOTP({ allowedAttempts: 8 })` 负责。
+- 元：better-auth@1.7.14 | 2026-11-02 | 候选毕业方向：已沉淀到 `src/server/auth/auth.ts`
+

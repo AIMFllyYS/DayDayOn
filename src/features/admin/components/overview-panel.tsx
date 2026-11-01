@@ -69,7 +69,7 @@ interface OverviewViewProps {
 
 export function OverviewView({ data, demo = false }: OverviewViewProps) {
   return (
-    <div className="grid gap-4 lg:grid-cols-[2fr_3fr]">
+    <div className="grid w-full min-w-0 gap-4 lg:grid-cols-[2fr_3fr]">
       <SpendCard data={data} demo={demo} />
       <Card>
         <CardHeader title="近 30 天每日花费" description="北京时间，单位元" />

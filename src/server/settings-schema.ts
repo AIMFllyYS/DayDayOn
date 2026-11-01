@@ -33,11 +33,11 @@ export const AppSettingsSchema = z
     /** 兑换失败多少次后锁定 1 小时 */
     redeemFailLockThreshold: Count(100),
     /** 同一 IP 每天最多新注册账号数 */
-    signupPerIpDaily: Count(200),
+    signupPerIpDaily: Count(1000),
     /** 同一邮箱每天最多发送验证码次数 */
-    otpPerEmailDaily: Count(200),
+    otpPerEmailDaily: Count(500),
     /** 同一 IP 每天最多发送验证码次数 */
-    otpPerIpDaily: Count(1000),
+    otpPerIpDaily: Count(5000),
   })
   .meta({ id: 'AppSettings' })
 export type AppSettings = z.infer<typeof AppSettingsSchema>
@@ -49,7 +49,7 @@ export const AppSettingsPatchSchema = AppSettingsSchema.partial()
   .meta({ id: 'AppSettingsPatch' })
 export type AppSettingsPatch = z.infer<typeof AppSettingsPatchSchema>
 
-/** 默认值：ADR-0002 第 5、6 节的初始值（注册与验证码已适当放宽以增强容错） */
+/** 默认值：ADR-0002 第 5、6 节与 ADR-0023（接入 Turnstile 人机验证后放宽同 IP 阈值，避免校园网/NAT 误伤） */
 export const DEFAULT_SETTINGS: AppSettings = {
   dailySpendCapMicros: 10_000_000,
   weeklyQuotaMicros: 10_000_000,
@@ -58,9 +58,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   aiHourlyLimit: 60,
   aiConcurrency: 2,
   redeemFailLockThreshold: 5,
-  signupPerIpDaily: 30,
-  otpPerEmailDaily: 30,
-  otpPerIpDaily: 100,
+  signupPerIpDaily: 100,
+  otpPerEmailDaily: 100,
+  otpPerIpDaily: 500,
 }
 
 export const APP_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS) as AppSettingKey[]

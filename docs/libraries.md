@@ -34,8 +34,9 @@
 | 6 | 表单与动态表单 | 不引入库：Base UI Form / Field + zod | 同 #1 | — | `src/components/ui/field.tsx`、`form.tsx`；`src/features/goal/components/schema-form.tsx` | [0009](./adr/0009-forms.md) | — |
 | 7 | 图表 | 自研 SVG + `d3-shape` | 3.2.0 | 否（M2） | `src/components/charts/` | [0010](./adr/0010-charts.md) | — |
 | 8 | 图片压缩与传输 | 不引入库：原生 canvas 转 JPEG | — | — | `src/lib/image/`、`src/server/ai/image.ts` | [0011](./adr/0011-image-pipeline.md) | — |
-| 9 | 客户端数据请求 | TanStack Query（`@tanstack/react-query`） | 5.105.0 | 否（M3） | `src/lib/api/` | [0012](./adr/0012-client-data.md) | [tanstack-query](./lessons/tanstack-query.md) |
-| 10 | 数据校验 | `zod` | 4.6.7 | 否（M3） | 工具库豁免；schema 在 `src/features/<领域>/schemas.ts` | [0013](./adr/0013-validation.md) | [zod](./lessons/zod.md) |
+| 9 | 客户端数据请求 | TanStack Query（`@tanstack/react-query`） | 5.105.0 | 是 | `src/lib/api/` | [0012](./adr/0012-client-data.md) | [tanstack-query](./lessons/tanstack-query.md) |
+| 10 | 数据校验 | `zod` | 4.6.7 | 是 | 工具库豁免；schema 在 `src/features/<领域>/schemas.ts` | [0013](./adr/0013-validation.md) | [zod](./lessons/zod.md) |
+| 18 | 人机验证 | Cloudflare Turnstile（`@marsidev/react-turnstile`） | 1.6.3 | 是 | `src/components/ui/turnstile.tsx`、`src/server/auth/captcha.ts` | [0023](./adr/0023-captcha.md) | [turnstile](./lessons/turnstile.md) |
 
 ### 服务端与平台
 
@@ -93,6 +94,7 @@
 - 图片压缩：禁止引入 browser-image-compression、compressorjs；服务端不对用户图片转码（不用 sharp 处理用户图片），只做格式与大小校验。
 - 客户端数据请求 = TanStack Query，禁止引入 swr、axios、ky；业务组件不直接 fetch `/api/v1`，只经 `src/lib/api/`。
 - 校验 = zod，禁止引入 valibot、yup、joi、arktype；统一写 `import * as z from 'zod'`，禁止 `import { z } from 'zod'`（同样的 schema 实测 90.8 KB 对 25.6 KB）。`import { z } from '@hono/zod-openapi'` 只允许出现在 `src/server/api/`。
+- 人机验证 = Cloudflare Turnstile（`@marsidev/react-turnstile`，只经 `src/components/ui/turnstile.tsx`），禁止引入 `react-turnstile`、`react-google-recaptcha`、`@hcaptcha/react-hcaptcha`、极验或任何腾讯云验证码 SDK。
 
 **服务端：**
 

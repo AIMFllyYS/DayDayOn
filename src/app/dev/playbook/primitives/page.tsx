@@ -14,6 +14,7 @@ import {
   SheetDemo,
   SliderDemo,
   ToastDemo,
+  TurnstileDemo,
 } from './_demos'
 
 export const metadata: Metadata = { title: '交互原语' }
@@ -145,6 +146,13 @@ export default function PrimitivesPage() {
             note="提交前跑原生校验并聚焦第一个错误；服务端 fields 错误传给 errors，改动字段后自动清除"
           >
             <FormDemo />
+          </Specimen>
+          <Specimen
+            ann="playbook.primitives.form.turnstile"
+            label="TurnstileField 人机验证"
+            note="基于 Cloudflare Turnstile 封装，发验证码前静默校验；token 一次性有效，消费后调用 reset() 刷新"
+          >
+            <TurnstileDemo />
           </Specimen>
         </div>
         <div className="mt-4">

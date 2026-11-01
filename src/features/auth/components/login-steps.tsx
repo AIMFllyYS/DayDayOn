@@ -1,8 +1,10 @@
 'use client'
 
+import type { Ref } from 'react'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { OTPField } from '@/components/ui/otp-field'
+import { TurnstileField, type TurnstileFieldRef } from '@/components/ui/turnstile'
 
 /*
  * 登录的三个步骤（纯展示，状态在 login-card.tsx）。原型：Playbook 页面预览 LoginScreen。
@@ -17,6 +19,9 @@ interface EmailStepProps {
   pending: boolean
   error?: string
   cooldown: number
+  captchaRef?: Ref<TurnstileFieldRef>
+  onCaptchaTokenChange?: (token: string | undefined) => void
+  onCaptchaError?: () => void
 }
 
 export function EmailStep({
@@ -26,6 +31,9 @@ export function EmailStep({
   pending,
   error,
   cooldown,
+  captchaRef,
+  onCaptchaTokenChange,
+  onCaptchaError,
 }: EmailStepProps) {
   return (
     <form
@@ -51,6 +59,12 @@ export function EmailStep({
           onChange={(e) => onEmailChange(e.target.value)}
         />
       </Field>
+      <TurnstileField
+        ref={captchaRef}
+        action="send-otp"
+        onTokenChange={onCaptchaTokenChange}
+        onError={onCaptchaError}
+      />
       <Button type="submit" className="w-full" loading={pending} disabled={cooldown > 0}>
         {cooldown > 0 ? `${cooldown} 秒后可重新发送` : '发送验证码'}
       </Button>
@@ -69,43 +83,62 @@ interface CodeStepProps {
   resending: boolean
   error?: string
   cooldown: number
+  captchaRef?: Ref<TurnstileFieldRef>
+  onCaptchaTokenChange?: (token: string | undefined) => void
+  onCaptchaError?: () => void
 }
 
-export function CodeStep(p: CodeStepProps) {
+export function CodeStep({
+  email,
+  code,
+  onCodeChange,
+  onSubmit,
+  onResend,
+  onBack,
+  pending,
+  resending,
+  error,
+  cooldown,
+  captchaRef,
+  onCaptchaTokenChange,
+  onCaptchaError,
+}: CodeStepProps) {
   return (
     <div className="grid gap-4">
       <div>
         <h2 className="text-heading font-bold">输入验证码</h2>
-        <p className="text-caption text-muted break-all">已发送到 {p.email}，5 分钟内有效</p>
+        <p className="text-caption text-muted break-all">已发送到 {email}，5 分钟内有效</p>
       </div>
-      <Field label="6 位验证码" htmlFor="login-otp" error={p.error}>
+      <Field label="6 位验证码" htmlFor="login-otp" error={error}>
         <OTPField
           id="login-otp"
-          value={p.code}
-          onValueChange={p.onCodeChange}
-          onComplete={p.onSubmit}
-          disabled={p.pending}
+          value={code}
+          onValueChange={onCodeChange}
+          onComplete={onSubmit}
+          disabled={pending}
         />
       </Field>
+      <TurnstileField
+        ref={captchaRef}
+        action="send-otp"
+        appearance="interaction-only"
+        onTokenChange={onCaptchaTokenChange}
+        onError={onCaptchaError}
+      />
       <Button
         className="w-full"
-        loading={p.pending}
-        disabled={p.code.length < 6}
-        onClick={() => p.onSubmit(p.code)}
+        loading={pending}
+        disabled={code.length < 6}
+        onClick={() => onSubmit(code)}
       >
         登录
       </Button>
       <div className="flex items-center justify-between gap-2">
-        <Button variant="ghost" onClick={p.onBack}>
+        <Button variant="ghost" onClick={onBack}>
           换个邮箱
         </Button>
-        <Button
-          variant="ghost"
-          loading={p.resending}
-          disabled={p.cooldown > 0}
-          onClick={p.onResend}
-        >
-          {p.cooldown > 0 ? `${p.cooldown} 秒后重发` : '重新发送'}
+        <Button variant="ghost" loading={resending} disabled={cooldown > 0} onClick={onResend}>
+          {cooldown > 0 ? `${cooldown} 秒后重发` : '重新发送'}
         </Button>
       </div>
     </div>

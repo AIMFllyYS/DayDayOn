@@ -149,8 +149,14 @@ export function AdminScreen() {
   const [sheet, setSheet] = useState(false)
   return (
     <ApiProvider>
-      <div className="flex flex-col gap-4 py-4">
-        <SegmentedControl label="后台页面" options={views} value={view} onValueChange={setView} />
+      <div className="flex w-full min-w-0 flex-col gap-4 py-4">
+        <SegmentedControl
+          label="后台页面"
+          options={views}
+          value={view}
+          onValueChange={setView}
+          className="w-full min-w-0"
+        />
         {view === 'overview' && <OverviewView data={overview} demo />}
         {view === 'users' && <UsersTable rows={users} demo />}
         {view === 'codes' && (

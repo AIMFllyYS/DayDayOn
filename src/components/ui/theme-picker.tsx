@@ -47,7 +47,7 @@ export function ThemePicker({
       role="radiogroup"
       aria-label="主题色"
       onKeyDown={onKeyDown}
-      className={cn('flex flex-wrap', compact ? 'gap-1' : 'gap-2', className)}
+      className={cn('flex w-full min-w-0 flex-wrap', compact ? 'gap-1' : 'gap-2', className)}
     >
       {themes.map((t) => {
         const selected = t.id === value
@@ -64,7 +64,7 @@ export function ThemePicker({
             onClick={() => onValueChange(t.id)}
             className={cn(
               'ease-spring flex items-center gap-2 rounded-full transition-[transform,background-color] duration-(--dur-fast) active:scale-95',
-              compact ? 'size-9 justify-center' : 'h-10 pr-3.5 pl-1.5',
+              compact ? 'size-9 justify-center' : 'h-10 pr-3 pl-1.5 sm:pr-3.5',
               !compact &&
                 (selected ? 'bg-primary-soft text-primary-ink' : 'hover:bg-surface-sunken'),
             )}

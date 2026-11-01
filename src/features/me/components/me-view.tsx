@@ -49,8 +49,8 @@ export function MeView({
   const nickname = profile.nickname ?? '新朋友'
 
   return (
-    <div className="grid gap-4 pb-6 @xl:grid-cols-[1fr_1.2fr] @xl:items-start">
-      <div className="grid gap-3">
+    <div className="grid w-full max-w-full min-w-0 gap-4 pb-6 @xl:grid-cols-[1fr_1.2fr] @xl:items-start">
+      <div className="grid w-full min-w-0 gap-3">
         <Card variant="sticker" className="flex flex-col items-center gap-1 pt-10 text-center">
           {thumb ? (
             <Mascot size={120} character={prefs.mascot} />
@@ -76,7 +76,7 @@ export function MeView({
         {quota}
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid w-full min-w-0 gap-4">
         <MenuList title="外观">
           <li className="flex flex-col gap-2 px-4 py-3">
             <span className="font-semibold">主题色</span>
@@ -95,7 +95,7 @@ export function MeView({
               onValueChange={(mascot) => onPreferencesChange({ mascot })}
               label="选择形象"
               size="sm"
-              className="w-40 shrink-0"
+              className="w-32 shrink-0 sm:w-40"
             />
           </li>
         </MenuList>
@@ -125,7 +125,7 @@ export function MeView({
                 options={DAY_START_OPTIONS}
                 value={String(prefs.dayStartHour)}
                 onValueChange={(v) => onPreferencesChange({ dayStartHour: Number(v) })}
-                className="text-caption h-10 w-36 shrink-0 px-3"
+                className="text-caption h-10 w-28 shrink-0 px-2.5 sm:w-36 sm:px-3"
               />
             }
           />

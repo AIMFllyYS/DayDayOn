@@ -27,7 +27,12 @@ export function AppPage({ title, eyebrow, actions, backHref, children, className
         actions={actions}
         leading={backHref ? <BackButton fallbackHref={backHref} /> : undefined}
       />
-      <div className={cn('@container flex flex-1 flex-col px-4 md:px-8', className)}>
+      <div
+        className={cn(
+          '@container flex w-full max-w-full min-w-0 flex-1 flex-col px-4 md:px-8',
+          className,
+        )}
+      >
         {children}
       </div>
     </>
