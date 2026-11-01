@@ -108,7 +108,8 @@ export function UsersTable({ rows, demo = false }: UsersTableProps) {
   const [action, setAction] = useState<UserAction | null>(null)
   return (
     <>
-      <div className="-mx-4 overflow-x-auto md:-mx-5">
+      {/* relative：表里 sr-only 的绝对定位文字以此为包含块，否则会按 body 定位把整页撑宽 */}
+      <div className="relative -mx-4 overflow-x-auto md:-mx-5">
         <table className="w-full min-w-240 border-collapse">
           <caption className="sr-only">用户列表</caption>
           <thead className="border-border border-b">

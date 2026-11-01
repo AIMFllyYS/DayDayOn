@@ -124,7 +124,8 @@ export function CodesTable({
   const [target, setTarget] = useState<AdminCodeRow | null>(null)
   return (
     <>
-      <div className="-mx-4 overflow-x-auto md:-mx-5">
+      {/* relative：表里 sr-only 的绝对定位文字以此为包含块，否则会按 body 定位把整页撑宽 */}
+      <div className="relative -mx-4 overflow-x-auto md:-mx-5">
         <table className="w-full min-w-180 border-collapse">
           <caption className="sr-only">兑换码列表</caption>
           <thead className="border-border border-b">
