@@ -1,14 +1,25 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { AppPage } from '@/components/layout/app-page'
-import { ComingSoon } from '@/components/layout/coming-soon'
+import { PageSkeleton } from '@/components/layout/page-skeleton'
+import { NewGoalView } from '@/features/goal/components/new-goal-view'
+import { ModuleSchema } from '@/features/shared/schemas'
 
 export const metadata: Metadata = { title: '新建目标' }
 
-/** 占位页（F3），由领域 Agent 替换 */
-export default function Page() {
+/** /goals/new?module=…：没有或非法时先选板块 */
+export default function Page({ searchParams }: PageProps<'/goals/new'>) {
   return (
     <AppPage title="新建目标" backHref="/goals">
-      <ComingSoon />
+      <Suspense fallback={<PageSkeleton />}>
+        <NewGoal searchParams={searchParams} />
+      </Suspense>
     </AppPage>
   )
+}
+
+async function NewGoal({ searchParams }: Pick<PageProps<'/goals/new'>, 'searchParams'>) {
+  const { module } = await searchParams
+  const parsed = ModuleSchema.safeParse(module)
+  return <NewGoalView module={parsed.success ? parsed.data : null} />
 }
