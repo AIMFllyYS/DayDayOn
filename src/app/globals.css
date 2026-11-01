@@ -539,6 +539,44 @@
       transform: translateY(-4px);
     }
   }
+
+  /* 开屏（ADR-0022）：团团蓄力起跳 → 落地 → 以团团为圆心向外挖开、露出页面。只在 .splash 里使用 */
+  --animate-splash-hop: splash-hop 1100ms var(--ease-standard) 150ms both;
+  --animate-splash-out: splash-out 480ms var(--ease-in-soft) 1250ms both;
+
+  @keyframes splash-hop {
+    0%,
+    25% {
+      transform: translateY(0) scale(1, 1);
+    }
+    45% {
+      transform: translateY(0) scale(1.18, 0.8);
+    }
+    70% {
+      transform: translateY(-38%) scale(0.92, 1.1) rotate(-5deg);
+    }
+    88% {
+      transform: translateY(0) scale(1.12, 0.88);
+    }
+    100% {
+      transform: translateY(0) scale(1, 1);
+    }
+  }
+  @keyframes splash-out {
+    0% {
+      --splash-hole: 0px;
+      opacity: 1;
+      visibility: visible;
+    }
+    80% {
+      opacity: 1;
+    }
+    100% {
+      --splash-hole: 150vmax;
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
 }
 
 /* 手账点阵底纹：用于应用背景，不用于卡片内部 */
@@ -609,6 +647,52 @@
   }
 }
 
+/*
+ * 开屏（ADR-0022、src/lib/splash.ts）：默认不显示；根布局 <head> 的内联脚本给 <html> 写 data-splash 后才出现。
+ * 开屏是静态 HTML + CSS，不等水合；播完由 animation 自己隐藏（visibility: hidden），
+ * SplashController 再移除 data-splash。点一下跳过时 data-splash="skip"，直接淡出。
+ * 挖洞用 mask + @property 动画；不支持 @property 的浏览器只有淡出，没有挖洞。
+ */
+@property --splash-hole {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+.splash {
+  display: none;
+}
+html[data-splash] .splash,
+.splash[data-preview] {
+  display: flex;
+  animation: var(--animate-splash-out);
+  mask-image: radial-gradient(
+    circle at 50% 42%,
+    transparent var(--splash-hole),
+    var(--foreground) calc(var(--splash-hole) + 1px)
+  );
+}
+html[data-splash='skip'] .splash {
+  animation: var(--animate-fade-out);
+}
+/* 形象与问候：内联脚本写 data-splash-char / data-splash-greet，CSS 只显示对应的那一份 */
+.splash-char-dun,
+.splash-greet {
+  display: none;
+}
+html[data-splash-char='dun'] .splash-char-tuan {
+  display: none;
+}
+html[data-splash-char='dun'] .splash-char-dun {
+  display: inline-flex;
+}
+html[data-splash-greet='morning'] .splash-greet-morning,
+html[data-splash-greet='day'] .splash-greet-day,
+html[data-splash-greet='night'] .splash-greet-night,
+.splash[data-preview] .splash-greet {
+  display: block;
+}
+
 /* 用户开启"减少动态效果"时，所有动画和过渡几乎立即完成，但保留最终状态 */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -618,5 +702,13 @@
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
     scroll-behavior: auto !important;
+  }
+  /* 开屏只静止停留 0.3 秒，不跳、不挖洞 */
+  html[data-splash] .splash,
+  .splash[data-preview] {
+    animation-delay: 300ms !important;
+  }
+  .splash * {
+    animation-delay: 0ms !important;
   }
 }

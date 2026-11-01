@@ -40,6 +40,7 @@
 | [0019](./0019-pwa.md) | PWA：原生 manifest + 手写 Service Worker | Accepted |
 | [0020](./0020-jobs.md) | 定时任务：周期键懒计算 + 系统 cron | Accepted |
 | [0021](./0021-preset-avatars.md) | 头像：只用预设头像 | Accepted |
+| [0022](./0022-welcome-splash-app.md) | 落地页、开屏、App 图标与 APK 分发 | Proposed |
 
 0004–0020 由 `scripts/dev/library-showcase/build.mjs --adr` 从调研结论生成草稿（已存在的不会被覆盖），对应的对比页在 [docs/designs/library-showcase/](../designs/library-showcase/index.html)。
 

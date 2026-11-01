@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { EasingDemo, FeedbackDemo, PresetGallery } from '../_components/motion-demos'
+import { EasingDemo, FeedbackDemo, PresetGallery, SplashDemo } from '../_components/motion-demos'
 import { PageHeader, Rules, Section } from '../_components/section'
 import { TokenValue } from '../_components/token-value'
 
@@ -48,6 +48,14 @@ export default function MotionPage() {
 
       <Section ann="playbook.motion.feedback" title="交互反馈">
         <FeedbackDemo />
+      </Section>
+
+      <Section
+        ann="playbook.motion.splash"
+        title="开屏"
+        description="只在手机上以 App 形式冷启动时播放一次（APK 壳、已安装的 PWA），浏览器里打开网址和桌面不播。团团眨眼 → 蓄力起跳 → 盖章 → 以团团为圆心挖开露出页面；点一下可以跳过。第一帧与系统开屏同色同位，衔接成一段。"
+      >
+        <SplashDemo />
       </Section>
 
       <Section ann="playbook.motion.rules" title="规则">

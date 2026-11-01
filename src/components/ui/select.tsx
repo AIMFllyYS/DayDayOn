@@ -46,6 +46,9 @@ export function Select<V extends string>({
   id,
   className,
 }: SelectProps<V>) {
+  const hasWidth = className ? /\b(w-|max-w-|min-w-)/.test(className) : false
+  const hasHeight = className ? /\bh-/.test(className) : false
+
   return (
     <BaseSelect.Root<V>
       items={options}
@@ -58,7 +61,10 @@ export function Select<V extends string>({
       required={required}
       id={id}
     >
-      <BaseSelect.Trigger aria-label={label} className={cn(triggerBoxClass, className)}>
+      <BaseSelect.Trigger
+        aria-label={label}
+        className={cn(triggerBoxClass, !hasWidth && 'w-full', !hasHeight && 'h-12', className)}
+      >
         <BaseSelect.Value
           placeholder={placeholder}
           className="data-placeholder:text-subtle min-w-0 flex-1 truncate"

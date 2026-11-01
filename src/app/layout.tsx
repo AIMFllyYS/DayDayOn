@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from 'next'
+import { Splash } from '@/components/layout/splash'
+import { SplashController } from '@/components/layout/splash-controller'
 import { ToastProvider } from '@/components/ui/toast'
 import { THEME_IDS } from '@/features/me/schemas'
 import { fredoka, nunito } from '@/lib/fonts'
+import { splashScript } from '@/lib/splash'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -37,8 +40,12 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: splashScript }} />
       </head>
       <body className="flex min-h-full flex-col">
+        {/* 开屏（ADR-0022）：只在手机上以 App 形式冷启动时显示，盖在所有页面上面 */}
+        <Splash />
+        <SplashController />
         <ToastProvider>
           {/* isolation 根：弹层 Portal 挂在 body 上，始终盖在页面内容之上（ui-primitives.md 第 2 节） */}
           <div className="isolate flex flex-1 flex-col">{children}</div>
