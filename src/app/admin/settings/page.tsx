@@ -1,14 +1,8 @@
 import type { Metadata } from 'next'
-import { ComingSoon } from '@/components/layout/coming-soon'
+import { SettingsPanel } from '@/features/admin/components/settings-panel'
 
 export const metadata: Metadata = { title: '全站设置' }
 
-/** 占位页（F3），由领域 Agent 替换 */
 export default function Page() {
-  return (
-    <>
-      <h1 className="text-title text-center font-bold">全站设置</h1>
-      <ComingSoon />
-    </>
-  )
+  return <SettingsPanel />
 }
