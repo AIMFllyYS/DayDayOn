@@ -164,6 +164,13 @@ export function MeView({
             description="JSON 文件"
             onClick={onExport}
           />
+          <MenuItem
+            icon="heart"
+            tone="custom"
+            label="关于 DayDayOn"
+            description="介绍页与 App 下载"
+            href="/welcome"
+          />
           <MenuItem icon="link" label="隐私说明" href="/privacy" />
           <MenuItem icon="trash" label="注销账号" danger onClick={onDelete} />
           <MenuItem icon="x" label="退出登录" danger onClick={onSignOut} />
