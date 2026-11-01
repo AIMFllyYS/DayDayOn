@@ -5,8 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Mascot } from '@/components/mascot/mascot'
 import { Stamp } from '@/components/ui/stamp'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Splash } from '@/components/layout/splash'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/cn'
+import type { SplashGreeting } from '@/lib/splash'
+import { PhoneFrame } from './device-frame'
 
 const presets = [
   { cls: 'animate-fade-in', name: 'fade-in', use: '内容替换、展开区' },
@@ -90,6 +94,45 @@ export function EasingDemo() {
           </li>
         ))}
       </ul>
+    </div>
+  )
+}
+
+const greetingOptions = [
+  { value: 'morning', label: '早上' },
+  { value: 'day', label: '白天' },
+  { value: 'night', label: '深夜' },
+] as const satisfies readonly { value: SplashGreeting; label: string }[]
+
+/** 开屏（ADR-0022）：放在手机框里，点"重播"重新挂载；真实环境只在 APK / 已安装 PWA 冷启动时出现 */
+export function SplashDemo() {
+  const [round, setRound] = useState(0)
+  const [greeting, setGreeting] = useState<SplashGreeting>('morning')
+  return (
+    <div className="flex flex-col gap-3" data-ann="playbook.motion.splash">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="secondary" size="sm" icon="loader" onClick={() => setRound((r) => r + 1)}>
+          重播开屏
+        </Button>
+        <SegmentedControl
+          options={greetingOptions}
+          value={greeting}
+          onValueChange={(g) => {
+            setGreeting(g)
+            setRound((r) => r + 1)
+          }}
+          label="问候时段"
+          size="sm"
+          className="w-56"
+        />
+      </div>
+      <PhoneFrame label="开屏 · 约 1.7 秒">
+        <div className="text-caption text-muted flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
+          <p className="text-heading text-foreground font-bold">开屏下面是页面</p>
+          <p>开屏挖开以后露出这里：未登录是落地页，已登录是主页</p>
+        </div>
+        <Splash key={round} preview greeting={greeting} />
+      </PhoneFrame>
     </div>
   )
 }
