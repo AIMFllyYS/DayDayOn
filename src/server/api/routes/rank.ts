@@ -1,13 +1,58 @@
 import 'server-only'
-import { OpenAPIHono } from '@hono/zod-openapi'
+import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
+import { FeedSchema, RankBoardSchema, RankQuerySchema } from '@/features/rank/schemas'
+import { db } from '@/server/db/client'
+import { getRankBoard, getRankFeed } from '@/server/services/rank'
 import type { AppEnv } from '../app'
+import { requireOnboarded, requireUser } from '../middleware/auth'
+import { AUTH_ERRORS, errorResponses } from '../schemas'
 
 /*
- * 领域路由（空壳，F1）。实现：D4。路径写完整路径，app.ts 统一挂在根上（PRD 7.5）。
- * 每个接口用 createRoute 定义，写全 request / responses（errorResponses(...)），
- * 领域路由默认 middleware: [requireUser, requireOnboarded] as const（另有说明的除外）。
+ * 排行榜与榜单动态（PRD 2.8 第 5 项、2.9、7.2）。D4。
+ * 只返回昵称、头像、打卡天数、连续天数、板块和时间；体重、饮食、睡眠的数值一律不出现。
  *
- *   GET    /rank               ?range=week|month → RankBoardSchema
+ *   GET    /rank               ?range=week|month → RankBoardSchema（非法值 400）
  *   GET    /rank/feed          FeedSchema
  */
+
+const getBoard = createRoute({
+  method: 'get',
+  path: '/rank',
+  tags: ['rank'],
+  summary: '排行榜 + 我的位置',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: { query: RankQuerySchema },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: RankBoardSchema } },
+      description: '北京时间本周 / 本月的上榜用户，最多 50 名',
+    },
+    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED'),
+  },
+})
+
+const getFeed = createRoute({
+  method: 'get',
+  path: '/rank/feed',
+  tags: ['rank'],
+  summary: '榜单动态',
+  middleware: [requireUser, requireOnboarded] as const,
+  responses: {
+    200: {
+      content: { 'application/json': { schema: FeedSchema } },
+      description: '已上榜用户最近 24 小时的打卡事件，最多 10 条',
+    },
+    ...errorResponses(...AUTH_ERRORS),
+  },
+})
+
 export const rankRoutes = new OpenAPIHono<AppEnv>()
+  .openapi(getBoard, async (c) => {
+    const { range } = c.req.valid('query')
+    const board = await getRankBoard(db, c.get('user').id, range, new Date())
+    return c.json(board, 200)
+  })
+  .openapi(getFeed, async (c) => {
+    const feed = await getRankFeed(db, new Date())
+    return c.json(feed, 200)
+  })

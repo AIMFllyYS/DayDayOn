@@ -1,113 +1,130 @@
-import { AvatarStack } from '@/components/ui/avatar'
-import { Badge, IconTile } from '@/components/ui/badge'
-import { Card, CardHeader } from '@/components/ui/card'
-import { Icon } from '@/components/ui/icon'
-import { ProgressBar, ProgressRing, StepProgress } from '@/components/ui/progress'
-import { Stamp } from '@/components/ui/stamp'
-import { moduleMeta, type ModuleTone } from '@/components/ui/tone'
+'use client'
+
+import { HomeDashboard } from '@/features/dashboard/components/home-dashboard'
+import type { DashboardToday } from '@/features/dashboard/schemas'
+import { useCheckinLauncher } from '@/features/checkin/launcher-store'
 
 /*
- * 主页（仪表盘，固定布局，ADR-0003 第 4 项）。演示数据，不接后端。
- * 区块顺序：今日总览（贴纸卡）→ 各板块进度 → 每日指标 → 朋友动态。
+ * 主页（仪表盘，固定布局，PRD 2.8）。渲染正式组件 HomeDashboard，数据是演示用的，不接后端。
+ * 区块顺序：提醒 → 今日总览（贴纸卡）→ 今日进度 → 本周热力图；右栏 体重 / 心情 → 榜单动态。
  */
-const today: { tone: ModuleTone; value: number; max: number; text: string }[] = [
-  { tone: 'exercise', value: 32, max: 30, text: '32 / 30 分钟' },
-  { tone: 'diet', value: 2, max: 3, text: '2 / 3 餐' },
-  { tone: 'sleep', value: 7.2, max: 8, text: '7.2 / 8 小时' },
-  { tone: 'study', value: 1, max: 2, text: '1 / 2 项' },
-]
 
-const feed = [
-  { name: '阿柚', tone: 'exercise', text: '完成了晨跑 5km', time: '07:42' },
-  { name: '豆豆', tone: 'study', text: '背完 60 个单词', time: '09:15' },
-  { name: '七七', tone: 'sleep', text: '连续早睡第 7 天', time: '昨天' },
-] as const
+const DEMO_NOW = Date.parse('2026-11-01T13:20:00Z')
+const id = (n: number) => `0193f6b2-0000-7000-8000-${String(n).padStart(12, '0')}`
+
+const demo: DashboardToday = {
+  localDate: '2026-11-01',
+  completion: { done: 3, planned: 4 },
+  streak: 12,
+  hasGoals: true,
+  goals: [
+    {
+      goalId: id(1),
+      module: 'exercise',
+      title: '动一动',
+      target: { kind: 'duration', value: 1800 },
+      planned: true,
+      progress: { value: 1920, target: 1800, done: true },
+      sortOrder: 0,
+    },
+    {
+      goalId: id(2),
+      module: 'diet',
+      title: '好好吃饭',
+      target: { kind: 'count', value: 3 },
+      planned: true,
+      progress: { value: 2, target: 3, done: false },
+      sortOrder: 1,
+    },
+    {
+      goalId: id(3),
+      module: 'sleep',
+      title: '早点睡',
+      target: { kind: 'duration', value: 28_800 },
+      planned: true,
+      progress: { value: 29_100, target: 28_800, done: true },
+      sortOrder: 2,
+    },
+    {
+      goalId: id(4),
+      module: 'study',
+      title: '学一点',
+      target: { kind: 'count', value: 2 },
+      planned: true,
+      progress: { value: 2, target: 2, done: true },
+      sortOrder: 3,
+    },
+  ],
+  weight: {
+    entries: [53_000, 52_900, 52_950, 52_700, 52_600, 52_500, 52_400].map((g, i) => ({
+      localDate: `2026-10-${String(26 + i).padStart(2, '0')}`,
+      weightGrams: g,
+      measuredAt: `2026-10-${String(26 + i).padStart(2, '0')}T00:00:00.000Z`,
+    })),
+    latest: {
+      localDate: '2026-11-01',
+      weightGrams: 52_400,
+      measuredAt: '2026-11-01T00:10:00.000Z',
+    },
+    deltaGrams7d: -600,
+  },
+  mood: 4,
+  heatmap: {
+    days: [
+      '2026-10-26',
+      '2026-10-27',
+      '2026-10-28',
+      '2026-10-29',
+      '2026-10-30',
+      '2026-10-31',
+      '2026-11-01',
+    ],
+    rows: [
+      { module: 'exercise', cells: [1, 1, 0, 1, 0.5, 1, 1] },
+      { module: 'diet', cells: [1, 0.67, 1, 1, 0.33, 0.67, 0.67] },
+      { module: 'sleep', cells: [1, 1, 1, 0, 1, 1, 1] },
+      { module: 'study', cells: [0.5, 1, 1, 0.5, 0, 0, 1] },
+      { module: 'custom', cells: [0, 0, 0, 0, 0, 0, 0] },
+    ],
+  },
+  feed: [
+    {
+      id: id(11),
+      userId: 'u-ayou',
+      nickname: '阿柚',
+      avatar: 'mascot:tuan:cheer:exercise',
+      module: 'exercise',
+      occurredAt: '2026-10-31T23:42:00.000Z',
+    },
+    {
+      id: id(12),
+      userId: 'u-doudou',
+      nickname: '豆豆',
+      avatar: null,
+      module: 'study',
+      occurredAt: '2026-11-01T01:15:00.000Z',
+    },
+    {
+      id: id(13),
+      userId: 'u-qiqi',
+      nickname: '七七',
+      avatar: 'mascot:dun:sleepy:sleep',
+      module: 'sleep',
+      occurredAt: '2026-10-31T15:05:00.000Z',
+    },
+  ],
+  reminder: { remaining: 1 },
+}
 
 export function HomeScreen() {
+  const launcher = useCheckinLauncher()
   return (
-    <div className="grid gap-3 @xl:grid-cols-[1.25fr_1fr] @xl:gap-4">
-      <div className="grid content-start gap-3">
-        <Card variant="sticker" className="relative overflow-hidden">
-          <div className="flex items-start gap-4">
-            <ProgressRing value={3} max={4} size={84} thickness={9} label="今日完成度">
-              <span className="font-display text-heading font-semibold">75%</span>
-            </ProgressRing>
-            <div className="min-w-0 flex-1 pr-14">
-              <h2 className="text-heading font-bold">今天也在好好生活</h2>
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <Badge tone="primary" icon="flame">
-                  连续 12 天
-                </Badge>
-                <AvatarStack names={['小满', '阿柚', '豆豆', '七七', '南风']} max={3} />
-              </div>
-            </div>
-          </div>
-          <Stamp caption="11.01" tone="exercise" size={64} className="absolute top-3 right-3" />
-        </Card>
-
-        <Card>
-          <CardHeader title="今日进度" description="点一项继续打卡">
-            <Icon name="chevron-right" size={18} className="text-subtle" />
-          </CardHeader>
-          <ul className="grid gap-3">
-            {today.map((t) => (
-              <li key={t.tone} className="flex items-center gap-2.5">
-                <IconTile icon={moduleMeta[t.tone].icon} tone={t.tone} size="sm" />
-                <span className="text-caption w-10 shrink-0 font-semibold">
-                  {moduleMeta[t.tone].label}
-                </span>
-                <ProgressBar
-                  value={t.value}
-                  max={t.max}
-                  tone={t.tone}
-                  label={moduleMeta[t.tone].label}
-                  className="flex-1"
-                />
-                <span className="font-display text-tiny text-muted w-22 shrink-0 text-right tabular-nums">
-                  {t.text}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
-
-      <div className="grid content-start gap-3">
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="flex flex-col gap-1">
-            <span className="text-tiny text-muted font-semibold">今日体重</span>
-            <span className="font-display text-title font-semibold tabular-nums">
-              52.4<span className="text-caption text-muted ml-0.5">kg</span>
-            </span>
-            <span className="text-tiny text-success-ink">比上周 −0.6</span>
-          </Card>
-          <Card className="flex flex-col gap-1">
-            <span className="text-tiny text-muted font-semibold">今日心情</span>
-            <span className="font-display text-title font-semibold">不错</span>
-            <span className="text-tiny text-muted">4 / 5 · 已记录</span>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader title="饮水" description="自定义目标 · 每天 8 杯" />
-          <StepProgress total={8} done={5} tone="custom" label="今日饮水" />
-        </Card>
-
-        <Card>
-          <CardHeader title="朋友动态" />
-          <ul className="grid gap-2.5">
-            {feed.map((f) => (
-              <li key={f.name} className="flex items-center gap-2.5">
-                <IconTile icon={moduleMeta[f.tone].icon} tone={f.tone} size="sm" />
-                <span className="text-caption min-w-0 flex-1 truncate">
-                  <span className="font-semibold">{f.name}</span> {f.text}
-                </span>
-                <span className="text-tiny text-muted shrink-0">{f.time}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
-    </div>
+    <HomeDashboard
+      data={demo}
+      now={DEMO_NOW}
+      timeZone="Asia/Shanghai"
+      onOpenWeight={() => launcher.open('weight')}
+      onOpenMood={() => launcher.open('mood')}
+    />
   )
 }
