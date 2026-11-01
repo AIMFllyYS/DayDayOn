@@ -1,19 +1,24 @@
-import { Icon } from '@/components/ui/icon'
 import { cn } from '@/lib/cn'
+import { logoSvg } from './logo-svg'
 
-/** 品牌标识（占位）：珊瑚色圆角块 + 对勾。正式 logo 定稿后替换 */
+// 构建时算好一次：内容是常量 SVG，不含用户输入
+const MARK_HTML = logoSvg('mark')
+
+/**
+ * 品牌标识（ADR-0022）：团团大头的 App 图标，与标签页图标、App 图标同源（logo-svg.ts）。
+ * 稍微歪一点，像贴在手账上的贴纸。
+ */
 export function BrandMark({ size = 36, className }: { size?: number; className?: string }) {
   return (
     <span
       aria-hidden
       className={cn(
-        'bg-primary text-on-primary shadow-primary inline-flex shrink-0 rotate-[-6deg] items-center justify-center rounded-xl',
+        'shadow-soft inline-flex shrink-0 rotate-[-6deg] overflow-hidden rounded-[22%] [&>svg]:size-full',
         className,
       )}
       style={{ width: size, height: size }}
-    >
-      <Icon name="check" size={Math.round(size * 0.6)} strokeWidth={3} />
-    </span>
+      dangerouslySetInnerHTML={{ __html: MARK_HTML }}
+    />
   )
 }
 
