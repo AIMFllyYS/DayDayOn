@@ -6,6 +6,7 @@ import { ApiError } from '@/server/api/errors'
 import type { DbOrTx, Tx } from '@/server/db/client'
 import { profiles, user } from '@/server/db/schema'
 // 与主页、排行榜共用：窗口按需扩大，连续天数总是准确的
+import { writeTombstone } from '@/server/quota/tombstone-store'
 import { loadStreak } from '@/server/services/rank/streaks'
 import { toMeDto, type MeRow } from './dto'
 import { collectExport } from './export'
@@ -124,7 +125,9 @@ export async function exportMyData(
  * ai_runs、quota_ledger、redeem_codes、redeem_attempts、admin_audit_logs 的用户外键置空，账本保留。
  * 会话行随 user 一起删除，之后任何请求都是 401；浏览器端的 cookie 由前端调 signOut 清掉。
  */
-export async function deleteAccount(tx: Tx, userId: string): Promise<void> {
+export async function deleteAccount(tx: Tx, userId: string, now = new Date()): Promise<void> {
+  // 先按邮箱摘要留注销记录：同一邮箱重新注册不重新发本周额度、风控计数接着算（tombstone.ts）
+  await writeTombstone(tx, userId, now)
   const deleted = await tx.delete(user).where(eq(user.id, userId)).returning({ id: user.id })
   if (deleted.length === 0) throw new ApiError('UNAUTHENTICATED', '用户不存在或已注销')
 }

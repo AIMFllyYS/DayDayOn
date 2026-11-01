@@ -132,6 +132,8 @@ export async function openAccount(
   userId: string,
   weeklyLimitMicros: number,
   now: Date,
+  /** 同一邮箱本周注销过（tombstone.ts restoredOpening）：沿用注销前的额度，不写 grant 流水 */
+  restored?: { weeklyLimitMicros: number; weeklyUsedMicros: number },
 ): Promise<QuotaBalance> {
   const periodKey = quotaPeriodKey(now)
   const [inserted] = await tx
@@ -139,8 +141,8 @@ export async function openAccount(
     .values({
       userId,
       periodKey,
-      weeklyLimitMicros,
-      weeklyUsedMicros: 0,
+      weeklyLimitMicros: restored?.weeklyLimitMicros ?? weeklyLimitMicros,
+      weeklyUsedMicros: restored?.weeklyUsedMicros ?? 0,
       bonusMicros: 0,
       reservedMicros: 0,
       createdAt: now,
@@ -149,6 +151,7 @@ export async function openAccount(
     .onConflictDoNothing({ target: quotaAccounts.userId })
     .returning(balanceColumns)
   if (!inserted) return lockCurrent(tx, userId, now)
+  if (restored) return inserted
   await writeLedger(
     tx,
     userId,

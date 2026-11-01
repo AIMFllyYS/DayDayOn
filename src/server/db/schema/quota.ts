@@ -1,4 +1,13 @@
-import { bigint, boolean, index, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import {
+  bigint,
+  boolean,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core'
 import type { LedgerBucket, LedgerKind, RedeemCodeStatus } from '../../../features/quota/schemas'
 import { aiRuns } from './ai'
 import { user } from './auth'
@@ -66,6 +75,32 @@ export const redeemCodes = pgTable(
   (t) => [
     uniqueIndex('redeem_codes_code_hash_key').on(t.codeHash),
     index('redeem_codes_status_idx').on(t.status),
+  ],
+)
+
+/**
+ * 注销记录（规则见 src/server/quota/tombstone.ts）：同一邮箱注销后重新注册，不重新发本周额度，
+ * 风控计数（每小时 AI 次数、单人日花费、兑换失败锁定）接着算。保留 8 天，用过即删。
+ * 不存邮箱明文：emailHash 是规范化邮箱的 HMAC-SHA-256。不关联 user（注销后 user 行已删除）。
+ */
+export const accountTombstones = pgTable(
+  'account_tombstones',
+  {
+    ...id,
+    emailHash: text().notNull(),
+    /** 注销时的额度周期键与本周额度快照 */
+    periodKey: text().notNull(),
+    weeklyLimitMicros: bigint({ mode: 'number' }).notNull(),
+    weeklyUsedMicros: bigint({ mode: 'number' }).notNull(),
+    /** 注销前 24 小时内的 ai_runs / redeem_attempts id：重新注册时关联到新账号 */
+    aiRunIds: jsonb().$type<string[]>().notNull(),
+    redeemAttemptIds: jsonb().$type<string[]>().notNull(),
+    deletedAt: timestamptz().notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('account_tombstones_email_hash_key').on(t.emailHash),
+    index('account_tombstones_deleted_at_idx').on(t.deletedAt),
   ],
 )
 

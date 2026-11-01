@@ -6,7 +6,9 @@ import { db } from '@/server/db/client'
 import { adminAuditLogs, profiles, user as userTable } from '@/server/db/schema'
 import { openAccount } from '@/server/quota/ledger'
 import { maybeAlert } from '@/server/quota/alerts'
-import { spendDayKey } from '@/server/quota/period'
+import { quotaPeriodKey, spendDayKey } from '@/server/quota/period'
+import { restoredOpening } from '@/server/quota/tombstone'
+import { claimTombstone } from '@/server/quota/tombstone-store'
 import { consume, type RateLimitRule } from '@/server/rate-limit'
 import { getSettings } from '@/server/settings'
 import { checkEmail } from './email-policy'
@@ -192,7 +194,20 @@ export const databaseHooks: DatabaseHooks = {
               .insert(profiles)
               .values({ userId: created.id, signupIp: context ? contextIp(context) : null })
               .onConflictDoNothing({ target: profiles.userId })
-            await openAccount(tx, created.id, settings.newUserQuotaMicros, now)
+            // 同一邮箱本周注销过：沿用注销前的本周额度，风控行关联回来（tombstone.ts）
+            const snapshot = await claimTombstone(tx, created.id, created.email, now)
+            const opening = restoredOpening(
+              snapshot,
+              quotaPeriodKey(now),
+              settings.newUserQuotaMicros,
+            )
+            await openAccount(
+              tx,
+              created.id,
+              settings.newUserQuotaMicros,
+              now,
+              opening.restored ? opening : undefined,
+            )
           })
         } catch (error) {
           console.error('[auth] 新账号初始化失败', error instanceof Error ? error.message : error)

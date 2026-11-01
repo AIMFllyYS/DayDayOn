@@ -13,6 +13,19 @@ export async function sha256Hex(input: string): Promise<string> {
   return toHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input)))
 }
 
+/** HMAC-SHA-256 十六进制摘要（注销记录的邮箱摘要：没有密钥就不能用邮箱字典反查） */
+export async function hmacSha256Hex(secret: string, input: string): Promise<string> {
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  return toHex(await crypto.subtle.sign('HMAC', key, enc.encode(input)))
+}
+
 /** 字节的 SHA-256 十六进制摘要（幂等摘要里的 multipart 请求体） */
 export async function sha256HexBytes(input: ArrayBuffer): Promise<string> {
   return toHex(await crypto.subtle.digest('SHA-256', input))
