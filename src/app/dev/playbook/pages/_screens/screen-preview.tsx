@@ -90,7 +90,7 @@ export function ScreenPreview() {
       <div
         data-ann={`playbook.pages.screen.${current}`}
         className={cn(
-          'grid items-start gap-6',
+          'grid w-full max-w-full min-w-0 items-start gap-6',
           layout === 'both' && 'xl:grid-cols-[auto_minmax(0,1fr)]',
         )}
       >

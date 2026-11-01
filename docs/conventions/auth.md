@@ -39,16 +39,17 @@ src/app/api/auth/[...all]/route.ts     export const { GET, POST } = toNextJsHand
 - `auth.api.*` 在服务端直接调用时**不经过限流**（官方文档）。所以发验证码、登录只能由浏览器请求 `/api/auth/*` 触发，不要在 `/api/v1` 里包一层再调 `auth.api.sendVerificationOTP()`。
 - 不自定义会话 cookie 的名字和前缀。自定义后 `getSessionCookie()` 要同步传参，容易漏。
 
-## 3. 限流
+## 3. 人机验证与限流
 
-ADR-0002 第 6 节的规则按能力分两处实现：
+依据 [ADR-0023](../adr/0023-captcha.md) 与 [ADR-0002](../adr/0002-account-quota-risk.md) 第 6 节，发码前置 Cloudflare Turnstile 人机验证，并放宽同 IP 频控阈值以避免校园网/NAT 误伤：
 
 | 规则 | 实现位置 |
 |---|---|
-| 发送验证码：同一 IP 每小时 5 次 | Better Auth `customRules`（发送验证码的端点，窗口 3600 秒、上限 5） |
-| 发送验证码：同一 IP 每天 20 次；同一邮箱 60 秒 1 次、每天 10 次 | `hooks.before` 里调用与 `/api/v1` 共用的计数函数 `consume()`（`src/server/rate-limit.ts`） |
-| 同一 IP 每天最多 3 个新账号 | `hooks.before`：登录端点上邮箱尚未注册（即将自动注册）时按 IP 计数 |
-| 验证码连续错 5 次作废 | emailOTP `allowedAttempts: 5` |
+| 发送验证码：前置 Cloudflare Turnstile 人机验证 | 前端经 `src/components/ui/turnstile.tsx` 获取一次性 token 并通过 `x-captcha-response` 请求头发送；服务端在 `hooks.before` 最前面调 `enforceTurnstile()`（`src/server/auth/captcha.ts`），未通过时直接拒绝且不消耗后续限流计数 |
+| 发送验证码：同一 IP 每小时 100 次；验证码登录：同一 IP 每分钟 30 次 | Better Auth `customRules`（覆盖内置对 `/sign-in/*` 的 10 秒 3 次限制） |
+| 发送验证码：同一 IP 每天 500 次（可调）；同一邮箱 60 秒 1 次、每天 100 次（可调） | `hooks.before` 里调用与 `/api/v1` 共用的计数函数 `consume()`（`src/server/rate-limit.ts`） |
+| 同一 IP 每天最多 100 个新账号（可调） | `databaseHooks.user.create.before` 按 IP 计数 |
+| 验证码连续错 8 次作废 | emailOTP `allowedAttempts: 8` |
 
 - 端点路径（发送验证码、验证码登录）在安装后对照 `auth.api` 和插件源码核对，写进 `auth.ts` 的常量，不在多处手写字符串。
 - 超限时抛 `APIError('TOO_MANY_REQUESTS', …)`，前端按 429 显示"太频繁了，稍等一会儿再试"。
@@ -84,6 +85,8 @@ ADR-0002 第 6 节的规则按能力分两处实现：
 | `BETTER_AUTH_SECRET` | 至少 32 字节的随机串。服务器和本地各用各的 |
 | `BETTER_AUTH_URL` | 站点地址，本地 `http://localhost:23329` |
 | `BETTER_AUTH_TELEMETRY` | `0` |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile 站点公钥（留空时回退到官方测试公钥 `1x00000000000000000000AA`） |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile 服务端密钥（留空时回退到官方测试密钥，需与公钥成对配置） |
 
 ## 8. 测试
 

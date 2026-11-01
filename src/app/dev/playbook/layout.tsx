@@ -14,9 +14,9 @@ export const metadata: Metadata = {
  */
 export default function PlaybookLayout({ children }: LayoutProps<'/dev/playbook'>) {
   return (
-    <div className="bg-paper flex min-h-dvh flex-1 flex-col">
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 pt-[calc(var(--safe-top)+1.25rem)] pb-28 md:flex-row md:gap-10 md:px-8 md:pt-10">
-        <aside className="flex flex-col gap-4 md:sticky md:top-10 md:h-fit md:w-52 md:shrink-0">
+    <div className="bg-paper flex min-h-dvh w-full max-w-full flex-1 flex-col overflow-x-clip">
+      <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col gap-6 px-4 pt-[calc(var(--safe-top)+1.25rem)] pb-28 md:flex-row md:gap-10 md:px-8 md:pt-10">
+        <aside className="flex w-full min-w-0 flex-col gap-4 md:sticky md:top-10 md:h-fit md:w-52 md:shrink-0">
           <Link href="/dev" className="flex items-center gap-2.5">
             <BrandMark size={32} />
             <span className="leading-tight">

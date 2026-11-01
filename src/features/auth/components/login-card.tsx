@@ -1,8 +1,9 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Mascot } from '@/components/mascot/mascot'
+import type { TurnstileFieldRef } from '@/components/ui/turnstile'
 import { authClient } from '@/lib/auth-client'
 import { otpIsDead, safeNextPath, toLoginError, type AuthClientError } from '../login-errors'
 import { useCountdown } from '../use-countdown'
@@ -34,20 +35,32 @@ export function LoginCard() {
   const [error, setError] = useState<string | undefined>(
     params.get('banned') ? '账号已被停用，重新登录可以看到原因' : undefined,
   )
+  const [captchaToken, setCaptchaToken] = useState<string | undefined>(undefined)
+  const captchaRef = useRef<TurnstileFieldRef>(null)
   const countdown = useCountdown()
 
   async function send(resend = false) {
     const address = email.trim()
     if (!address) return setError('先填一下邮箱')
+    if (!captchaToken) {
+      captchaRef.current?.reset()
+      return setError('请先完成人机验证')
+    }
     setError(undefined)
     if (resend) setResending(true)
     else setPending(true)
+    const token = captchaToken
     const { error: e } = await authClient.emailOtp.sendVerificationOtp({
       email: address,
       type: 'sign-in',
+      fetchOptions: {
+        headers: { 'x-captcha-response': token },
+      },
     })
     setPending(false)
     setResending(false)
+    // Turnstile token 一次性有效，无论成功或失败都立即刷新供下一次使用
+    captchaRef.current?.reset()
     if (e) return setError(toLoginError(e as AuthClientError).message)
     countdown.start(RESEND_SECONDS)
     setCode('')
@@ -92,6 +105,7 @@ export function LoginCard() {
 
   function backToEmail() {
     setError(undefined)
+    setCaptchaToken(undefined)
     setStep('email')
   }
 
@@ -107,6 +121,9 @@ export function LoginCard() {
             pending={pending}
             error={error}
             cooldown={countdown.left}
+            captchaRef={captchaRef}
+            onCaptchaTokenChange={setCaptchaToken}
+            onCaptchaError={() => setError('人机验证加载失败，点选重试或刷新一下页面')}
           />
         )}
         {step === 'code' && (
@@ -121,6 +138,9 @@ export function LoginCard() {
             resending={resending}
             error={error}
             cooldown={countdown.left}
+            captchaRef={captchaRef}
+            onCaptchaTokenChange={setCaptchaToken}
+            onCaptchaError={() => setError('人机验证加载失败，点选重试或刷新一下页面')}
           />
         )}
         {step === 'totp' && (

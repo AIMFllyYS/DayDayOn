@@ -46,8 +46,8 @@ export interface TodoScreenProps {
 export function TodoScreen(props: TodoScreenProps) {
   const { view, onViewChange, onCreate } = props
   return (
-    <div className="mx-auto grid w-full max-w-2xl gap-3">
-      <div className="flex items-center gap-2">
+    <div className="mx-auto grid w-full max-w-2xl min-w-0 gap-3">
+      <div className="flex w-full min-w-0 items-center gap-2">
         <SegmentedControl
           options={views}
           value={view}

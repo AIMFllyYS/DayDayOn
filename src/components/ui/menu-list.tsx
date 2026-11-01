@@ -15,9 +15,9 @@ interface MenuListProps {
 /** 菜单列表：「我的」页设置项、弹层里的选项列表。一组放在一张卡片里，组内用细线分隔 */
 export function MenuList({ title, children, className }: MenuListProps) {
   return (
-    <section className={cn('flex flex-col gap-2', className)}>
+    <section className={cn('flex w-full min-w-0 flex-col gap-2', className)}>
       {title && <h3 className="text-tiny text-muted px-1 font-semibold">{title}</h3>}
-      <ul className="divide-border bg-surface shadow-soft divide-y overflow-hidden rounded-2xl">
+      <ul className="divide-border bg-surface shadow-soft w-full min-w-0 divide-y overflow-hidden rounded-2xl">
         {children}
       </ul>
     </section>
@@ -63,7 +63,9 @@ export function MenuItem({
           </span>
         )}
       </span>
-      {trailing && <div className="flex shrink-0 items-center">{trailing}</div>}
+      {trailing && (
+        <div className="flex max-w-[55%] shrink-0 items-center justify-end">{trailing}</div>
+      )}
       {(href || onClick) && !trailing && (
         <Icon name="chevron-right" size={18} className="text-subtle shrink-0" />
       )}
@@ -71,7 +73,7 @@ export function MenuItem({
   )
 
   const rowClass =
-    'flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-(--dur-fast) hover:bg-background active:bg-surface-sunken'
+    'flex min-h-14 w-full min-w-0 items-center gap-3 px-4 py-2.5 text-left transition-colors duration-(--dur-fast) hover:bg-background active:bg-surface-sunken'
 
   if (href) {
     return (

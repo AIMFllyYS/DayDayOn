@@ -48,7 +48,7 @@ export function DesktopFrame({
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
       {/* 在手机上看桌面演示时横向滚动，不撑宽页面 */}
-      <div className="border-border-strong bg-surface shadow-card overflow-x-auto rounded-2xl border">
+      <div className="border-border-strong bg-surface shadow-card w-full max-w-full overflow-x-auto rounded-2xl border">
         <div style={{ minWidth }}>
           <div className="border-border bg-surface-sunken flex h-8 items-center gap-1.5 border-b px-3">
             <span className="bg-danger/70 size-2.5 rounded-full" />

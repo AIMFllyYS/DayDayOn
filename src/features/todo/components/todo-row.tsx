@@ -24,8 +24,11 @@ export function TodoRow({ todo, now, timeZone, onToggle, onEdit, onDelete }: Tod
   const done = todo.doneAt !== null
   const status = done ? 'none' : dueStatus(todo.dueAt, now)
   return (
-    <li className="animate-fade-up">
-      <Card variant="outline" className="flex items-center gap-1 py-1.5 pr-1.5 pl-2 md:py-1.5">
+    <li className="animate-fade-up w-full min-w-0">
+      <Card
+        variant="outline"
+        className="flex w-full min-w-0 items-center gap-1 py-1.5 pr-1.5 pl-2 md:py-1.5"
+      >
         <button
           type="button"
           role="checkbox"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button, IconButton } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
@@ -15,6 +15,7 @@ import { Select, type SelectOption } from '@/components/ui/select'
 import { Sheet } from '@/components/ui/sheet'
 import { Slider } from '@/components/ui/slider'
 import { toast } from '@/components/ui/toast'
+import { TurnstileField, type TurnstileFieldRef } from '@/components/ui/turnstile'
 
 // Playbook 演示：交互原语的真实组件。数据都是演示用的本地状态。
 
@@ -388,5 +389,23 @@ export function FormDemo() {
         保存
       </Button>
     </Form>
+  )
+}
+
+export function TurnstileDemo() {
+  const [token, setToken] = useState<string | undefined>()
+  const ref = useRef<TurnstileFieldRef>(null)
+  return (
+    <div className="flex w-full max-w-sm flex-col gap-3">
+      <TurnstileField ref={ref} onTokenChange={setToken} />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-caption text-muted">
+          {token ? '已获取一次性验证凭证' : '等待人机验证通过…'}
+        </span>
+        <Button variant="secondary" size="sm" onClick={() => ref.current?.reset()}>
+          重置凭证
+        </Button>
+      </div>
+    </div>
   )
 }

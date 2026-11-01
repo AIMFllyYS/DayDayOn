@@ -123,7 +123,9 @@ export function LineChart({
   const showDots = points.length <= 14
 
   return (
-    <figure className={cn('flex flex-col gap-2', className)}>
+    <figure
+      className={cn('flex w-full max-w-full min-w-0 flex-col gap-2 overflow-hidden', className)}
+    >
       <div ref={ref} className="w-full">
         <svg
           width={width}
