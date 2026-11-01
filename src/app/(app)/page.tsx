@@ -1,14 +1,15 @@
 import type { Metadata } from 'next'
 import { AppPage } from '@/components/layout/app-page'
-import { ComingSoon } from '@/components/layout/coming-soon'
+import { HomeView } from '@/features/dashboard/components/home-view'
 
-export const metadata: Metadata = { title: '主页' }
+// 和 (app)/layout.tsx 同一层的 page 不套用根 layout 的 title.template（routing.md 第 3 节）
+export const metadata: Metadata = { title: { absolute: '主页 · DayDayOn' } }
 
-/** 占位页（F3），由领域 Agent 替换 */
+/** 主页仪表盘（PRD 2.8）：数据在客户端经 /dashboard/today 取，加载中显示骨架 */
 export default function Page() {
   return (
     <AppPage title="主页">
-      <ComingSoon />
+      <HomeView />
     </AppPage>
   )
 }
