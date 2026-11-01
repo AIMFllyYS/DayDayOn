@@ -1,11 +1,11 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Sheet } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
+import { LinkButton } from '@/features/dashboard/components/link-button'
 import { errorMessage, isApiError, useQuery } from '@/lib/api'
 import { checkinTodayQuery } from '@/lib/api/queries/checkins'
 import type { CheckinToday } from '../schemas'
@@ -34,7 +34,6 @@ const titles: Record<CheckinLauncherView, string> = {
 
 export function CheckinSheet({ open, view, onOpenChange }: CheckinSheetProps) {
   const launcher = useCheckinLauncher()
-  const router = useRouter()
   const today = useQuery({ ...checkinTodayQuery(), enabled: open })
   const data = today.data
   const close = () => onOpenChange(false)
@@ -50,17 +49,15 @@ export function CheckinSheet({ open, view, onOpenChange }: CheckinSheetProps) {
 
   const footer =
     view === 'list' && data?.dietPhotoGoalId ? (
-      <Button
+      <LinkButton
+        href={`/goals/${data.dietPhotoGoalId}/checkin?mode=photo`}
         variant="soft"
         icon="camera"
         className="w-full"
-        onClick={() => {
-          close()
-          router.push(`/goals/${data.dietPhotoGoalId}/checkin?mode=photo`)
-        }}
+        onClick={close}
       >
         拍照记一餐
-      </Button>
+      </LinkButton>
     ) : view !== 'list' ? (
       <Button
         variant="ghost"
@@ -111,7 +108,6 @@ function SheetBody({
   onOpenView: CheckinSheetListProps['onOpenView']
 }) {
   const launcher = useCheckinLauncher()
-  const router = useRouter()
   // 记完体重 / 心情后回到列表
   const back = () => launcher.open('list')
 
@@ -138,15 +134,9 @@ function SheetBody({
           title="今天没有计划的目标"
           description="设定一个小目标，每天来这里打卡"
           action={
-            <Button
-              variant="soft"
-              onClick={() => {
-                onNavigate()
-                router.push('/goals/new')
-              }}
-            >
+            <LinkButton href="/goals/new" variant="soft" onClick={onNavigate}>
               去设定目标
-            </Button>
+            </LinkButton>
           }
         />
         <CheckinSheetList data={data} onNavigate={onNavigate} onOpenView={onOpenView} metricsOnly />

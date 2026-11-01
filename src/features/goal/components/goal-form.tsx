@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Field, Input, Textarea } from '@/components/ui/field'
 import { Form } from '@/components/ui/form'
 import { TimeField } from '@/components/ui/time-field'
@@ -39,6 +39,8 @@ interface GoalFormProps {
   id: string
   /** 表单底部（新建页的提交按钮）；放在 Sheet 的 footer 时用 form={id} 关联 */
   children?: ReactNode
+  /** 有没有未保存的改动（与打开时比较），变化时调用 */
+  onDirtyChange?: (dirty: boolean) => void
 }
 
 /**
@@ -53,6 +55,7 @@ export function GoalForm({
   fieldsHint,
   id,
   children,
+  onDirtyChange,
 }: GoalFormProps) {
   const [title, setTitle] = useState(initial.title)
   const [description, setDescription] = useState(initial.description ?? '')
@@ -68,6 +71,14 @@ export function GoalForm({
     setPrevServer(serverErrors)
     setShownServer(serverErrors)
   }
+
+  // 是否有未保存的改动：当前值与打开时的值逐项比较，变化时通知调用方（编辑抽屉关闭前确认）
+  const snapshot = JSON.stringify([title, description, target, weekdays, plannedTime, fields])
+  const [initialSnapshot] = useState(snapshot)
+  const dirty = snapshot !== initialSnapshot
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
 
   const errors = clientErrors ?? shownServer
   const err = (key: string) => errors?.top[key]?.[0]

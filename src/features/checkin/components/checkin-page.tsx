@@ -14,6 +14,7 @@ import {
   useCreateCheckin,
 } from '@/lib/api/queries/checkins'
 import { usePutRating } from '@/lib/api/queries/metrics'
+import { GoalLinkButton } from '@/features/goal/components/goal-link-button'
 import { afterCheckinChange } from '@/lib/api'
 import type { CheckinToday, CreateCheckinInput, DietMethod, GoalProgress } from '../schemas'
 import { CheckinScreen, type CheckinSubmitResult } from './checkin-screen'
@@ -43,14 +44,21 @@ export function CheckinPage({
   if (goal.isPending || today.isPending || me.isPending) return <CheckinSkeleton />
   if (goal.isError && isApiError(goal.error) && goal.error.code === 'GOAL_NOT_FOUND') {
     return (
-      <EmptyState title="找不到这个目标" description="可能已经删除了，回目标列表看看" mood="sad" />
+      <EmptyState
+        title="找不到这个目标"
+        description="可能已经删除了，回目标列表看看"
+        mood="sad"
+        action={<GoalLinkButton href="/goals">回目标列表</GoalLinkButton>}
+      />
     )
   }
   const error = goal.error ?? today.error ?? me.error
   if (error || !goal.data || !today.data || !me.data) {
     return (
       <ErrorState
+        title="打卡页没加载出来"
         message={isApiError(error) ? errorMessage(error) : undefined}
+        retrying={goal.isRefetching || today.isRefetching || me.isRefetching}
         onRetry={() => {
           void goal.refetch()
           void today.refetch()

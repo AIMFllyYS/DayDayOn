@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
@@ -47,6 +48,11 @@ interface TodoSheetProps {
 
 const FORM_ID = 'todo-sheet-form'
 
+// 只有关闭时有未保存改动才会用到（ui-primitives.md 第 3 节：懒加载）
+const ConfirmDialog = dynamic(() =>
+  import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+)
+
 export function TodoSheet({
   open,
   onOpenChange,
@@ -61,6 +67,15 @@ export function TodoSheet({
   const [priority, setPriority] = useState<TodoPriority>(todo?.priority ?? 'normal')
   const [errors, setErrors] = useState<FormErrors>()
   const shown = { ...serverErrors, ...errors }
+  // 未保存的改动：与打开时的值比较；有改动时下滑、点遮罩、Esc 关闭前先确认（client-data-and-forms.md 第 6 节）
+  const [initial] = useState(() => JSON.stringify([title, due, priority]))
+  const dirty = JSON.stringify([title, due, priority]) !== initial
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
+  function requestOpenChange(next: boolean) {
+    if (!next && dirty && !submitting) return setConfirmOpen(true)
+    onOpenChange(next)
+  }
 
   function dueInstant(): string | null {
     return due === '' ? null : combineLocalDateTime(due, timeZone).toISOString()
@@ -90,7 +105,7 @@ export function TodoSheet({
   return (
     <Sheet
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={requestOpenChange}
       title={todo ? '编辑待办' : '新建待办'}
       footer={
         <Button type="submit" form={FORM_ID} className="w-full" loading={submitting}>
@@ -142,6 +157,18 @@ export function TodoSheet({
           />
         </div>
       </Form>
+      {dirty && (
+        <ConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="还没保存，确定关闭？"
+          description="填了的内容会丢掉"
+          confirmLabel="不保存，关闭"
+          cancelLabel="继续编辑"
+          tone="danger"
+          onConfirm={() => onOpenChange(false)}
+        />
+      )}
     </Sheet>
   )
 }

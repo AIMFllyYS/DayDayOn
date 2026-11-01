@@ -1,8 +1,10 @@
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import { AppPage } from '@/components/layout/app-page'
 import { PageSkeleton } from '@/components/layout/page-skeleton'
 import { CheckinPage } from '@/features/checkin/components/checkin-page'
+import { IdSchema } from '@/features/shared/schemas'
 
 export const metadata: Metadata = { title: '打卡' }
 
@@ -19,6 +21,8 @@ export default function Page({ params, searchParams }: PageProps<'/goals/[goalId
 
 async function CheckinRoute({ params, searchParams }: PageProps<'/goals/[goalId]/checkin'>) {
   const { goalId } = await params
+  // 不是合法 id 的地址直接 404，不去请求接口（与目标详情页一致）
+  if (!IdSchema.safeParse(goalId).success) notFound()
   const { mode } = await searchParams
   // ?mode=photo：打卡弹层"拍照记一餐"直达；非法值回落到手动
   return (
