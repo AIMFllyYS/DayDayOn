@@ -6,6 +6,8 @@ import { db } from '@/server/db/client'
 import * as schema from '@/server/db/schema'
 import { env } from '@/server/env'
 import { sendOtp } from '@/server/mail'
+import { afterHook, beforeHook, databaseHooks } from './hooks'
+import { AUTH_PATHS } from './paths'
 
 /*
  * 全项目唯一的 Better Auth 实例（auth.md 第 1、2 节）。业务代码不直接 import 本文件，
@@ -15,11 +17,8 @@ import { sendOtp } from '@/server/mail'
  * 改 plugins 后要重新生成 src/server/db/schema/auth.ts（database.md 第 8 节）。
  */
 
-/** Better Auth 端点路径（better-auth@1.7.14 email-otp 插件源码核对过），限流与 hooks 只引用这里 */
-export const AUTH_PATHS = {
-  sendOtp: '/email-otp/send-verification-otp',
-  signInOtp: '/sign-in/email-otp',
-} as const
+/** Better Auth 端点路径（better-auth@1.7.14 插件源码核对过）。定义在 paths.ts，hooks.ts 共用 */
+export { AUTH_PATHS }
 
 export const auth = betterAuth({
   appName: 'DayDayOn',
@@ -63,10 +62,13 @@ export const auth = betterAuth({
     admin(),
     twoFactor({ issuer: 'DayDayOn' }),
   ],
-  // TODO(P1): hooks.before —— 邮箱规范化与白名单、按邮箱 / IP 的验证码限流、同 IP 每日注册数、封号用户登录返回 ACCOUNT_BANNED（auth.md 第 3、4 节，PRD 7.1）
-  // TODO(P1): hooks.after —— admin 插件 banUser / unbanUser 端点写 admin_audit_logs（PRD 7.3）
-  // TODO(P1): databaseHooks.user.create.after —— 建 profiles、quota_accounts（本周 2 元）与 grant 流水（PRD 7.1）
-  // TODO(P1): databaseHooks.session.create.after —— 更新 profiles.lastLoginIp（PRD 2.1）
+  // P1（实现在 hooks.ts）：
+  // hooks.before —— 邮箱规范化与白名单、按邮箱 / IP 的验证码限流（auth.md 第 3、4 节）
+  // hooks.after —— 封号用户登录改写为 ACCOUNT_BANNED + ban；admin 封号 / 解封写 admin_audit_logs（PRD 7.1、7.3）
+  // databaseHooks.user.create —— before：同 IP 每日注册数；after：建 profiles、quota_accounts 与 grant 流水
+  // databaseHooks.session.create.after —— 更新 profiles.lastLoginIp（PRD 2.1）
+  hooks: { before: beforeHook, after: afterHook },
+  databaseHooks,
 })
 
 export type Auth = typeof auth

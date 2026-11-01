@@ -1,5 +1,8 @@
 import 'server-only'
+import { createDeepSeek } from '@ai-sdk/deepseek'
 import type { LanguageModel } from 'ai'
+import { sha256Hex } from '@/server/crypto'
+import { env } from '@/server/env'
 
 /*
  * 唯一的模型实例（ai-and-quota.md 第 2 节）。签名 F1，实现 P1。
@@ -9,21 +12,25 @@ import type { LanguageModel } from 'ai'
 
 export const MODEL_ID = 'deepseek-flash' as const
 
-/** 是否配置了 DEEPSEEK_API_KEY；没有时识别接口返回 503 AI_PAUSED（PRD 风险表）。实现：P1 */
+/** 是否配置了 DEEPSEEK_API_KEY；没有时识别接口返回 503 AI_PAUSED（PRD 风险表） */
 export function isAiConfigured(): boolean {
-  throw new Error('not implemented: P1')
+  return Boolean(env.DEEPSEEK_API_KEY)
 }
+
+let flash: LanguageModel | undefined
 
 /**
  * 取模型实例（懒创建，读 env.DEEPSEEK_API_KEY）。测试里由 runAi 的 model 参数注入 MockLanguageModelV4。
- * 实现：P1
  */
 export function getFlashModel(): LanguageModel {
-  throw new Error('not implemented: P1')
+  if (flash) return flash
+  const apiKey = env.DEEPSEEK_API_KEY
+  if (!apiKey) throw new Error('DEEPSEEK_API_KEY 未配置')
+  flash = createDeepSeek({ apiKey })(MODEL_ID)
+  return flash
 }
 
-/** providerOptions.deepseek.userId：用户 id 的 SHA-256 十六进制（只允许 [a-zA-Z0-9_-]）。实现：P1 */
+/** providerOptions.deepseek.userId：用户 id 的 SHA-256 十六进制（只允许 [a-zA-Z0-9_-]） */
 export async function hashedUserId(userId: string): Promise<string> {
-  void userId
-  throw new Error('not implemented: P1')
+  return sha256Hex(userId)
 }
