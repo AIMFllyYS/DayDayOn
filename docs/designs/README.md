@@ -1,24 +1,11 @@
 # docs/designs/
 
-架构设计与决策记录。
+架构设计、UI 设计与组件库选型的决策现场。决策记录（ADR）本身在 [docs/adr/](../adr/README.md)。
 
 ## 现有文档
 
-- [architecture-baseline.md](./architecture-baseline.md) — 架构基线：技术栈、分层、AI、前端方案、边界条件
-- [adr-0001-ecosystem-or-standalone.md](./adr-0001-ecosystem-or-standalone.md) — 采用独立部署，不接入 1037Solo 生态
-- [adr-0002-account-quota-risk.md](./adr-0002-account-quota-risk.md) — 账号、邮件、图片、AI 额度、风控、后台
+- [architecture-baseline.md](./architecture-baseline.md) — 架构基线 v0.1 快照（不再更新，各节去向见文件头）
+- [reviews/](./reviews/) — Playbook 批注导出的 JSON
+- [library-showcase/](./library-showcase/index.html) — 组件库对比页（demo-init Phase 3 生成，每个关注点一个 HTML）。负责人 2026-10-31 已全部拍板，这些页面作为决策现场归档，每页底部的决策历史记录了拍板结果。重新生成：`node scripts/dev/library-showcase/build.mjs`
 
-## 决策记录模板
-
-```markdown
-# ADR-XXXX：[标题]
-
-> 状态：proposed | accepted | superseded · 日期：YYYY-MM-DD
-
-## 问题
-## 方案对比
-## 决策
-## 理由
-```
-
-UI 设计稿（Pencil 的 `.pen` 文件）放在 `designs/ui/`。
+UI 设计稿不单独画图，直接用代码写在 Playbook（`/dev/playbook`，规范见 [ui-design-system.md](../conventions/ui-design-system.md)）。

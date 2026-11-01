@@ -1,6 +1,16 @@
 pnpm-lock.yaml
 .next/
 out/
+build/
+artifact/
+.data/
+.claude/
+wf_*/
+.worktrees/
 node_modules/
 public/
 *.md
+src/server/db/migrations/meta/
+docs/specs/api/openapi.json
+# 由 scripts/dev/library-showcase/build.mjs 生成
+docs/designs/library-showcase/

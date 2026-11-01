@@ -5,3 +5,5 @@ allowBuilds:
   sharp: false
   unrs-resolver: false
   lefthook: false
+  # drizzle-kit 与 tsx 依赖 esbuild，postinstall 负责校验平台二进制
+  esbuild: true

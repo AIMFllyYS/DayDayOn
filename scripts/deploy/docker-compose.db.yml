@@ -1,0 +1,40 @@
+# 生产数据库。安装位置：/mnt/data/daydayon/compose/docker-compose.yml
+# 同目录的 .env（权限 600）提供 POSTGRES_PASSWORD。只绑定本机回环地址，不对公网开放。
+name: daydayon
+
+services:
+  db:
+    image: postgres:18.6-alpine3.24
+    container_name: daydayon-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: daydayon
+      POSTGRES_DB: daydayon
+      TZ: UTC
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - max_connections=40
+      - -c
+      - timezone=UTC
+    ports:
+      # 数据库端口，约定见 docs/conventions/ports.md
+      - '127.0.0.1:23432:5432'
+    volumes:
+      # PostgreSQL 18 的官方镜像把数据放在 /var/lib/postgresql/18/docker，挂载点是 /var/lib/postgresql
+      - /mnt/data/daydayon/postgres:/var/lib/postgresql
+    mem_limit: 512m
+    shm_size: 128m
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U daydayon -d daydayon']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

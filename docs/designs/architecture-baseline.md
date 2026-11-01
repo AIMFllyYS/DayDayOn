@@ -1,10 +1,23 @@
-# DayDayOn 架构基线 v0.1（待确认）
+# DayDayOn 架构基线 v0.1（快照）
 
-> 日期：2026-10-31 · 状态：草案，等待 [ADR-0001](./adr-0001-ecosystem-or-standalone.md) 定稿
-> 依据：demo-init skill、git-commit skill、服务器实测、npm 实测版本、DeepSeek / AI SDK 官方文档
+> 日期：2026-10-31 · 状态：**快照，不再更新**
+> 依据：demo-init 旧版（2026-08-14）、git-commit skill、服务器实测、npm 实测版本、DeepSeek / AI SDK 官方文档
 >
-> **2026-10-31 修订**：认证、数据库位置、部署流程、图片存储取决于 ADR-0001（接入 1037Solo 生态还是独立部署）。
-> 第 2 节部署拓扑、第 0 节"文件存储"一行、第 11 节问题已被 ADR-0001 取代；其余内容不变。
+> 本文写于采用 demo-init 新版流程之前，是最早一轮分析的记录。按新版流程，"我们一直怎么做"已拆进各篇规范，"为什么这样选"进 ADR，库的选型进组件库注册表。**本文与下表所列文档冲突时，以那些文档为准。**
+>
+> | 本文章节 | 现在以哪里为准 |
+> |---|---|
+> | §0 决策速览中的 ORM、认证、API、组件库、PWA、后台任务 | [libraries.md](../libraries.md)（2026-10-31 已定稿；本文的 Motion、Rive / Lottie、Recharts、shadcn Drawer 等选择已被 ADR-0004 至 0020 取代） |
+> | §0 运行模式、数据库，§2 服务器与部署 | [ADR-0001](../adr/0001-ecosystem-or-standalone.md)、[deploy-aliyun-ecs.md](../ops/deploy-aliyun-ecs.md)、[ports.md](../conventions/ports.md) |
+> | §0 文件存储、§5 AI 成本控制、§6 额度相关表 | [ADR-0002](../adr/0002-account-quota-risk.md) |
+> | §1 与 demo-init 的取舍 | demo-init 新版改为可选规则包：本项目加载 nextjs 包（已按自托管改写），不加载 edgeone、supabase 包。见 [plan-demo-init-alignment.md](../plans/plan-demo-init-alignment.md) |
+> | §3 技术栈版本 | `package.json` 与 [libraries.md](../libraries.md) |
+> | §4 分层架构 | [project-structure.md](../conventions/project-structure.md)、[api-conventions.md](../conventions/api-conventions.md)、[database.md](../conventions/database.md)、[auth.md](../conventions/auth.md) |
+> | §7 前端方案 | [ui-design-system.md](../conventions/ui-design-system.md)、[ui-primitives.md](../conventions/ui-primitives.md)、[client-data-and-forms.md](../conventions/client-data-and-forms.md)、[routing.md](../conventions/routing.md)、libraries.md |
+> | §8 边界条件 | 写 PRD 时并入 `docs/specs/` |
+> | §9 Git 规范、§10 .gitignore | [git-workflow.md](../conventions/git-workflow.md)、`.gitignore` |
+> | §11 待拍板问题 | ADR-0001、ADR-0002（已全部回答） |
+> | §12 排期 | [ADR-0003 项目范围](../adr/0003-project-scope.md) 与 plan-demo-init-alignment.md |
 
 ---
 
@@ -21,7 +34,7 @@
 | 组件库 | shadcn/ui（Tailwind v4 + Radix）+ Motion + Recharts + sonner + dnd-kit | 源码复制进仓库，圆角、配色、动效可以完全改成治愈可爱风 |
 | PWA | Serwist（`@serwist/turbopack`） | Next 16 默认 Turbopack，Serwist 9 已支持 |
 | 后台任务 | pg-boss（基于 Postgres 的任务队列） | 提醒、每日汇总、排行榜快照；不额外引入 Redis，节省服务器内存 |
-| 文件存储 | ~~先存服务器数据盘~~ → 见 ADR-0001 第 6 节：独立方案下图片不落盘，只保存解析结果 | 用户 2026-10-31 决定 |
+| 文件存储 | ~~先存服务器数据盘~~ → 见 ADR-0002 第 4 节：图片不落盘，只保存解析结果 | 用户 2026-10-31 决定 |
 
 ---
 
@@ -34,7 +47,7 @@ demo-init 面向"腾讯云 EdgeOne Pages + SSG 静态导出"，本项目部署�
 - AGENTS.md 只做索引（约 140 行），细则放 `docs/conventions/*.md`
 - `docs/`（plans / conventions / updates / specs / audits / ops / issues / designs）和 `scripts/`（setup / build / deploy / dev）目录结构
 - `src/app` 只放路由，业务下沉 `src/features`，`src/server` 放 server-only 代码
-- `proxy.ts` 替代 `middleware.ts`、request API 必须 `await`、`_dev/` 调试区单向引用、TypeScript strict 禁止 `any`
+- `proxy.ts` 替代 `middleware.ts`、request API 必须 `await`、调试区单向引用（目录已改为 `dev/`，见 routing.md 第 5 节）、TypeScript strict 禁止 `any`
 - code-size / code-style / code-review 三份规范原样沿用
 
 **替换**
@@ -48,7 +61,7 @@ demo-init 面向"腾讯云 EdgeOne Pages + SSG 静态导出"，本项目部署�
 | 分支从 `main` 切出 | 从 `dev` 切出，见第 9 节 |
 | rewrites / redirects 写进 `edgeone.json` | 写进 `next.config.ts` 或 Nginx |
 
-**新增规范文档**：`api-conventions.md`、`ai-agent.md`、`database.md`、`ui-design-tokens.md`、`git-workflow.md`。
+**新增规范文档**：`api-conventions.md`、`ai-agent.md`、`database.md`、`ui-design-tokens.md`（已改为 `ui-design-system.md`，另增 `routing.md`）、`git-workflow.md`。
 
 ---
 
@@ -67,7 +80,7 @@ demo-init 面向"腾讯云 EdgeOne Pages + SSG 静态导出"，本项目部署�
 
 1. **不在服务器上执行 `next build`**。2 核且已经在用 swap，构建会拖慢同机的其他应用。改为在 Linux 环境（GitHub Actions）构建 standalone 产物，再上传并 `pm2 reload`。
 2. **不能在 Windows 本地构建后直接上传**。`sharp` 等原生依赖与平台绑定，产物必须在 Linux x64 上构建。
-3. PG 容器限制 512MB 内存，只绑定 `127.0.0.1:<空闲端口>`，不对公网开放。
+3. PG 容器限制 512MB 内存，只绑定 `127.0.0.1:23432`，不对公网开放（端口约定见 [ports.md](../conventions/ports.md)）。
 4. 独立用户和目录方案（初稿，已被 deploy-aliyun-ecs.md 取代）：
 
 ```
@@ -217,7 +230,7 @@ APK 壳：Capacitor 8 以 `server.url` 加载线上站点。需要处理返回�
 | 自定义仪表盘拖拽排序 | dnd-kit |
 | 图片压缩 | browser-image-compression |
 | 提示消息 | sonner |
-| 图标 | lucide 作为基础线性图标；五个板块用 Pencil 设计的彩色图标 |
+| 图标 | ~~lucide~~ → 2026-10-31 改为全部手绘的 `Icon` 组件，不引入通用图标库（见 ui-design-system.md 第 6 节） |
 
 ### 7.2 响应式布局
 
@@ -235,6 +248,8 @@ APK 壳：Capacitor 8 以 `server.url` 加载线上站点。需要处理返回�
 - **推送限制**：Android Chrome 的 Web Push 依赖 FCM，中国大陆网络下基本收不到；iOS 必须先安装到主屏幕才能推送。所以 Web 阶段的打卡提醒以"应用内提醒 + 可选邮件"为主，可靠推送放到 APK 阶段（厂商推送通道或本地通知）。
 
 ### 7.4 治愈可爱风的落地方式（设计阶段细化）
+
+> **2026-10-31 修订**：不再用 Pencil 画设计稿。设计 token 和组件直接用代码写在 Playbook（`/dev/playbook`），规范见 [ui-design-system.md](../conventions/ui-design-system.md)；路由规范见 [routing.md](../conventions/routing.md)。原计划的 `ui-design-tokens.md` 并入 ui-design-system.md。下文保留原始思路。
 
 在 Pencil 里先定设计 token，再画页面：奶油色底、每个板块一种低饱和马卡龙色、16–24px 大圆角、柔和阴影、圆体字体、一个贯穿全站的吉祥物。中文圆体字体体积大，必须做子集化，否则首屏会慢。
 
@@ -300,7 +315,7 @@ APK 壳：Capacitor 8 以 `server.url` 加载线上站点。需要处理返回�
 
 ## 11. 待拍板的问题
 
-> 2026-10-31 已回答，结论与新的待确认项见 [ADR-0001](./adr-0001-ecosystem-or-standalone.md) 第 7、8 节。以下保留原问题作记录。
+> 2026-10-31 已全部回答，结论见 [ADR-0001](../adr/0001-ecosystem-or-standalone.md) 与 [ADR-0002](../adr/0002-account-quota-risk.md)。以下保留原问题作记录。
 
 1. **GitHub 账号**：本机 gh 同时登录了 `AIMFllyYS`（当前活动）和 `AIMFllys`，仓库建在哪个账号下？仓库名用 `DayDayOn` 吗？
 2. **产品名与域名**：中文名叫什么？用哪个已备案域名的子域名（例如 `daydayon.1037solo.com`）？
@@ -317,7 +332,7 @@ APK 壳：Capacitor 8 以 `server.url` 加载线上站点。需要处理返回�
 | 阶段 | 内容 |
 |---|---|
 | Phase 0 基建（当前） | 本文定稿 → GitHub 仓库与分支保护 → 改造版 demo-init 脚手架与规范文档 → 本地 Docker PG → 服务器 PG 容器 → CI 与发布脚本 → PWA 空壳上线（HTTPS） |
-| Phase 1 PRD 与设计 | PRD（含第 8 节边界条件）→ Pencil 设计稿：设计 token、基础组件、五个主屏的手机版和桌面版 |
+| Phase 1 PRD 与设计 | PRD（含第 8 节边界条件）→ Playbook（`/dev/playbook`）：设计 token、基础组件、五个主屏的手机版和桌面版 |
 | Phase 2 MVP | 登录 → 资料与新人引导 → 目标设置 → 五类打卡（先手动）→ 体重与满意度 → 仪表盘（固定布局）→ 待办 |
 | Phase 3 AI | 饮食拍照识别、运动热量、睡眠截图解析、热量缺口、自定义目标 AI 解析 |
 | Phase 4 社交 | 排行榜、互动、内容审核 |

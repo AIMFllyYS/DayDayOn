@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>浏览器端图片压缩与传输 · DayDayOn 组件库对齐</title><style>
+:root{--paper:#f5f1ea;--card:#fbf9f5;--ink:#2b2925;--muted:#6f685e;--rule:#e2dacd;--accent:#d97757}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.75 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",system-ui,sans-serif}
+main{max-width:880px;margin:0 auto;padding:56px 24px 96px}
+h1,h2,h3{font-family:"Iowan Old Style","Source Han Serif SC","Noto Serif SC","Songti SC",Georgia,serif;font-weight:600;line-height:1.3;letter-spacing:.01em}
+h1{font-size:34px;margin:0 0 8px}h2{font-size:22px;margin:56px 0 12px}h3{font-size:19px;margin:0}
+p{margin:8px 0}a{color:inherit;text-decoration-color:var(--rule);text-underline-offset:3px}a:hover{text-decoration-color:var(--ink)}
+.eyebrow{color:var(--muted);font-size:13px;letter-spacing:.08em}
+.lede{color:var(--muted);font-size:17px}
+ul{padding-left:1.2em;margin:8px 0}li{margin:2px 0}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:24px;margin:16px 0}
+.card header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.tag{font-size:12px;border:1px solid var(--rule);border-radius:4px;padding:1px 8px;color:var(--muted)}
+.tag.pick{border-color:var(--accent);color:var(--accent)}
+.pkg{font:13px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:7px 10px 7px 0;border-top:1px solid var(--rule)}
+th{width:84px;color:var(--muted);font-weight:500;white-space:nowrap}
+.flag{color:var(--muted);font-size:12px;margin-left:6px;border-bottom:1px dotted var(--muted)}
+pre{background:#f0ebe2;border-radius:6px;padding:14px 16px;overflow:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+code{font:0.9em ui-monospace,SFMono-Regular,Consolas,monospace;background:#efe9df;border-radius:3px;padding:0 4px}
+.fit{border-left:2px solid var(--rule);padding-left:12px;margin-top:12px}
+.warn li{color:var(--muted)}
+.bars{margin:16px 0 8px}
+.bar{display:grid;grid-template-columns:220px 1fr 72px;gap:12px;align-items:center;font-size:14px;margin:6px 0}
+.bar .track{display:block;height:8px;background:#ebe4d8;border-radius:4px;overflow:hidden}
+.bar .fill{display:block;height:100%;background:#b9ad9c}
+.bar.pick .fill{background:var(--accent)}
+.bar .v{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.decision{border-top:1px solid var(--ink);padding-top:8px}
+.history li{list-style:none;margin-left:-1.2em;padding:4px 0;border-top:1px solid var(--rule)}
+.history time{color:var(--muted);font-size:13px;margin-right:10px}
+.src{font-size:13px;color:var(--muted)}
+.overview td:first-child{white-space:nowrap;color:var(--muted)}
+@media (max-width:640px){main{padding:32px 16px 72px}h1{font-size:28px}.bar{grid-template-columns:1fr 64px}.bar .track{grid-column:1/-1;order:3}}
+</style></head>
+<body><main><p class="eyebrow">关注点 8 · B 板块专用 · ADR-0011</p>
+<h1>浏览器端图片压缩与传输</h1>
+<p class="lede">浏览器原生能力（createImageBitmap + canvas）就够，关键是格式和尺寸选对。</p>
+<h2>我们需要什么</h2><ul><li>拍照或选图 → 浏览器压缩 → 发给 deepseek-flash 识别</li><li>图片永不落盘、不上云（ADR-0002 第 4 节）</li><li>主要是 iPhone 照片</li></ul>
+<h2>本次核实的关键事实</h2><ul><li>Safari 从未支持用 canvas 编码 WebP，请求 WebP 会静默返回 PNG（MDN：不支持的格式回退为 image/png）</li><li>DeepSeek 接受 JPEG、PNG、GIF、WebP；推理前把图片缩放到约 1300×1300 的像素总量，每张图最多 1024 个 token</li><li>AI SDK 的 DeepSeek provider 支持内联图片（file part）；也支持 DeepSeek Files API（uploadFile），文件会存在 DeepSeek，保留 1 小时到 30 天，不设过期则永久保存</li></ul>
+<h2>候选</h2><div class="bars" aria-label="客户端体积对比（min+gzip）"><div class="bar pick"><span>原生 createImageBitmap + canvas.toBlob（JPEG）</span><span class="track"><span class="fill" style="width:1.0%"></span></span><span class="v">0 KB</span></div><div class="bar"><span>browser-image-compression</span><span class="track"><span class="fill" style="width:100.0%"></span></span><span class="v">20.5 KB</span></div></div><p class="src">体积按本项目会用到的导出组合实测（esbuild minify，react 外置，gzip -9）；用例之间共享代码，相加会高估。方法见 data.json 的 method 字段。</p>
+<section class="card"><header><h3>原生 createImageBitmap + canvas.toBlob（JPEG）</h3><span class="tag pick">推荐</span></header>
+
+<p class="src">0 KB（约 50 行自写代码）</p>
+<ul><li>把像素总量缩到不超过约 1300×1300（再大 DeepSeek 也会缩小）</li><li>JPEG 质量 0.8，所有浏览器都能编码</li><li>重新编码会去掉 EXIF（包括 GPS 位置）</li></ul>
+
+
+
+<p class="fit"><strong>适合我们吗：</strong>零依赖，行为可控。</p></section>
+<section class="card"><header><h3>browser-image-compression</h3><span class="tag no">不采用</span><span class="pkg">browser-image-compression</span></header>
+<p class="src">npm 描述："Compress images in the browser"</p>
+
+<ul><li>在 Web Worker 里压缩</li></ul>
+<table><tr><th>最近发布</th><td>2.0.2（2023-03-06；12 个月内 0 次）<span class="flag">超过 12 个月未发布</span></td></tr><tr><th>维护</th><td>npm 维护者账号 1 个；GitHub ★1,721，最近提交 2024-03-08<span class="flag">单个 npm 账号发布（bus factor）</span></td></tr><tr><th>体积</th><td>实测 20.5 KB（min+gzip）；直接依赖 1 个，传递依赖 1 个</td></tr><tr><th>安装脚本</th><td>包本身与传递依赖都没有 preinstall / install / postinstall</td></tr><tr><th>许可证</th><td>MIT；依赖树无 copyleft</td></tr><tr><th>兼容性</th><td>无相关 peer 依赖</td></tr><tr><th>类型</th><td>包内自带类型声明</td></tr></table>
+<ul class="warn"><li>最近一次发布 2023-03，仓库最近一次提交 2024-03</li><li>单人维护</li></ul>
+
+<p class="fit"><strong>适合我们吗：</strong>底层同样是 canvas，为 50 行代码多一个停滞的依赖。</p></section>
+<section class="card"><header><h3>Compressor.js</h3><span class="tag no">不采用</span><span class="pkg">compressorjs</span></header>
+<p class="src">npm 描述："JavaScript image compressor."</p>
+
+<ul><li>canvas 压缩</li></ul>
+<table><tr><th>最近发布</th><td>1.4.0（2026-10-01；12 个月内 2 次）</td></tr><tr><th>维护</th><td>npm 维护者账号 1 个；GitHub 未核实<span class="flag">单个 npm 账号发布（bus factor）</span></td></tr><tr><th>体积</th><td>未实测；直接依赖 2 个，传递依赖 未扫描 个</td></tr><tr><th>安装脚本</th><td>未扫描</td></tr><tr><th>许可证</th><td>MIT；依赖树未扫描</td></tr><tr><th>兼容性</th><td>无相关 peer 依赖</td></tr><tr><th>类型</th><td>包内自带类型声明</td></tr></table>
+
+
+<p class="fit"><strong>适合我们吗：</strong>同样是 canvas，没有必要。</p></section>
+
+<h2>决定</h2><div class="decision">
+<p><strong>所有者：</strong>不引入库：原生 canvas 压缩为 JPEG</p>
+<p><strong>封装层入口：</strong>src/lib/image/compress.ts（浏览器端）；src/server/ai/image.ts（服务端只在内存里转成内联 file part）</p>
+<ul><li>压缩输出统一为 JPEG（质量 0.8），像素总量不超过约 1300×1300；取代 ADR-0002 第 4 节&quot;WebP、长边 ≤ 1600px&quot;的写法</li><li>图片只以内联 file part 发给 DeepSeek，<strong>禁止调用 uploadFile / DeepSeek Files API</strong>（文件会存在 DeepSeek 一侧）</li><li>服务端只在内存里处理，不写临时文件，不记录 base64</li><li>浏览器解码失败时（例如 Chrome 桌面打不开 HEIC）提示&quot;这张图打不开，换一张或截个图试试&quot;</li></ul>
+<p><strong>放弃了什么：</strong></p><ul><li>browser-image-compression：2023 年以来没有发布</li><li>Compressor.js：同样的原理，不需要库</li></ul>
+<p><strong>已知代价：</strong>JPEG 比 WebP 稍大；HEIC 在部分桌面浏览器打不开。</p>
+<p><strong>何时重审：</strong></p><ul><li>Safari 支持 canvas 编码 WebP 时</li><li>DeepSeek 调整图片尺寸或计费规则时</li></ul></div>
+<h2>决策历史</h2><ul class="history">
+<li><time>2026-10-31</time>负责人确认功能盘点（头像用预设方案），委托 AI 系统性分析各关注点的选型。</li>
+<li><time>2026-10-31</time>AI 完成联网调研与本地实测，给出建议（ADR-0011 为 Proposed）。</li>
+<li><time>2026-10-31</time>负责人拍板：17 项建议全部采纳，按 AI 的最终分析执行。<strong>状态：已定</strong>（ADR-0011 为 Accepted）。落地规则见 <a href="../../conventions/README.md">docs/conventions/</a>。</li>
+</ul>
+<h2>来源</h2><ul class="src"><li><a href="https://api-docs.deepseek.com/guides/vision">DeepSeek 图像理解指南</a>（抓取于 2026-10-31）</li><li><a href="https://ai-sdk.dev/providers/ai-sdk-providers/deepseek">AI SDK DeepSeek provider</a>（抓取于 2026-10-31）</li><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toBlob">MDN HTMLCanvasElement.toBlob</a>（抓取于 2026-10-31）</li><li><a href="https://dev.to/harshit_katheria/ask-canvas-for-a-webp-in-safari-and-you-silently-get-a-png-5hn6">Safari 不编码 WebP 的说明（dev.to）</a>（抓取于 2026-10-31）</li>
+<li>npm registry、GitHub、体积与依赖树扫描：<a href="./data.json">data.json</a>（采集于 2026-10-31）</li></ul>
+<p class="src"><a href="./index.html">← 返回总览</a></p></main></body></html>

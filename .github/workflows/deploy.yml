@@ -1,0 +1,93 @@
+# 生产部署：合并进 main 后构建 Linux standalone 制品，经受限 SSH 交给服务器上的部署闸门。
+# 闸门（scripts/deploy/daydayon-deploy-gate.sh）只接受 status / deploy-artifact <sha40>，
+# 健康检查失败会自动切回上一版本。仓库变量 MAINECS_DEPLOY_ENABLED 不为 'true' 时只构建不部署。
+#
+# Secrets：MAINECS_SSH_KEY（部署私钥）、MAINECS_KNOWN_HOSTS（服务器 host key）
+# Variables：MAINECS_HOST、MAINECS_USER、MAINECS_DEPLOY_ENABLED、NEXT_PUBLIC_APP_URL
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-daydayon
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      LEFTHOOK: '0'
+      NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: bash scripts/build/pack-artifact.sh "$RUNNER_TEMP/artifact.tar.gz"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: daydayon-${{ github.sha }}
+          path: ${{ runner.temp }}/artifact.tar.gz
+          retention-days: 3
+
+  deploy:
+    name: deploy
+    needs: build
+    if: vars.MAINECS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: daydayon-${{ github.sha }}
+          path: ${{ runner.temp }}
+
+      - name: Configure SSH（固定 host key）
+        env:
+          KEY: ${{ secrets.MAINECS_SSH_KEY }}
+          KNOWN: ${{ secrets.MAINECS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts_deploy
+
+      - name: Deploy
+        env:
+          HOST: ${{ vars.MAINECS_HOST }}
+          USER_: ${{ vars.MAINECS_USER }}
+        run: |
+          SSH="ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts_deploy -o ServerAliveInterval=30 -o ServerAliveCountMax=10 $USER_@$HOST"
+          $SSH status || true
+          $SSH "deploy-artifact $GITHUB_SHA" < "$RUNNER_TEMP/artifact.tar.gz"
+
+      - name: Public smoke test
+        env:
+          APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+        run: |
+          for i in $(seq 1 10); do
+            body=$(curl -fsS --max-time 20 "$APP_URL/api/health" || true)
+            echo "$body"
+            if [[ "$body" == *"\"commit\":\"$GITHUB_SHA\""* ]]; then exit 0; fi
+            sleep 6
+          done
+          echo "public health check did not return commit $GITHUB_SHA" >&2
+          exit 1
+
+      - name: Remove key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
