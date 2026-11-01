@@ -1,6 +1,9 @@
 import { cn } from '@/lib/cn'
 import type { ModuleTone } from './tone'
 
+/** 印章上的字不小于 12px（ui-design-system.md：不用小于 12px 的字），小尺寸印章也一样 */
+const MIN_FONT_PX = 12
+
 const toneClass: Record<ModuleTone | 'primary', string> = {
   primary: 'text-primary-ink border-primary',
   exercise: 'text-exercise-ink border-exercise',
@@ -46,13 +49,16 @@ export function Stamp({
       )}
       style={{ width: size, height: size }}
     >
-      <span className="leading-none tracking-wider" style={{ fontSize: Math.round(size * 0.2) }}>
+      <span
+        className="leading-none tracking-wider"
+        style={{ fontSize: Math.max(MIN_FONT_PX, Math.round(size * 0.2)) }}
+      >
         {text}
       </span>
       {caption && (
         <span
           className="mt-1 leading-none opacity-80"
-          style={{ fontSize: Math.round(size * 0.13) }}
+          style={{ fontSize: Math.max(MIN_FONT_PX, Math.round(size * 0.13)) }}
         >
           {caption}
         </span>

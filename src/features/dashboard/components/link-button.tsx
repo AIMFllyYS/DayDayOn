@@ -4,7 +4,7 @@ import { Icon, type IconName } from '@/components/ui/icon'
 import { cn } from '@/lib/cn'
 
 /*
- * 长得像按钮的站内链接（<a> 里不能再放 <button>）。外观与 Button 的 primary / soft 一致，md 高 44px、sm 高 36px。
+ * 长得像按钮的站内链接（<a> 里不能再放 <button>）。外观与 Button 的 primary / soft 一致，md 高 44px；sm 手机上也是 44px，桌面端 36px。
  * 临时放在这里：已在 sharedChangeRequests 申请把 ButtonLink 加进 src/components/ui/button.tsx，加好后改用它。
  */
 
@@ -14,7 +14,7 @@ const variantClass = {
 } as const
 
 const sizeClass = {
-  sm: 'h-9 gap-1.5 px-3.5 text-caption',
+  sm: 'h-11 gap-1.5 px-3.5 text-caption md:h-9',
   md: 'h-11 gap-2 px-5 text-body',
 } as const
 
@@ -24,6 +24,7 @@ export function LinkButton({
   variant = 'primary',
   size = 'md',
   className,
+  onClick,
   children,
 }: {
   href: string
@@ -31,11 +32,14 @@ export function LinkButton({
   variant?: keyof typeof variantClass
   size?: keyof typeof sizeClass
   className?: string
+  /** 跳转前要做的事（例如关闭弹层） */
+  onClick?: () => void
   children: ReactNode
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={cn(
         'inline-flex shrink-0 items-center justify-center rounded-full font-semibold select-none',
         'ease-spring transition-[transform,background-color,filter] duration-(--dur-fast) active:scale-[0.96]',

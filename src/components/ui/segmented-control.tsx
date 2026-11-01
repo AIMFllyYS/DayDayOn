@@ -50,7 +50,8 @@ export function SegmentedControl<V extends string>({
       onKeyDown={onKeyDown}
       className={cn(
         'bg-surface-sunken relative grid rounded-full p-1',
-        size === 'sm' ? 'h-9' : 'h-11',
+        // sm 在手机宽度下也保持 44px 触控高度，桌面端才收紧
+        size === 'sm' ? 'h-11 md:h-9' : 'h-11',
         className,
       )}
       style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}

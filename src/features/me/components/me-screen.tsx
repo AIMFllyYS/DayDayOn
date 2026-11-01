@@ -122,19 +122,7 @@ export function MeScreen() {
         tone="danger"
         title="注销账号？"
         confirmLabel="注销"
-        description={
-          <span className="flex flex-col gap-3">
-            <span>目标、打卡、体重、心情和待办会全部删除，没法恢复。需要的话先导出数据。</span>
-            <Field label='输入"注销"确认' htmlFor="me-delete-confirm">
-              <Input
-                id="me-delete-confirm"
-                value={confirmText}
-                autoComplete="off"
-                onChange={(e) => setConfirmText(e.target.value)}
-              />
-            </Field>
-          </span>
-        }
+        description="目标、打卡、体重、心情和待办会全部删除，没法恢复。需要的话先导出数据。"
         onConfirm={async () => {
           if (confirmText.trim() !== '注销') {
             toast.error('请输入"注销"两个字')
@@ -149,7 +137,16 @@ export function MeScreen() {
           toast.success('账号已注销，谢谢你陪团团走过这一段')
           await signOutAndLeave(() => queryClient.clear())
         }}
-      />
+      >
+        <Field label='输入"注销"确认' htmlFor="me-delete-confirm">
+          <Input
+            id="me-delete-confirm"
+            value={confirmText}
+            autoComplete="off"
+            onChange={(e) => setConfirmText(e.target.value)}
+          />
+        </Field>
+      </ConfirmDialog>
     </>
   )
 }

@@ -123,6 +123,8 @@ function FieldCard({
           disabled={index === total - 1}
           onClick={() => onMove(1)}
         />
+        {/* 删除和移动按钮之间多留一段距离，避免误触 */}
+        <span aria-hidden className="bg-border mx-2 h-6 w-px" />
         <IconButton icon="trash" label="删除这个字段" size="sm" onClick={onRemove} />
       </div>
       <div className="grid gap-3 @md:grid-cols-[1fr_10rem]">

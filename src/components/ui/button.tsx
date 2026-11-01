@@ -21,15 +21,15 @@ const variantClass: Record<ButtonVariant, string> = {
 // 实底按钮上的图标只画描边：22% 的同色色块叠在实底上会发灰
 const solidVariants = new Set<ButtonVariant>(['primary'])
 
-// md 高 44px，满足触控区域下限；sm 只用于桌面端密集区域或卡片内的次要操作
+// md 高 44px，满足触控区域下限。sm 在手机宽度下也是 44px，只在 md 断点（桌面）以上收成 36px
 const sizeClass: Record<ButtonSize, string> = {
-  sm: 'h-9 gap-1.5 px-3.5 text-caption',
+  sm: 'h-11 gap-1.5 px-3.5 text-caption md:h-9',
   md: 'h-11 gap-2 px-5 text-body',
   lg: 'h-13 gap-2 px-6 text-subhead',
 }
 
 const iconOnlySizeClass: Record<ButtonSize, string> = {
-  sm: 'size-9',
+  sm: 'size-11 md:size-9',
   md: 'size-11',
   lg: 'size-13',
 }

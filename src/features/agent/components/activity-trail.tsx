@@ -232,7 +232,7 @@ function Thought({ part }: { part: ReasoningPart }) {
     <button
       type="button"
       onClick={() => setExpanded((v) => !v)}
-      className="hover:bg-surface-sunken flex gap-2 rounded-lg px-1.5 py-1 text-left"
+      className="hover:bg-surface-sunken flex min-h-11 items-start gap-2 rounded-lg px-1.5 py-2.5 text-left"
     >
       <Icon name="bulb" size={14} className="text-sleep mt-1 shrink-0" lineOnly />
       <span className={cn('text-caption text-muted', !expanded && 'line-clamp-2')}>
@@ -266,7 +266,7 @@ function ToolRow({ tool }: { tool: ToolPart }) {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="hover:bg-surface-sunken flex min-h-10 w-full items-center gap-2 px-2 py-1.5 text-left"
+        className="hover:bg-surface-sunken flex min-h-11 w-full items-center gap-2 px-2 py-1.5 text-left"
       >
         <span
           className={cn(

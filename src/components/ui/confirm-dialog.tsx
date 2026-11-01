@@ -19,7 +19,10 @@ interface ConfirmDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
+  /** 纯文字说明（渲染成 <p>，作为对话框的 aria-describedby），不要放表单控件 */
   description?: ReactNode
+  /** 说明下方的额外内容（例如二次确认输入框），不进 <p>、不进 aria-describedby */
+  children?: ReactNode
   confirmLabel?: string
   cancelLabel?: string
   /** danger：确认按钮用危险色 */
@@ -33,6 +36,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
+  children,
   confirmLabel = '确定',
   cancelLabel = '再想想',
   tone = 'default',
@@ -82,6 +86,7 @@ export function ConfirmDialog({
               </AlertDialog.Description>
             )}
           </div>
+          {children}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <AlertDialog.Close
               disabled={pending}
