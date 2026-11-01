@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type MouseEvent, type ReactNode } from 'react'
+import { AppShellFrame } from '@/components/layout/app-shell'
 import { BottomNav } from '@/components/layout/bottom-nav'
 import { appNavItems } from '@/components/layout/nav-items'
 import { SideNav } from '@/components/layout/side-nav'
@@ -25,9 +26,10 @@ interface AppShellProps {
 }
 
 /**
- * 预览用的应用外壳：和正式的 (app)/layout.tsx 同一套结构。
+ * 预览用的应用外壳：布局直接复用正式外壳的 AppShellFrame（src/components/layout/app-shell.tsx）。
  * 手机：顶栏 + 内容 + 底部悬浮导航；桌面：侧栏 + 顶栏 + 内容。
  * 演示框里断点不生效，所以形态由 form 决定，内容区用容器查询（@container）自适应宽度。
+ * 和正式外壳的差别：点导航不真的跳转；打卡弹层用演示数据版（D3 实现正式弹层后换掉）。
  */
 export function AppShell({
   form,
@@ -49,55 +51,48 @@ export function AppShell({
     <IconButton icon="chevron-left" label="返回" onClick={onBack} className="-ml-2" />
   )
 
-  if (form === 'phone') {
-    return (
-      <div className="relative flex h-full flex-col">
-        <TopBar
-          sticky={false}
-          eyebrow={eyebrow}
-          title={title}
-          leading={leading}
-          actions={actions}
-          className="shrink-0 pt-11"
-        />
-        <div className="@container min-h-0 flex-1 overflow-y-auto px-4 pb-28">{children}</div>
-        {primary && (
-          <BottomNav
-            items={appNavItems}
-            currentPath={navPath}
-            onItemClick={onItemClick}
-            onAddClick={() => setSheetOpen(true)}
-            addOpen={sheetOpen}
-            className="absolute inset-x-3 bottom-4"
-          />
-        )}
-        <CheckinSheet open={sheetOpen} onOpenChange={setSheetOpen} />
-      </div>
-    )
-  }
-
+  const openSheet = () => setSheetOpen(true)
   return (
-    <div className="flex h-full">
-      <SideNav
-        items={appNavItems}
-        currentPath={navPath ?? ''}
-        onItemClick={onItemClick}
-        onAddClick={() => setSheetOpen(true)}
-        mode="expanded"
-        footer={<QuotaMeter weeklyLimitMicro={10_000_000} weeklyUsedMicro={3_420_000} compact />}
-      />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar
-          sticky={false}
-          eyebrow={eyebrow}
-          title={title}
-          leading={leading}
-          actions={actions}
-          className="shrink-0"
-        />
-        <div className="@container min-h-0 flex-1 overflow-y-auto px-8 pb-8">{children}</div>
-      </div>
+    <>
+      <AppShellFrame
+        form={form}
+        header={
+          <TopBar
+            sticky={false}
+            eyebrow={eyebrow}
+            title={title}
+            leading={leading}
+            actions={actions}
+            className={form === 'phone' ? 'shrink-0 pt-11' : 'shrink-0'}
+          />
+        }
+        sideNav={
+          <SideNav
+            items={appNavItems}
+            currentPath={navPath ?? ''}
+            onItemClick={onItemClick}
+            onAddClick={openSheet}
+            mode="expanded"
+            footer={
+              <QuotaMeter weeklyLimitMicro={10_000_000} weeklyUsedMicro={3_420_000} compact />
+            }
+          />
+        }
+        bottomNav={
+          primary && (
+            <BottomNav
+              items={appNavItems}
+              currentPath={navPath}
+              onItemClick={onItemClick}
+              onAddClick={openSheet}
+              addOpen={sheetOpen}
+            />
+          )
+        }
+      >
+        {children}
+      </AppShellFrame>
       <CheckinSheet open={sheetOpen} onOpenChange={setSheetOpen} />
-    </div>
+    </>
   )
 }
