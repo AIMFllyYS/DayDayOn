@@ -218,7 +218,7 @@ export default function AgentPage() {
       <Section
         ann="playbook.agent.panel"
         title="对话弹窗"
-        description="从团团所在的角落弹出：手机顶部留 1/3、左侧留 1/4；桌面是右下角卡片。顶部小导航栏：历史 / 新对话 / 全屏 / 关闭。打开期间团团隐藏。"
+        description="从团团所在的角落弹出：手机顶部留 1/4、左侧留 1/5；桌面是右下角卡片。顶部小导航栏：全屏放大 / 团团 / 历史 / 新对话 / 关闭。打开期间团团隐藏。"
       >
         <div className="flex justify-center">
           <PanelLayoutDemo />

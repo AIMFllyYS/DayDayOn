@@ -128,15 +128,14 @@ export function EdgeStates() {
   )
 }
 
-const headerButtons = [
+const rightHeaderButtons = [
   { icon: 'clock', label: '历史对话' },
   { icon: 'plus', label: '新对话' },
-  { icon: 'menu', label: '全屏' },
   { icon: 'x', label: '关闭' },
 ] as const
 
 /**
- * Agent 弹窗的静态布局：手机顶部留 1/3、左侧留 1/4（和正式组件 AgentPanel 的定位类一致）。
+ * Agent 弹窗的静态布局：手机顶部留 1/4、左侧留 1/5（和正式组件 AgentPanel 的定位类一致）。
  * 演示只看壳，不做真实对话，避免连到接口。
  */
 export function PanelLayoutDemo({ className }: { className?: string }) {
@@ -149,10 +148,19 @@ export function PanelLayoutDemo({ className }: { className?: string }) {
       )}
     >
       <div className="text-tiny text-subtle p-4 font-mono">下面的页面内容</div>
-      <div className="border-border bg-surface shadow-float absolute inset-x-0 top-[33%] bottom-14 left-[24%] flex flex-col overflow-hidden rounded-3xl border">
+      <div className="border-border bg-surface shadow-float absolute inset-x-0 top-[25%] bottom-14 left-[20%] flex flex-col overflow-hidden rounded-3xl border">
         <header className="border-border flex items-center gap-1 border-b px-2 py-1.5">
-          <span className="text-caption text-muted min-w-0 flex-1 truncate px-1.5">和团团聊聊</span>
-          {headerButtons.map((b) => (
+          <span
+            title="全屏放大"
+            aria-label="全屏放大"
+            className="text-muted flex size-8 items-center justify-center rounded-full"
+          >
+            <Icon name="maximize" size={15} lineOnly />
+          </span>
+          <span className="text-caption text-foreground min-w-0 flex-1 truncate px-1 font-semibold">
+            团团
+          </span>
+          {rightHeaderButtons.map((b) => (
             <span
               key={b.label}
               title={b.label}
@@ -167,16 +175,23 @@ export function PanelLayoutDemo({ className }: { className?: string }) {
           <MascotSvg mood="happy" size={64} />
           <p className="text-caption text-muted">我是团团，你的打卡搭子～</p>
         </div>
-        <div className="border-border border-t p-2.5">
-          <div className="border-border bg-surface flex flex-col gap-2 rounded-2xl border p-2.5">
-            <p className="text-body text-subtle">和团团说点什么…</p>
-            <div className="text-muted flex items-center gap-1">
-              <Icon name="camera" size={16} lineOnly />
-              <Icon name="bulb" size={14} lineOnly />
-              <span className="text-tiny">深度思考</span>
-              <span className="flex-1" />
-              <span className="bg-primary text-on-primary flex size-8 items-center justify-center rounded-full">
-                <Icon name="arrow" size={16} lineOnly />
+        <div className="p-2.5 pt-1">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-start pl-1">
+              <span className="bg-surface/90 text-muted shadow-soft border-border text-tiny flex items-center gap-1 rounded-full border px-2.5 py-1 backdrop-blur-md">
+                <Icon name="bulb" size={12} lineOnly />
+                <span>深度思考</span>
+              </span>
+            </div>
+            <div className="border-border bg-surface shadow-soft flex items-center gap-1.5 rounded-2xl border px-2 py-1">
+              <span className="text-muted flex size-7 shrink-0 items-center justify-center">
+                <Icon name="camera" size={15} lineOnly />
+              </span>
+              <p className="text-body text-subtle min-w-0 flex-1 truncate px-1 py-0 leading-6">
+                和团团说点什么…
+              </p>
+              <span className="bg-primary text-on-primary flex size-7 shrink-0 items-center justify-center rounded-full shadow-sm">
+                <Icon name="arrow" size={13} lineOnly />
               </span>
             </div>
           </div>

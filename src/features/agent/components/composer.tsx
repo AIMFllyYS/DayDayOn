@@ -1,8 +1,7 @@
 'use client'
 
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { FileUIPart } from 'ai'
-import { IconButton } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
 import { cn } from '@/lib/cn'
 import { newIdempotencyKey } from '@/lib/api/fetcher'
@@ -11,9 +10,11 @@ import { useAgentUi, useAgentUiState } from '../agent-store'
 import { useAgentChat } from '../chat-context'
 
 /*
- * Agent 输入框：文字 + 图片/文本附件 + 深度思考开关。
- * 图片走现有压缩管线（内存里压成 JPEG，作为 file part 发送，不落盘）；文本文件在浏览器读成文字。
- * Enter 发送、Shift+Enter 换行；16px 字号避免 iOS 聚焦放大。
+ * Agent 输入框：
+ * - 单行设计：左侧小拍摄按钮、中间输入文字、右侧小发送按钮。
+ * - 默认展示 1 行（约 24px），超出后自动平滑扩展至最多 5 行（约 120px），再超出滚动。
+ * - 「深度思考」按钮悬浮于输入框之上，AI 输出中自动隐藏。
+ * - 图片走现有压缩管线（内存压缩 JPEG 发送，不落盘）；Enter 发送、Shift+Enter 换行。
  */
 
 const TEXT_FILE_MAX = 50_000
@@ -35,7 +36,12 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   })
 }
 
-export function Composer({ className }: { className?: string }) {
+interface ComposerProps {
+  variant?: 'panel' | 'fullscreen'
+  className?: string
+}
+
+export function Composer({ variant = 'panel', className }: ComposerProps) {
   const { send, status } = useAgentChat()
   const { deepThink } = useAgentUiState()
   const ui = useAgentUi()
@@ -43,7 +49,41 @@ export function Composer({ className }: { className?: string }) {
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [attachError, setAttachError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const inputRowRef = useRef<HTMLDivElement>(null)
   const busy = status === 'submitted' || status === 'streaming'
+
+  // 输入框自适应：默认 1 行（约 24px），最多扩展至 5 行（约 120px），超出后滚动
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const scrollHeight = el.scrollHeight
+    const minHeight = 24
+    const maxHeight = 120
+    const row = inputRowRef.current
+    if (!input) {
+      el.style.height = `${minHeight}px`
+      el.style.overflowY = 'hidden'
+      if (row) {
+        row.classList.remove('items-end')
+        row.classList.add('items-center')
+      }
+    } else {
+      const targetHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight)
+      el.style.height = `${targetHeight}px`
+      el.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden'
+      if (row) {
+        if (targetHeight > minHeight + 4) {
+          row.classList.remove('items-center')
+          row.classList.add('items-end')
+        } else {
+          row.classList.remove('items-end')
+          row.classList.add('items-center')
+        }
+      }
+    }
+  }, [input])
 
   async function onPick(files: FileList | null) {
     if (!files || files.length === 0) return
@@ -107,14 +147,41 @@ export function Composer({ className }: { className?: string }) {
   }
 
   return (
-    <div
-      className={cn(
-        'border-border bg-surface flex flex-col gap-2 rounded-2xl border p-2.5',
-        className,
+    <div className={cn('relative flex flex-col gap-1.5', className)}>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*,text/plain,text/markdown,.txt,.md,.csv"
+        multiple
+        hidden
+        onChange={(e) => {
+          void onPick(e.target.files)
+          e.target.value = ''
+        }}
+      />
+
+      {/* 悬浮在输入框之上的深度思考按钮：AI 输出时隐藏 */}
+      {!busy && (
+        <div className="flex items-center justify-start pl-1">
+          <button
+            type="button"
+            aria-pressed={deepThink}
+            onClick={() => ui.setDeepThink(!deepThink)}
+            className={cn(
+              'text-tiny shadow-soft flex items-center gap-1 rounded-full px-2.5 py-1 backdrop-blur-md transition-all select-none',
+              deepThink
+                ? 'bg-primary-soft text-primary-ink border-primary/20 border font-semibold'
+                : 'bg-surface/90 text-muted hover:text-foreground border-border hover:bg-surface border',
+            )}
+          >
+            <Icon name="bulb" size={12} lineOnly />
+            <span>深度思考</span>
+          </button>
+        </div>
       )}
-    >
+
       {attachments.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5">
+        <ul className="flex flex-wrap gap-1.5 px-1">
           {attachments.map((a) => (
             <li
               key={a.id}
@@ -135,55 +202,42 @@ export function Composer({ className }: { className?: string }) {
       )}
       {attachError && <p className="text-tiny text-danger-ink px-1">{attachError}</p>}
 
-      <textarea
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={onKeyDown}
-        rows={1}
-        placeholder="和团团说点什么，比如「我今天跑了 3 公里」"
-        className="text-body text-foreground placeholder:text-subtle max-h-32 min-h-6 w-full resize-none bg-transparent px-1 outline-none"
-      />
-
-      <div className="flex items-center gap-1">
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*,text/plain,text/markdown,.txt,.md,.csv"
-          multiple
-          hidden
-          onChange={(e) => {
-            void onPick(e.target.files)
-            e.target.value = ''
-          }}
-        />
-        <IconButton
-          icon="camera"
-          label="添加图片或文件"
-          variant="ghost"
-          onClick={() => fileRef.current?.click()}
-        />
+      {/* 单行输入框主体：左侧小拍摄按钮、中间输入文字、右侧小发送按钮 */}
+      <div
+        ref={inputRowRef}
+        className="border-border bg-surface shadow-soft flex items-center gap-1.5 rounded-2xl border px-2 py-1"
+      >
         <button
           type="button"
-          aria-pressed={deepThink}
-          onClick={() => ui.setDeepThink(!deepThink)}
-          className={cn(
-            'text-tiny flex items-center gap-1 rounded-full px-2.5 py-1.5 transition-colors',
-            deepThink
-              ? 'bg-primary-soft text-primary-ink font-semibold'
-              : 'text-muted hover:bg-surface-sunken',
-          )}
+          aria-label="添加图片或文件"
+          onClick={() => fileRef.current?.click()}
+          className="text-muted hover:text-foreground hover:bg-surface-sunken flex size-7 shrink-0 items-center justify-center rounded-full transition-colors active:scale-95"
         >
-          <Icon name="bulb" size={13} lineOnly />
-          深度思考
+          <Icon name="camera" size={15} lineOnly />
         </button>
-        <span className="flex-1" />
-        <IconButton
-          icon="arrow"
-          label="发送"
+
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={onKeyDown}
+          rows={1}
+          style={{ height: '24px' }}
+          placeholder={
+            variant === 'panel' ? '和团团说点什么…' : '和团团说点什么，比如「我今天跑了 3 公里」'
+          }
+          className="text-body text-foreground placeholder:text-subtle max-h-[7.5rem] min-h-[1.5rem] w-full min-w-0 flex-1 resize-none bg-transparent px-1 py-0 leading-6 outline-none"
+        />
+
+        <button
+          type="button"
+          aria-label="发送"
           onClick={sendNow}
           disabled={busy || (input.trim().length === 0 && attachments.length === 0)}
-          className="bg-primary text-on-primary disabled:opacity-40"
-        />
+          className="bg-primary text-on-primary hover:bg-primary-hover flex size-7 shrink-0 items-center justify-center rounded-full shadow-sm transition-[transform,background-color,opacity] duration-150 ease-out active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+        >
+          <Icon name="arrow" size={13} lineOnly />
+        </button>
       </div>
     </div>
   )
