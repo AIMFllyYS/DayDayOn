@@ -8,7 +8,10 @@ import {
   type PetEvent,
   type PetHandle,
 } from '@/components/mascot/interactive-pet'
-import { mascotCharacters, type MascotCharacter } from '@/components/mascot/mascot-svg'
+import {
+  mascotRegistryCharacters,
+  type MascotRegistryCharacter,
+} from '@/components/mascot/mascot-svg'
 import { TreatGlyph, treats, type TreatId } from '@/components/mascot/treat-glyph'
 import { Icon } from '@/components/ui/icon'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -64,7 +67,7 @@ export function PetStage() {
     over: boolean
   } | null>(null)
   const [stampKey, setStampKey] = useState(0)
-  const [character, setCharacter] = useState<MascotCharacter>('tuan')
+  const [character, setCharacter] = useState<MascotRegistryCharacter>('tuan')
   const seq = useRef(0)
 
   const record = (text: string) => {
@@ -161,9 +164,11 @@ export function PetStage() {
           data-ann="playbook.pet.character"
           className="border-border bg-surface rounded-2xl border p-3"
         >
-          <p className="text-tiny text-muted mb-2 font-semibold">形象（用户在「我的」里选）</p>
+          <p className="text-tiny text-muted mb-2 font-semibold">
+            形象（注册表 4 角色，在「我的」里选）
+          </p>
           <SegmentedControl
-            options={mascotCharacters.map((c) => ({ value: c.id, label: c.name }))}
+            options={mascotRegistryCharacters.map((c) => ({ value: c.id, label: c.name }))}
             value={character}
             onValueChange={setCharacter}
             label="选择形象"
