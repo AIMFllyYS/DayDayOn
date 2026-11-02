@@ -32,8 +32,9 @@ interface TopBarUserAvatarProps {
 export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
   const router = useRouter()
   const pathname = usePathname()
-  const { data: me } = useQuery(meQuery())
-  const { data: friendList } = useFriendsList()
+  const isDemo = demoFriends !== undefined || pathname.startsWith('/dev')
+  const { data: me } = useQuery({ ...meQuery(), enabled: !isDemo })
+  const { data: friendList } = useFriendsList({ enabled: !isDemo })
   const { viewingFriendId, avatarPopping, hintBubbleOpen } = useFriendStore()
 
   const [panelOpen, setPanelOpen] = useState(false)

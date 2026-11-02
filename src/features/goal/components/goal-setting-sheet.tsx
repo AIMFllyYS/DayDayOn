@@ -22,8 +22,8 @@ export interface GoalSettingSheetProps {
  * 取消勾选的目标将被封存归档，其连续坚持时间重置清零，但已有的历史记录完整保留。
  */
 export function GoalSettingSheet({ open, onOpenChange }: GoalSettingSheetProps) {
-  const activeQuery = useQuery(goalListQuery('active'))
-  const archivedQuery = useQuery(goalListQuery('archived'))
+  const activeQuery = useQuery({ ...goalListQuery('active'), enabled: open })
+  const archivedQuery = useQuery({ ...goalListQuery('archived'), enabled: open })
 
   // 当弹层打开时，基于当前的目标数据渲染内容表单，利用 key 保证每次打开都初始化最新数据
   return (

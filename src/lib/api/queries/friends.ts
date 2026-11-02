@@ -26,8 +26,11 @@ export const friendsListQuery = () =>
     queryFn: () => apiFetch<FriendList>('/friends'),
   })
 
-export function useFriendsList() {
-  return useQuery(friendsListQuery())
+export function useFriendsList(options?: { enabled?: boolean }) {
+  return useQuery({
+    ...friendsListQuery(),
+    enabled: options?.enabled,
+  })
 }
 
 export const friendDashboardQuery = (friendUserId: string) =>
