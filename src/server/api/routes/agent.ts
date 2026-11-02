@@ -111,7 +111,8 @@ const agentChat = new Hono<AppEnv>().post(
   requireOnboarded,
   rateLimit({ rule: { name: 'agent-chat-minute', windowSeconds: 60, max: 6 }, by: 'user' }),
   async (c) => {
-    const parsed = ChatRequestSchema.safeParse(await c.req.json())
+    const raw = await c.req.json().catch(() => null)
+    const parsed = ChatRequestSchema.safeParse(raw)
     if (!parsed.success) {
       return c.json(
         {
@@ -123,14 +124,15 @@ const agentChat = new Hono<AppEnv>().post(
       )
     }
     const { id, message, deepThink, idempotencyKey } = parsed.data
-    const previous = await loadConversationMessages(c.get('user').id, id)
+    const previous = await loadConversationMessages(c.get('user').id, id, { allowMissing: true })
+    const history = previous.filter((m) => m.id !== message.id)
     type ChatMessage = Parameters<typeof streamAgentChat>[0]['messages'][number]
     return streamAgentChat({
       userId: c.get('user').id,
       ip: c.get('ip'),
       idempotencyKey,
       conversationId: id,
-      messages: [...previous, message as unknown as ChatMessage],
+      messages: [...history, message as unknown as ChatMessage],
       deepThink,
     })
   },

@@ -3,9 +3,20 @@ import { tool } from 'ai'
 import { and, eq } from 'drizzle-orm'
 import * as z from 'zod'
 import type { AgentDraft } from '@/features/agent/schemas'
+import { buildSchema } from '@/features/goal/build-schema'
+import {
+  addDays,
+  BUSINESS_TIME_ZONE,
+  DEFAULT_DAY_START_HOUR,
+  formatDateTime,
+  localDateOf,
+  secondsBetween,
+} from '@/lib/time'
 import { db } from '@/server/db/client'
 import { goals } from '@/server/db/schema'
 import * as read from '@/server/services/agent/read'
+import { loadFields } from '@/server/services/checkins/goal'
+import { checkSleepTimes, type Clock } from '@/server/services/checkins/rules'
 import { fetchWeb, searchWeb } from './web-search'
 
 /*
@@ -29,11 +40,18 @@ export interface AgentToolContext {
   userId: string
   now: Date
   search: SearchBudget
+  clock?: Clock
 }
 
 async function loadGoal(userId: string, goalId: string) {
   const [row] = await db
-    .select({ id: goals.id, module: goals.module, title: goals.title })
+    .select({
+      id: goals.id,
+      module: goals.module,
+      title: goals.title,
+      status: goals.status,
+      fieldVersion: goals.fieldVersion,
+    })
     .from(goals)
     .where(and(eq(goals.userId, userId), eq(goals.id, goalId)))
     .limit(1)
@@ -53,7 +71,12 @@ const MEAL_LABEL: Record<string, string> = {
 }
 
 export function buildAgentTools(ctx: AgentToolContext) {
-  const { userId, now, search } = ctx
+  const {
+    userId,
+    now,
+    search,
+    clock = { timeZone: BUSINESS_TIME_ZONE, dayStartHour: DEFAULT_DAY_START_HOUR },
+  } = ctx
 
   const readProfile = tool({
     description:
@@ -169,6 +192,7 @@ export function buildAgentTools(ctx: AgentToolContext) {
     inputSchema: z.object({
       goalId: z.string().describe('目标 id，来自 listGoals'),
       confidence: z.number().min(0).max(1).default(0.8).describe('把握度，不确定就调低到 0.6 以下'),
+      isMakeup: z.boolean().default(false).describe('是否补昨天的打卡（只能补昨天，默认 false）'),
       note: z.string().max(200).optional(),
       data: z.discriminatedUnion('module', [
         z.object({
@@ -202,11 +226,19 @@ export function buildAgentTools(ctx: AgentToolContext) {
           what: z.string().min(1).max(60),
           durationMinutes: z.number().int().min(1).max(1440).optional(),
         }),
+        z.object({
+          module: z.literal('custom'),
+          values: z
+            .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]))
+            .default({})
+            .describe('自定义目标的字段键值（键为 listGoals 返回的 fields[].key）'),
+        }),
       ]),
     }),
-    execute: async ({ goalId, confidence, note, data }): Promise<AgentDraft> => {
+    execute: async ({ goalId, confidence, isMakeup, note, data }): Promise<AgentDraft> => {
       const goal = await loadGoal(userId, goalId)
       if (!goal) throw new Error('找不到这个目标，先调 listGoals 确认 goalId')
+      if (goal.status !== 'active') throw new Error(`目标「${goal.title}」已归档，不能继续打卡`)
       if (goal.module !== data.module) {
         throw new Error(`目标「${goal.title}」是 ${goal.module} 板块，不能记成 ${data.module}`)
       }
@@ -238,7 +270,7 @@ export function buildAgentTools(ctx: AgentToolContext) {
             intensity: data.intensity,
             durationSeconds,
             note: note ?? null,
-            isMakeup: false,
+            isMakeup,
           },
         }
       }
@@ -262,31 +294,96 @@ export function buildAgentTools(ctx: AgentToolContext) {
             mealType: data.mealType,
             items: items.map((it) => ({ name: it.name, portion: it.portion, kcal: it.kcal })),
             note: note ?? null,
-            isMakeup: false,
+            isMakeup,
           },
         }
       }
       if (data.module === 'sleep') {
         const bed = new Date(data.bedAt)
         const wake = new Date(data.wakeAt)
-        const hours = Math.max(0, (wake.getTime() - bed.getTime()) / 3_600_000)
+        if (Number.isNaN(bed.getTime()) || Number.isNaN(wake.getTime())) {
+          throw new Error(
+            'bedAt 和 wakeAt 必须是合法的 ISO 8601 时间（如 2026-11-01T15:30:00.000Z）',
+          )
+        }
+        const secs = secondsBetween(bed, wake)
+        if (secs < 1800 || secs > 72_000) {
+          throw new Error('睡眠时长必须在 30 分钟到 20 小时之间，请核对入睡和起床时刻')
+        }
+        const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
+        const yesterday = addDays(today, -1)
+        const wakeDay = localDateOf(wake, clock.timeZone, clock.dayStartHour)
+        const sleepMakeup = wakeDay === yesterday ? true : isMakeup
+        const check = checkSleepTimes(bed, wake, now, clock, sleepMakeup)
+        if (!check.ok) {
+          throw new Error(
+            `睡眠时间校验未通过：${check.reason}（当前 UTC ${now.toISOString()}，今日打卡日 ${today}）`,
+          )
+        }
+        const hours = Math.max(0, secs / 3600)
         return {
           kind: 'checkin',
           ...base,
           estimate: true,
           summary: `睡眠约 ${hours.toFixed(1)} 小时`,
           fields: [
-            { label: '入睡', value: bed.toLocaleString('zh-CN') },
-            { label: '起床', value: wake.toLocaleString('zh-CN') },
+            { label: '入睡', value: formatDateTime(bed, clock.timeZone) },
+            { label: '起床', value: formatDateTime(wake, clock.timeZone) },
             { label: '质量', value: `${data.quality}/5` },
           ],
           confirmBody: {
             module: 'sleep',
-            bedAt: data.bedAt,
-            wakeAt: data.wakeAt,
+            bedAt: bed.toISOString(),
+            wakeAt: wake.toISOString(),
             quality: data.quality,
             note: note ?? null,
-            isMakeup: false,
+            isMakeup: sleepMakeup,
+          },
+        }
+      }
+      if (data.module === 'custom') {
+        if (goal.fieldVersion === null) {
+          throw new Error(`自定义目标「${goal.title}」缺少字段定义`)
+        }
+        const fieldDefs = await loadFields(db, goal.id, goal.fieldVersion)
+        if (!fieldDefs) throw new Error(`找不到自定义目标「${goal.title}」的字段版本`)
+        const parsed = buildSchema(fieldDefs).safeParse(data.values)
+        if (!parsed.success) {
+          throw new Error(`自定义字段校验未通过：${z.prettifyError(parsed.error)}`)
+        }
+        const values = Object.fromEntries(
+          Object.entries(parsed.data).filter(
+            (e): e is [string, NonNullable<(typeof e)[1]>] => e[1] !== undefined,
+          ),
+        )
+        const displayFields = fieldDefs
+          .filter((f) => values[f.key] !== undefined)
+          .map((f) => {
+            const raw = values[f.key]
+            const valStr = Array.isArray(raw)
+              ? raw.join('、')
+              : typeof raw === 'boolean'
+                ? raw
+                  ? '是'
+                  : '否'
+                : `${String(raw)}${f.type === 'number' && f.unit ? ` ${f.unit}` : ''}`
+            return { label: f.label, value: valStr }
+          })
+        return {
+          kind: 'checkin',
+          ...base,
+          estimate: false,
+          summary:
+            displayFields.length > 0
+              ? displayFields.map((f) => `${f.label}：${f.value}`).join(' · ')
+              : `完成「${goal.title}」`,
+          fields: displayFields,
+          confirmBody: {
+            module: 'custom',
+            fieldVersion: goal.fieldVersion,
+            values,
+            note: note ?? null,
+            isMakeup,
           },
         }
       }
@@ -308,7 +405,7 @@ export function buildAgentTools(ctx: AgentToolContext) {
           what: data.what,
           ...(durationSeconds !== undefined ? { durationSeconds } : {}),
           note: note ?? null,
-          isMakeup: false,
+          isMakeup,
         },
       }
     },
@@ -321,13 +418,25 @@ export function buildAgentTools(ctx: AgentToolContext) {
       dueAt: z.string().describe('ISO 时刻，没有就传 null').nullable(),
       priority: z.enum(['normal', 'important']).default('normal'),
     }),
-    execute: async ({ title, dueAt, priority }): Promise<AgentDraft> => ({
-      kind: 'todo',
-      title,
-      dueAt,
-      priority,
-      confirmBody: { title, dueAt, priority },
-    }),
+    execute: async ({ title, dueAt, priority }): Promise<AgentDraft> => {
+      let normalizedDueAt: string | null = null
+      if (dueAt !== null && dueAt.trim() !== '') {
+        const d = new Date(dueAt)
+        if (Number.isNaN(d.getTime())) {
+          throw new Error(
+            'dueAt 必须是合法的 ISO 8601 时间字符串（如 2026-11-02T10:00:00.000Z）或 null',
+          )
+        }
+        normalizedDueAt = d.toISOString()
+      }
+      return {
+        kind: 'todo',
+        title,
+        dueAt: normalizedDueAt,
+        priority,
+        confirmBody: { title, dueAt: normalizedDueAt, priority },
+      }
+    },
   })
 
   const draftWeight = tool({
@@ -338,7 +447,7 @@ export function buildAgentTools(ctx: AgentToolContext) {
     execute: async ({ weightKg }): Promise<AgentDraft> => ({
       kind: 'weight',
       weightKg,
-      confirmBody: { weightGrams: Math.round(weightKg * 1000), confirmLargeChange: false },
+      confirmBody: { weightGrams: Math.round(weightKg * 1000), confirmLargeChange: true },
     }),
   })
 

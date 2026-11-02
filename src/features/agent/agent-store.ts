@@ -10,6 +10,8 @@ import { useSyncExternalStore } from 'react'
 export interface AgentUiState {
   panelOpen: boolean
   conversationId: string
+  /** 当前会话是否已持久化到服务端（历史会话或已完成首轮对话） */
+  isSavedConversation: boolean
   deepThink: boolean
 }
 
@@ -17,8 +19,9 @@ export interface AgentUi {
   openPanel: () => void
   closePanel: () => void
   togglePanel: () => void
-  newConversation: () => string
+  newConversation: (options?: { openPanel?: boolean }) => string
   setConversation: (id: string) => void
+  markConversationSaved: () => void
   setDeepThink: (on: boolean) => void
 }
 
@@ -29,15 +32,22 @@ function freshConversationId(): string {
 let state: AgentUiState = {
   panelOpen: false,
   conversationId: freshConversationId(),
+  isSavedConversation: false,
   deepThink: false,
 }
 const listeners = new Set<() => void>()
-const SERVER_STATE: AgentUiState = { panelOpen: false, conversationId: '', deepThink: false }
+const SERVER_STATE: AgentUiState = {
+  panelOpen: false,
+  conversationId: '',
+  isSavedConversation: false,
+  deepThink: false,
+}
 
 function setState(next: AgentUiState) {
   if (
     next.panelOpen === state.panelOpen &&
     next.conversationId === state.conversationId &&
+    next.isSavedConversation === state.isSavedConversation &&
     next.deepThink === state.deepThink
   ) {
     return
@@ -57,12 +67,18 @@ const ui: AgentUi = {
   openPanel: () => setState({ ...state, panelOpen: true }),
   closePanel: () => setState({ ...state, panelOpen: false }),
   togglePanel: () => setState({ ...state, panelOpen: !state.panelOpen }),
-  newConversation: () => {
+  newConversation: (options) => {
     const id = freshConversationId()
-    setState({ ...state, conversationId: id, panelOpen: true })
+    setState({
+      ...state,
+      conversationId: id,
+      isSavedConversation: false,
+      panelOpen: options?.openPanel ?? state.panelOpen,
+    })
     return id
   },
-  setConversation: (id) => setState({ ...state, conversationId: id }),
+  setConversation: (id) => setState({ ...state, conversationId: id, isSavedConversation: true }),
+  markConversationSaved: () => setState({ ...state, isSavedConversation: true }),
   setDeepThink: (on) => setState({ ...state, deepThink: on }),
 }
 

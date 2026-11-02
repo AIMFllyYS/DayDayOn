@@ -1,12 +1,22 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from 'react'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport, type ChatStatus, type FileUIPart, type UIMessage } from 'ai'
+import { useAgentConversation, useInvalidateAgentTurn } from '@/lib/api/queries/agent'
+import { useAgentUi, useAgentUiState } from './agent-store'
 
 /*
  * Agent 对话状态：一次 useChat 实例由弹窗与全屏页共用（挂在应用外壳的 AgentHost 里）。
- * 会话切换时外层用 key 重挂 provider；传输层只发最后一条消息，服务端补全历史并落库。
+ * 会话切换时同步历史消息；传输层只发最后一条消息，服务端补全历史并落库。
  */
 
 export interface SendOptions {
@@ -19,8 +29,10 @@ export interface AgentChat {
   messages: UIMessage[]
   status: ChatStatus
   error: Error | undefined
+  isLoadingHistory: boolean
   send: (text: string, files: FileUIPart[] | undefined, options: SendOptions) => void
   stop: () => void
+  retry: () => void
 }
 
 const AgentChatContext = createContext<AgentChat | null>(null)
@@ -38,6 +50,14 @@ export function AgentChatProvider({
   conversationId: string
   children: ReactNode
 }) {
+  const ui = useAgentUi()
+  const { isSavedConversation, deepThink } = useAgentUiState()
+  const invalidateAfterTurn = useInvalidateAgentTurn()
+
+  const historyQuery = useAgentConversation(
+    isSavedConversation && conversationId ? conversationId : null,
+  )
+
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -49,7 +69,7 @@ export function AgentChatProvider({
               message: messages[messages.length - 1],
               id,
               deepThink: extra.deepThink ?? false,
-              idempotencyKey: extra.idempotencyKey,
+              idempotencyKey: extra.idempotencyKey ?? crypto.randomUUID(),
             },
           }
         },
@@ -57,24 +77,62 @@ export function AgentChatProvider({
     [],
   )
 
-  const { messages, status, error, sendMessage, stop } = useChat({
-    id: conversationId,
-    transport,
-  })
+  const syncedConvRef = useRef<string | null>(null)
+
+  const { messages, setMessages, status, error, sendMessage, stop, regenerate, clearError } =
+    useChat({
+      id: conversationId || undefined,
+      transport,
+      onFinish: () => {
+        if (conversationId) {
+          syncedConvRef.current = conversationId
+        }
+        ui.markConversationSaved()
+        invalidateAfterTurn(conversationId)
+      },
+    })
+
+  // 切换到新对话或其它会话时重置同步游标
+  useEffect(() => {
+    if (!isSavedConversation) {
+      syncedConvRef.current = null
+    }
+  }, [conversationId, isSavedConversation])
+
+  // 历史会话加载完成后灌入 useChat
+  useEffect(() => {
+    if (!conversationId || !isSavedConversation || !historyQuery.data) return
+    if (syncedConvRef.current === conversationId) return
+    if (status === 'submitted' || status === 'streaming') return
+    syncedConvRef.current = conversationId
+    setMessages(historyQuery.data.messages as UIMessage[])
+  }, [conversationId, isSavedConversation, historyQuery.data, setMessages, status])
 
   const send = useCallback<AgentChat['send']>(
     (text, files, options) => {
-      sendMessage(
+      clearError()
+      void sendMessage(
         { text, files },
         { body: { deepThink: options.deepThink, idempotencyKey: options.idempotencyKey } },
       )
     },
-    [sendMessage],
+    [clearError, sendMessage],
+  )
+
+  const retry = useCallback(() => {
+    clearError()
+    void regenerate({
+      body: { deepThink, idempotencyKey: crypto.randomUUID() },
+    })
+  }, [clearError, deepThink, regenerate])
+
+  const isLoadingHistory = Boolean(
+    isSavedConversation && historyQuery.isPending && messages.length === 0,
   )
 
   const value = useMemo<AgentChat>(
-    () => ({ messages, status, error, send, stop }),
-    [messages, status, error, send, stop],
+    () => ({ messages, status, error, isLoadingHistory, send, stop, retry }),
+    [messages, status, error, isLoadingHistory, send, stop, retry],
   )
 
   return <AgentChatContext.Provider value={value}>{children}</AgentChatContext.Provider>

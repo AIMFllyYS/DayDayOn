@@ -6,6 +6,7 @@ import { db } from '@/server/db/client'
 import { bodyMetrics, checkins, goals, profiles } from '@/server/db/schema'
 import { checkinToday } from '@/server/services/checkins/read'
 import { loadClock } from '@/server/services/checkins/clock'
+import { loadFields } from '@/server/services/checkins/goal'
 import { getFriendDashboard, listFriends } from '@/server/services/friends'
 import { weightTrend } from '@/server/services/metrics/weight'
 import { listTodos } from '@/server/services/todos'
@@ -38,16 +39,24 @@ const goalsColumns = {
   targetValue: goals.targetValue,
   weekdays: goals.weekdays,
   plannedTime: goals.plannedTime,
+  fieldVersion: goals.fieldVersion,
 }
 
-/** 进行中的目标（供模型选 goalId 打卡），按 sortOrder */
+/** 进行中的目标（供模型选 goalId 打卡），按 sortOrder；自定义目标附带字段定义 */
 export async function listGoals(userId: string) {
-  return db
+  const rows = await db
     .select(goalsColumns)
     .from(goals)
     .where(and(eq(goals.userId, userId), eq(goals.status, 'active')))
     .orderBy(asc(goals.sortOrder), asc(goals.id))
     .limit(100)
+  return Promise.all(
+    rows.map(async (g) => {
+      if (g.module !== 'custom' || g.fieldVersion === null) return g
+      const fields = await loadFields(db, g.id, g.fieldVersion)
+      return { ...g, fields: fields ?? [] }
+    }),
+  )
 }
 
 /** 今天（含体重、心情、各目标进度、完成度） */
