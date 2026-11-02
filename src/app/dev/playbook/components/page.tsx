@@ -231,11 +231,20 @@ export default function ComponentsPage() {
           <Specimen
             ann="playbook.components.identity.avatar"
             label="Avatar / AvatarStack"
-            note="ring 表示连续打卡中"
+            note="ring 表示连续打卡中；支持 4 角色预设头像"
           >
-            <Avatar name="小满" size="lg" ring />
-            <Avatar name="阿柚" tone="exercise" />
-            <AvatarStack names={['小满', '阿柚', '豆豆', '七七', '南风', '一一']} />
+            <Avatar name="小满" avatar="mascot:tuan:cheer:primary" size="lg" ring />
+            <Avatar name="七七" avatar="mascot:mian:sleepy:sleep" />
+            <Avatar name="南风" avatar="mascot:you:happy:diet" />
+            <AvatarStack
+              names={['小满', '阿柚', '豆豆', '七七', '南风', '一一']}
+              avatars={[
+                'mascot:tuan:cheer:primary',
+                'mascot:dun:happy:study',
+                'mascot:mian:sleepy:sleep',
+                'mascot:you:happy:diet',
+              ]}
+            />
           </Specimen>
           <Specimen
             ann="playbook.components.identity.stamp"
@@ -249,14 +258,14 @@ export default function ComponentsPage() {
           </Specimen>
           <Specimen
             ann="playbook.components.identity.mascot"
-            label="Mascot · 团团 / 墩墩"
-            note="两个形象可选，表情共用；细节见「小宠物」页"
+            label="Mascot · 团团 / 墩墩 / 绵绵 / 柚柚"
+            note="四个注册表形象可选，表情共用；细节见「小宠物」页"
             bg="paper"
           >
-            <Mascot mood="happy" size={64} />
-            <Mascot mood="cheer" size={64} />
-            <Mascot mood="happy" size={64} character="dun" />
-            <Mascot mood="cheer" size={64} character="dun" />
+            <Mascot mood="happy" size={56} character="tuan" />
+            <Mascot mood="cheer" size={56} character="dun" />
+            <Mascot mood="sleepy" size={56} character="mian" />
+            <Mascot mood="happy" size={56} character="you" />
           </Specimen>
         </div>
       </Section>

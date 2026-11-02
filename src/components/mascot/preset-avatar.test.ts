@@ -13,6 +13,16 @@ describe('parsePresetAvatar', () => {
       mood: 'sleepy',
       tone: 'primary',
     })
+    expect(parsePresetAvatar('mascot:mian:sleepy:sleep')).toEqual({
+      character: 'mian',
+      mood: 'sleepy',
+      tone: 'sleep',
+    })
+    expect(parsePresetAvatar('mascot:you:happy:diet')).toEqual({
+      character: 'you',
+      mood: 'happy',
+      tone: 'diet',
+    })
   })
 
   it('空值返回 null，显示昵称首字', () => {
@@ -44,6 +54,12 @@ describe('presetAvatarLabel', () => {
   it('读屏名称包含形象和表情', () => {
     expect(presetAvatarLabel({ character: 'dun', mood: 'cheer', tone: 'diet' })).toBe(
       '墩墩头像：欢呼',
+    )
+    expect(presetAvatarLabel({ character: 'mian', mood: 'sleepy', tone: 'sleep' })).toBe(
+      '绵绵头像：犯困',
+    )
+    expect(presetAvatarLabel({ character: 'you', mood: 'happy', tone: 'diet' })).toBe(
+      '柚柚头像：开心',
     )
   })
 })

@@ -70,8 +70,8 @@ export interface MascotSvgProps {
   blush?: number
   /** 不传时按表情自动选姿势 */
   arm?: MascotArm
-  /** 形象：团团（默认）/ 墩墩 */
-  character?: MascotCharacter
+  /** 形象：团团（默认）/ 墩墩 / 绵绵（试点）/ 柚柚（试点） */
+  character?: MascotRegistryCharacter
   size?: number
   /** 读屏名称；不传时作为装饰图形 */
   label?: string
@@ -79,20 +79,80 @@ export interface MascotSvgProps {
 }
 
 /**
- * 两个形象（2026-11-01 评审：用户可以选陪伴自己的小伙伴）。
- * 团团：偏女孩，樱花粉波点蝴蝶结别在头顶左侧，头顶小芽。
- * 墩墩：偏男孩，雾蓝色棒球帽（帽檐朝右）+ 帽顶一片小叶子，眉毛更有精神，腮红淡一些。
- * 身体、表情、手臂两者完全共用，只换头饰和少量细节。
+ * 陪伴形象体系：
+ * - 团团（tuan）：樱花粉波点蝴蝶结别在头顶右上 + 两片圆叶小芽。
+ * - 墩墩（dun）：雾蓝色棒球帽（帽檐朝右）+ 星星徽章 + 短粗眉毛。
+ * - 绵绵（mian · M0 试点新形象）：薰衣草紫云朵睡帽 + 奶油绒球 + 弯月徽章 + 温柔眼睫。
+ * - 柚柚（you · M0 试点新形象）：暖黄油色画家贝雷帽 + 蜜柚果蒂薄荷叶 + 机灵小雀斑。
+ * 身体、表情、手臂完全共用，通过头饰与五官微特征区分角色性格。
  */
 export type MascotCharacter = 'tuan' | 'dun'
+export type MascotRegistryCharacter = MascotCharacter | 'mian' | 'you'
 
 export const mascotCharacters: { id: MascotCharacter; name: string; note: string }[] = [
   { id: 'tuan', name: '团团', note: '樱花蝴蝶结，软软糯糯' },
   { id: 'dun', name: '墩墩', note: '小棒球帽，元气满满' },
 ]
 
-export const characterName = (c: MascotCharacter) =>
-  mascotCharacters.find((m) => m.id === c)?.name ?? '团团'
+export const mascotRegistryCharacters: {
+  id: MascotRegistryCharacter
+  name: string
+  note: string
+  tone: 'custom' | 'study' | 'sleep' | 'diet'
+  isPilot?: boolean
+  details: string[]
+  defaultQuote: string
+}[] = [
+  {
+    id: 'tuan',
+    name: '团团',
+    note: '樱花蝴蝶结，软软糯糯',
+    tone: 'custom',
+    details: ['樱花粉波点蝴蝶结别在头顶右上', '两片圆叶嫩芽，软萌治愈', '腮红饱满，温柔鼓励型伙伴'],
+    defaultQuote: '今天也要温柔地坚持呀～',
+  },
+  {
+    id: 'dun',
+    name: '墩墩',
+    note: '小棒球帽，元气满满',
+    tone: 'study',
+    details: [
+      '雾蓝棒球帽 + 黄油小星星徽章',
+      '帽顶一片小叶子，与团团呼应',
+      '短粗眉毛，腮红淡 40%，活力搭子',
+    ],
+    defaultQuote: '冲鸭！今日目标稳稳拿下！',
+  },
+  {
+    id: 'mian',
+    name: '绵绵',
+    note: '云朵睡帽，安静治愈',
+    tone: 'sleep',
+    isPilot: true,
+    details: [
+      '薰衣草紫软垂睡帽 + 奶油白绒球',
+      '帽沿别着小弯月胸针',
+      '眼角带柔和弯睫，早睡早起守护者',
+    ],
+    defaultQuote: '慢慢来，好好休息也是打卡的一部分 zZZ',
+  },
+  {
+    id: 'you',
+    name: '柚柚',
+    note: '黄油贝雷帽，机灵认真',
+    tone: 'diet',
+    isPilot: true,
+    details: [
+      '暖黄油色小画家贝雷帽微倾头顶',
+      '帽顶小蜜柚果蒂配薄荷双叶',
+      '脸颊带两颗浅浅小雀斑，计划控小能手',
+    ],
+    defaultQuote: '手账翻开新的一页，今天先完成哪一项呢？',
+  },
+]
+
+export const characterName = (c: MascotRegistryCharacter) =>
+  mascotRegistryCharacters.find((m) => m.id === c)?.name ?? '团团'
 
 const INK = 'var(--foreground)'
 const SKIN = '#fbead8'
@@ -120,10 +180,9 @@ export function MascotSvg({
   const gaze = mood === 'thinking' ? { x: 0.7, y: -0.9 } : look
   const dx = Math.max(-1, Math.min(1, gaze.x)) * 3.2
   const dy = Math.max(-1, Math.min(1, gaze.y)) * 2.6
+  const cheekFactor = character === 'dun' ? 0.6 : character === 'mian' ? 0.85 : 1
   const cheek =
-    mood === 'shy' || mood === 'love'
-      ? 1
-      : Math.min(1, Math.max(0, blush)) * (character === 'dun' ? 0.6 : 1)
+    mood === 'shy' || mood === 'love' ? 1 : Math.min(1, Math.max(0, blush)) * cheekFactor
   const cheekScale = mood === 'eating' ? 1.35 : 1
   const pose = arm ?? moodArm[mood]
   const [leftDeg, rightDeg] = armAngle[pose]
@@ -164,6 +223,14 @@ export function MascotSvg({
           <stop offset="0%" stopColor="#b9d7f1" />
           <stop offset="100%" stopColor="var(--study)" />
         </linearGradient>
+        <linearGradient id={`${uid}-sleep-cap`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#ded8f8" />
+          <stop offset="100%" stopColor="var(--sleep)" />
+        </linearGradient>
+        <linearGradient id={`${uid}-beret`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fde8a6" />
+          <stop offset="100%" stopColor="var(--diet)" />
+        </linearGradient>
       </defs>
 
       {/* 地面影子 */}
@@ -194,7 +261,15 @@ export function MascotSvg({
       />
       <circle cx="74" cy="43" r="3" fill="#fff" opacity="0.85" />
 
-      {character === 'dun' ? <DunCap uid={uid} /> : <TuanBow uid={uid} />}
+      {character === 'dun' ? (
+        <DunCap uid={uid} />
+      ) : character === 'mian' ? (
+        <MianSleepCap uid={uid} />
+      ) : character === 'you' ? (
+        <YouBeret uid={uid} />
+      ) : (
+        <TuanBow uid={uid} />
+      )}
 
       {/* 腮红 */}
       <g opacity={0.45 + cheek * 0.55}>
@@ -214,8 +289,11 @@ export function MascotSvg({
         />
       </g>
 
+      {character === 'you' && <YouFreckles />}
+
       <Eyes mood={mood} blink={blink} dx={dx} dy={dy} />
       {character === 'dun' && <DunBrows mood={mood} />}
+      {character === 'mian' && <MianLashes mood={mood} />}
       <Mouth mood={mood} />
       <Extras mood={mood} />
 
@@ -357,6 +435,123 @@ function DunBrows({ mood }: { mood: MascotMood }) {
       transform={`translate(0 ${lift})`}
     >
       <path d="M53 66.5q6-3 12.5-1.2M94.5 65.3q6.5-1.8 12.5 1.2" />
+    </g>
+  )
+}
+
+/** 绵绵的云朵睡帽：蓬松紫雾高帽 + 垂下的奶油毛球 + 月牙徽章 */
+function MianSleepCap({ uid }: { uid: string }) {
+  return (
+    <g>
+      {/* 蓬松云朵帽檐（压在额头上） */}
+      <path
+        d="M44 49c-3-6 2-12 9-11 4-6 14-8 21-4 6-5 17-5 23 1 7-2 14 2 13 9 5 2 5 8-1 10-20-4.5-44-4.5-65-5Z"
+        fill="#fff8f0"
+        stroke="#7a6899"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      {/* 软塌向右侧垂下的睡帽尖与帽身 */}
+      <path
+        d="M48 43c2-18 18-28 38-25 18 2.8 32 14 35 28 1.5 6.8-3 11-9 8-6-3-12-9-19-10-15-2.2-31-0.5-45-1Z"
+        fill={`url(#${uid}-sleep-cap)`}
+        stroke="#7a6899"
+        strokeWidth="2.2"
+        strokeLinejoin="round"
+      />
+      {/* 睡帽褶皱与柔和高光 */}
+      <path
+        d="M58 33c8-7 20-9 32-5"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+      {/* 垂在右侧的毛茸茸奶油小球 */}
+      <path
+        d="M119 49c4 3 6 7 6 11"
+        fill="none"
+        stroke="#7a6899"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle cx="125" cy="63" r="6.8" fill="#fff8f0" stroke="#7a6899" strokeWidth="2" />
+      <circle cx="123" cy="61" r="2" fill="#fff" opacity="0.8" />
+      {/* 帽子正面的小月牙徽章 */}
+      <path
+        d="M68 31a5.5 5.5 0 1 0 6 7.5 4.5 4.5 0 1 1-6-7.5Z"
+        fill="var(--diet)"
+        stroke="#d9a93a"
+        strokeWidth="0.9"
+      />
+    </g>
+  )
+}
+
+/** 绵绵的下垂长睫毛：温婉治愈感 */
+function MianLashes({ mood }: { mood: MascotMood }) {
+  if (mood === 'cheer' || mood === 'surprised') return null
+  return (
+    <g fill="none" stroke={INK} strokeWidth="2" strokeLinecap="round" opacity="0.75">
+      <path d="M51 73l-3.5 2M109 73l3.5 2" />
+    </g>
+  )
+}
+
+/** 柚柚的黄油画家贝雷帽：圆润斜戴贝雷帽 + 木质短帽蒂 + 绿叶十字贴布 */
+function YouBeret({ uid }: { uid: string }) {
+  return (
+    <g>
+      {/* 贝雷帽底圈束口 */}
+      <path
+        d="M47 47c18-5 46-5 66 0 1 3.5-1 5.5-4 5.5-19-4-39-4-58 0-3 0-5-2-4-5.5Z"
+        fill="#c89228"
+        stroke="#9b6b15"
+        strokeWidth="1.8"
+      />
+      {/* 斜向左上鼓起的蓬松贝雷帽身 */}
+      <path
+        d="M42 46c-6-12 5-26 26-28 23-2.2 46 5 49 19 2 8-4 12-13 10-20-4.2-42-4.2-62-1Z"
+        fill={`url(#${uid}-beret)`}
+        stroke="#9b6b15"
+        strokeWidth="2.2"
+        strokeLinejoin="round"
+      />
+      {/* 贝雷帽顶端的小木柄蒂 */}
+      <path
+        d="M75 18c0-3.5 2-6 4.5-6.5"
+        fill="none"
+        stroke="#9b6b15"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      {/* 侧面的治愈小四叶草徽章 */}
+      <circle cx="96" cy="34" r="4.2" fill="var(--exercise)" stroke="#4f8060" strokeWidth="1.2" />
+      <circle cx="94.5" cy="32.8" r="1.2" fill="#fff" opacity="0.7" />
+      {/* 帽顶弧形高光 */}
+      <path
+        d="M52 33c7-6 18-8.5 29-7"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+        opacity="0.65"
+      />
+    </g>
+  )
+}
+
+/** 柚柚的元气小雀斑：脸颊两侧各三颗暖橘小点 */
+function YouFreckles() {
+  return (
+    <g fill="#d97b54" opacity="0.55">
+      <circle cx="43" cy="83" r="1.4" />
+      <circle cx="47.5" cy="85" r="1.3" />
+      <circle cx="44.5" cy="87.5" r="1.2" />
+      <circle cx="117" cy="83" r="1.4" />
+      <circle cx="112.5" cy="85" r="1.3" />
+      <circle cx="115.5" cy="87.5" r="1.2" />
     </g>
   )
 }

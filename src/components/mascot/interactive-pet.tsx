@@ -14,8 +14,8 @@ import {
   characterName,
   MascotSvg,
   type MascotArm,
-  type MascotCharacter,
   type MascotMood,
+  type MascotRegistryCharacter,
 } from './mascot-svg'
 
 export type PetAction =
@@ -146,8 +146,8 @@ interface InteractivePetProps {
   lookAtPointer?: boolean
   /** 是否显示说话气泡 */
   speech?: boolean
-  /** 形象：团团 / 墩墩 */
-  character?: MascotCharacter
+  /** 形象：团团 / 墩墩 / 绵绵 / 柚柚 */
+  character?: MascotRegistryCharacter
   className?: string
 }
 
