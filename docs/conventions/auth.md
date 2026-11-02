@@ -8,12 +8,14 @@
 
 ```
 src/server/auth/
-├── auth.ts           betterAuth() 实例，全项目唯一
-├── email-policy.ts   邮箱白名单与规范化（纯函数，必须有单元测试）
-├── session.ts        getSession()、requireUser()、requireAdmin()
-└── index.ts          对外只导出 session.ts 里的函数和类型
+├── auth.ts             betterAuth() 实例，全项目唯一
+├── captcha-shapes.ts   自托管手账点选验证的 6 种矢量图标与仿射变形出题器
+├── captcha.ts          /api/auth/captcha 出题/核验与 hooks.before 的 enforceTurnstile()
+├── email-policy.ts     邮箱白名单与规范化（纯函数，必须有单元测试）
+├── session.ts          getSession()、requireUser()、requireAdmin()
+└── index.ts            对外只导出 session.ts 里的函数和类型
 src/lib/auth-client.ts                 浏览器端 createAuthClient（从 better-auth/react 导入）+ emailOTPClient + adminClient
-src/app/api/auth/[...all]/route.ts     export const { GET, POST } = toNextJsHandler(auth)
+src/app/api/auth/[...all]/route.ts     先拦截 /api/auth/captcha，其余交由 toNextJsHandler(auth)
 ```
 
 - 业务代码只用 `getSession()`、`requireUser()`、`requireAdmin()`，不直接 import `better-auth`。
@@ -41,11 +43,11 @@ src/app/api/auth/[...all]/route.ts     export const { GET, POST } = toNextJsHand
 
 ## 3. 人机验证与限流
 
-依据 [ADR-0023](../adr/0023-captcha.md) 与 [ADR-0002](../adr/0002-account-quota-risk.md) 第 6 节，发码前置 Cloudflare Turnstile 人机验证，并放宽同 IP 频控阈值以避免校园网/NAT 误伤：
+依据 [ADR-0023](../adr/0023-captcha.md) 与 [ADR-0002](../adr/0002-account-quota-risk.md) 第 6 节，点击「发送验证码」或「重新发送」后弹出自托管「治愈手账」点选验证框，并放宽同 IP 频控阈值以避免校园网/NAT 误伤：
 
 | 规则 | 实现位置 |
 |---|---|
-| 发送验证码：前置 Cloudflare Turnstile 人机验证 | 前端经 `src/components/ui/turnstile.tsx` 获取一次性 token 并通过 `x-captcha-response` 请求头发送；服务端在 `hooks.before` 最前面调 `enforceTurnstile()`（`src/server/auth/captcha.ts`），未通过时直接拒绝且不消耗后续限流计数 |
+| 发送验证码：点击按钮后弹出自托管手账点选验证框 | 前端调用 `captchaRef.current?.open()`（`src/components/ui/turnstile.tsx`）唤起弹窗，经 `GET / POST /api/auth/captcha` 顺次点选 3 个手账图标换取一次性 `passToken`，自动关窗并通过 `x-captcha-response` 请求头发送；服务端在 `hooks.before` 最前面调 `enforceTurnstile()`（`src/server/auth/captcha.ts`），未通过时直接拒绝且不消耗后续限流计数 |
 | 发送验证码：同一 IP 每小时 100 次；验证码登录：同一 IP 每分钟 30 次 | Better Auth `customRules`（覆盖内置对 `/sign-in/*` 的 10 秒 3 次限制） |
 | 发送验证码：同一 IP 每天 500 次（可调）；同一邮箱 60 秒 1 次、每天 100 次（可调） | `hooks.before` 里调用与 `/api/v1` 共用的计数函数 `consume()`（`src/server/rate-limit.ts`） |
 | 同一 IP 每天最多 100 个新账号（可调） | `databaseHooks.user.create.before` 按 IP 计数 |
@@ -82,11 +84,9 @@ src/app/api/auth/[...all]/route.ts     export const { GET, POST } = toNextJsHand
 
 | 变量 | 说明 |
 |---|---|
-| `BETTER_AUTH_SECRET` | 至少 32 字节的随机串。服务器和本地各用各的 |
+| `BETTER_AUTH_SECRET` | 至少 32 字节的随机串（同时用于会话签名与自托管点选人机验证的 AES-256-GCM 令牌加密）。服务器和本地各用各的 |
 | `BETTER_AUTH_URL` | 站点地址，本地 `http://localhost:23329` |
 | `BETTER_AUTH_TELEMETRY` | `0` |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile 站点公钥（留空时回退到官方测试公钥 `1x00000000000000000000AA`） |
-| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile 服务端密钥（留空时回退到官方测试密钥，需与公钥成对配置） |
 
 ## 8. 测试
 

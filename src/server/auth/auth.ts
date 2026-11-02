@@ -39,7 +39,7 @@ export const auth = betterAuth({
     enabled: true,
     storage: 'database',
     customRules: {
-      // ADR-0002 第 6 节、ADR-0023：发码前置 Turnstile 人机验证，同一 IP 每小时最多发 100 次验证码
+      // ADR-0002 第 6 节、ADR-0023：发码前置自托管点选人机验证，同一 IP 每小时最多发 100 次验证码
       [AUTH_PATHS.sendOtp]: { window: 3600, max: 100 },
       // 覆盖 Better Auth 对 /sign-in/* 默认的 10 秒 3 次限制（单验证码暴力猜解由 allowedAttempts: 8 兜底）
       [AUTH_PATHS.signInOtp]: { window: 60, max: 30 },

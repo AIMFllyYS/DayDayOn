@@ -22,7 +22,7 @@
 | 表单与字段 | `form.tsx`、`field.tsx`（改造现有） | Form、Field |
 | 复选框 | `checkbox.tsx` | Checkbox |
 | 日历 | `calendar.tsx` | React DayPicker |
-| 人机验证 | `turnstile.tsx` | Cloudflare Turnstile（`@marsidev/react-turnstile`） |
+| 人机验证弹窗 | `turnstile.tsx` | Base UI Dialog + 自研手账点选 `<canvas>`（ADR-0023） |
 | 开关、分段控件、评分 | 现有 `switch.tsx`、`segmented-control.tsx`、`rating.tsx` | 保持自研 |
 
 - 只在 `src/components/ui/` 里 import Base UI，并且只用子路径：`import { Drawer } from '@base-ui/react/drawer'`。不从 `@base-ui/react` 包根导入。

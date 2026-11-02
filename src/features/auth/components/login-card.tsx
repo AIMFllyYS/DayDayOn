@@ -10,7 +10,7 @@ import { useCountdown } from '../use-countdown'
 import { CodeStep, EmailStep, TotpStep } from './login-steps'
 
 /*
- * 登录（PRD 2.1、7.1）：邮箱 → 6 位验证码 →（管理员开了两步验证时）身份验证器 6 位码。
+ * 登录（PRD 2.1、7.1）：邮箱 → 点击发送验证码弹出手账人机验证 → 6 位验证码 →（管理员开了两步验证时）身份验证器 6 位码。
  * 只调 src/lib/auth-client.ts，发码、登录都由浏览器请求 /api/auth/*（lessons/better-auth.md：服务端调用不限流）。
  * 必须放在 <Suspense> 里：读 ?next= 与 ?banned=。
  */
@@ -35,21 +35,29 @@ export function LoginCard() {
   const [error, setError] = useState<string | undefined>(
     params.get('banned') ? '账号已被停用，重新登录可以看到原因' : undefined,
   )
-  const [captchaToken, setCaptchaToken] = useState<string | undefined>(undefined)
   const captchaRef = useRef<TurnstileFieldRef>(null)
+  const resendModeRef = useRef(false)
   const countdown = useCountdown()
 
-  async function send(resend = false) {
+  function requestSend(resend = false) {
     const address = email.trim()
-    if (!address) return setError('先填一下邮箱')
-    if (!captchaToken) {
-      captchaRef.current?.reset()
-      return setError('请先完成人机验证')
+    if (!address) {
+      setError('先填一下邮箱')
+      return
     }
+    setError(undefined)
+    resendModeRef.current = resend
+    captchaRef.current?.open()
+  }
+
+  async function sendWithToken(token: string | undefined) {
+    if (!token) return
+    const address = email.trim()
+    if (!address) return
+    const resend = resendModeRef.current
     setError(undefined)
     if (resend) setResending(true)
     else setPending(true)
-    const token = captchaToken
     const { error: e } = await authClient.emailOtp.sendVerificationOtp({
       email: address,
       type: 'sign-in',
@@ -59,8 +67,6 @@ export function LoginCard() {
     })
     setPending(false)
     setResending(false)
-    // Turnstile token 一次性有效，无论成功或失败都立即刷新供下一次使用
-    captchaRef.current?.reset()
     if (e) return setError(toLoginError(e as AuthClientError).message)
     countdown.start(RESEND_SECONDS)
     setCode('')
@@ -105,7 +111,6 @@ export function LoginCard() {
 
   function backToEmail() {
     setError(undefined)
-    setCaptchaToken(undefined)
     setStep('email')
   }
 
@@ -117,12 +122,12 @@ export function LoginCard() {
           <EmailStep
             email={email}
             onEmailChange={setEmail}
-            onSubmit={() => void send()}
+            onSubmit={() => requestSend(false)}
             pending={pending}
             error={error}
             cooldown={countdown.left}
             captchaRef={captchaRef}
-            onCaptchaTokenChange={setCaptchaToken}
+            onCaptchaTokenChange={(t) => void sendWithToken(t)}
             onCaptchaError={() => setError('人机验证加载失败，点选重试或刷新一下页面')}
           />
         )}
@@ -132,14 +137,14 @@ export function LoginCard() {
             code={code}
             onCodeChange={setCode}
             onSubmit={(v) => void signIn(v)}
-            onResend={() => void send(true)}
+            onResend={() => requestSend(true)}
             onBack={backToEmail}
             pending={pending}
             resending={resending}
             error={error}
             cooldown={countdown.left}
             captchaRef={captchaRef}
-            onCaptchaTokenChange={setCaptchaToken}
+            onCaptchaTokenChange={(t) => void sendWithToken(t)}
             onCaptchaError={() => setError('人机验证加载失败，点选重试或刷新一下页面')}
           />
         )}
