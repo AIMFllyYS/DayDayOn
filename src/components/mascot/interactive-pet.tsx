@@ -17,6 +17,7 @@ import {
   type MascotMood,
   type MascotRegistryCharacter,
 } from './mascot-svg'
+import { getTreatDef, type TreatId } from './treat-glyph'
 
 export type PetAction =
   | 'hop'
@@ -133,7 +134,7 @@ export interface PetHandle {
   play: (action: PetAction) => void
   /** 判断屏幕坐标是否落在团团身上（投喂用） */
   hitTest: (clientX: number, clientY: number) => boolean
-  feed: () => void
+  feed: (treatId?: TreatId) => void
 }
 
 interface InteractivePetProps {
@@ -257,9 +258,26 @@ export function InteractivePet({
       const r = rootRect()
       return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
     },
-    feed: () => {
-      play('eat')
-      onEvent?.({ type: 'feed', action: 'eat' })
+    feed: (treatId?: TreatId) => {
+      if (!treatId) {
+        play('eat')
+        onEvent?.({ type: 'feed', action: 'eat' })
+        return
+      }
+      const treat = getTreatDef(treatId)
+      const def = petActions[treat.action]
+      lastActive.current = Date.now()
+      setSleeping(false)
+      const n = ++seq.current
+      setAction({ name: treat.action, seq: n })
+      say(pick(treat.say))
+      burst(treat.fx, treat.fx === 'sparkle' ? 7 : 6)
+      if (treat.action === 'shy' || treat.action === 'love') setBlush(1)
+      later(() => {
+        setAction((a) => (a?.seq === n ? null : a))
+        setBlush((b) => Math.max(0.3, b - 0.3))
+      }, def.ms)
+      onEvent?.({ type: 'feed', action: treat.action })
     },
   }))
 

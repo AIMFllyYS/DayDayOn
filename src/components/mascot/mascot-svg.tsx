@@ -185,7 +185,18 @@ export function MascotSvg({
     mood === 'shy' || mood === 'love' ? 1 : Math.min(1, Math.max(0, blush)) * cheekFactor
   const cheekScale = mood === 'eating' ? 1.35 : 1
   const pose = arm ?? moodArm[mood]
-  const [leftDeg, rightDeg] = armAngle[pose]
+  const [baseLeftDeg, baseRightDeg] = armAngle[pose]
+  // 当未显式指定 arm 且处于默认 rest 姿态时，4 个角色有各自标志性的手臂微姿态
+  const [leftDeg, rightDeg] =
+    !arm && pose === 'rest'
+      ? character === 'tuan'
+        ? [10, -10]
+        : character === 'dun'
+          ? [-12, 12]
+          : character === 'mian'
+            ? [28, -28]
+            : [6, -34]
+      : [baseLeftDeg, baseRightDeg]
 
   return (
     <svg
@@ -291,15 +302,16 @@ export function MascotSvg({
 
       {character === 'you' && <YouFreckles />}
 
-      <Eyes mood={mood} blink={blink} dx={dx} dy={dy} />
+      <Eyes mood={mood} character={character} blink={blink} dx={dx} dy={dy} />
       {character === 'dun' && <DunBrows mood={mood} />}
+      {character === 'you' && <YouBrows mood={mood} />}
       {character === 'mian' && <MianLashes mood={mood} />}
-      <Mouth mood={mood} />
+      <Mouth mood={mood} character={character} />
       <Extras mood={mood} />
 
       {/* 手臂：最后画，保证任何姿势都不会被身体挡住 */}
-      <Arm side="left" deg={leftDeg} uid={uid} />
-      <Arm side="right" deg={rightDeg} uid={uid} waving={pose === 'wave'} />
+      <Arm side="left" deg={leftDeg} uid={uid} character={character} />
+      <Arm side="right" deg={rightDeg} uid={uid} character={character} waving={pose === 'wave'} />
     </svg>
   )
 }
@@ -556,16 +568,28 @@ function YouFreckles() {
   )
 }
 
-/** 一只小手：从肩膀垂下的圆润小臂，末端有一点肉垫高光 */
+/** 柚柚的灵动小挑眉：一高一低显出古灵精怪的小画家气质 */
+function YouBrows({ mood }: { mood: MascotMood }) {
+  if (mood === 'sad') return null
+  return (
+    <g fill="none" stroke={INK} strokeWidth="2.2" strokeLinecap="round" opacity="0.85">
+      <path d="M54 67q5-3.5 10-1M96 65q5.5-4.5 10.5-0.5" />
+    </g>
+  )
+}
+
+/** 一只小手：从肩膀垂下的圆润小臂，4 个角色带专属袖口与肉垫细节 */
 function Arm({
   side,
   deg,
   uid,
+  character,
   waving = false,
 }: {
   side: 'left' | 'right'
   deg: number
   uid: string
+  character: MascotRegistryCharacter
   waving?: boolean
 }) {
   const s = side === 'left' ? SHOULDER_L : SHOULDER_R
@@ -588,18 +612,156 @@ function Arm({
           stroke={SKIN_LINE}
           strokeWidth="2.2"
         />
-        <ellipse cx={s.x} cy={s.y + 24} rx="4.2" ry="2.6" fill="var(--custom)" opacity="0.45" />
+        {/* 角色专属手腕与掌心细节 */}
+        {character === 'tuan' && (
+          <g fill="var(--custom)" opacity="0.58">
+            <ellipse cx={s.x} cy={s.y + 24.5} rx="4.2" ry="2.7" />
+            <circle cx={s.x - 3.6} cy={s.y + 20.2} r="1.4" />
+            <circle cx={s.x} cy={s.y + 19.2} r="1.5" />
+            <circle cx={s.x + 3.6} cy={s.y + 20.2} r="1.4" />
+          </g>
+        )}
+        {character === 'dun' && (
+          <g>
+            {/* 运动护腕：雾蓝底 + 白色运动条纹 */}
+            <rect
+              x={s.x - 8.8}
+              y={s.y + 8}
+              width="17.6"
+              height="6.2"
+              rx="2.6"
+              fill="var(--study)"
+              stroke="#4f78a3"
+              strokeWidth="1.4"
+            />
+            <path
+              d={`M${s.x - 7} ${s.y + 11.1}h14`}
+              stroke="#fff"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              opacity="0.85"
+            />
+            <ellipse
+              cx={s.x}
+              cy={s.y + 24.5}
+              rx="3.8"
+              ry="2.2"
+              fill="var(--study)"
+              opacity="0.35"
+            />
+          </g>
+        )}
+        {character === 'mian' && (
+          <g>
+            {/* 蓬松云朵蕾丝袖口 */}
+            <path
+              d={`M${s.x - 9.2} ${s.y + 9.5}q3-2.8 6 0 3.2-2.8 6.4 0 3-2.8 6 0v3.2q-3 2.2-6 0-3.2 2.2-6.4 0-3 2.2-6 0Z`}
+              fill="#fff8f0"
+              stroke="#7a6899"
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+            />
+            <ellipse cx={s.x} cy={s.y + 24.5} rx="4" ry="2.5" fill="var(--sleep)" opacity="0.5" />
+          </g>
+        )}
+        {character === 'you' && (
+          <g>
+            {/* 小画家黄油袖口 + 掌心调色颜料斑点 */}
+            <rect
+              x={s.x - 8.6}
+              y={s.y + 7.5}
+              width="17.2"
+              height="5.2"
+              rx="2.4"
+              fill="var(--diet)"
+              stroke="#9b6b15"
+              strokeWidth="1.4"
+            />
+            <circle cx={s.x - 2.2} cy={s.y + 23.5} r="2.3" fill="var(--exercise)" opacity="0.75" />
+            <circle cx={s.x + 2.5} cy={s.y + 25.2} r="1.8" fill="var(--custom)" opacity="0.8" />
+          </g>
+        )}
       </g>
     </g>
   )
 }
 
-function OpenEye({ x, y, big = false }: { x: number; y: number; big?: boolean }) {
+function OpenEye({
+  x,
+  y,
+  character,
+  big = false,
+}: {
+  x: number
+  y: number
+  character: MascotRegistryCharacter
+  big?: boolean
+}) {
+  if (character === 'dun') {
+    // 墩墩：干脆有神的少年眼，高光偏左上椭圆
+    return (
+      <g>
+        <ellipse cx={x} cy={y} rx={big ? 7.8 : 6.8} ry={big ? 8.8 : 7.4} fill={INK} />
+        <ellipse
+          cx={x - 1.8}
+          cy={y - 2.4}
+          rx={big ? 2.8 : 2.4}
+          ry={big ? 2 : 1.7}
+          fill="#fff"
+          transform={`rotate(-20 ${x - 1.8} ${y - 2.4})`}
+        />
+        <circle cx={x + 2.2} cy={y + 2.6} r="1.1" fill="#fff" opacity="0.75" />
+      </g>
+    )
+  }
+  if (character === 'mian') {
+    // 绵绵：半垂眼睑的微醺困困眼，上半部带柔和奶油睡皮
+    return (
+      <g>
+        <ellipse cx={x} cy={y + 0.5} rx={big ? 7.2 : 6.4} ry={big ? 8.8 : 7.6} fill={INK} />
+        <circle cx={x + 2} cy={y - 1.2} r="2.2" fill="#fff" />
+        <circle cx={x - 1.8} cy={y + 3.2} r="1.1" fill="#fff" opacity="0.8" />
+        {!big && (
+          <>
+            <path d={`M${x - 7.2} ${y - 1.2}a7.2 6.8 0 0 1 14.4 0Z`} fill="#f7e4cf" />
+            <path
+              d={`M${x - 7.2} ${y - 1}q7.2 2.4 14.4 0`}
+              fill="none"
+              stroke={INK}
+              strokeWidth="2.4"
+              strokeLinecap="round"
+            />
+          </>
+        )}
+      </g>
+    )
+  }
+  if (character === 'you') {
+    // 柚柚：古灵精怪的十字星芒眼
+    return (
+      <g>
+        <ellipse cx={x} cy={y} rx={big ? 7.6 : 6.6} ry={big ? 9.4 : 8.2} fill={INK} />
+        {/* 瞳孔内的四角星芒高光 */}
+        <path
+          d={`M${x + 1.8} ${y - 5.2}c.4 2 1.2 2.8 3.2 3.2-2 .4-2.8 1.2-3.2 3.2-.4-2-1.2-2.8-3.2-3.2 2-.4 2.8-1.2 3.2-3.2Z`}
+          fill="#fff"
+        />
+        <circle cx={x - 2.2} cy={y + 2.8} r="1.3" fill="var(--diet)" opacity="0.9" />
+      </g>
+    )
+  }
+  // 团团：水汪汪双高光圆眼 + 眼尾甜美小翘睫
   return (
     <g>
-      <ellipse cx={x} cy={y} rx={big ? 7.5 : 6.5} ry={big ? 9.5 : 8} fill={INK} />
-      <circle cx={x + 2.3} cy={y - 3} r={big ? 2.8 : 2.4} fill="#fff" />
-      <circle cx={x - 2} cy={y + 3.2} r="1.2" fill="#fff" opacity="0.8" />
+      <ellipse cx={x} cy={y} rx={big ? 7.5 : 6.5} ry={big ? 9.5 : 8.2} fill={INK} />
+      <circle cx={x + 2.3} cy={y - 3} r={big ? 2.8 : 2.5} fill="#fff" />
+      <circle cx={x - 2} cy={y + 3.2} r="1.3" fill="#fff" opacity="0.85" />
+      <path
+        d={x < 80 ? `M${x - 6} ${y - 4.5}l-2.5-2` : `M${x + 6} ${y - 4.5}l2.5-2`}
+        stroke={INK}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </g>
   )
 }
@@ -615,11 +777,13 @@ function HeartEye({ x, y }: { x: number; y: number }) {
 
 function Eyes({
   mood,
+  character,
   blink,
   dx,
   dy,
 }: {
   mood: MascotMood
+  character: MascotRegistryCharacter
   blink: boolean
   dx: number
   dy: number
@@ -668,13 +832,13 @@ function Eyes({
           <path d="M51 67.5 61 71M109 67.5 99 71" />
         </g>
       )}
-      <OpenEye x={EYE_L.x} y={EYE_L.y} big={mood === 'surprised'} />
-      <OpenEye x={EYE_R.x} y={EYE_R.y} big={mood === 'surprised'} />
+      <OpenEye x={EYE_L.x} y={EYE_L.y} character={character} big={mood === 'surprised'} />
+      <OpenEye x={EYE_R.x} y={EYE_R.y} character={character} big={mood === 'surprised'} />
     </g>
   )
 }
 
-function Mouth({ mood }: { mood: MascotMood }) {
+function Mouth({ mood, character }: { mood: MascotMood; character: MascotRegistryCharacter }) {
   const line = { fill: 'none', stroke: INK, strokeWidth: 3, strokeLinecap: 'round' as const }
   switch (mood) {
     case 'cheer':
@@ -688,7 +852,11 @@ function Mouth({ mood }: { mood: MascotMood }) {
     case 'surprised':
       return <ellipse cx="80" cy="100" rx="4.5" ry="5.5" fill={MOUTH} />
     case 'sleepy':
-      return <path d="M76 98.5q4 2.5 8 0" {...line} />
+      return character === 'mian' ? (
+        <ellipse cx="80" cy="98.5" rx="3.2" ry="2.8" fill={MOUTH} opacity="0.85" />
+      ) : (
+        <path d="M76 98.5q4 2.5 8 0" {...line} />
+      )
     case 'thinking':
       return <path d="M75 99q5-2 10 0" {...line} />
     case 'shy':
@@ -705,6 +873,38 @@ function Mouth({ mood }: { mood: MascotMood }) {
         </g>
       )
     default:
+      // 默认开心表情：4 个角色拥有各自辨识度极高的嘴型细节
+      if (character === 'dun') {
+        // 墩墩：阳光爽朗的半月露齿笑口
+        return (
+          <g>
+            <path d="M72 94.5h16c0 5.5-3.6 8.5-8 8.5s-8-3-8-8.5Z" fill={MOUTH} />
+            <path d="M74 95h12v2.2H74z" fill="#fff" />
+          </g>
+        )
+      }
+      if (character === 'mian') {
+        // 绵绵：软萌微张的云朵嘟嘟小嘴
+        return (
+          <ellipse cx="80" cy="97" rx="3.6" ry="2.8" fill={TONGUE} stroke={INK} strokeWidth="2.4" />
+        )
+      }
+      if (character === 'you') {
+        // 柚柚：俏皮歪嘴笑 + 吐出一点粉嫩小舌尖
+        return (
+          <g>
+            <path
+              d="M78 96.5c1.5 4.2 6.8 4.8 8.2.5"
+              fill={TONGUE}
+              stroke={INK}
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            />
+            <path d="M71.5 95.5q8.5 4.5 17-2" {...line} />
+          </g>
+        )
+      }
+      // 团团：温柔猫咪 w 笑唇
       return <path d="M72 95q4 4.5 8 0 4 4.5 8 0" {...line} />
   }
 }

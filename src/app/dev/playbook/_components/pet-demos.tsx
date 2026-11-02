@@ -12,10 +12,11 @@ import {
   mascotRegistryCharacters,
   type MascotRegistryCharacter,
 } from '@/components/mascot/mascot-svg'
-import { TreatGlyph, treats, type TreatId } from '@/components/mascot/treat-glyph'
+import { getTreatDef, TreatGlyph, treats, type TreatId } from '@/components/mascot/treat-glyph'
 import { Icon } from '@/components/ui/icon'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Stamp } from '@/components/ui/stamp'
+import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/cn'
 
 const eventLabel: Record<PetEvent['type'], string> = {
@@ -80,8 +81,18 @@ export function PetStage() {
     record(`${eventLabel[e.type]}${e.action ? ` → ${petActions[e.action].label}` : ''}`)
   }
 
+  function notifyTreatHover(id: TreatId) {
+    const treat = getTreatDef(id)
+    toast.info(`你拿了${treat.label}`, {
+      id: 'treat-shelf-hover',
+      description: `${treat.flavor} · 按住拖给宠物投喂`,
+      timeout: 1800,
+    })
+  }
+
   function startDrag(id: TreatId, e: ReactPointerEvent<HTMLButtonElement>) {
     e.currentTarget.setPointerCapture(e.pointerId)
+    notifyTreatHover(id)
     setDrag({ id, x: e.clientX, y: e.clientY, over: false })
   }
 
@@ -107,14 +118,15 @@ export function PetStage() {
 
         <InteractivePet ref={pet} size={200} onEvent={onEvent} character={character} />
 
-        <div className="bg-surface/90 shadow-soft relative mt-4 flex items-center gap-2 rounded-full px-3 py-1.5">
-          <span className="text-tiny text-muted font-semibold">投喂</span>
+        <div className="border-border bg-surface/95 shadow-soft relative mt-4 flex flex-wrap items-center justify-center gap-1.5 rounded-2xl border px-3 py-2">
+          <span className="text-tiny text-muted mr-1 font-semibold">零食架</span>
           {treats.map((t) => (
             <button
               key={t.id}
               type="button"
-              aria-label={`把${t.label}拖给团团`}
-              title={`把${t.label}拖给团团`}
+              aria-label={`你拿了${t.label}（${t.flavor}）`}
+              onPointerEnter={() => notifyTreatHover(t.id)}
+              onFocus={() => notifyTreatHover(t.id)}
               onPointerDown={(e) => startDrag(t.id, e)}
               onPointerMove={(e) => {
                 if (!drag) return
@@ -127,20 +139,24 @@ export function PetStage() {
               }}
               onPointerUp={(e) => {
                 if (drag && pet.current?.hitTest(e.clientX, e.clientY)) {
-                  pet.current.feed()
+                  pet.current.feed(t.id)
+                  record(`投喂 ${t.label} → ${t.flavor}`)
                 }
                 setDrag(null)
               }}
               onClick={(e) => {
                 // 键盘用户：回车直接投喂
-                if (e.detail === 0) pet.current?.feed()
+                if (e.detail === 0) {
+                  pet.current?.feed(t.id)
+                  record(`投喂 ${t.label} → ${t.flavor}`)
+                }
               }}
               className={cn(
-                'ease-spring flex size-11 touch-none items-center justify-center rounded-full transition-transform duration-(--dur-fast) hover:-translate-y-0.5 active:scale-90',
+                'hover:bg-surface-sunken ease-spring flex size-10 touch-none items-center justify-center rounded-xl transition-transform duration-(--dur-fast) hover:-translate-y-0.5 active:scale-90',
                 drag?.id === t.id && 'opacity-30',
               )}
             >
-              <TreatGlyph id={t.id} size={30} />
+              <TreatGlyph id={t.id} size={28} />
             </button>
           ))}
         </div>

@@ -38,6 +38,27 @@ const DEMO: Record<TreatId, { title: string; fields: { label: string; value: str
       { label: '小提示', value: '下午茶别太多哦' },
     ],
   },
+  pudding: {
+    title: '下午茶 · 焦糖布丁',
+    fields: [
+      { label: '鸡蛋焦糖布丁 · 1 份', value: '约 155 kcal' },
+      { label: '蛋白质', value: '约 5 g' },
+    ],
+  },
+  dango: {
+    title: '加餐 · 三色团子',
+    fields: [
+      { label: '糯米三色团子 · 1 串', value: '约 130 kcal' },
+      { label: '碳水', value: '约 28 g' },
+    ],
+  },
+  milk: {
+    title: '晚安 · 温热牛奶',
+    fields: [
+      { label: '全脂温牛奶 · 200 ml', value: '约 125 kcal' },
+      { label: '小提示', value: '睡前喝一杯更好眠' },
+    ],
+  },
 }
 
 const THINK_MS = 1200
