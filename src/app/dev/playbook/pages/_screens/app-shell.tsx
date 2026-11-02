@@ -9,7 +9,41 @@ import { TopBar } from '@/components/layout/top-bar'
 import { TopBarActions, TopBarUserAvatar } from '@/components/layout/top-bar-nav'
 import { IconButton } from '@/components/ui/button'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
+import type { FriendSummary } from '@/features/friend/schemas'
 import { CheckinSheet } from '../../_components/checkin-sheet'
+
+export const PLAYBOOK_DEMO_FRIENDS: FriendSummary[] = [
+  {
+    userId: 'u-ayou',
+    nickname: '阿柚',
+    avatar: 'mascot:tuan:cheer:exercise',
+    streak: 9,
+    todayDone: 4,
+    todayPlanned: 4,
+    todayMood: 5,
+    createdAt: '2026-10-20T08:00:00.000Z',
+  },
+  {
+    userId: 'u-doudou',
+    nickname: '豆豆',
+    avatar: 'mascot:dun:happy:diet',
+    streak: 5,
+    todayDone: 2,
+    todayPlanned: 3,
+    todayMood: 4,
+    createdAt: '2026-10-24T08:00:00.000Z',
+  },
+  {
+    userId: 'u-qiqi',
+    nickname: '七七',
+    avatar: 'mascot:dun:sleepy:sleep',
+    streak: 3,
+    todayDone: 1,
+    todayPlanned: 3,
+    todayMood: 4,
+    createdAt: '2026-10-28T08:00:00.000Z',
+  },
+]
 
 export type ShellForm = 'phone' | 'desktop'
 
@@ -53,7 +87,7 @@ export function AppShell({
     onNavigate?.(href)
   }
   const leading = primaryNav ? (
-    <TopBarUserAvatar />
+    <TopBarUserAvatar demoFriends={PLAYBOOK_DEMO_FRIENDS} />
   ) : (
     !primary && <IconButton icon="chevron-left" label="返回" onClick={onBack} className="-ml-2" />
   )

@@ -27,6 +27,10 @@ interface ConfirmDialogProps {
   cancelLabel?: string
   /** danger：确认按钮用危险色 */
   tone?: 'default' | 'danger'
+  /** split：移动端也保持左下取消、右下确认的并排等宽布局（如接受好友邀请二次确认） */
+  buttonLayout?: 'responsive' | 'split'
+  /** centered：标题与说明居中对齐 */
+  centered?: boolean
   /** 返回 Promise 时等待完成后关闭；抛错时保持打开，由调用方提示错误 */
   onConfirm: () => void | Promise<unknown>
 }
@@ -40,6 +44,8 @@ export function ConfirmDialog({
   confirmLabel = '确定',
   cancelLabel = '再想想',
   tone = 'default',
+  buttonLayout = 'responsive',
+  centered = false,
   onConfirm,
 }: ConfirmDialogProps) {
   const [pending, setPending] = useState(false)
@@ -78,7 +84,11 @@ export function ConfirmDialog({
             'data-ending-style:ease-in-soft data-ending-style:scale-95 data-ending-style:opacity-0'
           }
         >
-          <div className="flex flex-col gap-1.5">
+          <div
+            className={
+              centered ? 'flex flex-col items-center gap-1.5 text-center' : 'flex flex-col gap-1.5'
+            }
+          >
             <AlertDialog.Title className="text-heading font-bold">{title}</AlertDialog.Title>
             {description && (
               <AlertDialog.Description className="text-body text-muted">
@@ -87,13 +97,27 @@ export function ConfirmDialog({
             )}
           </div>
           {children}
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div
+            className={
+              buttonLayout === 'split'
+                ? 'grid grid-cols-2 gap-3'
+                : 'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'
+            }
+          >
             <AlertDialog.Close
               disabled={pending}
-              render={<Button variant="ghost">{cancelLabel}</Button>}
+              render={
+                <Button
+                  variant={buttonLayout === 'split' ? 'secondary' : 'ghost'}
+                  className={buttonLayout === 'split' ? 'w-full' : undefined}
+                >
+                  {cancelLabel}
+                </Button>
+              }
             />
             <Button
               variant={tone === 'danger' ? 'danger' : 'primary'}
+              className={buttonLayout === 'split' ? 'w-full' : undefined}
               loading={pending}
               onClick={handleConfirm}
             >
