@@ -234,11 +234,23 @@ const RESTRICTIONS = [
     ],
   },
   {
+    allow: ['src/server/ai/**', 'src/features/agent/**'],
+    patterns: [
+      {
+        regex: pkgRegex(['ai', 'ai/*']),
+        message: pkgMessage(
+          'ai',
+          'src/server/ai/ 与 src/features/agent/（前端只 import ai 的类型与 DefaultChatTransport）',
+        ),
+      },
+    ],
+  },
+  {
     allow: ['src/server/ai/**'],
     patterns: [
       {
-        regex: pkgRegex(['ai', 'ai/*', '@ai-sdk/deepseek', '@ai-sdk/deepseek/*']),
-        message: pkgMessage('ai / @ai-sdk/deepseek', 'src/server/ai/'),
+        regex: pkgRegex(['@ai-sdk/deepseek', '@ai-sdk/deepseek/*']),
+        message: pkgMessage('@ai-sdk/deepseek', 'src/server/ai/'),
       },
     ],
   },
