@@ -14,8 +14,10 @@ import {
  * 正式组件（FloatingPet）和 Playbook 演示共用这一份逻辑：传 containerRef 时坐标相对容器（演示框），
  * 不传就是整屏。手势：点一下 = 单击，300ms 内点两下 = 双击，按住 450ms 不动 = 长按晃悠。
  *
- * 吸附规则：离左 / 右 / 上边缘 ≤ 24px 吸附并露半张脸（右侧露左半边，左侧露右半边，顶部倒立）；
- * 底部不吸附，由 bottomInset（Dock 栏）挡住。
+ * 水合安全（SSR Hydration Safety）：
+ * - 未传固定 initial 时，首帧（SSR 与客户端 Hydration）统一使用 SSR_INITIAL_POSITION 并标记 ready=false，
+ *   避免在 useState 初始化器中分支判断 typeof window 或读 localStorage 造成水合不一致。
+ * - 客户端挂载后在 requestAnimationFrame 中读取 localStorage / 视口尺寸完成定位并置 ready=true。
  */
 
 export const PET_SIZE = 56
@@ -33,10 +35,12 @@ export interface PetPosition {
   edge: PetEdge
 }
 
+const SSR_INITIAL_POSITION: PetPosition = { left: 0, top: 0, edge: 'none' }
+
 export interface PetDragOptions {
   size?: number
-  /** 底边保留高度：手机 Dock 栏；不传为 0 */
-  bottomInset?: number
+  /** 底边保留高度：手机 Dock 栏；支持传数值或客户端求值函数，不传为 0 */
+  bottomInset?: number | (() => number)
   /** 限定在一个元素内（Playbook 演示框）；不传就是整个视口 */
   containerRef?: RefObject<HTMLElement | null>
   /** 位置记在本机的键；不传就不持久化（演示框） */
@@ -52,7 +56,12 @@ interface Bounds {
   height: number
 }
 
-function measure(container: HTMLElement | null, inset: number): Bounds {
+function resolveInset(bottomInset: number | (() => number)): number {
+  return typeof bottomInset === 'function' ? bottomInset() : bottomInset
+}
+
+function measure(container: HTMLElement | null, bottomInset: number | (() => number)): Bounds {
+  const inset = resolveInset(bottomInset)
   if (container) return { width: container.clientWidth, height: container.clientHeight - inset }
   return { width: window.innerWidth, height: window.innerHeight - inset }
 }
@@ -92,7 +101,9 @@ function readStored(key: string | undefined): PetPosition | null {
     if (!raw) return null
     const p = JSON.parse(raw) as PetPosition
     if (typeof p.left !== 'number' || typeof p.top !== 'number') return null
-    return { left: p.left, top: p.top, edge: 'none' }
+    const edge: PetEdge =
+      p.edge === 'left' || p.edge === 'right' || p.edge === 'top' ? p.edge : 'none'
+    return { left: p.left, top: p.top, edge }
   } catch {
     return null
   }
@@ -100,6 +111,8 @@ function readStored(key: string | undefined): PetPosition | null {
 
 export interface PetDrag {
   position: PetPosition
+  /** 客户端是否已完成初始坐标测量（未传 initial 时水合帧为 false，避免闪烁与水合报错） */
+  ready: boolean
   dragging: boolean
   /** 长按蓄力中（一直晃悠） */
   swaying: boolean
@@ -130,17 +143,40 @@ export function usePetDrag(options: PetDragOptions): PetDrag {
     [containerRef, bottomInset],
   )
 
-  const [position, setPosition] = useState<PetPosition>(() => {
-    const stored = readStored(storageKey)
-    if (stored) return stored
-    if (initial) return initial
-    if (typeof window === 'undefined') return { left: 0, top: 0, edge: 'none' }
-    return defaultPetPosition(measure(null, bottomInset), size)
-  })
+  const [position, setPosition] = useState<PetPosition>(() => initial ?? SSR_INITIAL_POSITION)
+  const [ready, setReady] = useState<boolean>(() => initial !== undefined)
   const [dragging, setDragging] = useState(false)
   const [swaying, setSwaying] = useState(false)
   const [spinning, setSpinning] = useState(false)
   const [peeking, setPeeking] = useState(false)
+
+  // 客户端水合完成后测量真实视口 / 读取持久化位置，并在视口尺寸变化时保持在屏内
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      const currentBounds = bounds()
+      const stored = readStored(storageKey)
+      if (stored) {
+        setPosition(snapTo(stored, currentBounds, size))
+      } else if (initial) {
+        setPosition(initial)
+      } else {
+        setPosition(defaultPetPosition(currentBounds, size))
+      }
+      setReady(true)
+    })
+
+    function handleResize() {
+      if (containerRef?.current) return
+      const nextBounds = bounds()
+      setPosition((prev) => snapTo(prev, nextBounds, size))
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [bounds, containerRef, initial, size, storageKey])
 
   const drag = useRef<{
     startX: number
@@ -179,7 +215,6 @@ export function usePetDrag(options: PetDragOptions): PetDrag {
 
   const onPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLElement>) => {
-      // 指针捕获：拖动时指针常常跑出这只小团子，没有捕获就收不到后续的移动事件
       try {
         e.currentTarget.setPointerCapture(e.pointerId)
       } catch {
@@ -250,7 +285,7 @@ export function usePetDrag(options: PetDragOptions): PetDrag {
       })
       return
     }
-    if (d.longPress) return // 长按松手只结束晃悠，不当成点击
+    if (d.longPress) return
 
     const now = Date.now()
     if (now - lastTap.current <= DOUBLE_TAP_MS) {
@@ -268,6 +303,7 @@ export function usePetDrag(options: PetDragOptions): PetDrag {
 
   return {
     position,
+    ready,
     dragging,
     swaying,
     spinning,

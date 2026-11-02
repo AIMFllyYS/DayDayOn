@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { WeekHeatmap } from '@/components/charts/week-heatmap'
 import { Card, CardHeader } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -11,7 +12,7 @@ import { SummaryCard } from './summary-card'
 
 /*
  * 主页仪表盘的展示部分（PRD 2.8，原型 HomeScreen）：只接收数据和回调，不取数据。
- * 正式页面由 HomeView 传入 /dashboard/today 的结果；Playbook 传演示数据。
+ * 正式页面由 HomeView 传入 /dashboard/today（或好友仪表盘）的结果；Playbook 传演示数据。
  * 固定布局：左栏 总览 → 今日进度 → 本周热力图；右栏 体重 / 心情 → 榜单动态。
  */
 
@@ -23,6 +24,10 @@ export interface HomeDashboardProps {
   timeZone: string
   onOpenWeight: () => void
   onOpenMood: () => void
+  /** 查看好友仪表盘时开启只读模式 */
+  readOnly?: boolean
+  /** 顶部好友视角提示条 */
+  friendBanner?: ReactNode
 }
 
 export function HomeDashboard({
@@ -31,26 +36,39 @@ export function HomeDashboard({
   timeZone,
   onOpenWeight,
   onOpenMood,
+  readOnly = false,
+  friendBanner,
 }: HomeDashboardProps) {
   if (!data.hasGoals) {
     return (
-      <Card variant="sticker" className="mx-auto w-full max-w-md">
-        <EmptyState
-          title="还没有目标呢"
-          description="选一两件想坚持的小事，团团陪你每天打卡"
-          action={
-            <LinkButton href="/goals/new" icon="plus">
-              去设定目标
-            </LinkButton>
-          }
-        />
-      </Card>
+      <div className="flex flex-col gap-3 pb-8">
+        {friendBanner}
+        <Card variant="sticker" className="mx-auto w-full max-w-md">
+          <EmptyState
+            title={readOnly ? '好友还没有设定目标呢' : '还没有目标呢'}
+            description={
+              readOnly
+                ? '等好友选好想坚持的小事，就能在这里看到完整打卡情况啦'
+                : '选一两件想坚持的小事，团团陪你每天打卡'
+            }
+            action={
+              !readOnly ? (
+                <LinkButton href="/goals/new" icon="plus">
+                  去设定目标
+                </LinkButton>
+              ) : undefined
+            }
+          />
+        </Card>
+      </div>
     )
   }
 
   return (
     <div className="grid gap-3 pb-8 @xl:grid-cols-[1.25fr_1fr] @xl:gap-4">
-      {data.reminder && (
+      {friendBanner && <div className="@xl:col-span-2">{friendBanner}</div>}
+
+      {!readOnly && data.reminder && (
         <div className="@xl:col-span-2">
           <ReminderBanner reminder={data.reminder} localDate={data.localDate} />
         </div>
@@ -63,7 +81,7 @@ export function HomeDashboard({
           streak={data.streak}
           feed={data.feed}
         />
-        <ProgressCard goals={data.goals} />
+        <ProgressCard goals={data.goals} readOnly={readOnly} />
         <Card>
           <CardHeader title="本周热力图" description="格子越深，那天完成得越多" />
           <WeekHeatmap days={data.heatmap.days} rows={data.heatmap.rows} today={data.localDate} />
@@ -72,8 +90,8 @@ export function HomeDashboard({
 
       <div className="grid content-start gap-3">
         <div className="grid grid-cols-2 gap-3">
-          <WeightCard weight={data.weight} onOpen={onOpenWeight} />
-          <MoodCard mood={data.mood} onOpen={onOpenMood} />
+          <WeightCard weight={data.weight} onOpen={onOpenWeight} readOnly={readOnly} />
+          <MoodCard mood={data.mood} onOpen={onOpenMood} readOnly={readOnly} />
         </div>
 
         <Card>

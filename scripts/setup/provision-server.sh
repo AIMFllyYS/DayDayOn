@@ -45,6 +45,9 @@ install -m 0600 "$SRC/docker-compose.db.yml" "$DATA/compose/docker-compose.yml"
 install -m 0700 "$SRC/backup-db.sh" "$DATA/compose/backup-db.sh"
 printf '30 4 * * * root %s >> %s 2>&1\n' "$DATA/compose/backup-db.sh" "$DATA/backups/backup.log" > /etc/cron.d/daydayon-backup
 chmod 0644 /etc/cron.d/daydayon-backup
+# 允许 daydayon 用户在部署闸门中免密调用备份脚本
+printf 'daydayon ALL=(root) NOPASSWD: %s/compose/backup-db.sh\n' "$DATA" > /etc/sudoers.d/daydayon-backup
+chmod 0440 /etc/sudoers.d/daydayon-backup
 
 echo "== 3. 运行时 .env（已存在则保留）"
 if [[ ! -f "$ROOT/.env" ]]; then

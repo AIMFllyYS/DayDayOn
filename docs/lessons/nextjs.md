@@ -29,3 +29,9 @@
 - 根因：`server-only` 是 Next 打包器内置的虚拟边界，没有独立装进 `node_modules`，Vitest 原生解析不到。
 - 规则：`vitest.config.ts` 的 `resolve.alias` 把 `'server-only'` 指向 `src/test/server-only-stub.ts`（空模块），不额外安装 `server-only` 包。
 - 元：next@16.4.3、vitest@5.0.5 | 2026-11-01 | 候选毕业方向：已沉淀到 `vitest.config.ts`
+
+### Client Component 在 useState 初始化器里用 typeof window 或读 localStorage 触发 Hydration Mismatch
+- 症状：悬浮团团（`FloatingPet`）首屏报错 `A tree hydrated but some attributes of the server rendered HTML didn't match the client properties`，服务端 `style={{ left: "0px", top: "0px" }}` 与客户端水合帧 `left: 365, top: 728` 不一致。
+- 根因：`'use client'` 组件仍会在服务端执行首帧 SSR；在 `useState(() => ...)` 初始化器中按 `typeof window === 'undefined'` 分支或直接读 `localStorage` / `window.innerWidth` 会导致服务端与客户端首帧渲染结果不同。
+- 规则：依赖浏览器视口或 `localStorage` 的初始状态，首帧（SSR 与客户端 Hydration）必须使用同一份确定性初值（并可用 `ready=false` + `opacity-0` 防止位置跳变闪烁），在 `useEffect` + `requestAnimationFrame` 中完成客户端测量后再更新状态与 `ready=true`。
+- 元：next@16.4.3、react@19.3.0 | 2026-11-02 | 候选毕业方向：已沉淀到 `src/features/agent/use-pet-drag.ts`

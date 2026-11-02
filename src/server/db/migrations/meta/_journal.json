@@ -22,6 +22,13 @@
       "when": 1793576264414,
       "tag": "0002_bizarre_king_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793593282851,
+      "tag": "0003_thankful_sprite",
+      "breakpoints": true
     }
   ]
 }

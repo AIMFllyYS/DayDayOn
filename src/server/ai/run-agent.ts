@@ -35,6 +35,7 @@ import {
   titleFromFirstUserText,
   touchConversation,
 } from '@/server/services/agent/conversations'
+import { loadClock } from '@/server/services/checkins/clock'
 import type { AiRunStatus } from '@/features/quota/schemas'
 
 /*
@@ -194,6 +195,7 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
   )
   await touchConversation(db, input.userId, input.conversationId, now)
 
+  const clock = await loadClock(db, input.userId)
   const agent = buildAgent({
     model: getFlashModel(),
     userId: input.userId,
@@ -201,11 +203,12 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
     deepThink: input.deepThink,
     search,
     now,
+    clock,
   })
 
   const startedAt = Date.now()
   const result = await agent.stream({
-    messages: await convertToModelMessages(input.messages),
+    messages: await convertToModelMessages(input.messages, { tools: agent.tools }),
   })
   // 客户端断开也不影响模型跑完与结算（ai-and-quota.md：流式中断按已产生用量结算）
   result.consumeStream()
@@ -213,20 +216,35 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
   const response = createUIMessageStreamResponse({
     stream: toUIMessageStream({
       stream: result.stream,
+      tools: agent.tools,
       originalMessages: input.messages,
       generateMessageId: createIdGenerator({ prefix: 'amsg', size: 16 }),
-      onEnd: async ({ messages }) => {
-        await saveMessages(
-          db,
-          input.userId,
-          input.conversationId,
-          messages.map((m) => ({
-            messageId: m.id,
-            role: m.role === 'user' ? 'user' : 'assistant',
-            parts: stripFileParts(m.parts as unknown[]),
-            createdAt: (m as { createdAt?: Date }).createdAt ?? now,
-          })),
+      onError: (error) => {
+        console.error(
+          '[ai] agent 流式分片出错',
+          error instanceof Error ? error.message : String(error),
         )
+        return '团团刚刚走神了一下，点重试再叫我一次吧'
+      },
+      onEnd: async ({ messages }) => {
+        try {
+          await saveMessages(
+            db,
+            input.userId,
+            input.conversationId,
+            messages.map((m, idx) => ({
+              messageId: m.id,
+              role: m.role === 'user' ? 'user' : 'assistant',
+              parts: stripFileParts(m.parts as unknown[]),
+              createdAt: (m as { createdAt?: Date }).createdAt ?? new Date(now.getTime() + idx),
+            })),
+          )
+        } catch (error) {
+          console.error(
+            '[ai] agent 消息持久化失败',
+            error instanceof Error ? error.message : String(error),
+          )
+        }
       },
     }),
   })
@@ -280,8 +298,9 @@ function firstUserTextOf(messages: readonly UIMessage[]): string {
 export async function loadConversationMessages(
   userId: string,
   conversationId: string,
+  options: { allowMissing?: boolean } = {},
 ): Promise<UIMessage[]> {
-  const stored = await loadMessages(db, userId, conversationId)
+  const stored = await loadMessages(db, userId, conversationId, options)
   return stored.map((m) => ({
     id: m.id,
     role: m.role,

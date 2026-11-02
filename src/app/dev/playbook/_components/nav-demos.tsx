@@ -5,12 +5,13 @@ import { BottomNav } from '@/components/layout/bottom-nav'
 import { appNavItems } from '@/components/layout/nav-items'
 import { SideNav, type SideNavMode } from '@/components/layout/side-nav'
 import { TopBar } from '@/components/layout/top-bar'
+import { TopBarActions, TopBarUserAvatar } from '@/components/layout/top-bar-nav'
 import { IconTile } from '@/components/ui/badge'
-import { IconButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ProgressBar } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
+import { PLAYBOOK_DEMO_FRIENDS } from '../pages/_screens/app-shell'
 import { CheckinSheet } from './checkin-sheet'
 import { DesktopFrame, PhoneFrame } from './device-frame'
 
@@ -60,13 +61,15 @@ export function MobileShellDemo() {
   return (
     <PhoneFrame>
       <div className="flex h-full flex-col">
-        <TopBar
-          sticky={false}
-          eyebrow="10 月 31 日 · 周六"
-          title={titles[nav.path] ?? ''}
-          actions={<IconButton icon="bell" label="提醒" />}
-          className="pt-11"
-        />
+        {nav.path !== '/me' && (
+          <TopBar
+            sticky={false}
+            leading={<TopBarUserAvatar demoFriends={PLAYBOOK_DEMO_FRIENDS} />}
+            title={titles[nav.path] ?? ''}
+            actions={<TopBarActions />}
+            className="pt-11"
+          />
+        )}
         <div className="flex-1 overflow-y-auto px-4 pb-28">
           <DemoBody path={nav.path} />
         </div>
@@ -97,17 +100,14 @@ export function DesktopShellDemo({ mode, label }: { mode: SideNavMode; label: st
         footer={<QuotaMeter weeklyLimitMicro={10_000_000} weeklyUsedMicro={3_420_000} compact />}
       />
       <div className="min-w-0 flex-1 overflow-y-auto">
-        <TopBar
-          sticky={false}
-          eyebrow="10 月 31 日 · 周六"
-          title={titles[nav.path] ?? ''}
-          actions={
-            <>
-              <IconButton icon="search" label="搜索" />
-              <IconButton icon="bell" label="提醒" />
-            </>
-          }
-        />
+        {nav.path !== '/me' && (
+          <TopBar
+            sticky={false}
+            leading={<TopBarUserAvatar demoFriends={PLAYBOOK_DEMO_FRIENDS} />}
+            title={titles[nav.path] ?? ''}
+            actions={<TopBarActions />}
+          />
+        )}
         <div className="px-8 pb-8">
           <DemoBody path={nav.path} />
         </div>
