@@ -4,6 +4,7 @@ import { AiDraftCard } from '@/features/agent/components/ai-draft-card'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
 import { UserMessage } from '@/features/agent/components/user-message'
 import { AgentPlayback, ErrorTurnDemo } from '../_components/agent-demos'
+import { BoundedPetStage, EdgeStates, PanelLayoutDemo } from '../_components/floating-agent-demos'
 import { EditableDraftDemo, QuotaCardDemo, RecognizerPhasesDemo } from './_d6-demos'
 import { manyToolsTurn, quickTurn, runningTurn } from '../_components/agent-script'
 import { PageHeader, Rules, Section, Specimen } from '../_components/section'
@@ -195,6 +196,35 @@ export default function AgentPage() {
         </div>
       </Section>
 
+      <Section
+        ann="playbook.agent.floating"
+        title="悬浮团团（Agent 入口）"
+        description="应用内常驻的小宠物。点一下打开弹窗、按住拖动、长按一直晃悠、双击转圈；离边缘 24px 以内才吸附并露半个脑袋。底部被 Dock 栏挡住，不能拖进去。"
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="flex justify-center">
+            <BoundedPetStage />
+          </div>
+          <div className="flex flex-col gap-3">
+            <EdgeStates />
+            <p className="text-caption text-muted">
+              在右边这个框里直接拖动团团试试：靠近左右上三边会自动吸附，停在中间就停在原地。
+              顶部吸附时它会倒立，往下看两下。
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        ann="playbook.agent.panel"
+        title="对话弹窗"
+        description="从团团所在的角落弹出：手机顶部留 1/3、左侧留 1/4；桌面是右下角卡片。顶部小导航栏：历史 / 新对话 / 全屏 / 关闭。打开期间团团隐藏。"
+      >
+        <div className="flex justify-center">
+          <PanelLayoutDemo />
+        </div>
+      </Section>
+
       <Section ann="playbook.agent.rules" title="规则">
         <Rules
           dos={[
@@ -202,11 +232,13 @@ export default function AgentPage() {
             '同一步的工具并行展示，失败的直接显示原因和降级方案',
             '工具中文名、进行时说法、图标在 tool-meta.ts 登记',
             '联网结果附上来源；热量、睡眠类结果标注“估算结果，非医疗建议”',
+            '写操作一律出草稿，用户确认后才调普通创建接口',
           ]}
           donts={[
             '不要给每个工具一张大卡片',
             '不要自动保存 AI 结果，也不要展示原始图片',
             '不要在过程里显示 token 数、模型名等技术细节',
+            '不要在弹层里再开弹层（历史用下拉菜单）',
           ]}
         />
       </Section>
