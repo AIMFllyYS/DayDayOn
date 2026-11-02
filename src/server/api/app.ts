@@ -11,6 +11,7 @@ import { agentRoutes } from './routes/agent'
 import { aiRoutes } from './routes/ai'
 import { checkinRoutes } from './routes/checkins'
 import { dashboardRoutes } from './routes/dashboard'
+import { friendRoutes } from './routes/friends'
 import { goalRoutes } from './routes/goals'
 import { meRoutes } from './routes/me'
 import { metricRoutes } from './routes/metrics'
@@ -89,6 +90,7 @@ export const app = base
   .route('/', checkinRoutes)
   .route('/', metricRoutes)
   .route('/', dashboardRoutes)
+  .route('/', friendRoutes)
   .route('/', rankRoutes)
   .route('/', todoRoutes)
   .route('/', aiRoutes)

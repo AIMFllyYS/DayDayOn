@@ -24,6 +24,8 @@ export const errorMessages: Record<ErrorCode, Message> = {
   EMAIL_DOMAIN_NOT_ALLOWED: '暂时只支持 QQ、网易、Gmail、Outlook、iCloud 和华科邮箱',
   MAKEUP_NOT_ALLOWED: '只能补昨天的卡哦',
   REDEEM_CODE_INVALID: '兑换码好像不对，检查一下再试',
+  FRIEND_INVITE_INVALID: '配对码无效或已过期，请让好友重新查看',
+  FRIEND_SELF_INVITE: '不能使用自己的配对码哦',
 
   UNAUTHENTICATED: '登录已过期，重新登录一下吧',
   QUOTA_INSUFFICIENT: '本周的 AI 额度用完了，可以手动记录，或兑换额度',
@@ -43,6 +45,7 @@ export const errorMessages: Record<ErrorCode, Message> = {
   TODO_NOT_FOUND: '这条待办不见了，可能已经删除',
   USER_NOT_FOUND: '找不到这个用户',
   REDEEM_CODE_NOT_FOUND: '找不到这个兑换码',
+  FRIEND_NOT_FOUND: '未找到该好友关系',
 
   ALREADY_ONBOARDED: '你已经完成引导啦',
   GOAL_LIMIT_REACHED: '进行中的目标太多了（最多 20 个，睡眠目标只能有 1 个），先归档几个吧',
@@ -55,6 +58,7 @@ export const errorMessages: Record<ErrorCode, Message> = {
   REDEEM_CODE_USED: '这个兑换码已经用过了',
   IDEMPOTENCY_KEY_REUSED: '这个操作已经提交过了，刷新看看',
   REQUEST_IN_PROGRESS: '正在处理上一次的提交，稍等一下',
+  FRIEND_ALREADY_EXISTS: '你们已经是好友啦',
 
   PAYLOAD_TOO_LARGE: '图片太大了，换一张或截个图试试',
   UNSUPPORTED_MEDIA_TYPE: '这张图打不开，换一张或截个图试试',
