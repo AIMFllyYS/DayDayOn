@@ -150,7 +150,7 @@ export default function PrimitivesPage() {
           <Specimen
             ann="playbook.primitives.form.turnstile"
             label="TurnstileField 人机验证"
-            note="基于 Cloudflare Turnstile 封装，发验证码前静默校验；token 一次性有效，消费后调用 reset() 刷新"
+            note="自托管手账风图标点选验证：服务端下发旋转混淆后的 Canvas 矢量路径，按顺序点选 3 个图案换取一次性加密凭证；消费后调 reset() 刷新"
           >
             <TurnstileDemo />
           </Specimen>

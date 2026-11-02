@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { IconButton } from '@/components/ui/button'
 import { AdminScreen } from './admin'
 import { CheckinScreen } from './checkin'
 import { GoalsScreen } from './goals'
@@ -28,6 +27,8 @@ export interface ScreenDef {
   navPath?: string
   eyebrow?: string
   actions?: ReactNode
+  hideTopBar?: boolean
+  primaryNav?: boolean
   /** thumb：总览墙里的缩略图，互动组件换成静态版（一屏不放两只互动吉祥物） */
   render: (opts: { thumb: boolean }) => ReactNode
 }
@@ -41,7 +42,7 @@ export const screens: ScreenDef[] = [
     shell: 'app',
     navPath: '/',
     eyebrow: '11 月 1 日 · 周日',
-    actions: <IconButton icon="bell" label="提醒" />,
+    primaryNav: true,
     render: () => <HomeScreen />,
   },
   {
@@ -51,6 +52,7 @@ export const screens: ScreenDef[] = [
     note: '清单 + DDL；勾选有回弹动画，完成的移到下方',
     shell: 'app',
     navPath: '/todo',
+    primaryNav: true,
     render: () => <TodoScreen />,
   },
   {
@@ -60,16 +62,17 @@ export const screens: ScreenDef[] = [
     note: '本周 / 本月；前三名领奖台，“我”固定在底部；只显示公开用户',
     shell: 'app',
     navPath: '/rank',
+    primaryNav: true,
     render: () => <RankScreen />,
   },
   {
     id: 'me',
     route: '/me',
     title: '我的',
-    note: '互动吉祥物只在这里出现；外观里选主题色和形象',
+    note: '手机端隐藏顶栏，卡片置顶；外观使用菜单栏样式',
     shell: 'app',
     navPath: '/me',
-    actions: <IconButton icon="sliders" label="设置" />,
+    hideTopBar: true,
     render: ({ thumb }) => <MeScreen thumb={thumb} />,
   },
   {

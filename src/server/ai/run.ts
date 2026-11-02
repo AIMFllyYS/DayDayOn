@@ -72,15 +72,15 @@ const STALE_RUNNING_MS = 5 * 60_000
 const USER_DAILY_SPEND_ALERT_MICROS = 5_000_000
 
 /** 结算事务的重试次数与间隔（毫秒，第 n 次等 n 倍） */
-const SETTLE_ATTEMPTS = 3
-const SETTLE_RETRY_DELAY_MS = 200
+export const SETTLE_ATTEMPTS = 3
+export const SETTLE_RETRY_DELAY_MS = 200
 /** 每次对账最多处理的卡死调用数 */
 const RECONCILE_BATCH = 20
 
 const pausedError = (detail: string) => new ApiError('AI_PAUSED', detail)
 
 /** 今日全站花费（北京时间日期键） */
-async function spentToday(dayKey: string): Promise<number> {
+export async function spentToday(dayKey: string): Promise<number> {
   const [row] = await db
     .select({ spent: aiDailySpend.spentMicros })
     .from(aiDailySpend)
@@ -89,7 +89,7 @@ async function spentToday(dayKey: string): Promise<number> {
 }
 
 /** 第 1 步：检查。不满足直接抛 ApiError，不调用模型、不写 ai_runs */
-async function preflight(userId: string, now: Date, dayKey: string) {
+export async function preflight(userId: string, now: Date, dayKey: string) {
   const state = await loadAccountState(userId)
   const accountError = checkAccount(state, now)
   if (accountError) throw accountError
@@ -109,7 +109,7 @@ async function preflight(userId: string, now: Date, dayKey: string) {
 }
 
 /** 并发与频率：在持有额度行锁的事务里数，同一用户的请求在这里串行 */
-async function checkUserLimits(
+export async function checkUserLimits(
   tx: Tx,
   userId: string,
   now: Date,
@@ -232,7 +232,7 @@ export async function runAi<P extends AiPurpose, S extends z.ZodType>(
   return { ok: false, aiRunId, reason: result.kind, costMicros: cost }
 }
 
-interface RunOutcome {
+export interface RunOutcome {
   status: AiRunStatus
   usage: CallModelResult<z.ZodType>['usage']
   cost: number
@@ -243,7 +243,7 @@ interface RunOutcome {
  * 结算一次调用：按费用结算或全额释放、累加全站日花费、写回 ai_runs。调用方已持有额度行锁。
  * 退款金额从这次调用的流水还原；已经结算过（另一路抢先）就只补写 ai_runs，不再退一次。
  */
-async function finishRun(
+export async function finishRun(
   tx: Tx,
   args: {
     userId: string
@@ -292,7 +292,7 @@ async function finishRun(
 }
 
 /** 结算彻底失败时单独记下用量和费用（行仍是 running），对账按它结算。再失败只记日志 */
-async function recordPendingUsage(aiRunId: string, outcome: RunOutcome): Promise<void> {
+export async function recordPendingUsage(aiRunId: string, outcome: RunOutcome): Promise<void> {
   try {
     await db
       .update(aiRuns)
@@ -367,7 +367,11 @@ export async function reconcileStaleRuns(tx: Tx, userId: string, now: Date): Pro
  * 同一个幂等键已经有过一次调用（例如中途出错后客户端用同一个键重试）：不再预占、不再调模型。
  * 进行中返回 409 REQUEST_IN_PROGRESS，已结束返回 409 IDEMPOTENCY_KEY_REUSED（幂等中间件会记住）。
  */
-async function rejectReusedKey(tx: Tx, userId: string, idempotencyKey: string): Promise<void> {
+export async function rejectReusedKey(
+  tx: Tx,
+  userId: string,
+  idempotencyKey: string,
+): Promise<void> {
   const [existing] = await tx
     .select({ status: aiRuns.status })
     .from(aiRuns)
@@ -381,7 +385,7 @@ async function rejectReusedKey(tx: Tx, userId: string, idempotencyKey: string): 
 }
 
 /** 花费后的告警检查：全站日上限、单人单日 5 元。失败只记日志 */
-async function afterSpend(userId: string, dayKey: string, capMicros: number): Promise<void> {
+export async function afterSpend(userId: string, dayKey: string, capMicros: number): Promise<void> {
   try {
     const spent = await spentToday(dayKey)
     if (spent >= capMicros) {

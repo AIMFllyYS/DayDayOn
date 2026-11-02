@@ -6,6 +6,7 @@ import type { AiPurpose, AiRunStatus } from './schemas'
 
 export const PURPOSE_LABEL: Record<AiPurpose, string> = {
   'diet-recognition': '拍照识别饮食',
+  'agent-chat': '和团团对话',
 }
 
 export const RUN_STATUS_LABEL: Record<AiRunStatus, string> = {

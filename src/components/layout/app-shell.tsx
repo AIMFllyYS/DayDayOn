@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { Suspense, type ReactNode } from 'react'
 import { CheckinLauncher } from '@/features/checkin/components/checkin-launcher'
 import { useCheckinLauncher, useCheckinLauncherState } from '@/features/checkin/launcher-store'
+import { cn } from '@/lib/cn'
 import { BottomNav } from './bottom-nav'
 import { appNavItems } from './nav-items'
 import { SideNav } from './side-nav'
@@ -43,7 +44,12 @@ export function AppShellFrame({
     return (
       <div className="relative flex h-full w-full min-w-0 flex-col">
         {header}
-        <div className="@container min-h-0 w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-28">
+        <div
+          className={cn(
+            '@container min-h-0 w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-28',
+            !header && 'pt-4',
+          )}
+        >
           {children}
         </div>
         {bottomNav && <div className="absolute inset-x-3 bottom-4 z-30">{bottomNav}</div>}
@@ -57,7 +63,11 @@ export function AppShellFrame({
         {sideNav}
         <div className="flex min-w-0 flex-1 flex-col">
           {header}
-          <div className="@container min-h-0 flex-1 overflow-y-auto px-8 pb-8">{children}</div>
+          <div
+            className={cn('@container min-h-0 flex-1 overflow-y-auto px-8 pb-8', !header && 'pt-6')}
+          >
+            {children}
+          </div>
         </div>
       </div>
     )

@@ -50,3 +50,9 @@
 - 规则：封装层在输入词不匹配现有项时，向 `items` 末尾追加一个带 `__creatable` 标记的合成项，选中该项时调用 `onCreate(query)`。
 - 元：@base-ui/react@1.9.0 | 2026-11-01 | 候选毕业方向：已沉淀到 `src/components/ui/combobox.tsx`
 
+### 嵌套在 overflow-hidden 容器内的气泡或菜单被截断
+- 症状：在具有 `overflow-hidden` 的弹窗（如 `AgentPanel`）或卡片内部使用下拉气泡/菜单时，弹出内容超出容器边界的部分被直接裁剪截断（特别是在窄屏设备靠右停靠时，向左展开的内容超出左边界）。
+- 根因：如果不使用 `Portal`，气泡 DOM 树受制于父级容器的 BFC 与 overflow 裁剪规则；同时如果 `z-index` 与容器平级或更低，也会产生层级遮挡。
+- 规则：凡是可能溢出触发容器的弹出层（`Popover`、`Menu`），必须通过 `Portal` 挂载到 body 顶层，并配合高层级（如 `z-[60]`）与 Floating UI 的碰撞检测（`align="end"` + 视口避让）；`Popover` 封装层提供 `positionerClassName` 与 `clean` 属性，方便内部列表直接复用。
+- 元：@base-ui/react@1.9.0 | 2026-11-02 | 候选毕业方向：已沉淀到 `src/components/ui/popover.tsx` 与 `agent-panel.tsx`
+

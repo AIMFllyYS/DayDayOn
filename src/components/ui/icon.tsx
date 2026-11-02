@@ -283,6 +283,17 @@ const icons = {
     tint: <path d="M13.1 22.1s6-5.5 6-11a6 6 0 0 0-12 0c0 5.5 6 11 6 11Z" />,
   },
   menu: { line: <path d="M5 7h14M5 12h9M5 17h14" /> },
+  maximize: {
+    line: (
+      <>
+        <path d="M15 4h5v5" />
+        <path d="m20 4-6 6" />
+        <path d="M9 20H4v-5" />
+        <path d="m4 20 6-6" />
+      </>
+    ),
+    tint: <path d="M15 4h5v5l-2.5-2.5zM9 20H4v-5l2.5 2.5z" />,
+  },
   chart: {
     line: <path d="M5 19.5h14M8 16v-5M12 16V7M16 16v-8" />,
     tint: <path d="M8.2 11.8h2.2v5.3H8.2zM12.2 7.8h2.2v9.3h-2.2zM16.2 8.8h2.2v8.3h-2.2z" />,

@@ -41,6 +41,14 @@ const toolMeta: Record<string, ToolMeta> = {
   recognizeMeal: { label: '看照片认食物', verb: '正在看照片', icon: 'camera', tone: 'diet' },
   webSearch: { label: '联网搜索', verb: '正在搜索', icon: 'globe', tone: 'study' },
   webFetch: { label: '读取网页', verb: '正在读网页', icon: 'link', tone: 'study' },
+  // Agent 对话（features/agent + server/ai/agent-tools.ts）
+  listGoals: { label: '读取目标', verb: '正在看目标', icon: 'trophy', tone: 'primary' },
+  listTodos: { label: '读取待办', verb: '正在看待办', icon: 'todo', tone: 'neutral' },
+  listCheckins: { label: '读取打卡', verb: '正在看打卡', icon: 'calendar', tone: 'study' },
+  getWeight: { label: '读取体重', verb: '正在看体重', icon: 'chart', tone: 'primary' },
+  draftCheckin: { label: '整理打卡草稿', verb: '正在整理打卡', icon: 'check', tone: 'primary' },
+  draftTodo: { label: '整理待办草稿', verb: '正在整理待办', icon: 'todo', tone: 'neutral' },
+  draftWeight: { label: '整理体重草稿', verb: '正在整理体重', icon: 'chart', tone: 'primary' },
 }
 
 const fallback: ToolMeta = {

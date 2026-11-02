@@ -36,7 +36,8 @@
 | 8 | 图片压缩与传输 | 不引入库：原生 canvas 转 JPEG | — | — | `src/lib/image/`、`src/server/ai/image.ts` | [0011](./adr/0011-image-pipeline.md) | — |
 | 9 | 客户端数据请求 | TanStack Query（`@tanstack/react-query`） | 5.105.0 | 是 | `src/lib/api/` | [0012](./adr/0012-client-data.md) | [tanstack-query](./lessons/tanstack-query.md) |
 | 10 | 数据校验 | `zod` | 4.6.7 | 是 | 工具库豁免；schema 在 `src/features/<领域>/schemas.ts` | [0013](./adr/0013-validation.md) | [zod](./lessons/zod.md) |
-| 18 | 人机验证 | Cloudflare Turnstile（`@marsidev/react-turnstile`） | 1.6.3 | 是 | `src/components/ui/turnstile.tsx`、`src/server/auth/captcha.ts` | [0023](./adr/0023-captcha.md) | [turnstile](./lessons/turnstile.md) |
+| 18 | 人机验证 | 不引入库：自托管手账点选弹窗（Canvas + AES-256-GCM） | — | — | `src/components/ui/turnstile.tsx`、`src/server/auth/captcha.ts` | [0023](./adr/0023-captcha.md) | [turnstile](./lessons/turnstile.md) |
+| 19 | AI 输出渲染（Markdown / KaTeX / Mermaid） | `react-markdown@10.1.0` + `remark-gfm@4.0.1` + `remark-math@6.0.0` + `rehype-katex@7.0.1` + `katex@0.19.1` + `remend@1.4.0` + `mermaid@12.2.0`（均 MIT / Apache-2.0，无安装脚本；mermaid 的传递依赖 elkjs 为 EPL/GPL 双许可，不启用 elk 布局并在打包后确认不随制品分发） | 见版本 | 是 | `src/components/markdown/` | [0025](./adr/0025-ai-output-rendering.md) | — |
 
 ### 服务端与平台
 
@@ -94,7 +95,7 @@
 - 图片压缩：禁止引入 browser-image-compression、compressorjs；服务端不对用户图片转码（不用 sharp 处理用户图片），只做格式与大小校验。
 - 客户端数据请求 = TanStack Query，禁止引入 swr、axios、ky；业务组件不直接 fetch `/api/v1`，只经 `src/lib/api/`。
 - 校验 = zod，禁止引入 valibot、yup、joi、arktype；统一写 `import * as z from 'zod'`，禁止 `import { z } from 'zod'`（同样的 schema 实测 90.8 KB 对 25.6 KB）。`import { z } from '@hono/zod-openapi'` 只允许出现在 `src/server/api/`。
-- 人机验证 = Cloudflare Turnstile（`@marsidev/react-turnstile`，只经 `src/components/ui/turnstile.tsx`），禁止引入 `react-turnstile`、`react-google-recaptcha`、`@hcaptcha/react-hcaptcha`、极验或任何腾讯云验证码 SDK。
+- 人机验证 = 自托管手账点选弹窗（只经 `src/components/ui/turnstile.tsx` 与 `src/server/auth/captcha.ts`），禁止引入 `@marsidev/react-turnstile`、`react-turnstile`、`react-google-recaptcha`、`@hcaptcha/react-hcaptcha`、极验或任何腾讯云验证码 SDK。
 
 **服务端：**
 
@@ -123,6 +124,7 @@
 - 周期性重置 → 周期键懒计算
 - 图表比例尺 → `src/components/charts/` 里几行线性映射
 - 邮件模板 → `src/server/mail/` 里的 HTML 字符串函数
+- 人机验证 → 手账图标 Canvas 仿射点选弹窗 + `BETTER_AUTH_SECRET` AES-256-GCM 一次性令牌（`src/components/ui/turnstile.tsx`、`src/server/auth/captcha.ts`）
 
 ## 变更规则
 

@@ -1,21 +1,10 @@
-import { Fragment, type ReactNode } from 'react'
+import { Markdown } from '@/components/markdown'
 import { cn } from '@/lib/cn'
 
-/**
- * 只支持两种格式：空行分段、**加粗**。AI 输出按纯文本渲染成 React 节点，不使用 innerHTML。
- * 以后需要列表、表格时再换成 Markdown 渲染器（并做 XSS 过滤）。
+/*
+ * AI 回复正文：气泡容器 + Markdown 全量渲染（标题、列表、表格、KaTeX、Mermaid）。
+ * 流式时末尾加闪烁光标；Markdown 组件内部用 remend 补全没写完的语法。
  */
-function renderInline(line: string): ReactNode[] {
-  return line.split(/(\*\*[^*]+\*\*)/g).map((seg, i) =>
-    seg.startsWith('**') && seg.endsWith('**') && seg.length > 4 ? (
-      <strong key={i} className="font-display text-foreground font-semibold">
-        {seg.slice(2, -2)}
-      </strong>
-    ) : (
-      <Fragment key={i}>{seg}</Fragment>
-    ),
-  )
-}
 
 export function AnswerText({
   text,
@@ -26,7 +15,6 @@ export function AnswerText({
   streaming?: boolean
   className?: string
 }) {
-  const paragraphs = text.split(/\n{2,}/).filter((p) => p.trim().length > 0)
   return (
     <div
       className={cn(
@@ -34,22 +22,13 @@ export function AnswerText({
         className,
       )}
     >
-      {paragraphs.map((p, i) => (
-        <p key={i} className={cn(i > 0 && 'mt-2')}>
-          {p.split('\n').map((line, j) => (
-            <Fragment key={j}>
-              {j > 0 && <br />}
-              {renderInline(line)}
-            </Fragment>
-          ))}
-          {streaming && i === paragraphs.length - 1 && (
-            <span
-              aria-hidden
-              className="animate-caret bg-primary ml-0.5 inline-block h-4 w-1 translate-y-0.5 rounded-full"
-            />
-          )}
-        </p>
-      ))}
+      <Markdown text={text} streaming={streaming} />
+      {streaming && (
+        <span
+          aria-hidden
+          className="bg-primary animate-caret ml-0.5 inline-block h-4 w-1 translate-y-0.5 rounded-full"
+        />
+      )}
     </div>
   )
 }

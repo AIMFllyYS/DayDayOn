@@ -44,3 +44,21 @@
 - 规则：通过 `src/server/ai/pricing.ts` 的 `normalizeUsage(usage)` 统一提取 `inputMissTokens` 与 `inputHitTokens`，再按 DeepSeek 命中/未命中单价精确算微元。
 - 元：ai@7.0.159、@ai-sdk/deepseek@3.0.77 | 2026-11-01 | 候选毕业方向：已沉淀到 `src/server/ai/pricing.ts`
 
+### 图像能力口径：以 DeepSeek 定价页为准，别信 provider 内文档的能力表
+- 症状：`@ai-sdk/deepseek@3.0.77` 的 `docs/30-deepseek.mdx` 能力表把 `deepseek-flash` 的 Image Input 标为 ✗，只有 `deepseek-v4-flash-vision-exp` 标为 ✓。
+- 根因：该能力表是旧口径。DeepSeek 官方定价页（2026-10-17 起）写 `deepseek-flash`（DeepSeek-V4.1-Flash-1017）Image input = Yes，且 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 这些旧名都路由到同一个 V4.1-Flash 模型。
+- 规则：图像理解继续用 `deepseek-flash`（本项目 `model.ts` 的唯一模型）；核对模型能力以 api-docs.deepseek.com 定价页为准。
+- 元：@ai-sdk/deepseek@3.0.77 | 2026-11-02 | 候选毕业方向：无
+
+### 联网搜索 / 读网页是独立 HTTP 接口，不是模型工具
+- 症状：以为 DeepSeek 搜索会作为 provider 原生工具暴露给 AI SDK。
+- 根因：DeepSeek Search / Fetch 是独立的 `POST /v1/tools/search`、`POST /v1/tools/fetch`，用 `Authorization: Bearer <key>`，和模型调用分开计费。
+- 规则：在 `src/server/ai/web-search.ts` 里用 fetch 直连；把它们包成 `tool()` 给 ToolLoopAgent，成功才按次计费（约 5000 微元/次）。`search` 的 `summary` 是给模型读的字段，`need_content` 默认 false 时 `content` 恒为空。
+- 元：@ai-sdk/deepseek@3.0.77 | 2026-11-02 | 候选毕业方向：已沉淀到 `web-search.ts`
+
+### ToolLoopAgent 的流式用法与记账
+- 症状：照 `streamText` 老写法给 agent 传 `abortSignal`，客户端断开会中止并丢结算。
+- 根因：`ToolLoopAgent.stream()` 返回 `StreamTextResult`；`result.usage` 是「跨步合计」的 PromiseLike，`result.consumeStream()` 去掉背压让模型在客户端断开后仍跑完。
+- 规则：`agent.stream({ messages })` 后 `result.consumeStream()`；用 `toUIMessageStream({ stream: result.stream, onEnd })` 持久化；在后台 `await result.usage` 结算。不传 `abortSignal`。
+- 元：ai@7.0.159 | 2026-11-02 | 候选毕业方向：已沉淀到 `run-agent.ts`
+

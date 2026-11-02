@@ -400,10 +400,10 @@ export function TurnstileDemo() {
       <TurnstileField ref={ref} onTokenChange={setToken} />
       <div className="flex items-center justify-between gap-2">
         <span className="text-caption text-muted">
-          {token ? '已获取一次性验证凭证' : '等待人机验证通过…'}
+          {token ? '✓ 已获取一次性验证凭证' : '点击右侧按钮弹出验证对话框'}
         </span>
-        <Button variant="secondary" size="sm" onClick={() => ref.current?.reset()}>
-          重置凭证
+        <Button variant="secondary" size="sm" onClick={() => ref.current?.open()}>
+          {token ? '重新验证' : '弹出人机验证'}
         </Button>
       </div>
     </div>
