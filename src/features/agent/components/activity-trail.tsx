@@ -63,7 +63,7 @@ export function ActivityTrail({
         aria-controls={regionId}
         disabled={steps.length === 0}
         onClick={() => setManual(!open)}
-        className="flex min-h-11 w-full items-center gap-2.5 px-3 py-1.5 text-left disabled:cursor-default"
+        className="flex min-h-9 w-full items-center gap-2 px-2.5 py-1 text-left disabled:cursor-default md:min-h-11 md:gap-2.5 md:px-3 md:py-1.5"
       >
         <StatusGlyph status={turn.status} failed={summary.failed > 0} />
         <span className="text-caption min-w-0 flex-1 truncate">
@@ -112,11 +112,11 @@ export function ActivityTrail({
 function StatusGlyph({ status, failed }: { status: AgentTurnView['status']; failed: boolean }) {
   if (status === 'submitted' || status === 'streaming') {
     return (
-      <span className="relative flex size-6 shrink-0 items-center justify-center">
+      <span className="relative flex size-5 shrink-0 items-center justify-center md:size-6">
         <span className="bg-primary-soft absolute inset-0 animate-ping rounded-full [animation-duration:1.6s]" />
         <Icon
           name="loader"
-          size={16}
+          size={15}
           strokeWidth={2.6}
           className="animate-spin-slow text-primary relative"
         />
@@ -125,14 +125,14 @@ function StatusGlyph({ status, failed }: { status: AgentTurnView['status']; fail
   }
   if (status === 'error' || failed) {
     return (
-      <span className="bg-warning-soft text-warning-ink flex size-6 shrink-0 items-center justify-center rounded-full">
-        <Icon name="alert" size={14} lineOnly />
+      <span className="bg-warning-soft text-warning-ink flex size-5 shrink-0 items-center justify-center rounded-full md:size-6">
+        <Icon name="alert" size={13} lineOnly />
       </span>
     )
   }
   return (
-    <span className="bg-success-soft text-success-ink flex size-6 shrink-0 items-center justify-center rounded-full">
-      <Icon name="check" size={14} strokeWidth={2.6} />
+    <span className="bg-success-soft text-success-ink flex size-5 shrink-0 items-center justify-center rounded-full md:size-6">
+      <Icon name="check" size={13} strokeWidth={2.6} />
     </span>
   )
 }

@@ -62,8 +62,9 @@ export function AgentFullscreen() {
         </div>
       }
     >
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 overflow-y-auto py-2">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* 消息滚动区：全高贯穿到底部，底部留出浮动输入框的高度的安全 padding，允许向上滑动穿透 */}
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-0 pt-2 pb-[calc(var(--safe-bottom,0px)+6.5rem)] md:pb-28">
           <div className="mx-auto max-w-2xl">
             <AgentMessages
               messages={messages}
@@ -78,7 +79,9 @@ export function AgentFullscreen() {
             />
           </div>
         </div>
-        <div className="mx-auto w-full max-w-2xl px-0 pt-2 pb-[calc(var(--safe-bottom,0px)+0.75rem)] md:pb-4">
+
+        {/* 底部悬浮输入层：无任何独立实色背景，浮动挂载，消息向上滑时可从背后穿透滑过 */}
+        <div className="pointer-events-none absolute right-0 bottom-0 left-0 z-10 mx-auto w-full max-w-2xl px-0 pb-[calc(var(--safe-bottom,0px)+0.75rem)] md:pb-4">
           <Composer variant="fullscreen" />
         </div>
       </div>

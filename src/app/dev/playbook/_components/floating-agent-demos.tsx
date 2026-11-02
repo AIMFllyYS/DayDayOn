@@ -171,28 +171,30 @@ export function PanelLayoutDemo({ className }: { className?: string }) {
             </span>
           ))}
         </header>
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center">
-          <MascotSvg mood="happy" size={64} />
-          <p className="text-caption text-muted">我是团团，你的打卡搭子～</p>
-        </div>
-        <div className="p-2.5 pt-1">
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-start pl-1">
-              <span className="bg-surface/90 text-muted shadow-soft border-border text-tiny flex items-center gap-1 rounded-full border px-2.5 py-1 backdrop-blur-md">
-                <Icon name="bulb" size={12} lineOnly />
-                <span>深度思考</span>
-              </span>
-            </div>
-            <div className="border-border bg-surface shadow-soft flex items-center gap-1.5 rounded-2xl border px-2 py-1">
-              <span className="text-muted flex size-7 shrink-0 items-center justify-center">
-                <Icon name="camera" size={15} lineOnly />
-              </span>
-              <p className="text-body text-subtle min-w-0 flex-1 truncate px-1 py-0 leading-6">
-                和团团说点什么…
-              </p>
-              <span className="bg-primary text-on-primary flex size-7 shrink-0 items-center justify-center rounded-full shadow-sm">
-                <Icon name="arrow" size={13} lineOnly />
-              </span>
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 pb-20 text-center">
+            <MascotSvg mood="happy" size={64} />
+            <p className="text-caption text-muted">我是团团，你的打卡搭子～</p>
+          </div>
+          <div className="pointer-events-none absolute right-0 bottom-0 left-0 z-10 p-2.5 pb-2">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-start pl-1">
+                <span className="bg-surface/90 text-muted shadow-soft border-border text-tiny pointer-events-auto flex items-center gap-1 rounded-full border px-2.5 py-1 backdrop-blur-md">
+                  <Icon name="bulb" size={12} lineOnly />
+                  <span>深度思考</span>
+                </span>
+              </div>
+              <div className="border-border bg-surface shadow-soft pointer-events-auto flex items-center gap-1.5 rounded-2xl border px-2 py-1">
+                <span className="text-muted flex size-7 shrink-0 items-center justify-center">
+                  <Icon name="camera" size={15} lineOnly />
+                </span>
+                <p className="text-body text-subtle min-w-0 flex-1 truncate px-1 py-0 leading-6">
+                  和团团说点什么…
+                </p>
+                <span className="bg-primary text-on-primary flex size-7 shrink-0 items-center justify-center rounded-full shadow-sm">
+                  <Icon name="arrow" size={13} lineOnly />
+                </span>
+              </div>
             </div>
           </div>
         </div>

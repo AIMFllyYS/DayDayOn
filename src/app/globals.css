@@ -646,6 +646,16 @@
     background: var(--primary-soft);
     color: var(--primary-ink);
   }
+
+  /* KaTeX 块级公式移动端防溢出：允许气泡内局部左右滑动，避免撑破对话或截断符号 */
+  .katex-display {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.25rem 0;
+  }
 }
 
 /*

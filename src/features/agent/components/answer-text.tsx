@@ -18,7 +18,7 @@ export function AnswerText({
   return (
     <div
       className={cn(
-        'bg-surface text-body shadow-soft w-fit max-w-full rounded-2xl rounded-tl-md px-4 py-3',
+        'bg-surface text-caption md:text-body shadow-soft w-fit max-w-full min-w-0 overflow-hidden rounded-2xl rounded-tl-sm px-3.5 py-2.5 md:rounded-tl-md md:px-4 md:py-3',
         className,
       )}
     >
@@ -26,7 +26,7 @@ export function AnswerText({
       {streaming && (
         <span
           aria-hidden
-          className="bg-primary animate-caret ml-0.5 inline-block h-4 w-1 translate-y-0.5 rounded-full"
+          className="bg-primary animate-caret ml-0.5 inline-block h-3.5 w-1 translate-y-0.5 rounded-full md:h-4"
         />
       )}
     </div>
