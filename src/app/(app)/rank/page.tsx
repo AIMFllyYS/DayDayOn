@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: '排行' }
 /** /rank?range=week|month：非法值回落到 week（PRD 2.9、routing.md 第 4 节） */
 export default function Page({ searchParams }: PageProps<'/rank'>) {
   return (
-    <AppPage title="排行">
+    <AppPage title="排行" primaryNav>
       <Suspense fallback={<RankSkeleton />}>
         <Rank searchParams={searchParams} />
       </Suspense>

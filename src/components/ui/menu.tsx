@@ -41,8 +41,8 @@ export function Menu({ trigger, items, align = 'end', side = 'bottom' }: MenuPro
     <BaseMenu.Root>
       <BaseMenu.Trigger render={trigger} />
       <BaseMenu.Portal>
-        <BaseMenu.Positioner sideOffset={6} align={align} side={side} className="z-10">
-          <BaseMenu.Popup className={cn(popupSurfaceClass, 'min-w-44 p-1.5')}>
+        <BaseMenu.Positioner sideOffset={6} align={align} side={side} className="z-50">
+          <BaseMenu.Popup className={cn(popupSurfaceClass, 'shadow-float min-w-44 p-1.5')}>
             {items.map((item, i) =>
               item === null ? (
                 <BaseMenu.Separator key={`sep-${i}`} className="bg-border mx-2 my-1 h-px" />

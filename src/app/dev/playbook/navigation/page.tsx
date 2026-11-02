@@ -47,7 +47,7 @@ export default function NavigationPage() {
       <Section
         ann="playbook.navigation.mobile"
         title="手机：底部导航"
-        description="点导航项切换高亮，点“＋”打开打卡弹层（＋会旋转成 ×）。真实页面里底栏 fixed 在底部，并加上安全区。"
+        description="点导航项，圆形高亮块以果冻弹性缓动（spring）滑至选中项，包裹图标与文字；点“＋”打开打卡弹层（＋会旋转成 ×）。真实页面里底栏 fixed 在底部，并加上安全区。"
       >
         <MobileShellDemo />
       </Section>

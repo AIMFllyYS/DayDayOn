@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { Mascot } from '@/components/mascot/mascot'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/field'
+import { Icon } from '@/components/ui/icon'
 import { MenuItem, MenuList } from '@/components/ui/menu-list'
 import { Rating, type RatingValue } from '@/components/ui/rating'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -101,7 +103,44 @@ export function FieldDemo() {
 export function MenuDemo() {
   const [remind, setRemind] = useState(true)
   return (
-    <div className="grid w-full gap-4 sm:grid-cols-2">
+    <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <MenuList title="外观">
+        <MenuItem
+          leading={
+            <span
+              data-theme="caramel"
+              className="bg-primary ring-border flex size-8 shrink-0 items-center justify-center rounded-full shadow-xs ring-2"
+            >
+              <span className="size-2.5 rounded-full bg-white/60" />
+            </span>
+          }
+          label="主题色"
+          description="默认：暖、稳，像一杯热奶茶"
+          trailing={
+            <span className="text-body text-muted flex items-center gap-1 font-normal">
+              <span>奶茶焦糖</span>
+              <Icon name="chevron-right" size={16} className="text-subtle" />
+            </span>
+          }
+          onClick={() => {}}
+        />
+        <MenuItem
+          leading={
+            <span className="bg-surface-sunken ring-border flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1">
+              <Mascot size={32} character="tuan" />
+            </span>
+          }
+          label="陪伴宠物"
+          description="樱花蝴蝶结，软软糯糯"
+          trailing={
+            <span className="text-body text-muted flex items-center gap-1 font-normal">
+              <span>团团</span>
+              <Icon name="chevron-right" size={16} className="text-subtle" />
+            </span>
+          }
+          onClick={() => {}}
+        />
+      </MenuList>
       <MenuList title="偏好设置">
         <MenuItem
           icon="bell"

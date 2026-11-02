@@ -6,6 +6,7 @@ import { BottomNav } from '@/components/layout/bottom-nav'
 import { appNavItems } from '@/components/layout/nav-items'
 import { SideNav } from '@/components/layout/side-nav'
 import { TopBar } from '@/components/layout/top-bar'
+import { TopBarActions, TopBarUserAvatar } from '@/components/layout/top-bar-nav'
 import { IconButton } from '@/components/ui/button'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
 import { CheckinSheet } from '../../_components/checkin-sheet'
@@ -19,6 +20,8 @@ interface AppShellProps {
   title: string
   eyebrow?: string
   actions?: ReactNode
+  hideTopBar?: boolean
+  primaryNav?: boolean
   /** 点导航项时切换预览的页面（不真的跳转） */
   onNavigate?: (href: string) => void
   onBack?: () => void
@@ -37,6 +40,8 @@ export function AppShell({
   title,
   eyebrow,
   actions,
+  hideTopBar = false,
+  primaryNav = false,
   onNavigate,
   onBack,
   children,
@@ -47,9 +52,12 @@ export function AppShell({
     e.preventDefault()
     onNavigate?.(href)
   }
-  const leading = !primary && (
-    <IconButton icon="chevron-left" label="返回" onClick={onBack} className="-ml-2" />
+  const leading = primaryNav ? (
+    <TopBarUserAvatar />
+  ) : (
+    !primary && <IconButton icon="chevron-left" label="返回" onClick={onBack} className="-ml-2" />
   )
+  const resolvedActions = actions ?? (primaryNav ? <TopBarActions /> : undefined)
 
   const openSheet = () => setSheetOpen(true)
   return (
@@ -57,14 +65,16 @@ export function AppShell({
       <AppShellFrame
         form={form}
         header={
-          <TopBar
-            sticky={false}
-            eyebrow={eyebrow}
-            title={title}
-            leading={leading}
-            actions={actions}
-            className={form === 'phone' ? 'shrink-0 pt-11' : 'shrink-0'}
-          />
+          hideTopBar ? null : (
+            <TopBar
+              sticky={false}
+              eyebrow={eyebrow}
+              title={title}
+              leading={leading}
+              actions={resolvedActions}
+              className={form === 'phone' ? 'shrink-0 pt-11' : 'shrink-0'}
+            />
+          )
         }
         sideNav={
           <SideNav
