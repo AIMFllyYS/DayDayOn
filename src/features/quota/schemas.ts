@@ -6,8 +6,8 @@ import { IdSchema, InstantSchema, MicrosSchema } from '@/features/shared/schemas
  * D6 实现 /me/quota、/me/ai-runs、/redeem-codes/redeem；P1 实现账本。
  */
 
-/** AI 用途：每个用途一个 prompt 文件（src/server/ai/prompts/<purpose>.ts） */
-export const AI_PURPOSES = ['diet-recognition'] as const
+/** AI 用途：每个用途一个 prompt 文件（src/server/ai/prompts/<purpose>.ts）。agent-chat 走 ToolLoopAgent 流式对话 */
+export const AI_PURPOSES = ['diet-recognition', 'agent-chat'] as const
 export const AiPurposeSchema = z.enum(AI_PURPOSES).meta({ id: 'AiPurpose' })
 export type AiPurpose = z.infer<typeof AiPurposeSchema>
 

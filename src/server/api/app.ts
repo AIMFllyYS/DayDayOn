@@ -7,6 +7,7 @@ import type { SessionUser } from '@/server/auth'
 import { env } from '@/server/env'
 import { ApiError, type ErrorBody, type ErrorCode } from './errors'
 import { adminRoutes } from './routes/admin'
+import { agentRoutes } from './routes/agent'
 import { aiRoutes } from './routes/ai'
 import { checkinRoutes } from './routes/checkins'
 import { dashboardRoutes } from './routes/dashboard'
@@ -91,6 +92,7 @@ export const app = base
   .route('/', rankRoutes)
   .route('/', todoRoutes)
   .route('/', aiRoutes)
+  .route('/', agentRoutes)
   .route('/', redeemRoutes)
   .route('/', adminRoutes)
 

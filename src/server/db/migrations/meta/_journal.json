@@ -15,6 +15,13 @@
       "when": 1793512270202,
       "tag": "0001_whole_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793576264414,
+      "tag": "0002_bizarre_king_bedlam",
+      "breakpoints": true
     }
   ]
 }
