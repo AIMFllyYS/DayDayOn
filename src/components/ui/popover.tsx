@@ -23,10 +23,14 @@ interface PopoverProps {
   children: ReactNode
   side?: 'top' | 'bottom' | 'left' | 'right'
   align?: 'start' | 'center' | 'end'
+  sideOffset?: number
   /** 受控时传入 */
   open?: boolean
   onOpenChange?: (open: boolean) => void
   className?: string
+  positionerClassName?: string
+  /** 无默认内边距与 Description 包装，用于自定义列表或轻量菜单 */
+  clean?: boolean
 }
 
 export function Popover({
@@ -35,31 +39,45 @@ export function Popover({
   children,
   side = 'bottom',
   align = 'center',
+  sideOffset = 8,
   open,
   onOpenChange,
   className,
+  positionerClassName,
+  clean = false,
 }: PopoverProps) {
   return (
     <BasePopover.Root open={open} onOpenChange={onOpenChange ? (o) => onOpenChange(o) : undefined}>
       <BasePopover.Trigger render={trigger} />
       <BasePopover.Portal>
-        <BasePopover.Positioner sideOffset={8} side={side} align={align} className="z-10">
+        <BasePopover.Positioner
+          sideOffset={sideOffset}
+          side={side}
+          align={align}
+          className={cn('z-50 md:z-[60]', positionerClassName)}
+        >
           <BasePopover.Popup
             className={cn(
               popupSurfaceClass,
-              'max-w-[min(var(--available-width),20rem)] p-4',
+              clean ? 'p-1.5' : 'max-w-[min(var(--available-width),20rem)] p-4',
               className,
             )}
           >
             {title && (
               <BasePopover.Title className="text-subhead mb-1 font-bold">{title}</BasePopover.Title>
             )}
-            <BasePopover.Description render={<div />} className="text-caption text-muted">
-              {children}
-            </BasePopover.Description>
+            {clean ? (
+              children
+            ) : (
+              <BasePopover.Description render={<div />} className="text-caption text-muted">
+                {children}
+              </BasePopover.Description>
+            )}
           </BasePopover.Popup>
         </BasePopover.Positioner>
       </BasePopover.Portal>
     </BasePopover.Root>
   )
 }
+
+export { BasePopover as PopoverPrimitive }

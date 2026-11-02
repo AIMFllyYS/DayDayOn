@@ -42,6 +42,11 @@ export const keys = {
     all: ['todos'] as const,
     list: (status: TodoStatus) => ['todos', 'list', { status }] as const,
   },
+  agent: {
+    all: ['agent'] as const,
+    conversations: () => ['agent', 'conversations'] as const,
+    conversation: (conversationId: string) => ['agent', 'conversation', conversationId] as const,
+  },
   admin: {
     all: ['admin'] as const,
     overview: () => ['admin', 'overview'] as const,

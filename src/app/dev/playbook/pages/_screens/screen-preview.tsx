@@ -31,6 +31,8 @@ function ScreenView({
       title={def.title}
       eyebrow={def.eyebrow}
       actions={def.actions}
+      hideTopBar={def.hideTopBar}
+      primaryNav={def.primaryNav}
       onNavigate={(href) => {
         const next = screenByNav.get(href)
         if (next) onNavigate(next)

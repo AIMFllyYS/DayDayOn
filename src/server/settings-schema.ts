@@ -49,7 +49,7 @@ export const AppSettingsPatchSchema = AppSettingsSchema.partial()
   .meta({ id: 'AppSettingsPatch' })
 export type AppSettingsPatch = z.infer<typeof AppSettingsPatchSchema>
 
-/** 默认值：ADR-0002 第 5、6 节与 ADR-0023（接入 Turnstile 人机验证后放宽同 IP 阈值，避免校园网/NAT 误伤） */
+/** 默认值：ADR-0002 第 5、6 节与 ADR-0023（接入点选人机验证后放宽同 IP 阈值，避免校园网/NAT 误伤） */
 export const DEFAULT_SETTINGS: AppSettings = {
   dailySpendCapMicros: 10_000_000,
   weeklyQuotaMicros: 10_000_000,

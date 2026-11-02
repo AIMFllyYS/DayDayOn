@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: { absolute: '主页 · DayDayOn' } }
 /** 主页仪表盘（PRD 2.8）：数据在客户端经 /dashboard/today 取，加载中显示骨架 */
 export default function Page() {
   return (
-    <AppPage title="主页">
+    <AppPage title="主页" primaryNav>
       <HomeView />
     </AppPage>
   )

@@ -105,9 +105,16 @@ export const flash = deepSeek('deepseek-flash')
 - 管理员手动暂停开关同样返回 `AI_PAUSED`。
 - 异常阈值（单人单日超过 5 元、每小时超过 60 次、同 IP 超过 3 个账号）只标记并告警，不自动封号。告警按"每天每种一次"去重。
 
-## 9. 联网搜索（v0.2，暂不做）
+## 9. Agent 对话与联网搜索（v0.2 提前启用，ADR-0024）
 
-DeepSeek Search / Fetch 按成功请求次数计费，计入同一个额度账本。接入时补充本节，并确认 AI SDK 对应的工具写法。
+Agent 对话（悬浮团团）走 `ToolLoopAgent` 流式，`POST /api/v1/agent/chat`；记账复用 `runAi` 同一套账本（`src/server/ai/run-agent.ts`）：预占 = 12 步 × 单步输出上限 + 10 次联网，按实际 token + 联网次数结算。会话与消息存 `agent_conversations` / `agent_messages`（图片入库前换成文字说明，不落盘）。
+
+联网用 DeepSeek 官方 Search / Fetch（`src/server/ai/web-search.ts`）：
+
+- `POST /v1/tools/search` `{ query, count?, need_content? }` → `{ results: [{ title, url, snippet, summary, site_name, date, authority }] }`；`summary` 是给模型读的字段。
+- `POST /v1/tools/fetch` `{ url }` → `{ title, content(markdown) }`。
+- 每次成功约 0.005 元 = 5000 微元，计入额度账本；每轮对话最多 10 次（`MAX_SEARCHES_PER_TURN`）。
+- 思考模式默认关，输入框「深度思考」开关打开时 `reasoningEffort: 'low'`（DeepSeek 最低档）。
 
 ## 10. 测试
 

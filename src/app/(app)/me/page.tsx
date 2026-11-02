@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: '我的' }
 
 export default function Page() {
   return (
-    <AppPage title="我的">
+    <AppPage title="我的" hideTopBar>
       <MeScreen />
     </AppPage>
   )

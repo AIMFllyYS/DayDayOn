@@ -128,8 +128,14 @@ const BANNED = [
     ['tencentcloud-sdk-nodejs', 'tencentcloud-sdk-nodejs-*', 'cos-nodejs-sdk-v5', 'cos-js-sdk-v5'],
   ],
   [
-    '人机验证用 @marsidev/react-turnstile（只经 src/components/ui/turnstile.tsx）',
-    ['react-turnstile', 'react-google-recaptcha', '@hcaptcha/*'],
+    '人机验证用自托管手账点选组件（src/components/ui/turnstile.tsx + src/server/auth/captcha.ts）',
+    [
+      '@marsidev/react-turnstile',
+      '@marsidev/react-turnstile/*',
+      'react-turnstile',
+      'react-google-recaptcha',
+      '@hcaptcha/*',
+    ],
   ],
 ]
 
@@ -184,15 +190,6 @@ const RESTRICTIONS = [
     ],
   },
   {
-    allow: ['src/components/ui/turnstile.tsx'],
-    patterns: [
-      {
-        regex: pkgRegex(['@marsidev/react-turnstile', '@marsidev/react-turnstile/*']),
-        message: pkgMessage('@marsidev/react-turnstile', 'src/components/ui/turnstile.tsx'),
-      },
-    ],
-  },
-  {
     allow: ['src/components/charts/**'],
     patterns: [
       {
@@ -234,11 +231,23 @@ const RESTRICTIONS = [
     ],
   },
   {
+    allow: ['src/server/ai/**', 'src/features/agent/**'],
+    patterns: [
+      {
+        regex: pkgRegex(['ai', 'ai/*']),
+        message: pkgMessage(
+          'ai',
+          'src/server/ai/ 与 src/features/agent/（前端只 import ai 的类型与 DefaultChatTransport）',
+        ),
+      },
+    ],
+  },
+  {
     allow: ['src/server/ai/**'],
     patterns: [
       {
-        regex: pkgRegex(['ai', 'ai/*', '@ai-sdk/deepseek', '@ai-sdk/deepseek/*']),
-        message: pkgMessage('ai / @ai-sdk/deepseek', 'src/server/ai/'),
+        regex: pkgRegex(['@ai-sdk/deepseek', '@ai-sdk/deepseek/*']),
+        message: pkgMessage('@ai-sdk/deepseek', 'src/server/ai/'),
       },
     ],
   },

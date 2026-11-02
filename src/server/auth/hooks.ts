@@ -79,7 +79,7 @@ export const beforeHook = createAuthMiddleware(async (ctx) => {
 
   if (ctx.path === PATHS.sendOtp) {
     const ip = clientIp(ctx.headers ?? ctx.request?.headers)
-    // 先校验 Turnstile 人机凭证，未通过时不消耗后续的邮箱 60s 冷却与每日限流计数
+    // 先校验自托管点选人机凭证，未通过时不消耗后续的邮箱 60s 冷却与每日限流计数
     await enforceTurnstile(ctx.headers ?? ctx.request?.headers, ip)
     const settings = await getSettings()
     await enforce({ name: 'otp-ip-daily', windowSeconds: 86_400, max: settings.otpPerIpDaily }, ip)

@@ -29,6 +29,8 @@ interface MenuItemProps {
   description?: string
   icon?: IconName
   tone?: Tone
+  /** 自定义左侧元素（如颜色块、头像），提供时优先于 icon */
+  leading?: ReactNode
   /** 右侧的值或控件（开关、徽章、当前值） */
   trailing?: ReactNode
   href?: string
@@ -42,6 +44,7 @@ export function MenuItem({
   description,
   icon,
   tone = 'neutral',
+  leading,
   trailing,
   href,
   onClick,
@@ -49,7 +52,7 @@ export function MenuItem({
 }: MenuItemProps) {
   const body = (
     <>
-      {icon && <IconTile icon={icon} tone={danger ? 'danger' : tone} size="sm" />}
+      {leading ?? (icon && <IconTile icon={icon} tone={danger ? 'danger' : tone} size="sm" />)}
       <span className="min-w-0 flex-1">
         <span
           className={cn('block truncate font-semibold', danger && 'text-danger-ink')}

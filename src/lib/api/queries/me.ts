@@ -1,6 +1,6 @@
 'use client'
 
-import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   Me,
   Onboarding,
@@ -21,6 +21,10 @@ export const meQuery = () =>
     queryKey: keys.me.detail(),
     queryFn: () => apiFetch<Me>('/me'),
   })
+
+export function useMe() {
+  return useQuery(meQuery())
+}
 
 /** 导出数据：浏览器直接下载这个地址（Content-Disposition: attachment） */
 export const ME_EXPORT_URL = `${API_BASE}/me/export`

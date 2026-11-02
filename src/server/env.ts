@@ -22,9 +22,6 @@ const EnvSchema = z.object({
   SMTP_PASS: z.string().min(1).optional(),
   // 可空：没有密钥时识别接口返回 503 AI_PAUSED（PRD 风险表）
   DEEPSEEK_API_KEY: z.string().min(1).optional(),
-  // 可空：未配置时回退到 Cloudflare 官方测试密钥对（ADR-0023）
-  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
-  TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
 })
 
 export type Env = z.infer<typeof EnvSchema>
