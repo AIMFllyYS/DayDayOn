@@ -86,12 +86,14 @@ export interface MascotSvgProps {
  * - 柚柚（you · M0 试点新形象）：暖黄油色画家贝雷帽 + 蜜柚果蒂薄荷叶 + 机灵小雀斑。
  * 身体、表情、手臂完全共用，通过头饰与五官微特征区分角色性格。
  */
-export type MascotCharacter = 'tuan' | 'dun'
-export type MascotRegistryCharacter = MascotCharacter | 'mian' | 'you'
+export type MascotCharacter = 'tuan' | 'dun' | 'mian' | 'you'
+export type MascotRegistryCharacter = MascotCharacter
 
 export const mascotCharacters: { id: MascotCharacter; name: string; note: string }[] = [
   { id: 'tuan', name: '团团', note: '樱花蝴蝶结，软软糯糯' },
   { id: 'dun', name: '墩墩', note: '小棒球帽，元气满满' },
+  { id: 'mian', name: '绵绵', note: '云朵睡帽，安静治愈' },
+  { id: 'you', name: '柚柚', note: '黄油贝雷帽，机灵认真' },
 ]
 
 export const mascotRegistryCharacters: {

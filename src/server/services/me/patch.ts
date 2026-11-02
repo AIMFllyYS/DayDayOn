@@ -1,4 +1,4 @@
-import type { UpdatePreferences, UpdateProfile } from '@/features/me/schemas'
+import type { MascotCharacter, UpdatePreferences, UpdateProfile } from '@/features/me/schemas'
 
 /*
  * PATCH /me/profile、/me/preferences 的入参 → profiles 列（纯函数，带单测）。
@@ -16,7 +16,7 @@ export interface ProfileColumns {
 
 export interface PreferenceColumns {
   theme?: string
-  mascot?: 'tuan' | 'dun'
+  mascot?: MascotCharacter
   leaderboardOptIn?: boolean
   dayStartHour?: number
   remindAt?: string | null
