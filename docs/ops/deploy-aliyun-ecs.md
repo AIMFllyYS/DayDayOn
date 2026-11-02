@@ -1,7 +1,7 @@
 # 阿里云 ECS 部署
 
-> 日期：2026-10-31
-> 状态：服务器侧已配置完成；**域名解析与 HTTPS 证书待完成**（见第 8 节）。
+> 日期：2026-11-02
+> 状态：**生产部署体系已全面跑通并处于持续运行中**（域名、HTTPS 证书、Docker PG18 数据库、PM2 进程、环境变量与 GitHub Actions 自动部署闸门均已就绪并经过多次线上发布验证）。
 
 ## 1. 原则
 
@@ -10,24 +10,26 @@
 - 服务器上不执行 `next build`（2 核，且已经在用 swap）。
 - 不使用腾讯云的任何服务。
 
-## 2. 服务器
+## 2. 服务器配置现状
 
 | 项 | 值 |
 |---|---|
 | 主机 | `ssh MainECS`，阿里云武汉（`cn-wuhan-lr`），Alibaba Cloud Linux 3 |
 | 资源 | 2 vCPU、7.3 GiB 内存 |
 | 运行时 | Node 24.19（`/www/server/nodejs/v24.19.0`）、PM2、Docker 26.1、宝塔 Nginx 1.28 |
-| 域名 | `daydayon.husteread.com` |
+| 域名 | `daydayon.husteread.com`（A 记录已解析至 `8.162.4.159`） |
+| 证书 | acme.sh 签发 ECC 证书（`/www/server/panel/vhost/cert/daydayon.husteread.com/`，自动续期） |
 | 端口 | 应用 `127.0.0.1:23329`，数据库 `127.0.0.1:23432`（约定见 [ports.md](../conventions/ports.md)） |
+| 环境变量 | `/www/wwwroot/daydayon/.env`（0600 权限，已完整配置数据库、Better Auth、SMTP 邮件与 DeepSeek API 密钥） |
 
-## 3. 目录
+## 3. 目录结构
 
 ```
 /www/wwwroot/daydayon/              属主 daydayon，0751
-├── .env                            运行时环境变量（0600）
+├── .env                            运行时环境变量（0600，已配置真实值）
 ├── ecosystem.config.cjs            PM2 进程定义
-├── app/                            当前版本（node server.js，监听 127.0.0.1:23329）
-├── app.prev/                       上一个成功版本
+├── app/                            当前运行版本（node server.js，监听 127.0.0.1:23329）
+├── app.prev/                       上一个成功版本（健康检查失败时秒级回滚）
 ├── app.failed/                     最近一次健康检查失败的版本（排查用）
 ├── logs/                           app.out.log、app.err.log、deploy.log、deploy-state
 ├── home/                           daydayon 用户的家目录（.ssh、.pm2）
@@ -35,85 +37,73 @@
 
 /mnt/data/daydayon/                 属主 root，0700（数据放数据盘）
 ├── postgres/                       PG 数据目录（容器 bind mount）
-├── backups/                        每日 pg_dump，保留 14 天
+├── backups/                        每日 pg_dump 与部署前备份，保留 14 天
 └── compose/                        docker-compose.yml、.env（数据库密码）、backup-db.sh
 ```
 
-## 4. 组件
+## 4. 组件与安装位置
 
-仓库里的文件是唯一来源，服务器上的副本由 `scripts/setup/provision-server.sh` 安装（可重复执行，不覆盖已有 `.env` 与数据库密码）。
+仓库里的文件是唯一来源，由 `scripts/setup/provision-server.sh` 安装：
 
-| 组件 | 仓库文件 | 服务器位置 |
-|---|---|---|
-| 运行用户 | — | 系统用户 `daydayon`（密码锁定，只能用部署公钥登录） |
-| 部署闸门 | `scripts/deploy/daydayon-deploy-gate.sh` | `/usr/local/sbin/daydayon-deploy-gate` |
-| 部署公钥 | — | `/www/wwwroot/daydayon/home/.ssh/authorized_keys`，forced-command 绑定闸门，禁止 pty 与端口转发 |
-| PM2 服务 | `scripts/deploy/pm2-daydayon.service` | `/etc/systemd/system/pm2-daydayon.service`（独立守护进程） |
-| PM2 进程定义 | `scripts/deploy/ecosystem.config.cjs` | `/www/wwwroot/daydayon/ecosystem.config.cjs` |
-| 数据库 | `scripts/deploy/docker-compose.db.yml` | 容器 `daydayon-db`，`postgres:18.6-alpine3.24`，只绑定 `127.0.0.1:23432`，内存上限 512MB |
-| 数据库备份 | `scripts/deploy/backup-db.sh` | `/etc/cron.d/daydayon-backup`，每天 04:30 |
-| 日志轮转 | `scripts/deploy/logrotate-daydayon` | `/etc/logrotate.d/daydayon`，每周轮转，保留 8 份 |
-| Nginx 第一阶段 | `scripts/deploy/nginx-daydayon.http.conf` | 只开 80 端口做证书验证，其余返回 503 |
-| Nginx 正式站点 | `scripts/deploy/nginx-daydayon.conf` | HTTPS，反代到 `127.0.0.1:23329`，用对端地址覆盖 `X-Forwarded-For` |
-
-Nginx 站点文件位于 `/www/server/panel/vhost/nginx/daydayon.husteread.com.conf`。它是手工维护的配置，**不会出现在宝塔面板的网站列表里**，不要在面板里为这个域名再建站点。
+| 组件 | 仓库文件 | 服务器位置 | 状态 |
+|---|---|---|---|
+| 运行用户 | — | 系统用户 `daydayon`（密码锁定，只能用部署公钥登录） | 已建立 |
+| 部署闸门 | `scripts/deploy/daydayon-deploy-gate.sh` | `/usr/local/sbin/daydayon-deploy-gate`（root:root 0755） | 已同步最新加固版 |
+| 部署公钥 | — | `/www/wwwroot/daydayon/home/.ssh/authorized_keys`，forced-command 绑定闸门 | 已生效 |
+| PM2 服务 | `scripts/deploy/pm2-daydayon.service` | `/etc/systemd/system/pm2-daydayon.service`（独立守护进程） | 运行中 |
+| PM2 进程定义 | `scripts/deploy/ecosystem.config.cjs` | `/www/wwwroot/daydayon/ecosystem.config.cjs` | 已生效 |
+| 数据库 | `scripts/deploy/docker-compose.db.yml` | 容器 `daydayon-db`，`postgres:18.6-alpine3.24`，绑定 `127.0.0.1:23432` | 运行中（healthy） |
+| 数据库备份 | `scripts/deploy/backup-db.sh` | `/mnt/data/daydayon/compose/backup-db.sh`，支持每日 cron（04:30）与部署闸门免密触发（`/etc/sudoers.d/daydayon-backup`） | 已生效 |
+| 日志轮转 | `scripts/deploy/logrotate-daydayon` | `/etc/logrotate.d/daydayon`，每周轮转，保留 8 份 | 已生效 |
+| Nginx 站点 | `scripts/deploy/nginx-daydayon.conf` | `/www/server/panel/vhost/nginx/daydayon.husteread.com.conf`（HTTP/2、强制 HTTPS、对端 IP 覆盖、AI 流式无缓冲） | 运行中 |
 
 ## 5. 发布流程
 
 ```
-工作分支 → PR → dev（ci：lint、typecheck、format、build、制品组装、密钥扫描）
-  → 项目负责人对这一次发布明确同意
+工作分支 → PR → dev（ci：lint、typecheck、format、test、build、制品组装、密钥扫描）
+  → 项目负责人对每一次发布明确同意
   → dev → main 发布 PR，合并
-  → deploy workflow：构建 → 组装制品 → ssh "deploy-artifact <sha>" < artifact.tar.gz
-  → 闸门：校验 → 当前版本移为 app.prev → 切换 → pm2 重启
+  → deploy workflow：构建 → 组装制品（含 migrations 与 static）→ ssh "deploy-artifact <sha>" < artifact.tar.gz
+  → 闸门：校验制品 → 备份数据库（sudo backup-db.sh）→ 当前版本移为 app.prev → 切换 → pm2 重启
+        → 服务启动钩子（instrumentation.ts）幂等执行 Drizzle 迁移
         → 健康检查（/api/health 返回的 commit 必须等于本次 sha）→ 失败切回 app.prev
   → workflow 再从公网检查一次 /api/health
 ```
 
-- 仓库变量 `MAINECS_DEPLOY_ENABLED` 不为 `true` 时只构建不部署。
-- 数据库迁移不在 workflow 里自动执行：先手动迁移，再合并发布。
-- 回滚：`git revert` 有问题的提交，再走一次发布。紧急情况可在服务器上把 `app.prev` 换回 `app` 后 `pm2 restart daydayon`。
+- 仓库变量 `MAINECS_DEPLOY_ENABLED` 已设为 `true`。
+- 数据库迁移打包在制品 `src/server/db/migrations` 中，由 Next.js 服务启动钩子 `instrumentation.ts` 自动幂等运行；部署闸门在解包后、启动前自动对 PG 数据库做一次热备份，若应用启动崩溃或健康检查超时，自动切回上一版本 `app.prev`。
+- 回滚机制：
+  - 自动回滚：健康检查 30 次（共 60 秒）未就绪时，闸门自动将 `app.prev` 换回 `app` 并重启 PM2；
+  - 手动紧急回滚：可在服务器上以 root 执行 `mv /www/wwwroot/daydayon/app.prev /www/wwwroot/daydayon/app && sudo -u daydayon env PM2_HOME=/www/wwwroot/daydayon/home/.pm2 PATH=/www/server/nodejs/v24.19.0/bin:/usr/bin:/bin pm2 restart daydayon`。
 
 ## 6. GitHub 配置（已完成）
 
 | 类型 | 名称 | 内容 |
 |---|---|---|
-| Secret | `MAINECS_SSH_KEY` | 部署私钥（ed25519，`SHA256:H+VMK+a4Ipw40j/uQ6dOHeyRb9zEMRTbVxDXugk/BYo`），只存在 GitHub |
-| Secret | `MAINECS_KNOWN_HOSTS` | 服务器 host key，已与本机信任的指纹核对 |
-| Variable | `MAINECS_HOST` / `MAINECS_USER` | 服务器地址 / `daydayon` |
-| Variable | `MAINECS_DEPLOY_ENABLED` | 当前为 `false`，HTTPS 就绪后改为 `true` |
+| Secret | `MAINECS_SSH_KEY` | 部署私钥（ed25519），只存在 GitHub |
+| Secret | `MAINECS_KNOWN_HOSTS` | 服务器 host key，已核对指纹 |
+| Variable | `MAINECS_HOST` / `MAINECS_USER` | `8.162.4.159` / `daydayon` |
+| Variable | `MAINECS_DEPLOY_ENABLED` | `true`（生产自动部署开启） |
 | Variable | `NEXT_PUBLIC_APP_URL` | `https://daydayon.husteread.com` |
 
-## 7. 常用运维命令（在服务器上以 root 执行）
+## 7. 常用运维与巡检命令（在服务器上以 root 执行）
 
 ```bash
-# 应用进程
+# 查看应用进程状态
 sudo -u daydayon env PM2_HOME=/www/wwwroot/daydayon/home/.pm2 PATH=/www/server/nodejs/v24.19.0/bin:/usr/bin:/bin pm2 ls
-# 部署记录
+
+# 查看最近 50 条部署闸门日志
 tail -n 50 /www/wwwroot/daydayon/logs/deploy.log
-# 数据库
+
+# 查看数据库容器状态
 docker compose -f /mnt/data/daydayon/compose/docker-compose.yml ps
-# 修改运行时环境变量后重启
-sudo -u daydayon env PM2_HOME=/www/wwwroot/daydayon/home/.pm2 PATH=/www/server/nodejs/v24.19.0/bin:/usr/bin:/bin \
-  pm2 startOrRestart /www/wwwroot/daydayon/ecosystem.config.cjs --update-env
+
+# 查看数据库最新备份
+ls -lh /mnt/data/daydayon/backups/
+
+# 手动触发一次数据库备份
+sudo -u daydayon sudo -n /mnt/data/daydayon/compose/backup-db.sh
+
+# 查看公网健康检查
+curl -fsS https://daydayon.husteread.com/api/health
 ```
-
-`NEXT_PUBLIC_*` 变量在构建时写入客户端代码，修改后必须重新部署，只重启不生效。
-
-## 8. 待完成
-
-1. **DNS**：在阿里云云解析的 `husteread.com` 下添加 A 记录 `daydayon` → `8.162.4.159`。
-2. **证书**：解析生效后签发并安装证书，再把 Nginx 换成正式站点配置：
-
-   ```bash
-   /root/.acme.sh/acme.sh --issue -d daydayon.husteread.com -w /www/wwwroot/daydayon/webroot --keylength ec-256
-   mkdir -p /www/server/panel/vhost/cert/daydayon.husteread.com
-   /root/.acme.sh/acme.sh --install-cert -d daydayon.husteread.com --ecc \
-     --key-file /www/server/panel/vhost/cert/daydayon.husteread.com/privkey.pem \
-     --fullchain-file /www/server/panel/vhost/cert/daydayon.husteread.com/fullchain.pem \
-     --reloadcmd "nginx -s reload"
-   ```
-
-3. **运行时密钥**：在 `/www/wwwroot/daydayon/.env` 填写 `SMTP_USER`、`SMTP_PASS`、`DEEPSEEK_API_KEY`。`.env` 的完整变量清单以仓库的 `.env.example` 为准（2026-10-31 起包含 `BETTER_AUTH_TELEMETRY=0`，不再有 `DEEPSEEK_MODEL`）。
-4. **数据库迁移**（M3）：接入 Drizzle 后，部署闸门要在切换版本前执行迁移、迁移前先备份，失败则不切换（[database.md](../conventions/database.md) 第 7 节）。闸门脚本改动属于服务器操作，先征得负责人同意。
-5. 以上完成后，把 `MAINECS_DEPLOY_ENABLED` 改为 `true`，发起第一次 `dev → main` 发布。
