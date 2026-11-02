@@ -21,6 +21,12 @@ export {
   type QueryClient,
   type QueryKey,
 } from '@tanstack/react-query'
+import { QueryClientContext } from '@tanstack/react-query'
+import { useContext } from 'react'
+
+export function useHasQueryClient(): boolean {
+  return Boolean(useContext(QueryClientContext))
+}
 
 export { api, unwrap } from './client'
 export {

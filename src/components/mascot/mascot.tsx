@@ -3,8 +3,8 @@ import {
   characterName,
   mascotMoods,
   MascotSvg,
-  type MascotCharacter,
   type MascotMood,
+  type MascotRegistryCharacter,
 } from './mascot-svg'
 
 const moodLabel = new Map(mascotMoods.map((m) => [m.mood, m.label]))
@@ -14,7 +14,7 @@ interface MascotProps {
   size?: number
   /** 轻微上下浮动，用于空状态和加载页 */
   floating?: boolean
-  character?: MascotCharacter
+  character?: MascotRegistryCharacter
   className?: string
 }
 

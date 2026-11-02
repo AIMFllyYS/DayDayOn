@@ -6,16 +6,17 @@ import { Avatar, AvatarStack } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { Menu, type MenuItemDef } from '@/components/ui/menu'
 import { Popover } from '@/components/ui/popover'
-import { toast } from '@/components/ui/toast'
 import { useCheckinLauncher } from '@/features/checkin/launcher-store'
 import { AddFriendSheet } from '@/features/friend/components/add-friend-sheet'
 import { FriendMeteorOverlay } from '@/features/friend/components/friend-meteor'
 import { friendActions, useFriendStore } from '@/features/friend/friend-store'
 import type { FriendSummary } from '@/features/friend/schemas'
 import { GoalSettingSheet } from '@/features/goal/components/goal-setting-sheet'
+import { NotificationBellBadge } from '@/features/notification'
 import { useQuery } from '@/lib/api'
 import { useFriendsList } from '@/lib/api/queries/friends'
 import { meQuery } from '@/lib/api/queries/me'
+import { useNotificationSummary } from '@/lib/api/queries/notifications'
 import { cn } from '@/lib/cn'
 
 interface TopBarUserAvatarProps {
@@ -32,8 +33,9 @@ interface TopBarUserAvatarProps {
 export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
   const router = useRouter()
   const pathname = usePathname()
-  const { data: me } = useQuery(meQuery())
-  const { data: friendList } = useFriendsList()
+  const isDemo = demoFriends !== undefined || pathname.startsWith('/dev')
+  const { data: me } = useQuery({ ...meQuery(), enabled: !isDemo })
+  const { data: friendList } = useFriendsList({ enabled: !isDemo })
   const { viewingFriendId, avatarPopping, hintBubbleOpen } = useFriendStore()
 
   const [panelOpen, setPanelOpen] = useState(false)
@@ -48,7 +50,7 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
   function handleSelectTarget(targetFriendId: string | null) {
     friendActions.selectFriend(targetFriendId)
     setPanelOpen(false)
-    if (targetFriendId !== null && pathname !== '/' && !pathname.startsWith('/dev')) {
+    if (pathname !== '/' && !pathname.startsWith('/dev')) {
       router.push('/')
     }
   }
@@ -85,7 +87,7 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
                 'ring-primary ring-offset-background ring-2 ring-offset-1',
             )}
           >
-            <AvatarStack names={stackNames} avatars={stackAvatars} max={3} size="sm" />
+            <AvatarStack names={stackNames} avatars={stackAvatars} max={4} size="sm" />
           </button>
         }
       >
@@ -200,6 +202,10 @@ const actionBtnClass =
 
 /** 顶栏右上角操作区：通知按钮 + 微信风格加号下拉菜单 */
 export function TopBarActions() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const isDemo = pathname.startsWith('/dev')
+  const { data: summary } = useNotificationSummary({ enabled: !isDemo })
   const launcher = useCheckinLauncher()
   const [goalSheetOpen, setGoalSheetOpen] = useState(false)
 
@@ -224,15 +230,15 @@ export function TopBarActions() {
   return (
     <>
       <div className="flex items-center gap-1">
-        <button
-          type="button"
-          aria-label="通知"
-          title="通知"
-          onClick={() => toast.info('暂无新通知')}
-          className={actionBtnClass}
-        >
-          <Icon name="bell" size={21} className="shrink-0 -translate-y-px" />
-        </button>
+        <NotificationBellBadge
+          unreadCount={summary?.unreadCount ?? 0}
+          hasLightDot={Boolean(summary?.hasUnread && !summary?.unreadCount)}
+          onClick={() => {
+            if (pathname !== '/notifications') {
+              router.push('/notifications')
+            }
+          }}
+        />
         <Menu
           trigger={
             <button type="button" aria-label="更多操作" title="更多操作" className={actionBtnClass}>

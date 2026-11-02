@@ -5,6 +5,7 @@ import { GoalsScreen } from './goals'
 import { HomeScreen } from './home'
 import { LoginScreen } from './login'
 import { MeScreen } from './me'
+import { NotificationsScreen } from './notifications'
 import { RankScreen } from './rank'
 import { TodoScreen } from './todo'
 import { WelcomeScreen } from './welcome'
@@ -15,7 +16,16 @@ import { WelcomeScreen } from './welcome'
  * 页面上线后，正式页面应该和这里的预览长得一样；改样式先改这里，再改正式页面。
  */
 export type ScreenId =
-  'home' | 'todo' | 'rank' | 'me' | 'goals' | 'checkin' | 'welcome' | 'login' | 'admin'
+  | 'home'
+  | 'todo'
+  | 'rank'
+  | 'me'
+  | 'notifications'
+  | 'goals'
+  | 'checkin'
+  | 'welcome'
+  | 'login'
+  | 'admin'
 
 export interface ScreenDef {
   id: ScreenId
@@ -38,12 +48,12 @@ export const screens: ScreenDef[] = [
     id: 'home',
     route: '/',
     title: '主页',
-    note: '仪表盘（固定布局）：今日总览、各板块进度、每日指标、朋友动态',
+    note: '仪表盘（固定布局）：今日总览、各板块进度、每日指标、朋友动态；点顶栏好友进入好友小窝宠物舞台',
     shell: 'app',
     navPath: '/',
     eyebrow: '11 月 1 日 · 周日',
     primaryNav: true,
-    render: () => <HomeScreen />,
+    render: ({ thumb }) => <HomeScreen thumb={thumb} />,
   },
   {
     id: 'todo',
@@ -74,6 +84,14 @@ export const screens: ScreenDef[] = [
     navPath: '/me',
     hideTopBar: true,
     render: ({ thumb }) => <MeScreen thumb={thumb} />,
+  },
+  {
+    id: 'notifications',
+    route: '/notifications',
+    title: '消息与通知',
+    note: '二级页面（顶栏铃铛进入）：手机端一级消息列表 → 二级详情/1v1 私聊钻取；桌面端左列表右详情双栏',
+    shell: 'app',
+    render: () => <NotificationsScreen />,
   },
   {
     id: 'goals',

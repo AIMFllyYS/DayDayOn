@@ -97,7 +97,7 @@ export function AiDraftCard({
   }
 
   return (
-    <div className={cn('bg-surface shadow-card rounded-2xl p-4', className)}>
+    <div className={cn('bg-surface shadow-card rounded-xl p-3.5 md:rounded-2xl md:p-4', className)}>
       <div className="mb-3 flex items-center gap-2.5">
         <IconTile icon={meta.icon} tone={module} size="sm" />
         <p className="min-w-0 flex-1 truncate font-semibold">{title}</p>

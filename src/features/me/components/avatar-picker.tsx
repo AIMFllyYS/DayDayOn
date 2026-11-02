@@ -34,7 +34,10 @@ interface AvatarPickerProps {
 
 export function AvatarPicker({ value, onValueChange }: AvatarPickerProps) {
   const current = parsePresetAvatar(value)
-  const character: MascotCharacter = current?.character ?? 'tuan'
+  const character: MascotCharacter =
+    current?.character && mascotCharacters.some((c) => c.id === current.character)
+      ? current.character
+      : 'tuan'
   const tone: PresetAvatarTone = current?.tone ?? 'primary'
 
   function pick(

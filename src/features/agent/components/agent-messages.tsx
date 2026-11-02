@@ -124,7 +124,7 @@ export function AgentMessages({
   const errorText = status === 'error' ? formatChatError(error) : undefined
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex w-full max-w-full min-w-0 flex-col gap-4">
       {messages.map((m, i) => {
         if (m.role === 'user') {
           const files = userFileCount(m)

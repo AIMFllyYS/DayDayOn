@@ -2,6 +2,7 @@
 
 import { Suspense, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
+import { useFriendStore } from '@/features/friend/friend-store'
 import { useAgentUiState } from './agent-store'
 import { AgentChatProvider } from './chat-context'
 import { AgentPanel } from './components/agent-panel'
@@ -24,10 +25,27 @@ export function AgentHost({ children }: { children: ReactNode }) {
   )
 }
 
-function AgentFloatingLayer() {
+/**
+ * 判断右下角悬浮 AI 伴宠是否隐藏（Decision #1 & 界面守则：一屏不放两只互动宠物）：
+ * 1. /agent 全屏页或其子路由：隐藏
+ * 2. /me 我的页（已有一只互动团团）：隐藏
+ * 3. viewingFriendId !== null 正在串门好友空间（已有好友宠物舞台）：隐藏
+ * 4. 切回「我」（viewingFriendId === null）：恢复显示
+ */
+export function isFloatingPetHidden(pathname: string, viewingFriendId: string | null): boolean {
+  return (
+    pathname === '/agent' ||
+    pathname.startsWith('/agent/') ||
+    pathname === '/me' ||
+    viewingFriendId !== null
+  )
+}
+
+export function AgentFloatingLayer() {
   const pathname = usePathname()
-  // 全屏页 / 我的页（已有一只互动团团）不显示悬浮团团
-  const hidden = pathname === '/agent' || pathname.startsWith('/agent/') || pathname === '/me'
+  const { viewingFriendId } = useFriendStore()
+  // 全屏页 / 我的页 / 正在串门好友空间时隐藏右下角悬浮团团（Decision #1）
+  const hidden = isFloatingPetHidden(pathname, viewingFriendId)
   if (hidden) return null
   return (
     <>

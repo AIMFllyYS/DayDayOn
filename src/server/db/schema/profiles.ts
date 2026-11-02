@@ -28,7 +28,7 @@ export const profiles = pgTable(
     // 可空：引导是否完成只看这一列（PRD 7.1）
     onboardedAt: timestamptz(),
     theme: text().notNull().default('caramel'),
-    mascot: text().$type<'tuan' | 'dun'>().notNull().default('tuan'),
+    mascot: text().$type<'tuan' | 'dun' | 'mian' | 'you'>().notNull().default('tuan'),
     // 可空：为空表示不提醒（PRD 7.1），值为 HH:mm
     remindAt: text(),
     // 可空：本地开发没有 x-real-ip 时记 127.0.0.1，老数据可能为空

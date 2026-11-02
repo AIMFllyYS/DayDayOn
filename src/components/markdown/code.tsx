@@ -37,7 +37,7 @@ export function InlineCode(props: ComponentPropsWithoutRef<'code'>) {
   return (
     <code
       {...props}
-      className="bg-surface-sunken text-foreground rounded-md px-1.5 py-0.5 font-mono text-[0.9em]"
+      className="bg-surface-sunken text-foreground rounded-md px-1.5 py-0.5 font-mono text-[0.85em] md:text-[0.9em]"
     />
   )
 }
@@ -65,7 +65,7 @@ function CodeBlockBox({ language, code }: { language: string; code: string }) {
   }
 
   return (
-    <div className="border-border bg-surface-sunken my-2 overflow-hidden rounded-xl border">
+    <div className="border-border bg-surface-sunken my-2 w-full max-w-full min-w-0 overflow-hidden rounded-xl border">
       <div className="border-border flex items-center justify-between border-b px-3 py-1.5">
         <span className="text-tiny text-muted font-mono">{language || 'code'}</span>
         <button
@@ -79,8 +79,10 @@ function CodeBlockBox({ language, code }: { language: string; code: string }) {
           {copied ? '已复制' : '复制'}
         </button>
       </div>
-      <pre className="overflow-x-auto px-3 py-2">
-        <code className="text-body text-foreground font-mono whitespace-pre">{code}</code>
+      <pre className="w-full max-w-full min-w-0 overflow-x-auto overscroll-x-contain px-3 py-2">
+        <code className="text-tiny md:text-caption text-foreground font-mono whitespace-pre">
+          {code}
+        </code>
       </pre>
     </div>
   )

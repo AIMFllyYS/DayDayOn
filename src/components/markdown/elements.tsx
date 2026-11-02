@@ -58,37 +58,59 @@ function Image(props: ComponentPropsWithoutRef<'img'>) {
   )
 }
 
-const headingBase = 'mt-4 mb-2 font-display font-semibold text-foreground first:mt-0'
+const headingBase =
+  'mt-3 mb-1.5 md:mt-4 md:mb-2 font-display font-semibold text-foreground first:mt-0'
 
 export const markdownComponents = {
   h1: (p: ComponentPropsWithoutRef<'h1'>) => (
-    <h1 {...p} className={cn(headingBase, 'text-title', p.className)} />
+    <h1 {...p} className={cn(headingBase, 'text-subhead md:text-title', p.className)} />
   ),
   h2: (p: ComponentPropsWithoutRef<'h2'>) => (
-    <h2 {...p} className={cn(headingBase, 'text-heading', p.className)} />
+    <h2 {...p} className={cn(headingBase, 'text-body md:text-heading font-bold', p.className)} />
   ),
   h3: (p: ComponentPropsWithoutRef<'h3'>) => (
-    <h3 {...p} className={cn(headingBase, 'text-subhead', p.className)} />
+    <h3 {...p} className={cn(headingBase, 'text-caption md:text-subhead font-bold', p.className)} />
   ),
   h4: (p: ComponentPropsWithoutRef<'h4'>) => (
-    <h4 {...p} className={cn(headingBase, 'text-body', p.className)} />
+    <h4
+      {...p}
+      className={cn(headingBase, 'text-caption md:text-body font-semibold', p.className)}
+    />
   ),
   h5: (p: ComponentPropsWithoutRef<'h5'>) => (
-    <h5 {...p} className={cn(headingBase, 'text-body', p.className)} />
+    <h5
+      {...p}
+      className={cn(headingBase, 'text-caption md:text-body font-semibold', p.className)}
+    />
   ),
   h6: (p: ComponentPropsWithoutRef<'h6'>) => (
-    <h6 {...p} className={cn(headingBase, 'text-body', p.className)} />
+    <h6
+      {...p}
+      className={cn(headingBase, 'text-caption md:text-body font-semibold', p.className)}
+    />
   ),
   p: (p: ComponentPropsWithoutRef<'p'>) => (
-    <p {...p} className={cn('text-body leading-relaxed', p.className)} />
+    <p {...p} className={cn('text-caption md:text-body leading-relaxed', p.className)} />
   ),
   a: Link,
   img: Image,
   ul: (p: ComponentPropsWithoutRef<'ul'>) => (
-    <ul {...p} className={cn('text-body my-2 list-disc space-y-1 pl-5', p.className)} />
+    <ul
+      {...p}
+      className={cn(
+        'text-caption md:text-body my-1.5 list-disc space-y-1 pl-4 md:my-2 md:pl-5',
+        p.className,
+      )}
+    />
   ),
   ol: (p: ComponentPropsWithoutRef<'ol'>) => (
-    <ol {...p} className={cn('text-body my-2 list-decimal space-y-1 pl-5', p.className)} />
+    <ol
+      {...p}
+      className={cn(
+        'text-caption md:text-body my-1.5 list-decimal space-y-1 pl-4 md:my-2 md:pl-5',
+        p.className,
+      )}
+    />
   ),
   li: (p: ComponentPropsWithoutRef<'li'>) => (
     <li {...p} className={cn('leading-relaxed', p.className)} />
@@ -96,7 +118,10 @@ export const markdownComponents = {
   blockquote: (p: ComponentPropsWithoutRef<'blockquote'>) => (
     <blockquote
       {...p}
-      className={cn('border-border-strong text-muted my-2 border-l-2 pl-3', p.className)}
+      className={cn(
+        'border-border-strong text-muted text-caption md:text-body my-1.5 border-l-2 pl-2.5 md:my-2 md:pl-3',
+        p.className,
+      )}
     />
   ),
   hr: () => <hr className="border-border my-3" />,
@@ -108,8 +133,11 @@ export const markdownComponents = {
     <del {...p} className={cn('text-muted line-through', p.className)} />
   ),
   table: (p: ComponentPropsWithoutRef<'table'>) => (
-    <div className="my-2 overflow-x-auto">
-      <table {...p} className={cn('text-body w-full border-collapse', p.className)} />
+    <div className="border-border my-2 w-full max-w-full overflow-x-auto overscroll-x-contain rounded-xl border">
+      <table
+        {...p}
+        className={cn('text-tiny md:text-caption w-full min-w-max border-collapse', p.className)}
+      />
     </div>
   ),
   thead: (p: ComponentPropsWithoutRef<'thead'>) => <thead {...p} />,
@@ -119,13 +147,19 @@ export const markdownComponents = {
     <th
       {...p}
       className={cn(
-        'border-border bg-surface-sunken border px-3 py-1.5 text-left font-semibold',
+        'border-border bg-surface-sunken border-r border-b px-2.5 py-1.5 text-left font-semibold whitespace-nowrap last:border-r-0 md:px-3 md:py-1.5',
         p.className,
       )}
     />
   ),
   td: (p: ComponentPropsWithoutRef<'td'>) => (
-    <td {...p} className={cn('border-border border px-3 py-1.5', p.className)} />
+    <td
+      {...p}
+      className={cn(
+        'border-border border-r border-b px-2.5 py-1.5 last:border-r-0 md:px-3 md:py-1.5',
+        p.className,
+      )}
+    />
   ),
   pre: CodeBlockPre,
   code: InlineCode,

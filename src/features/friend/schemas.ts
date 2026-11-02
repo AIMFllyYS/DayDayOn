@@ -1,6 +1,12 @@
 import * as z from 'zod'
 import { DashboardTodaySchema } from '@/features/dashboard/schemas'
-import { InstantSchema, PublicUserSchema, RatingValueSchema } from '@/features/shared/schemas'
+import { MascotCharacterSchema } from '@/features/me/schemas'
+import {
+  InstantSchema,
+  PublicUserSchema,
+  RatingValueSchema,
+  UserIdSchema,
+} from '@/features/shared/schemas'
 
 /*
  * 好友体系契约（ADR-0026）：
@@ -10,6 +16,8 @@ import { InstantSchema, PublicUserSchema, RatingValueSchema } from '@/features/s
  */
 
 export const FriendSummarySchema = PublicUserSchema.extend({
+  /** 伴宠形象标识 */
+  mascot: MascotCharacterSchema.optional(),
   /** 连续打卡天数 */
   streak: z.number().int().min(0),
   /** 今日已完成目标数 */
@@ -73,3 +81,71 @@ export const FriendDashboardSchema = z
   })
   .meta({ id: 'FriendDashboard' })
 export type FriendDashboard = z.infer<typeof FriendDashboardSchema>
+
+export const PetInteractionKindSchema = z
+  .enum(['poke', 'feed', 'remind'])
+  .meta({ id: 'PetInteractionKind' })
+export type PetInteractionKind = z.infer<typeof PetInteractionKindSchema>
+
+export const PetInteractionTreatIdSchema = z
+  .enum(['onigiri', 'strawberry', 'cookie', 'pudding', 'dango', 'milk'])
+  .meta({ id: 'PetInteractionTreatId' })
+export type PetInteractionTreatId = z.infer<typeof PetInteractionTreatIdSchema>
+
+export const PetInteractInputSchema = z
+  .object({
+    kind: PetInteractionKindSchema,
+    treatId: PetInteractionTreatIdSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.kind === 'feed' && !data.treatId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '投喂零食必须指定零食类型',
+        path: ['treatId'],
+      })
+    }
+  })
+  .meta({ id: 'PetInteractInput' })
+export type PetInteractInput = z.infer<typeof PetInteractInputSchema>
+
+export const PetActionStateSchema = z
+  .object({
+    used: z.number().int().min(0),
+    limit: z.number().int().min(0),
+    cooldownLeftSec: z.number().int().min(0),
+    disabledReason: z.string().nullable().optional(),
+  })
+  .meta({ id: 'PetActionState' })
+export type PetActionState = z.infer<typeof PetActionStateSchema>
+
+export const PetInteractionsStatusSchema = z
+  .object({
+    friendUserId: UserIdSchema,
+    targetLocalDate: z.string(),
+    cooldownLeftSec: z.number().int().min(0),
+    actions: z.object({
+      poke: PetActionStateSchema,
+      feed: PetActionStateSchema,
+      remind: PetActionStateSchema,
+    }),
+    remindEligible: z.boolean(),
+    remindDisabledReason: z.string().nullable(),
+  })
+  .meta({ id: 'PetInteractionsStatus' })
+export type PetInteractionsStatus = z.infer<typeof PetInteractionsStatusSchema>
+
+export const PetInteractResultSchema = z
+  .object({
+    success: z.literal(true),
+    interaction: z.object({
+      id: z.string(),
+      kind: PetInteractionKindSchema,
+      treatId: PetInteractionTreatIdSchema.nullable(),
+      createdAt: InstantSchema,
+    }),
+    status: PetInteractionsStatusSchema,
+    feedback: z.string(),
+  })
+  .meta({ id: 'PetInteractResult' })
+export type PetInteractResult = z.infer<typeof PetInteractResultSchema>

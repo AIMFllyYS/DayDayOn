@@ -23,6 +23,8 @@ export const ERROR_STATUS = {
   // 403
   FORBIDDEN: 403,
   ACCOUNT_BANNED: 403,
+  USER_MUTED: 403,
+  FRIEND_RELATION_FROZEN: 403,
   TWO_FACTOR_REQUIRED: 403,
   ONBOARDING_REQUIRED: 403,
   // 404
@@ -49,9 +51,14 @@ export const ERROR_STATUS = {
   UNSUPPORTED_MEDIA_TYPE: 415,
   // 422
   AI_RECOGNITION_FAILED: 422,
+  FRIEND_LIMIT_REACHED: 422,
+  INTERACTION_DAILY_LIMIT_EXCEEDED: 422,
+  REMIND_NOT_APPLICABLE: 422,
+  CONTENT_SENSITIVE: 422,
   // 429
   RATE_LIMITED: 429,
   REDEEM_LOCKED: 429,
+  INTERACTION_COOLDOWN: 429,
   // 500
   INTERNAL: 500,
   // 501：契约已定、实现未落地的接口或中间件（F1 桩）
@@ -80,8 +87,10 @@ export interface ErrorExtras {
   previousWeightGrams?: number
   /** AI_RECOGNITION_FAILED：已产生的调用记录，费用照常结算 */
   aiRunId?: string
-  /** RATE_LIMITED / REDEEM_LOCKED：同时写 Retry-After 头 */
+  /** RATE_LIMITED / REDEEM_LOCKED / USER_MUTED：同时写 Retry-After 头 */
   retryAfterSeconds?: number
+  /** CONTENT_SENSITIVE：保留用户草稿输入内容 */
+  draft?: string
 }
 
 export interface ErrorBody extends ErrorExtras {
