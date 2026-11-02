@@ -106,6 +106,24 @@ export function buildAgentTools(ctx: AgentToolContext) {
     execute: async () => ({ weight: await read.getWeight(userId, now) }),
   })
 
+  const listFriendsTool = tool({
+    description:
+      '读取我的好友列表及每位好友今日打卡完成概况（昵称、连续天数、今日完成目标数/计划目标数、今日心情）。当用户提到好友或想和好友对比打卡情况时先调它。',
+    inputSchema: z.object({}),
+    execute: async () => await read.getFriendsOverview(userId, now),
+  })
+
+  const getFriendStatusTool = tool({
+    description:
+      '读取某位好友完整的今日打卡仪表盘（各目标进度、连续天数、本周热力图、体重、心情）以及近 N 天的打卡明细，用于和用户本人对比或回答好友打卡问题。',
+    inputSchema: z.object({
+      friendIdOrNickname: z.string().min(1).describe('好友的 userId（来自 listFriends）或好友昵称'),
+      days: z.number().int().min(1).max(30).default(7).describe('读取最近多少天的打卡明细'),
+    }),
+    execute: async ({ friendIdOrNickname, days }) =>
+      await read.getFriendStatusDetail(userId, friendIdOrNickname, now, days),
+  })
+
   const searchTool = tool({
     description:
       '联网搜索，返回网页结果（标题、摘要、链接）。涉及食物热量、营养成分、运动 MET/消耗、睡眠建议等数值时必须先搜索，不要凭空编造。',
@@ -331,6 +349,8 @@ export function buildAgentTools(ctx: AgentToolContext) {
     listTodos: listTodosTool,
     listCheckins: listCheckinsTool,
     getWeight: weightTool,
+    listFriends: listFriendsTool,
+    getFriendStatus: getFriendStatusTool,
     webSearch: searchTool,
     webFetch: fetchTool,
     draftCheckin,
