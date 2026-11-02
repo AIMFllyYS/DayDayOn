@@ -14,7 +14,7 @@ export function UserMessage({
 }) {
   return (
     <div className={cn('flex flex-col items-end gap-1', className)}>
-      <div className="bg-primary-soft text-primary-ink max-w-[80%] rounded-2xl rounded-br-md px-4 py-2.5">
+      <div className="bg-primary-soft text-primary-ink text-caption md:text-body max-w-[85%] rounded-2xl rounded-br-sm px-3.5 py-2 md:max-w-[80%] md:rounded-br-md md:px-4 md:py-2.5">
         {children}
       </div>
       {attachments && <span className="text-tiny text-muted">{attachments}</span>}

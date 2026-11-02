@@ -99,12 +99,46 @@ export const friendActions = {
     if (!state.hintBubbleOpen) return
     setState({ hintBubbleOpen: false })
   },
+  /**
+   * 解除好友关系后的全局状态清理：
+   * 若当前主页仪表盘正处于被解除好友的视角，立即重置回 null（"我"）
+   */
+  handleUnfriend: (friendUserId: string) => {
+    if (state.viewingFriendId === friendUserId) {
+      if (hintTimer) {
+        clearTimeout(hintTimer)
+        hintTimer = null
+      }
+      setState({ viewingFriendId: null, hintBubbleOpen: false })
+    }
+  },
+  onFriendRemoved: (friendUserId: string) => {
+    if (state.viewingFriendId === friendUserId) {
+      if (hintTimer) {
+        clearTimeout(hintTimer)
+        hintTimer = null
+      }
+      setState({ viewingFriendId: null, hintBubbleOpen: false })
+    }
+  },
+}
+
+export function handleUnfriend(friendUserId: string): void {
+  friendActions.handleUnfriend(friendUserId)
+}
+
+export function onFriendRemoved(friendUserId: string): void {
+  friendActions.onFriendRemoved(friendUserId)
+}
+
+export function getFriendStoreState(): FriendStoreState {
+  return state
 }
 
 export function useFriendStore(): FriendStoreState {
   return useSyncExternalStore(
     subscribe,
     () => state,
-    () => INITIAL_STATE,
+    () => state,
   )
 }

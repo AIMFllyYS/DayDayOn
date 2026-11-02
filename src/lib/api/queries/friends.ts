@@ -7,6 +7,9 @@ import type {
   FriendInvite,
   FriendInvitePreview,
   FriendList,
+  PetInteractInput,
+  PetInteractResult,
+  PetInteractionsStatus,
 } from '@/features/friend/schemas'
 import { apiFetch } from '../fetcher'
 import { keys } from '../keys'
@@ -26,8 +29,11 @@ export const friendsListQuery = () =>
     queryFn: () => apiFetch<FriendList>('/friends'),
   })
 
-export function useFriendsList() {
-  return useQuery(friendsListQuery())
+export function useFriendsList(options?: { enabled?: boolean }) {
+  return useQuery({
+    ...friendsListQuery(),
+    enabled: options?.enabled,
+  })
 }
 
 export const friendDashboardQuery = (friendUserId: string) =>
@@ -70,6 +76,37 @@ export function useAcceptFriendInvite() {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: keys.friends.all })
+    },
+  })
+}
+
+export const petInteractionsQuery = (friendUserId: string) =>
+  queryOptions({
+    queryKey: keys.friends.interactions(friendUserId),
+    queryFn: () =>
+      apiFetch<PetInteractionsStatus>(`/friends/${encodeURIComponent(friendUserId)}/interactions`),
+  })
+
+export function usePetInteractions(friendUserId: string | null) {
+  return useQuery({
+    ...petInteractionsQuery(friendUserId ?? ''),
+    enabled: Boolean(friendUserId),
+  })
+}
+
+export function useInteractWithPet() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ friendUserId, input }: { friendUserId: string; input: PetInteractInput }) =>
+      apiFetch<PetInteractResult>(`/friends/${encodeURIComponent(friendUserId)}/interact`, {
+        method: 'POST',
+        json: input,
+      }),
+    onSuccess: (result, variables) => {
+      queryClient.setQueryData(keys.friends.interactions(variables.friendUserId), result.status)
+      void queryClient.invalidateQueries({
+        queryKey: keys.friends.interactions(variables.friendUserId),
+      })
     },
   })
 }

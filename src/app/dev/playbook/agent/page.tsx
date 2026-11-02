@@ -6,6 +6,7 @@ import { UserMessage } from '@/features/agent/components/user-message'
 import { AgentPlayback, ErrorTurnDemo } from '../_components/agent-demos'
 import { BoundedPetStage, EdgeStates, PanelLayoutDemo } from '../_components/floating-agent-demos'
 import { EditableDraftDemo, QuotaCardDemo, RecognizerPhasesDemo } from './_d6-demos'
+import { MobilePreviewDemo } from './_mobile-demos'
 import { manyToolsTurn, quickTurn, runningTurn } from '../_components/agent-script'
 import { PageHeader, Rules, Section, Specimen } from '../_components/section'
 
@@ -38,6 +39,14 @@ export default function AgentPage() {
         description="拍照识别午餐：3 个工具并行估算 → 搜索补充（其中一个网页打不开）→ 读取资料和今日记录 → 回答 → 草稿确认。推理过程进行中自动展开，回答出来后自动收起成一行。"
       >
         <AgentPlayback />
+      </Section>
+
+      <Section
+        ann="playbook.agent.mobile"
+        title="手机端紧凑布局与不可折行族群防溢出（360px 模拟视口）"
+        description="头部身份栏置顶让出 44px 横向空间；正文缩微至 14px (text-caption)；5 列表格、KaTeX 长公式、Mermaid 脑图、长代码块在各自容器内局部左右横划，严格阻断全局溢出。"
+      >
+        <MobilePreviewDemo />
       </Section>
 
       <Section

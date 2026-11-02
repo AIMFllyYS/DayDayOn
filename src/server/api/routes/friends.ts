@@ -22,6 +22,7 @@ import { AUTH_ERRORS, errorResponses } from '../schemas'
  *   POST   /friends/invite                  获取或生成 10 分钟有效的 6 位配对码
  *   POST   /friends/invite/preview          校验 6 位配对码并返回邀请人信息（用于居中二次确认弹窗）
  *   POST   /friends/accept                  确认接受好友邀请，双向建立好友关系
+ *   DELETE /friends/{friendUserId}          解除好友关系，双向删除关系行
  *   GET    /friends/{friendUserId}/dashboard 获取指定好友的完整今日打卡仪表盘
  */
 
@@ -94,7 +95,23 @@ const acceptInviteRoute = createRoute({
       'FRIEND_INVITE_INVALID',
       'FRIEND_SELF_INVITE',
       'FRIEND_ALREADY_EXISTS',
+      'FRIEND_LIMIT_REACHED',
     ),
+  },
+})
+
+const removeFriendRoute = createRoute({
+  method: 'delete',
+  path: '/friends/{friendUserId}',
+  tags: ['friend'],
+  summary: '解除好友关系',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: {
+    params: FriendIdParamSchema,
+  },
+  responses: {
+    204: { description: '已解除好友关系' },
+    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED', 'FRIEND_NOT_FOUND'),
   },
 })
 
@@ -131,6 +148,11 @@ export const friendRoutes = new OpenAPIHono<AppEnv>()
     const { code } = c.req.valid('json')
     const data = await friendsService.acceptInviteCode(db, c.get('user').id, code, new Date())
     return c.json(data, 200)
+  })
+  .openapi(removeFriendRoute, async (c) => {
+    const { friendUserId } = c.req.valid('param')
+    await friendsService.removeFriend(db, c.get('user').id, friendUserId)
+    return c.body(null, 204)
   })
   .openapi(friendDashboardRoute, async (c) => {
     const { friendUserId } = c.req.valid('param')

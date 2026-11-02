@@ -37,6 +37,18 @@ export const keys = {
     all: ['friends'] as const,
     list: () => ['friends', 'list'] as const,
     dashboard: (friendUserId: string) => ['friends', 'dashboard', friendUserId] as const,
+    interactions: (friendUserId: string) => ['friends', 'interactions', friendUserId] as const,
+  },
+  chat: {
+    all: ['chat'] as const,
+    threads: () => ['chat', 'threads'] as const,
+    history: (friendUserId: string) => ['chat', 'history', friendUserId] as const,
+  },
+  notifications: {
+    all: ['notifications'] as const,
+    summary: () => ['notifications', 'summary'] as const,
+    list: (params?: { channel?: string; unreadOnly?: boolean; cursor?: string }) =>
+      ['notifications', 'list', params] as const,
   },
   rank: {
     all: ['rank'] as const,

@@ -174,7 +174,7 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
           aria-pressed={deepThink}
           onClick={() => ui.setDeepThink(!deepThink)}
           className={cn(
-            'text-tiny shadow-soft flex items-center gap-1 rounded-full px-2.5 py-1 backdrop-blur-md transition-all select-none',
+            'text-tiny shadow-soft pointer-events-auto flex items-center gap-1 rounded-full px-2.5 py-1 backdrop-blur-md transition-all select-none',
             deepThink
               ? 'bg-primary-soft text-primary-ink border-primary/20 border font-semibold'
               : 'bg-surface/90 text-muted hover:text-foreground border-border hover:bg-surface border',
@@ -186,7 +186,7 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
       </div>
 
       {attachments.length > 0 && (
-        <ul className="flex flex-wrap gap-1.5 px-1">
+        <ul className="pointer-events-auto flex flex-wrap gap-1.5 px-1">
           {attachments.map((a) => (
             <li
               key={a.id}
@@ -205,12 +205,14 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
           ))}
         </ul>
       )}
-      {attachError && <p className="text-tiny text-danger-ink px-1">{attachError}</p>}
+      {attachError && (
+        <p className="text-tiny text-danger-ink pointer-events-auto px-1">{attachError}</p>
+      )}
 
       {/* 单行输入框主体：左侧小拍摄按钮、中间输入文字、右侧小发送按钮 */}
       <div
         ref={inputRowRef}
-        className="border-border bg-surface shadow-soft flex items-center gap-1.5 rounded-2xl border px-2 py-1"
+        className="border-border bg-surface shadow-soft pointer-events-auto flex items-center gap-1.5 rounded-2xl border px-2 py-1"
       >
         <button
           type="button"

@@ -44,17 +44,27 @@ export function AgentTurn({
     turn.status === 'submitted' ||
     turn.parts.some((p) => p.type === 'reasoning' || p.type === 'tool') ||
     (turn.status === 'streaming' && text.length === 0)
+  const petName = character === 'dun' ? '墩墩' : '团团'
+  const statusTag =
+    turn.status === 'streaming' ? '思考中…' : turn.status === 'submitted' ? '准备中…' : 'AI打卡搭子'
 
   return (
     <article
-      aria-label={`${character === 'dun' ? '墩墩' : '团团'}的回复`}
+      aria-label={`${petName}的回复`}
       aria-busy={turn.status === 'streaming' || undefined}
-      className={cn('flex items-start gap-2.5', className)}
+      className={cn('flex w-full max-w-full min-w-0 flex-col gap-1.5', className)}
     >
-      <span className="bg-surface shadow-soft mt-0.5 shrink-0 rounded-full p-0.5">
-        <MascotSvg character={character} mood={avatarMood[turn.status]} size={34} />
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
+      {/* 头部身份行：IP 头像 + 角色名称 + 状态/副标题 */}
+      <header className="flex items-center gap-2 px-0.5">
+        <span className="bg-surface shadow-soft shrink-0 rounded-full p-0.5">
+          <MascotSvg character={character} mood={avatarMood[turn.status]} size={24} />
+        </span>
+        <span className="text-caption text-foreground font-semibold">{petName}</span>
+        <span className="text-tiny text-muted">{statusTag}</span>
+      </header>
+
+      {/* 下方内容主体：偏向左侧（微小缩进 pl-1 sm:pl-1.5），宽度 100% 铺开 */}
+      <div className="flex w-full max-w-full min-w-0 flex-col gap-2 pl-1 sm:pl-1.5">
         {hasProcess && <ActivityTrail turn={turn} defaultOpen={traceOpen} />}
         {text && <AnswerText text={text} streaming={streaming} />}
         {children}

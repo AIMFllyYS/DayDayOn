@@ -36,6 +36,11 @@ export const errorMessages: Record<ErrorCode, Message> = {
     const until = e.ban?.expiresAt ? `，${formatBusinessDateTime(e.ban.expiresAt)} 后恢复` : ''
     return `账号已被停用${reason}${until}`
   },
+  USER_MUTED: (e) =>
+    e.retryAfterSeconds
+      ? `发言过于频繁或多次触发违规，已暂时静音，${minutesText(e.retryAfterSeconds)}后再试`
+      : '发言过于频繁或多次触发违规，已暂时静音，请稍后再试',
+  FRIEND_RELATION_FROZEN: '双方已不是好友，无法发送新私聊消息',
   TWO_FACTOR_REQUIRED: '先开启两步验证，才能使用后台',
   ONBOARDING_REQUIRED: '先完成新人引导吧',
 
@@ -63,9 +68,14 @@ export const errorMessages: Record<ErrorCode, Message> = {
   PAYLOAD_TOO_LARGE: '图片太大了，换一张或截个图试试',
   UNSUPPORTED_MEDIA_TYPE: '这张图打不开，换一张或截个图试试',
   AI_RECOGNITION_FAILED: '没看清这张照片，手动填一下吧',
+  FRIEND_LIMIT_REACHED: '好友数量已达上限（最多 50 位），无法添加新好友',
+  INTERACTION_DAILY_LIMIT_EXCEEDED: '今天对该好友的这项互动次数已达上限',
+  REMIND_NOT_APPLICABLE: '好友今日目标已达标或今日休息，暂无需提醒',
+  CONTENT_SENSITIVE: '内容包含不当词汇，请修改后重试',
 
   RATE_LIMITED: (e) => `太频繁了，${minutesText(e.retryAfterSeconds)}后再试试`,
   REDEEM_LOCKED: (e) => `兑换失败次数太多，${minutesText(e.retryAfterSeconds)}后再试`,
+  INTERACTION_COOLDOWN: (e) => `互动太频繁了，${minutesText(e.retryAfterSeconds)}后再试吧`,
 
   INTERNAL: FALLBACK_MESSAGE,
   NOT_IMPLEMENTED: '这个功能还在做，敬请期待',

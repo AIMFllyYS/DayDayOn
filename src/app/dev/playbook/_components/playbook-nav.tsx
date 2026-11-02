@@ -13,6 +13,7 @@ export const playbookPages = [
   { href: '/dev/playbook/data', label: '数据与时间' },
   { href: '/dev/playbook/navigation', label: '导航与布局' },
   { href: '/dev/playbook/pet', label: '小宠物' },
+  { href: '/dev/playbook/social', label: '消息与社交' },
   { href: '/dev/playbook/agent', label: 'Agent 组件' },
   { href: '/dev/playbook/rendering', label: 'AI 输出渲染' },
   { href: '/dev/playbook/pages', label: '页面预览' },

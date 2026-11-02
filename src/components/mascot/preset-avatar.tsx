@@ -2,11 +2,11 @@ import { cn } from '@/lib/cn'
 import { softToneClass, type Tone } from '@/components/ui/tone'
 import {
   characterName,
-  mascotCharacters,
   mascotMoods,
+  mascotRegistryCharacters,
   MascotSvg,
-  type MascotCharacter,
   type MascotMood,
+  type MascotRegistryCharacter,
 } from './mascot-svg'
 
 /*
@@ -26,16 +26,16 @@ export const PRESET_AVATAR_TONES = [
 export type PresetAvatarTone = (typeof PRESET_AVATAR_TONES)[number]
 
 export interface PresetAvatarSpec {
-  character: MascotCharacter
+  character: MascotRegistryCharacter
   mood: MascotMood
   tone: PresetAvatarTone
 }
 
-const CHARACTERS = new Set<string>(mascotCharacters.map((c) => c.id))
+const CHARACTERS = new Set<string>(mascotRegistryCharacters.map((c) => c.id))
 const MOODS = new Set<string>(mascotMoods.map((m) => m.mood))
 const TONES = new Set<string>(PRESET_AVATAR_TONES)
 
-function isCharacter(v: string): v is MascotCharacter {
+function isCharacter(v: string): v is MascotRegistryCharacter {
   return CHARACTERS.has(v)
 }
 function isMood(v: string): v is MascotMood {

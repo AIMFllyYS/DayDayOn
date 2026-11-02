@@ -84,23 +84,26 @@ export function AgentPanel() {
         </NavButton>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        <AgentMessages
-          messages={messages}
-          status={status}
-          error={error}
-          isLoadingHistory={isLoadingHistory}
-          onRetry={retry}
-          character={character}
-          onQuickPrompt={(text) =>
-            send(text, undefined, { deepThink, idempotencyKey: newIdempotencyKey() })
-          }
-        />
-      </div>
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* 消息滚动区：全高贯穿到底部，底部留出浮动输入框的高度的安全 padding，允许向上滑动穿透 */}
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 pt-3 pb-24">
+          <AgentMessages
+            messages={messages}
+            status={status}
+            error={error}
+            isLoadingHistory={isLoadingHistory}
+            onRetry={retry}
+            character={character}
+            onQuickPrompt={(text) =>
+              send(text, undefined, { deepThink, idempotencyKey: newIdempotencyKey() })
+            }
+          />
+        </div>
 
-      {/* 底部输入框与消息区之间无分隔线 */}
-      <div className="p-2.5 pt-1">
-        <Composer variant="panel" />
+        {/* 底部悬浮输入层：无任何独立实色背景，浮动挂载，消息向上滑时可从背后穿透滑过 */}
+        <div className="pointer-events-none absolute right-0 bottom-0 left-0 z-10 p-2.5 pb-[calc(var(--safe-bottom,0px)+0.5rem)]">
+          <Composer variant="panel" />
+        </div>
       </div>
     </div>
   )

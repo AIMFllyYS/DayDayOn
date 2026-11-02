@@ -9,12 +9,15 @@ import { ApiError, type ErrorBody, type ErrorCode } from './errors'
 import { adminRoutes } from './routes/admin'
 import { agentRoutes } from './routes/agent'
 import { aiRoutes } from './routes/ai'
+import { chatRoutes } from './routes/chat'
 import { checkinRoutes } from './routes/checkins'
 import { dashboardRoutes } from './routes/dashboard'
 import { friendRoutes } from './routes/friends'
 import { goalRoutes } from './routes/goals'
 import { meRoutes } from './routes/me'
 import { metricRoutes } from './routes/metrics'
+import { notificationRoutes } from './routes/notifications'
+import { petInteractionRoutes } from './routes/pet-interactions'
 import { quotaRoutes } from './routes/quota'
 import { rankRoutes } from './routes/rank'
 import { redeemRoutes } from './routes/redeem'
@@ -91,6 +94,9 @@ export const app = base
   .route('/', metricRoutes)
   .route('/', dashboardRoutes)
   .route('/', friendRoutes)
+  .route('/', chatRoutes)
+  .route('/', petInteractionRoutes)
+  .route('/', notificationRoutes)
   .route('/', rankRoutes)
   .route('/', todoRoutes)
   .route('/', aiRoutes)

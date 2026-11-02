@@ -1,7 +1,16 @@
 'use client'
 
+import { useRef, useState } from 'react'
+import { InteractivePet, type PetHandle } from '@/components/mascot/interactive-pet'
+import { Mascot } from '@/components/mascot/mascot'
+import { characterName, type MascotRegistryCharacter } from '@/components/mascot/mascot-svg'
+import { TreatGlyph, treats, type TreatId } from '@/components/mascot/treat-glyph'
 import { Avatar } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Icon } from '@/components/ui/icon'
+import { toast } from '@/components/ui/toast'
 import { HomeDashboard } from '@/features/dashboard/components/home-dashboard'
 import type { DashboardToday } from '@/features/dashboard/schemas'
 import { useCheckinLauncher } from '@/features/checkin/launcher-store'
@@ -121,10 +130,22 @@ const demo: DashboardToday = {
   reminder: { remaining: 1 },
 }
 
-export function HomeScreen() {
+const FRIEND_MASCOTS: Record<string, MascotRegistryCharacter> = {
+  'u-ayou': 'tuan',
+  'u-doudou': 'dun',
+  'u-qiqi': 'mian',
+}
+
+export function HomeScreen({ thumb = false }: { thumb?: boolean }) {
   const launcher = useCheckinLauncher()
   const { viewingFriendId } = useFriendStore()
+  const petRef = useRef<PetHandle>(null)
+  const [actionToast, setActionToast] = useState<string | null>(null)
+  const [shelfOpen, setShelfOpen] = useState(false)
   const activeFriend = PLAYBOOK_DEMO_FRIENDS.find((f) => f.userId === viewingFriendId) ?? null
+  const friendMascot: MascotRegistryCharacter = activeFriend
+    ? (FRIEND_MASCOTS[activeFriend.userId] ?? 'tuan')
+    : 'tuan'
 
   const currentData: DashboardToday = activeFriend
     ? {
@@ -146,32 +167,150 @@ export function HomeScreen() {
       readOnly={Boolean(activeFriend)}
       friendBanner={
         activeFriend ? (
-          <div className="bg-primary-soft/75 border-primary/20 flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-2.5">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <Avatar
-                name={activeFriend.nickname}
-                avatar={activeFriend.avatar}
-                size="sm"
-                ring={activeFriend.streak > 0}
-              />
-              <div className="min-w-0">
-                <div className="text-caption text-foreground truncate font-bold">
-                  正在查看 {activeFriend.nickname} 的打卡主页
-                </div>
-                <div className="text-tiny text-muted truncate">
-                  好友双方完整公开打卡仪表盘 · 只读模式
+          <Card
+            variant="sticker"
+            className="bg-[radial-gradient(ellipse_at_50%_25%,var(--surface)_0%,var(--background)_65%,var(--surface-sunken)_100%)] p-4"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <Avatar
+                  name={activeFriend.nickname}
+                  avatar={activeFriend.avatar}
+                  size="sm"
+                  ring={activeFriend.streak > 0}
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-caption text-foreground truncate font-bold">
+                      {activeFriend.nickname} 的小窝
+                    </span>
+                    <Badge tone="diet" icon="flame">
+                      {activeFriend.streak} 天
+                    </Badge>
+                  </div>
+                  <div className="text-tiny text-muted truncate">
+                    陪伴伙伴：{characterName(friendMascot)} · 只读小窝模式（已隐藏个人 AI 悬浮团团）
+                  </div>
                 </div>
               </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setActionToast(null)
+                  friendActions.selectFriend(null)
+                }}
+                className="shrink-0"
+              >
+                返回我的主页
+              </Button>
             </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => friendActions.selectFriend(null)}
-              className="shrink-0"
-            >
-              返回我的主页
-            </Button>
-          </div>
+
+            <div className="my-3 flex flex-col items-center">
+              {thumb ? (
+                <Mascot
+                  character={friendMascot}
+                  mood={activeFriend.todayDone >= activeFriend.todayPlanned ? 'cheer' : 'happy'}
+                  size={104}
+                />
+              ) : (
+                <InteractivePet
+                  ref={petRef}
+                  character={friendMascot}
+                  size={128}
+                  idleSleepMs={0}
+                  speech
+                />
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  petRef.current?.play('shy')
+                  setActionToast(
+                    `已戳了戳 ${activeFriend.nickname} 的${characterName(friendMascot)}～`,
+                  )
+                }}
+                className="border-border bg-surface hover:bg-primary-soft/60 text-tiny flex items-center justify-center gap-1.5 rounded-xl border py-2 font-bold transition-colors"
+              >
+                <Icon name="hand" size={15} />
+                <span>戳戳 (3/3)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShelfOpen((v) => !v)}
+                className="border-border bg-surface hover:bg-primary-soft/60 text-tiny flex items-center justify-center gap-1.5 rounded-xl border py-2 font-bold transition-colors"
+              >
+                <TreatGlyph id="strawberry" size={16} />
+                <span>{shelfOpen ? '收起零食架' : '投喂零食 (1/1)'}</span>
+              </button>
+              <button
+                type="button"
+                disabled={activeFriend.todayDone >= activeFriend.todayPlanned}
+                onClick={() => {
+                  petRef.current?.play('wave')
+                  setActionToast(
+                    `已派${characterName(friendMascot)}温柔提醒 ${activeFriend.nickname} 打卡～`,
+                  )
+                }}
+                className="border-border bg-surface hover:bg-primary-soft/60 disabled:bg-surface-sunken disabled:text-muted text-tiny flex items-center justify-center gap-1.5 rounded-xl border py-2 font-bold transition-colors disabled:cursor-not-allowed"
+              >
+                <Icon name="megaphone" size={15} />
+                <span>
+                  {activeFriend.todayDone >= activeFriend.todayPlanned ? '今日已达标' : '提醒打卡'}
+                </span>
+              </button>
+            </div>
+
+            {shelfOpen && (
+              <div className="border-primary/20 bg-surface/95 mt-2.5 rounded-2xl border p-2.5">
+                <div className="text-tiny text-muted mb-1.5 flex items-center justify-between font-semibold">
+                  <span>小窝零食架 · 悬停查看小食，点击投喂</span>
+                </div>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {treats.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      aria-label={`你拿了${t.label}（${t.flavor}）`}
+                      onPointerEnter={() =>
+                        toast.info(`你拿了${t.label}`, {
+                          id: 'treat-shelf-hover',
+                          description: `${t.flavor} · 点击投喂给${characterName(friendMascot)}`,
+                          timeout: 1800,
+                        })
+                      }
+                      onFocus={() =>
+                        toast.info(`你拿了${t.label}`, {
+                          id: 'treat-shelf-hover',
+                          description: `${t.flavor} · 点击投喂给${characterName(friendMascot)}`,
+                          timeout: 1800,
+                        })
+                      }
+                      onClick={() => {
+                        petRef.current?.feed(t.id as TreatId)
+                        setShelfOpen(false)
+                        setActionToast(
+                          `给 ${activeFriend.nickname} 的${characterName(friendMascot)}投喂了「${t.label}」（${t.flavor}）！`,
+                        )
+                      }}
+                      className="border-border bg-paper hover:border-primary/40 hover:bg-primary-soft/45 flex h-11 items-center justify-center rounded-xl border transition-all"
+                    >
+                      <TreatGlyph id={t.id} size={26} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {actionToast && (
+              <p className="bg-primary-soft text-primary-ink text-tiny mt-2 rounded-xl px-3 py-1.5 text-center font-semibold">
+                {actionToast}
+              </p>
+            )}
+          </Card>
         ) : undefined
       }
     />

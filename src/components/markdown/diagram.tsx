@@ -78,7 +78,7 @@ export function MermaidDiagram({ code }: { code: string }) {
 
   return (
     <div
-      className="border-border bg-surface my-2 overflow-x-auto rounded-xl border p-3 [&>svg]:mx-auto [&>svg]:h-auto [&>svg]:max-w-full"
+      className="border-border bg-surface my-2 w-full max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border p-3 [&>svg]:mx-auto [&>svg]:h-auto [&>svg]:min-w-[280px] sm:[&>svg]:min-w-[320px]"
       // mermaid 输出的 SVG 已经过 DOMPurify（securityLevel strict），这里按可信 SVG 渲染
       dangerouslySetInnerHTML={{ __html: svg }}
     />

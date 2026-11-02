@@ -16,9 +16,10 @@ export const ThemeSchema = z.enum(THEME_IDS, { error: '主题不存在' }).meta(
 export type Theme = z.infer<typeof ThemeSchema>
 
 export const MascotCharacterSchema = z
-  .enum(['tuan', 'dun'], { error: '形象不存在' })
+  .enum(['tuan', 'dun', 'mian', 'you'], { error: '形象不存在' })
   .meta({ id: 'MascotCharacter' })
 export type MascotCharacter = z.infer<typeof MascotCharacterSchema>
+export type MascotRegistryCharacter = MascotCharacter
 
 export const GenderSchema = z.enum(['female', 'male', 'other']).meta({ id: 'Gender' })
 export type Gender = z.infer<typeof GenderSchema>
@@ -44,7 +45,7 @@ const TONES = 'primary|exercise|diet|sleep|study|custom'
 /** 预设头像：mascot:<character>:<mood>:<tone>（ADR-0021） */
 export const AvatarSchema = z
   .string()
-  .regex(new RegExp(`^mascot:(tuan|dun):(${MOODS}):(${TONES})$`), { error: '头像不存在' })
+  .regex(new RegExp(`^mascot:(tuan|dun|mian|you):(${MOODS}):(${TONES})$`), { error: '头像不存在' })
   .meta({ id: 'Avatar' })
 
 /** IANA 时区名；具体是否可用由服务端用 Intl 再验证 */
