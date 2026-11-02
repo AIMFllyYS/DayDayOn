@@ -3,8 +3,8 @@ import { Hono } from 'hono'
 import { createRoute, OpenAPIHono, type z } from '@hono/zod-openapi'
 import * as zz from 'zod'
 import {
+  AgentConversationDetailSchema,
   AgentConversationListSchema,
-  AgentConversationSchema,
   ConversationIdParamSchema,
   RenameConversationSchema,
 } from '@/features/agent/schemas'
@@ -45,11 +45,6 @@ const ChatRequestSchema = zz.object({
   idempotencyKey: zz.string().uuid(),
 })
 
-const MessagesResponseSchema = zz.object({
-  conversation: AgentConversationSchema,
-  messages: zz.array(zz.unknown()),
-})
-
 const listRoute = createRoute({
   method: 'get',
   path: '/agent/conversations',
@@ -70,7 +65,7 @@ const getRoute = createRoute({
   middleware: [requireUser, requireOnboarded] as const,
   request: { params: ConversationIdParamSchema },
   responses: {
-    200: { content: json(MessagesResponseSchema), description: '会话 + 消息' },
+    200: { content: json(AgentConversationDetailSchema), description: '会话 + 消息' },
     ...errorResponses(...AUTH_ERRORS, 'NOT_FOUND'),
   },
 })
