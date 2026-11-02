@@ -30,31 +30,39 @@ export function NotificationBellBadge({
   const showCount = unreadCount > 0
   const showDot = !showCount && hasLightDot
   const countLabel = unreadCount > 99 ? '99+' : String(unreadCount)
+  const a11yLabel = showCount
+    ? `${label}（${unreadCount} 条未读）`
+    : showDot
+      ? `${label}（有新动态）`
+      : label
 
   return (
-    <div className="relative inline-flex">
-      <IconButton
-        icon="bell"
-        label={
-          showCount ? `${label}（${unreadCount} 条未读）` : showDot ? `${label}（有新动态）` : label
-        }
-        onClick={onClick}
-      />
-      {showCount && (
-        <span
-          aria-hidden
-          className="bg-primary text-primary-foreground ring-surface pointer-events-none absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] leading-none font-bold ring-2"
-        >
-          {countLabel}
-        </span>
-      )}
-      {showDot && (
-        <span
-          aria-hidden
-          className="bg-primary ring-surface pointer-events-none absolute top-1.5 right-1.5 size-2 rounded-full ring-2"
-        />
-      )}
-    </div>
+    <button
+      type="button"
+      aria-label={a11yLabel}
+      title={a11yLabel}
+      onClick={onClick}
+      className="ease-spring text-foreground hover:bg-surface-sunken relative inline-flex size-11 shrink-0 items-center justify-center rounded-full transition-[transform,background-color] duration-(--dur-fast) select-none active:scale-95"
+    >
+      {/* 紧贴 22×22 铃铛本体定位：角标左下角始终贴合铃铛右上肩部，数字变长时向右自然延展 */}
+      <span className="relative inline-flex items-center justify-center">
+        <Icon name="bell" size={22} />
+        {showCount && (
+          <span
+            aria-hidden
+            className="bg-danger text-on-primary ring-surface pointer-events-none absolute -top-1.5 left-2.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] leading-none font-bold ring-2"
+          >
+            {countLabel}
+          </span>
+        )}
+        {showDot && (
+          <span
+            aria-hidden
+            className="bg-danger ring-surface pointer-events-none absolute -top-0.5 right-0 size-2 rounded-full ring-2"
+          />
+        )}
+      </span>
+    </button>
   )
 }
 
@@ -62,7 +70,7 @@ export function NotificationBellBadge({
  * 2. 二级通知动态卡片（5min 打卡聚合 / 宠物互动 / 24h 造访足迹）（Issue #19 / #20 / #22）
  * ========================================================================== */
 
-export function FeedCardsShowcase() {
+export function FeedCardsShowcase({ compact = false }: { compact?: boolean } = {}) {
   const [expandedAgg, setExpandedAgg] = useState(true)
   const [repliedPoke, setRepliedPoke] = useState(false)
 
@@ -73,125 +81,129 @@ export function FeedCardsShowcase() {
   ]
 
   return (
-    <div className="grid gap-3 md:grid-cols-2">
-      {/* 卡片 A：5 分钟滑动窗口聚合打卡动态 */}
-      <Card
-        variant="outline"
-        data-ann="playbook.social.feed-cards.aggregated-checkin"
-        className="flex flex-col justify-between gap-3"
-      >
-        <div className="flex items-start gap-3">
-          <div className="relative shrink-0">
-            <Avatar name="阿柚" avatar="mascot:tuan:cheer:diet" size="md" ring />
-            <span className="bg-primary ring-surface absolute -top-0.5 -left-0.5 size-2.5 rounded-full ring-2" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <span className="text-caption font-bold">阿柚</span>
-                <Badge tone="exercise" icon="check">
-                  5 分钟内连打 3 项
-                </Badge>
-              </div>
-              <span className="text-tiny text-subtle font-mono">08:15</span>
-            </div>
-            <p className="text-caption text-foreground mt-1">
-              阿柚 刚刚一口气完成了 <span className="font-bold">晨间慢跑 30 分钟</span> 等 3
-              项今日打卡！
-            </p>
-
-            {/* 聚合明细折叠区 */}
-            {expandedAgg && (
-              <ul className="bg-surface-sunken mt-2.5 grid gap-1.5 rounded-xl p-2.5">
-                {aggregatedItems.map((item) => (
-                  <li key={item.title} className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <IconTile icon={moduleMeta[item.tone].icon} tone={item.tone} size="sm" />
-                      <span className="text-tiny font-semibold">{item.title}</span>
-                    </div>
-                    <span className="text-tiny text-subtle font-mono">{item.time}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-
-        <div className="border-border flex items-center justify-between border-t pt-2.5">
-          <button
-            type="button"
-            onClick={() => setExpandedAgg((v) => !v)}
-            className="text-tiny text-muted hover:text-foreground font-semibold"
-          >
-            {expandedAgg ? '收起打卡明细 ↑' : '展开全部 3 项明细 ↓'}
-          </button>
-          <Button size="sm" variant="secondary" icon="sparkles">
-            去ta小窝夸夸
-          </Button>
-        </div>
-      </Card>
-
-      {/* 卡片 B：宠物互动与温柔提醒通知 */}
-      <div className="grid gap-3">
+    <div className="@container">
+      <div className={cn('grid gap-3', !compact && '@2xl:grid-cols-2')}>
+        {/* 卡片 A：5 分钟滑动窗口聚合打卡动态 */}
         <Card
           variant="outline"
-          data-ann="playbook.social.feed-cards.pet-remind"
-          className="flex items-start gap-3"
+          data-ann="playbook.social.feed-cards.aggregated-checkin"
+          className="flex flex-col justify-between gap-3"
         >
-          <div className="relative shrink-0">
-            <Avatar name="七七" avatar="mascot:mian:sleepy:sleep" size="md" />
-            <span className="bg-surface shadow-soft absolute -right-1.5 -bottom-1 rounded-full p-0.5">
-              <MascotSvg character="mian" mood="happy" size={22} />
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <span className="text-caption font-bold">七七 · 绵绵</span>
-                <Badge tone="sleep" icon="megaphone">
-                  打卡问候
-                </Badge>
+          <div className="flex items-start gap-3">
+            <div className="relative shrink-0">
+              <Avatar name="阿柚" avatar="mascot:tuan:cheer:diet" size="md" ring />
+              <span className="bg-danger ring-surface absolute -top-0.5 -left-0.5 size-2.5 rounded-full ring-2" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-caption font-bold">阿柚</span>
+                  <Badge tone="exercise" icon="check">
+                    5 分钟内连打 3 项
+                  </Badge>
+                </div>
+                <span className="text-tiny text-subtle shrink-0 font-mono">08:15</span>
               </div>
-              <span className="text-tiny text-subtle font-mono">14:20</span>
+              <p className="text-caption text-foreground mt-1 leading-relaxed">
+                阿柚 刚刚一口气完成了 <span className="font-bold">晨间慢跑 30 分钟</span> 等 3
+                项今日打卡！
+              </p>
+
+              {/* 聚合明细折叠区 */}
+              {expandedAgg && (
+                <ul className="bg-surface-sunken mt-2.5 grid gap-1.5 rounded-xl p-2.5">
+                  {aggregatedItems.map((item) => (
+                    <li key={item.title} className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <IconTile icon={moduleMeta[item.tone].icon} tone={item.tone} size="sm" />
+                        <span className="text-tiny truncate font-semibold">{item.title}</span>
+                      </div>
+                      <span className="text-tiny text-subtle shrink-0 font-mono">{item.time}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            <p className="text-caption text-foreground mt-1">
-              七七 派绵绵来问候：「今天的小目标还差 1 个就圆满啦，一起加油～」
-            </p>
-            <div className="mt-2.5 flex items-center gap-2">
-              <Button
-                size="sm"
-                variant={repliedPoke ? 'secondary' : 'primary'}
-                icon={repliedPoke ? 'check' : 'hand'}
-                onClick={() => setRepliedPoke(true)}
-              >
-                {repliedPoke ? '已回戳绵绵' : '回戳一下'}
-              </Button>
-              <Button size="sm" variant="ghost">
-                去完成待办
-              </Button>
-            </div>
+          </div>
+
+          <div className="border-border flex flex-wrap items-center justify-between gap-2 border-t pt-2.5">
+            <button
+              type="button"
+              onClick={() => setExpandedAgg((v) => !v)}
+              className="text-tiny text-muted hover:text-foreground font-semibold"
+            >
+              {expandedAgg ? '收起打卡明细 ↑' : '展开全部 3 项明细 ↓'}
+            </button>
+            <Button size="sm" variant="secondary" icon="sparkles">
+              去ta小窝夸夸
+            </Button>
           </div>
         </Card>
 
-        {/* 卡片 C：24h 静默去重造访足迹 */}
-        <Card
-          variant="sunken"
-          data-ann="playbook.social.feed-cards.visit-footprint"
-          className="flex items-center justify-between gap-3 py-3"
-        >
-          <div className="flex items-center gap-2.5">
-            <IconTile icon="footprints" tone="study" size="sm" />
-            <div>
-              <p className="text-caption font-semibold">
-                豆豆 带着墩墩来你的小窝看了一眼，留下了小脚印
-              </p>
-              <p className="text-tiny text-muted">
-                24 小时内多次造访静默合并更新时间，不重复打扰 · 最近 18:05
-              </p>
+        {/* 卡片 B：宠物互动与温柔提醒通知 */}
+        <div className="grid gap-3">
+          <Card
+            variant="outline"
+            data-ann="playbook.social.feed-cards.pet-remind"
+            className="flex items-start gap-3"
+          >
+            <div className="relative shrink-0">
+              <Avatar name="七七" avatar="mascot:mian:sleepy:sleep" size="md" />
+              <span className="bg-surface shadow-soft absolute -right-1.5 -bottom-1 rounded-full p-0.5">
+                <MascotSvg character="mian" mood="happy" size={22} />
+              </span>
             </div>
-          </div>
-          <Badge tone="neutral">足迹</Badge>
-        </Card>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-caption font-bold">七七 · 绵绵</span>
+                  <Badge tone="sleep" icon="megaphone">
+                    打卡问候
+                  </Badge>
+                </div>
+                <span className="text-tiny text-subtle shrink-0 font-mono">14:20</span>
+              </div>
+              <p className="text-caption text-foreground mt-1 leading-relaxed">
+                七七 派绵绵来问候：「今天的小目标还差 1 个就圆满啦，一起加油～」
+              </p>
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={repliedPoke ? 'secondary' : 'primary'}
+                  icon={repliedPoke ? 'check' : 'hand'}
+                  onClick={() => setRepliedPoke(true)}
+                >
+                  {repliedPoke ? '已回戳绵绵' : '回戳一下'}
+                </Button>
+                <Button size="sm" variant="ghost">
+                  去完成待办
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {/* 卡片 C：24h 静默去重造访足迹 */}
+          <Card
+            variant="sunken"
+            data-ann="playbook.social.feed-cards.visit-footprint"
+            className="flex items-center justify-between gap-3 py-3"
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <IconTile icon="footprints" tone="study" size="sm" />
+              <div className="min-w-0">
+                <p className="text-caption font-semibold">
+                  豆豆 带着墩墩来你的小窝看了一眼，留下了小脚印
+                </p>
+                <p className="text-tiny text-muted">
+                  24 小时内多次造访静默合并更新时间，不重复打扰 · 最近 18:05
+                </p>
+              </div>
+            </div>
+            <Badge tone="neutral" className="shrink-0">
+              足迹
+            </Badge>
+          </Card>
+        </div>
       </div>
     </div>
   )
@@ -449,7 +461,11 @@ export function TwoLevelNotificationCenterDemo() {
                 <div className="border-border flex items-center justify-between border-b px-4 py-3.5">
                   <div className="flex items-center gap-2">
                     <h3 className="text-heading font-bold">消息与通知</h3>
-                    {totalUnread > 0 && <Badge tone="primary">{totalUnread} 未读</Badge>}
+                    {totalUnread > 0 && (
+                      <span className="bg-danger text-on-primary text-tiny inline-flex h-5 items-center justify-center rounded-full px-2 font-mono leading-none font-bold">
+                        {totalUnread} 未读
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -496,9 +512,9 @@ export function TwoLevelNotificationCenterDemo() {
                                 className={cn(row.kind === 'friend-unfriended' && 'opacity-60')}
                               />
                             )}
-                            {/* 行尾/头像右上角未读红点 */}
+                            {/* 行尾/头像右上角未读红点：固定柔和浅红底色 */}
                             {row.unread > 0 && (
-                              <span className="bg-primary ring-surface absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2" />
+                              <span className="bg-danger ring-surface absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2" />
                             )}
                           </div>
 
@@ -525,7 +541,7 @@ export function TwoLevelNotificationCenterDemo() {
                                 {row.subtitle}
                               </p>
                               {row.unread > 0 ? (
-                                <span className="bg-primary text-primary-foreground flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 font-mono text-[10px] font-bold">
+                                <span className="bg-danger text-on-primary flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 font-mono text-[10px] leading-none font-bold">
                                   {row.unread}
                                 </span>
                               ) : row.kind === 'friend-active' ? (
@@ -609,7 +625,7 @@ export function TwoLevelNotificationCenterDemo() {
               {/* 二级主体内容区 */}
               {activeItem.kind === 'channel-feed' ? (
                 <div className="flex-1 space-y-3 overflow-y-auto p-4">
-                  <FeedCardsShowcase />
+                  <FeedCardsShowcase compact={viewport === 'mobile'} />
                 </div>
               ) : activeItem.kind === 'channel-system' ? (
                 <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -711,25 +727,32 @@ export function TwoLevelNotificationCenterDemo() {
                           {!isMe && (
                             <Avatar name={activeItem.title} avatar={activeItem.avatar} size="sm" />
                           )}
+                          {/* 我方消息：状态与时间统一置放在气泡左侧外部 */}
+                          {isMe && (
+                            <div className="text-subtle flex shrink-0 flex-col items-end gap-0.5 pb-0.5 text-[10px] leading-none">
+                              <span className="text-primary-ink flex items-center gap-0.5 font-semibold">
+                                <Icon name="check-double" size={12} />
+                                <span>已读</span>
+                              </span>
+                              <span className="font-mono">{m.time}</span>
+                            </div>
+                          )}
                           <div
                             className={cn(
-                              'max-w-[78%] rounded-2xl px-3.5 py-2.5',
+                              'max-w-[75%] rounded-2xl border px-3.5 py-2.5',
                               isMe
-                                ? 'bg-primary text-primary-foreground rounded-br-sm'
-                                : 'bg-surface shadow-soft text-foreground rounded-bl-sm',
+                                ? 'border-primary/20 bg-primary-soft text-foreground rounded-br-sm shadow-2xs'
+                                : 'border-border/60 bg-surface shadow-soft text-foreground rounded-bl-sm',
                             )}
                           >
                             <p className="text-caption leading-relaxed break-words">{m.text}</p>
-                            <div
-                              className={cn(
-                                'mt-1 flex items-center justify-end gap-1 text-[10px]',
-                                isMe ? 'text-primary-foreground/80' : 'text-subtle',
-                              )}
-                            >
-                              <span className="font-mono">{m.time}</span>
-                              {isMe && <Icon name="check-double" size={12} />}
-                            </div>
                           </div>
+                          {/* 对方消息：时间置放在气泡右侧外部 */}
+                          {!isMe && (
+                            <span className="text-subtle shrink-0 pb-0.5 font-mono text-[10px] leading-none">
+                              {m.time}
+                            </span>
+                          )}
                         </div>
                       )
                     })}
@@ -753,7 +776,7 @@ export function TwoLevelNotificationCenterDemo() {
                               key={phrase}
                               type="button"
                               onClick={() => sendChatMessage(phrase)}
-                              className="bg-primary-soft text-primary-ink text-tiny hover:bg-primary hover:text-primary-foreground rounded-full px-3 py-1 font-semibold transition-colors"
+                              className="bg-primary-soft text-primary-ink text-tiny hover:bg-primary/20 rounded-full px-3 py-1 font-semibold transition-colors"
                             >
                               {phrase}
                             </button>
@@ -767,12 +790,20 @@ export function TwoLevelNotificationCenterDemo() {
                         }}
                         className="flex items-center gap-2"
                       >
-                        <IconButton
-                          icon="smile"
-                          label="治愈快捷语"
-                          size="sm"
+                        <button
+                          type="button"
+                          aria-label="治愈快捷语与表情"
+                          title="治愈快捷语与表情"
                           onClick={() => setShowPhrases((v) => !v)}
-                        />
+                          className={cn(
+                            'ease-spring flex size-10 shrink-0 items-center justify-center rounded-full border transition-all active:scale-95',
+                            showPhrases
+                              ? 'border-primary/30 bg-primary-soft text-primary-ink'
+                              : 'border-border bg-surface-sunken text-foreground hover:bg-primary-soft/60',
+                          )}
+                        >
+                          <Icon name="smile" size={24} />
+                        </button>
                         <input
                           type="text"
                           value={draft}
@@ -814,67 +845,80 @@ export function ChatBubbleStatesDemo() {
       <Card
         variant="outline"
         data-ann="playbook.social.chat-states.bubbles"
-        className="bg-paper space-y-3 p-4"
+        className="bg-paper space-y-3.5 p-4"
       >
         <p className="text-tiny text-muted font-semibold">
-          4 种消息状态（含 clientMsgId 乐观更新与失败幂等重试）
+          4 种消息状态（我方采用主题浅色气泡，已读 / 发送中 / 重试状态统一置放于气泡左侧）
         </p>
 
-        {/* 1. 对方消息 */}
+        {/* 1. 对方消息（暖白底色） */}
         <div className="flex items-end gap-2">
           <Avatar name="阿柚" avatar="mascot:tuan:cheer:diet" size="sm" />
-          <div className="bg-surface shadow-soft max-w-[78%] rounded-2xl rounded-bl-sm px-3.5 py-2">
+          <div className="border-border/60 bg-surface shadow-soft text-foreground max-w-[75%] rounded-2xl rounded-bl-sm border px-3.5 py-2.5">
             <p className="text-caption">今天单词背完啦，给你比个心！</p>
-            <span className="text-subtle block text-right font-mono text-[10px]">20:14</span>
           </div>
+          <span className="text-subtle shrink-0 pb-0.5 font-mono text-[10px] leading-none">
+            20:14
+          </span>
         </div>
 
-        {/* 2. 我方已读 */}
-        <div className="flex justify-end">
-          <div className="bg-primary text-primary-foreground max-w-[78%] rounded-2xl rounded-br-sm px-3.5 py-2">
-            <p className="text-caption">收到了！我还有 10 分钟平板支撑～</p>
-            <div className="text-primary-foreground/80 mt-0.5 flex items-center justify-end gap-1 text-[10px]">
-              <span className="font-mono">20:15</span>
+        {/* 2. 我方已读（主题浅色底 + 左侧已读状态） */}
+        <div className="flex items-end justify-end gap-2">
+          <div className="text-subtle flex shrink-0 flex-col items-end gap-0.5 pb-0.5 text-[10px] leading-none">
+            <span className="text-primary-ink flex items-center gap-0.5 font-semibold">
               <Icon name="check-double" size={12} />
               <span>已读</span>
-            </div>
+            </span>
+            <span className="font-mono">20:15</span>
+          </div>
+          <div className="border-primary/20 bg-primary-soft text-foreground max-w-[75%] rounded-2xl rounded-br-sm border px-3.5 py-2.5 shadow-2xs">
+            <p className="text-caption">收到了！我还有 10 分钟平板支撑～</p>
           </div>
         </div>
 
-        {/* 3. 乐观更新发送中 */}
-        <div className="flex justify-end">
-          <div className="bg-primary/75 text-primary-foreground max-w-[78%] rounded-2xl rounded-br-sm px-3.5 py-2">
-            <p className="text-caption">做完运动去洗个热水澡✨</p>
-            <div className="text-primary-foreground/80 mt-0.5 flex items-center justify-end gap-1 text-[10px]">
+        {/* 3. 乐观更新发送中（左侧显示发送中状态） */}
+        <div className="flex items-end justify-end gap-2">
+          <div className="text-muted flex shrink-0 flex-col items-end gap-0.5 pb-0.5 text-[10px] leading-none">
+            <span className="flex items-center gap-1 font-semibold">
+              <Icon name="clock" size={11} />
               <span>发送中…</span>
-            </div>
+            </span>
+            <span className="font-mono">20:16</span>
+          </div>
+          <div className="border-primary/15 bg-primary-soft/75 text-foreground max-w-[75%] rounded-2xl rounded-br-sm border px-3.5 py-2.5">
+            <p className="text-caption">做完运动去洗个热水澡✨</p>
           </div>
         </div>
 
-        {/* 4. 发送失败 + 点击幂等重试 */}
-        <div className="flex items-center justify-end gap-2">
-          {!retried && (
+        {/* 4. 发送失败 + 点击幂等重试（左侧显示未送达与点击重试按钮） */}
+        <div className="flex items-end justify-end gap-2">
+          {retried ? (
+            <div className="text-subtle flex shrink-0 flex-col items-end gap-0.5 pb-0.5 text-[10px] leading-none">
+              <span className="text-success-ink flex items-center gap-0.5 font-semibold">
+                <Icon name="check" size={12} />
+                <span>已重试送达</span>
+              </span>
+              <span className="font-mono">20:17</span>
+            </div>
+          ) : (
             <button
               type="button"
               onClick={() => setRetried(true)}
-              className="bg-danger-soft text-danger-ink text-tiny flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold"
+              className="bg-danger-soft text-danger-ink text-tiny hover:bg-danger/20 mb-0.5 flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 font-semibold transition-colors"
             >
               <Icon name="alert" size={13} />
-              网络波动 · 点击重试（复用幂等键）
+              <span>未送达 · 点击重试</span>
             </button>
           )}
           <div
             className={cn(
-              'max-w-[72%] rounded-2xl rounded-br-sm px-3.5 py-2',
+              'max-w-[72%] rounded-2xl rounded-br-sm border px-3.5 py-2.5',
               retried
-                ? 'bg-primary text-primary-foreground'
-                : 'border-danger bg-surface text-foreground border',
+                ? 'border-primary/20 bg-primary-soft text-foreground shadow-2xs'
+                : 'border-danger/50 bg-primary-soft/60 text-foreground',
             )}
           >
             <p className="text-caption">晚安，明天见！</p>
-            <div className="mt-0.5 flex items-center justify-end gap-1 text-[10px] opacity-80">
-              <span>{retried ? '已重试送达' : '未送达'}</span>
-            </div>
           </div>
         </div>
       </Card>

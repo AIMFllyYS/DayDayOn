@@ -438,12 +438,12 @@ const icons = {
   smile: {
     line: (
       <>
-        <circle cx="12" cy="12" r="7.5" />
-        <path d="M9.2 10.2v.01M14.8 10.2v.01" />
-        <path d="M8.8 14c.9 1.4 2 2 3.2 2s2.3-.6 3.2-2" />
+        <circle cx="12" cy="12" r="9" />
+        <path d="M8.6 9.8c.5-.6 1.3-.6 1.8 0M13.6 9.8c.5-.6 1.3-.6 1.8 0" />
+        <path d="M8.2 13.8c1 1.8 2.3 2.6 3.8 2.6s2.8-.8 3.8-2.6" />
       </>
     ),
-    tint: <circle cx="13.1" cy="13.1" r="7.5" />,
+    tint: <circle cx="13.1" cy="13.1" r="9" />,
   },
 } satisfies Record<string, IconDef>
 

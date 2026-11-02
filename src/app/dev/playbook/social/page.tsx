@@ -22,7 +22,7 @@ export default function SocialPlaybookPage() {
       <Section
         ann="playbook.social.bell"
         title="顶栏铃铛与未读角标（Issue #20）"
-        description="主页顶栏右上角铃铛按钮。区分「轻量动态红点（如好友来访脚印）」与「强交互未读数（如被戳、被投喂、打卡提醒、好友新私信）」，最大显示 99+。"
+        description="主页顶栏右上角铃铛按钮。无论是轻量红点还是数字角标（最大 99+），统一使用不随主题色切换改变的柔和浅红底色（bg-danger #e06464）配纯白文字（text-on-primary #fffaf3），符合手机系统直觉。"
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Specimen
@@ -80,7 +80,7 @@ export default function SocialPlaybookPage() {
       <Section
         ann="playbook.social.chat-states"
         title="1v1 私聊气泡状态机与空状态（Issue #25 · #26）"
-        description="仅支持纯文本（≤300 字）与预设治愈贴纸/短语，绝不开放图片、语音或外链上传。发送采用 clientMsgId 幂等键乐观更新，网络失败时可原位点击重试。"
+        description="对方发来的气泡为暖白色（bg-surface），我方发出的气泡采用当前主题色的浅色底（bg-primary-soft）配深褐护眼文字；已读、发送中、未送达重试等状态统一置于我方气泡左侧外部。"
       >
         <ChatBubbleStatesDemo />
       </Section>
@@ -96,18 +96,20 @@ export default function SocialPlaybookPage() {
       <Section ann="playbook.social.rules" title="消息与社交设计守则">
         <Rules
           dos={[
+            '未读红点与数字角标固定采用柔和浅红底（bg-danger）+ 纯白字（text-on-primary），不随主题色切换变色',
+            '1v1 聊天中对方气泡用暖白底（bg-surface），我方气泡用当前主题浅色底（bg-primary-soft）+ 深色字，已读/发送中/重试状态统一放在我方气泡左侧外部',
             '手机端严格采用「一级消息总列表 → 二级具体详情/会话」两级钻取，二级页面隐藏底部主导航并在顶栏左上角提供返回按钮',
             '桌面端（≥1024px）采用左侧消息列表（320px）+ 右侧详情/聊天面板的双栏自适应布局',
             '解除好友后保留历史私聊记录供只读查阅，底部输入栏置灰显示「你们已解除好友关系，无法继续发送消息」',
             '同一好友 5 分钟内的连续打卡合并为 1 张动态卡；24 小时内的重复造访合并为 1 条脚印',
-            '宠物每日互动上限（戳戳 3 次 / 投喂 1 次 / 提醒打卡 1 次）统一按被互动好友的时区与 dayStartHour 计算自然日重置',
             '敏感词拦截时保留输入框文字不清空，举报交互在面板内原地切换视图',
           ]}
           donts={[
+            '不要让未读角标跟随主题色变成绿点/棕点，也不要在角标或深色气泡里使用黑色文字',
+            '不要用高饱和深色（bg-primary）作为我方聊天长文气泡底色，避免阅读刺眼',
             '不要在 Sheet / Dialog 里再弹出二级 Modal（严禁弹层套弹层）',
             '不要在好友私聊中开放图片、语音、视频、文件上传（服务器零媒体落盘铁律）',
             '不要因敏感词校验消耗用户的 DeepSeek AI 额度，也不要在日志里记录被拦截的明文内容',
-            '不要对今日已完成全部目标或今日无计划（0/0）的好友开放「提醒打卡」按钮',
           ]}
         />
       </Section>

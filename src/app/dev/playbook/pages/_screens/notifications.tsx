@@ -109,7 +109,11 @@ export function NotificationsScreen() {
             <div className="border-border flex items-center justify-between border-b px-4 py-3">
               <div className="flex items-center gap-2">
                 <span className="text-caption font-bold">全部会话与频道</span>
-                {totalUnread > 0 && <Badge tone="primary">{totalUnread} 未读</Badge>}
+                {totalUnread > 0 && (
+                  <span className="bg-danger text-on-primary text-tiny inline-flex h-5 items-center justify-center rounded-full px-2 font-mono leading-none font-bold">
+                    {totalUnread} 未读
+                  </span>
+                )}
               </div>
               <button
                 type="button"
@@ -148,7 +152,7 @@ export function NotificationsScreen() {
                         />
                       )}
                       {row.unread > 0 && (
-                        <span className="bg-primary ring-surface absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2" />
+                        <span className="bg-danger ring-surface absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2" />
                       )}
                     </div>
 
@@ -170,7 +174,7 @@ export function NotificationsScreen() {
                           {row.subtitle}
                         </p>
                         {row.unread > 0 && (
-                          <span className="bg-primary text-primary-foreground flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 font-mono text-[10px] font-bold">
+                          <span className="bg-danger text-on-primary flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 font-mono text-[10px] leading-none font-bold">
                             {row.unread}
                           </span>
                         )}
@@ -276,19 +280,30 @@ export function NotificationsScreen() {
                     {m.from === 'friend' && (
                       <Avatar name={activeChannel.title} avatar={activeChannel.avatar} size="sm" />
                     )}
+                    {m.from === 'me' && (
+                      <div className="text-subtle flex shrink-0 flex-col items-end gap-0.5 pb-0.5 text-[10px] leading-none">
+                        <span className="text-primary-ink flex items-center gap-0.5 font-semibold">
+                          <Icon name="check-double" size={12} />
+                          <span>已读</span>
+                        </span>
+                        <span className="font-mono">{m.time}</span>
+                      </div>
+                    )}
                     <div
                       className={cn(
-                        'max-w-[78%] rounded-2xl px-3 py-2',
+                        'max-w-[75%] rounded-2xl border px-3.5 py-2',
                         m.from === 'me'
-                          ? 'bg-primary text-primary-foreground rounded-br-sm'
-                          : 'bg-surface shadow-soft rounded-bl-sm',
+                          ? 'border-primary/20 bg-primary-soft text-foreground rounded-br-sm shadow-2xs'
+                          : 'border-border/60 bg-surface shadow-soft text-foreground rounded-bl-sm',
                       )}
                     >
                       <p className="text-caption">{m.text}</p>
-                      <span className="mt-0.5 block text-right font-mono text-[10px] opacity-75">
+                    </div>
+                    {m.from === 'friend' && (
+                      <span className="text-subtle shrink-0 pb-0.5 font-mono text-[10px] leading-none">
                         {m.time}
                       </span>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -306,12 +321,21 @@ export function NotificationsScreen() {
                   }}
                   className="border-border bg-surface flex items-center gap-2 border-t p-2.5"
                 >
+                  <button
+                    type="button"
+                    aria-label="治愈快捷语与表情"
+                    title="治愈快捷语与表情"
+                    onClick={() => setReplyText('今天也要给自己一个大大的拥抱～')}
+                    className="border-border bg-surface-sunken text-foreground hover:bg-primary-soft/60 ease-spring flex size-9.5 shrink-0 items-center justify-center rounded-full border transition-all active:scale-95"
+                  >
+                    <Icon name="smile" size={22} />
+                  </button>
                   <input
                     type="text"
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     placeholder="发送一句温柔鼓励（≤300字）…"
-                    className="border-border bg-surface-sunken text-caption h-9 min-w-0 flex-1 rounded-full border px-3.5 outline-none"
+                    className="border-border bg-surface-sunken text-caption h-9.5 min-w-0 flex-1 rounded-full border px-3.5 outline-none"
                   />
                   <Button
                     type="submit"
