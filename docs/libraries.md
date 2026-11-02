@@ -37,6 +37,7 @@
 | 9 | 客户端数据请求 | TanStack Query（`@tanstack/react-query`） | 5.105.0 | 是 | `src/lib/api/` | [0012](./adr/0012-client-data.md) | [tanstack-query](./lessons/tanstack-query.md) |
 | 10 | 数据校验 | `zod` | 4.6.7 | 是 | 工具库豁免；schema 在 `src/features/<领域>/schemas.ts` | [0013](./adr/0013-validation.md) | [zod](./lessons/zod.md) |
 | 18 | 人机验证 | Cloudflare Turnstile（`@marsidev/react-turnstile`） | 1.6.3 | 是 | `src/components/ui/turnstile.tsx`、`src/server/auth/captcha.ts` | [0023](./adr/0023-captcha.md) | [turnstile](./lessons/turnstile.md) |
+| 19 | AI 输出渲染（Markdown / KaTeX / Mermaid） | `react-markdown@10.1.0` + `remark-gfm@4.0.1` + `remark-math@6.0.0` + `rehype-katex@7.0.1` + `katex@0.19.1` + `remend@1.4.0` + `mermaid@12.2.0`（均 MIT / Apache-2.0，无安装脚本；mermaid 的传递依赖 elkjs 为 EPL/GPL 双许可，不启用 elk 布局并在打包后确认不随制品分发） | 见版本 | 是 | `src/components/markdown/` | [0025](./adr/0025-ai-output-rendering.md) | — |
 
 ### 服务端与平台
 
