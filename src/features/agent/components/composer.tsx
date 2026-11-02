@@ -42,7 +42,7 @@ interface ComposerProps {
 }
 
 export function Composer({ variant = 'panel', className }: ComposerProps) {
-  const { send, status } = useAgentChat()
+  const { send, stop, status } = useAgentChat()
   const { deepThink } = useAgentUiState()
   const ui = useAgentUi()
   const [input, setInput] = useState('')
@@ -160,25 +160,30 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
         }}
       />
 
-      {/* 悬浮在输入框之上的深度思考按钮：AI 输出时隐藏 */}
-      {!busy && (
-        <div className="flex items-center justify-start pl-1">
-          <button
-            type="button"
-            aria-pressed={deepThink}
-            onClick={() => ui.setDeepThink(!deepThink)}
-            className={cn(
-              'text-tiny shadow-soft flex items-center gap-1 rounded-full px-2.5 py-1 backdrop-blur-md transition-all select-none',
-              deepThink
-                ? 'bg-primary-soft text-primary-ink border-primary/20 border font-semibold'
-                : 'bg-surface/90 text-muted hover:text-foreground border-border hover:bg-surface border',
-            )}
-          >
-            <Icon name="bulb" size={12} lineOnly />
-            <span>深度思考</span>
-          </button>
-        </div>
-      )}
+      {/* 悬浮在输入框之上的深度思考按钮：AI 输出时透明隐藏但保持高度，避免消息区跳动 */}
+      <div
+        aria-hidden={busy || undefined}
+        className={cn(
+          'flex items-center justify-start pl-1 transition-opacity duration-(--dur-fast)',
+          busy && 'pointer-events-none opacity-0',
+        )}
+      >
+        <button
+          type="button"
+          tabIndex={busy ? -1 : 0}
+          aria-pressed={deepThink}
+          onClick={() => ui.setDeepThink(!deepThink)}
+          className={cn(
+            'text-tiny shadow-soft flex items-center gap-1 rounded-full px-2.5 py-1 backdrop-blur-md transition-all select-none',
+            deepThink
+              ? 'bg-primary-soft text-primary-ink border-primary/20 border font-semibold'
+              : 'bg-surface/90 text-muted hover:text-foreground border-border hover:bg-surface border',
+          )}
+        >
+          <Icon name="bulb" size={12} lineOnly />
+          <span>深度思考</span>
+        </button>
+      </div>
 
       {attachments.length > 0 && (
         <ul className="flex flex-wrap gap-1.5 px-1">
@@ -229,15 +234,26 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
           className="text-body text-foreground placeholder:text-subtle max-h-[7.5rem] min-h-[1.5rem] w-full min-w-0 flex-1 resize-none bg-transparent px-1 py-0 leading-6 outline-none"
         />
 
-        <button
-          type="button"
-          aria-label="发送"
-          onClick={sendNow}
-          disabled={busy || (input.trim().length === 0 && attachments.length === 0)}
-          className="bg-primary text-on-primary hover:bg-primary-hover flex size-7 shrink-0 items-center justify-center rounded-full shadow-sm transition-[transform,background-color,opacity] duration-150 ease-out active:scale-95 disabled:pointer-events-none disabled:opacity-40"
-        >
-          <Icon name="arrow" size={13} lineOnly />
-        </button>
+        {busy ? (
+          <button
+            type="button"
+            aria-label="停止生成"
+            onClick={() => stop()}
+            className="bg-surface-sunken text-foreground hover:bg-border flex size-7 shrink-0 items-center justify-center rounded-full transition-colors active:scale-95"
+          >
+            <Icon name="square" size={11} lineOnly />
+          </button>
+        ) : (
+          <button
+            type="button"
+            aria-label="发送"
+            onClick={sendNow}
+            disabled={input.trim().length === 0 && attachments.length === 0}
+            className="bg-primary text-on-primary hover:bg-primary-hover flex size-7 shrink-0 items-center justify-center rounded-full shadow-sm transition-[transform,background-color,opacity] duration-150 ease-out active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+          >
+            <Icon name="arrow" size={13} lineOnly />
+          </button>
+        )}
       </div>
     </div>
   )

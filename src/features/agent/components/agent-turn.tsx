@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { MascotSvg, type MascotMood } from '@/components/mascot/mascot-svg'
+import { MascotSvg, type MascotCharacter, type MascotMood } from '@/components/mascot/mascot-svg'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
 import { cn } from '@/lib/cn'
@@ -19,6 +19,7 @@ interface AgentTurnProps {
   turn: AgentTurnView
   /** 不传时自动：进行中展开、完成后收起；传 true / false 固定展开或收起（演示用） */
   traceOpen?: boolean
+  character?: MascotCharacter
   /** 正文之后的产物：草稿卡、图表等 */
   children?: ReactNode
   onRetry?: () => void
@@ -29,7 +30,14 @@ interface AgentTurnProps {
  * 一次助手回复。思考、工具调用、文字输出是同一个回合的三种 part，合在一个组件里按固定顺序呈现：
  *   活动条（思考 + 工具，一行，可展开）→ 正文 → 产物（草稿卡）→ 来源 → 错误与重试
  */
-export function AgentTurn({ turn, traceOpen, children, onRetry, className }: AgentTurnProps) {
+export function AgentTurn({
+  turn,
+  traceOpen,
+  character = 'tuan',
+  children,
+  onRetry,
+  className,
+}: AgentTurnProps) {
   const { text, streaming } = turnText(turn)
   const sources = turnSources(turn)
   const hasProcess =
@@ -39,12 +47,12 @@ export function AgentTurn({ turn, traceOpen, children, onRetry, className }: Age
 
   return (
     <article
-      aria-label="团团的回复"
+      aria-label={`${character === 'dun' ? '墩墩' : '团团'}的回复`}
       aria-busy={turn.status === 'streaming' || undefined}
       className={cn('flex items-start gap-2.5', className)}
     >
       <span className="bg-surface shadow-soft mt-0.5 shrink-0 rounded-full p-0.5">
-        <MascotSvg mood={avatarMood[turn.status]} size={34} />
+        <MascotSvg character={character} mood={avatarMood[turn.status]} size={34} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         {hasProcess && <ActivityTrail turn={turn} defaultOpen={traceOpen} />}

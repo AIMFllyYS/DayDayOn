@@ -1,4 +1,5 @@
 import type { UIMessage } from 'ai'
+import { errorMessage, FALLBACK_MESSAGE, type ApiErrorLike } from '@/lib/api/error-messages'
 import type { AgentPart, AgentTurnView, ToolCallState } from './types'
 
 /*
@@ -19,12 +20,15 @@ function toolSummary(toolName: string, input: unknown): string | undefined {
       if (data?.module === 'diet') return '饮食'
       if (data?.module === 'exercise')
         return typeof data.category === 'string' ? data.category : '运动'
+      if (data?.module === 'custom') return '自定义'
       return data?.module === 'sleep' ? '睡眠' : data?.module === 'study' ? '学习' : undefined
     }
     case 'draftTodo':
       return typeof o.title === 'string' ? o.title : undefined
     case 'draftWeight':
       return typeof o.weightKg === 'number' ? `${o.weightKg} kg` : undefined
+    case 'getFriendStatus':
+      return typeof o.friendIdOrNickname === 'string' ? o.friendIdOrNickname : undefined
     case 'listCheckins': {
       const from = typeof o.from === 'string' ? o.from : ''
       const to = typeof o.to === 'string' ? o.to : ''
@@ -97,11 +101,37 @@ export function isStreamingTurn(parts: UIMessage['parts']): boolean {
   })
 }
 
-export function toTurnView(message: UIMessage, status: AgentTurnView['status']): AgentTurnView {
+/** 把 useChat 抛出的 Error 映射成中文友好文案（识别服务端 JSON 错误码） */
+export function formatChatError(error: Error | undefined): string {
+  if (!error?.message) return FALLBACK_MESSAGE
+  const raw = error.message.trim()
+  if (raw.startsWith('{')) {
+    try {
+      const parsed: unknown = JSON.parse(raw)
+      if (
+        typeof parsed === 'object' &&
+        parsed !== null &&
+        'code' in parsed &&
+        typeof (parsed as { code?: unknown }).code === 'string'
+      ) {
+        return errorMessage(parsed as ApiErrorLike)
+      }
+    } catch {
+      // 非 JSON 错误文本按兜底处理
+    }
+  }
+  return /[\u4e00-\u9fa5]/.test(raw) ? raw : FALLBACK_MESSAGE
+}
+
+export function toTurnView(
+  message: UIMessage,
+  status: AgentTurnView['status'],
+  errorText?: string,
+): AgentTurnView {
   return {
     id: message.id,
     status,
     parts: toTurnParts(message.parts),
-    errorText: undefined,
+    errorText: status === 'error' ? errorText : undefined,
   }
 }

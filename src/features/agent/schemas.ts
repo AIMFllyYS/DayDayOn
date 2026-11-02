@@ -95,6 +95,14 @@ export const AgentConversationListSchema = z
   .meta({ id: 'AgentConversationList' })
 export type AgentConversationList = z.infer<typeof AgentConversationListSchema>
 
+export const AgentConversationDetailSchema = z
+  .object({
+    conversation: AgentConversationSchema,
+    messages: z.array(z.unknown()),
+  })
+  .meta({ id: 'AgentConversationDetail' })
+export type AgentConversationDetail = z.infer<typeof AgentConversationDetailSchema>
+
 export const RenameConversationSchema = z
   .object({ title: z.string().trim().min(1).max(40) })
   .meta({ id: 'RenameConversation' })

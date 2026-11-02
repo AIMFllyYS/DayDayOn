@@ -43,6 +43,10 @@ interface AiDraftCardProps {
   onManual?: () => void
   /** 确认提交中：主按钮转圈、禁止编辑 */
   confirming?: boolean
+  /** 已确认入库：主按钮置灰显示"已记录" */
+  confirmed?: boolean
+  /** 确认失败时的错误提示 */
+  errorText?: string
   /** 热量、睡眠类结果要显示"估算，非医疗建议"（架构基线 5.2 第 7 条） */
   estimate?: boolean
   className?: string
@@ -74,6 +78,8 @@ export function AiDraftCard({
   onEdit,
   onManual,
   confirming = false,
+  confirmed = false,
+  errorText,
   estimate = false,
   className,
 }: AiDraftCardProps) {
@@ -82,7 +88,8 @@ export function AiDraftCard({
   const [editing, setEditing] = useState(false)
   const hasErrors = itemErrors !== undefined && Object.keys(itemErrors).length > 0
   // 有校验错误时自动进入编辑态，标红的输入框才看得到
-  const showEditor = items !== undefined && (editing || hasErrors)
+  const showEditor = !confirmed && items !== undefined && (editing || hasErrors)
+  const canEdit = !confirmed && (items !== undefined || onEdit !== undefined)
 
   function toggleEdit() {
     if (items !== undefined) setEditing((v) => !v)
@@ -94,8 +101,8 @@ export function AiDraftCard({
       <div className="mb-3 flex items-center gap-2.5">
         <IconTile icon={meta.icon} tone={module} size="sm" />
         <p className="min-w-0 flex-1 truncate font-semibold">{title}</p>
-        <Badge tone="primary" icon="custom">
-          AI 草稿
+        <Badge tone={confirmed ? 'success' : 'primary'} icon={confirmed ? 'check' : 'custom'}>
+          {confirmed ? '已记录' : 'AI 草稿'}
         </Badge>
       </div>
 
@@ -135,25 +142,37 @@ export function AiDraftCard({
         </p>
       )}
 
+      {errorText && (
+        <p
+          role="alert"
+          className="bg-danger-soft text-tiny text-danger-ink mt-2 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5"
+        >
+          <Icon name="alert" size={14} />
+          {errorText}
+        </p>
+      )}
+
       <div className="mt-4 flex flex-wrap gap-2">
         <Button
           icon="check"
           onClick={onConfirm}
           loading={confirming}
-          disabled={items !== undefined && items.length === 0}
+          disabled={confirmed || (items !== undefined && items.length === 0)}
           className="flex-1"
         >
-          确认记录
+          {confirmed ? '已记录' : '确认记录'}
         </Button>
-        <Button
-          variant="secondary"
-          icon={showEditor ? 'check' : 'edit'}
-          onClick={toggleEdit}
-          disabled={confirming || (showEditor && hasErrors)}
-        >
-          {showEditor ? '改好了' : '修改'}
-        </Button>
-        {low && onManual && (
+        {canEdit && (
+          <Button
+            variant="secondary"
+            icon={showEditor ? 'check' : 'edit'}
+            onClick={toggleEdit}
+            disabled={confirming || (showEditor && hasErrors)}
+          >
+            {showEditor ? '改好了' : '修改'}
+          </Button>
+        )}
+        {!confirmed && low && onManual && (
           <Button variant="ghost" onClick={onManual} disabled={confirming}>
             手动填写
           </Button>

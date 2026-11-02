@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 /*
  * Mermaid 图示（懒加载）：代码块写完整后渲染成 SVG，出错降级显示源码。
@@ -34,16 +34,22 @@ async function ensureMermaid() {
 
 export function MermaidDiagram({ code }: { code: string }) {
   const id = useId().replace(/:/g, '')
+  const seqRef = useRef(0)
   const [svg, setSvg] = useState<string | null>(null)
   const [error, setError] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+    seqRef.current += 1
+    const renderId = `mmd-${id}-${seqRef.current}`
     void (async () => {
       try {
         const mermaid = await ensureMermaid()
-        const { svg: out } = await mermaid.render(`mmd-${id}`, code)
-        if (!cancelled) setSvg(out)
+        const { svg: out } = await mermaid.render(renderId, code)
+        if (!cancelled) {
+          setError(false)
+          setSvg(out)
+        }
       } catch {
         if (!cancelled) setError(true)
       }

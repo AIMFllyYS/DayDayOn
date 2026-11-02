@@ -1,5 +1,11 @@
+import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { AgentConversation, AgentConversationList, AgentDraft } from '@/features/agent/schemas'
+import type {
+  AgentConversation,
+  AgentConversationDetail,
+  AgentConversationList,
+  AgentDraft,
+} from '@/features/agent/schemas'
 import { apiFetch, newIdempotencyKey } from '../fetcher'
 import { afterCheckinChange, keys } from '../keys'
 
@@ -15,6 +21,34 @@ export function useAgentConversations() {
   })
 }
 
+export function useAgentConversation(conversationId: string | null) {
+  return useQuery({
+    queryKey: keys.agent.conversation(conversationId ?? ''),
+    queryFn: () =>
+      apiFetch<AgentConversationDetail>(
+        `/agent/conversations/${encodeURIComponent(conversationId ?? '')}`,
+      ),
+    enabled: Boolean(conversationId),
+  })
+}
+
+/** 一轮对话流式结束后的缓存刷新（会话列表、当前会话详情、个人 AI 额度） */
+export function useInvalidateAgentTurn() {
+  const queryClient = useQueryClient()
+  return useCallback(
+    (conversationId?: string) => {
+      if (conversationId) {
+        void queryClient.invalidateQueries({
+          queryKey: keys.agent.conversation(conversationId),
+        })
+      }
+      void queryClient.invalidateQueries({ queryKey: keys.agent.conversations() })
+      void queryClient.invalidateQueries({ queryKey: keys.me.quota() })
+    },
+    [queryClient],
+  )
+}
+
 export function useRenameConversation() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -23,7 +57,10 @@ export function useRenameConversation() {
         method: 'PATCH',
         json: { title },
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.agent.conversations() }),
+    onSuccess: (_data, { conversationId }) => {
+      void queryClient.invalidateQueries({ queryKey: keys.agent.conversations() })
+      void queryClient.invalidateQueries({ queryKey: keys.agent.conversation(conversationId) })
+    },
   })
 }
 
@@ -34,7 +71,10 @@ export function useDeleteConversation() {
       apiFetch<void>(`/agent/conversations/${encodeURIComponent(conversationId)}`, {
         method: 'DELETE',
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.agent.conversations() }),
+    onSuccess: (_data, conversationId) => {
+      queryClient.removeQueries({ queryKey: keys.agent.conversation(conversationId) })
+      void queryClient.invalidateQueries({ queryKey: keys.agent.conversations() })
+    },
   })
 }
 
@@ -71,6 +111,7 @@ export function useConfirmDraft() {
     onSettled: async () => {
       await Promise.all([
         ...afterCheckinChange.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+        queryClient.invalidateQueries({ queryKey: keys.goals.all }),
         queryClient.invalidateQueries({ queryKey: keys.todos.all }),
         queryClient.invalidateQueries({ queryKey: keys.metrics.all }),
       ])

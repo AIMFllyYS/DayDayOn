@@ -6,6 +6,8 @@ import { db } from '@/server/db/client'
 import { bodyMetrics, checkins, goals, profiles } from '@/server/db/schema'
 import { checkinToday } from '@/server/services/checkins/read'
 import { loadClock } from '@/server/services/checkins/clock'
+import { loadFields } from '@/server/services/checkins/goal'
+import { getFriendDashboard, listFriends } from '@/server/services/friends'
 import { weightTrend } from '@/server/services/metrics/weight'
 import { listTodos } from '@/server/services/todos'
 
@@ -37,16 +39,24 @@ const goalsColumns = {
   targetValue: goals.targetValue,
   weekdays: goals.weekdays,
   plannedTime: goals.plannedTime,
+  fieldVersion: goals.fieldVersion,
 }
 
-/** 进行中的目标（供模型选 goalId 打卡），按 sortOrder */
+/** 进行中的目标（供模型选 goalId 打卡），按 sortOrder；自定义目标附带字段定义 */
 export async function listGoals(userId: string) {
-  return db
+  const rows = await db
     .select(goalsColumns)
     .from(goals)
     .where(and(eq(goals.userId, userId), eq(goals.status, 'active')))
     .orderBy(asc(goals.sortOrder), asc(goals.id))
     .limit(100)
+  return Promise.all(
+    rows.map(async (g) => {
+      if (g.module !== 'custom' || g.fieldVersion === null) return g
+      const fields = await loadFields(db, g.id, g.fieldVersion)
+      return { ...g, fields: fields ?? [] }
+    }),
+  )
 }
 
 /** 今天（含体重、心情、各目标进度、完成度） */
@@ -101,4 +111,47 @@ export async function latestWeight(userId: string) {
     .orderBy(desc(bodyMetrics.localDate))
     .limit(1)
   return row ?? null
+}
+
+/** 读取用户的好友列表及每位好友今日完成度、连续打卡天数、今日心情 */
+export async function getFriendsOverview(userId: string, now: Date) {
+  return listFriends(db, userId, now)
+}
+
+/** 读取某位好友（支持传入 friendUserId 或昵称）的完整打卡仪表盘与近 N 天打卡记录 */
+export async function getFriendStatusDetail(
+  userId: string,
+  friendIdOrNickname: string,
+  now: Date,
+  days = 7,
+) {
+  const list = await listFriends(db, userId, now)
+  const q = friendIdOrNickname.trim()
+  const matched =
+    list.friends.find((f) => f.userId === q) ??
+    list.friends.find((f) => f.nickname === q || f.nickname.includes(q))
+
+  if (!matched) {
+    return {
+      found: false as const,
+      error: `未在你的好友列表中找到「${friendIdOrNickname}」，可先调用 listFriends 查看好友列表`,
+      availableFriends: list.friends.map((f) => ({ userId: f.userId, nickname: f.nickname })),
+    }
+  }
+
+  const { friend, dashboard } = await getFriendDashboard(db, userId, matched.userId, now)
+  const clock = await loadClock(db, matched.userId)
+  const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
+  const safeDays = Math.min(30, Math.max(1, days))
+  const recentCheckins = await listCheckinsInRange(matched.userId, now, {
+    from: addDays(today, -(safeDays - 1)),
+    to: today,
+  })
+
+  return {
+    found: true as const,
+    friend,
+    dashboard,
+    recentCheckins,
+  }
 }

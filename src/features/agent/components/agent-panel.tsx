@@ -1,15 +1,19 @@
 'use client'
 
-import { forwardRef, useRef, useState } from 'react'
+import { forwardRef, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import type { MascotCharacter } from '@/components/mascot/mascot-svg'
 import { Icon } from '@/components/ui/icon'
-import { Popover } from '@/components/ui/popover'
-import { cn } from '@/lib/cn'
+import { newIdempotencyKey } from '@/lib/api/fetcher'
 import { useAgentConversations } from '@/lib/api/queries/agent'
+import { useMe } from '@/lib/api/queries/me'
+import { cn } from '@/lib/cn'
+import { BUSINESS_TIME_ZONE } from '@/lib/time'
 import { useAgentUi, useAgentUiState } from '../agent-store'
 import { useAgentChat } from '../chat-context'
 import { AgentMessages } from './agent-messages'
 import { Composer } from './composer'
+import { ConversationHistoryPopover } from './conversation-history-popover'
 
 /*
  * Agent 弹窗：点击悬浮团团后弹出。
@@ -19,23 +23,26 @@ import { Composer } from './composer'
  */
 
 export function AgentPanel() {
-  const { panelOpen, conversationId } = useAgentUiState()
+  const { panelOpen, conversationId, deepThink } = useAgentUiState()
   const ui = useAgentUi()
   const router = useRouter()
-  const { messages, status } = useAgentChat()
-  const [historyOpen, setHistoryOpen] = useState(false)
+  const { messages, status, error, isLoadingHistory, retry, send } = useAgentChat()
   const conversations = useAgentConversations()
+  const { data: me } = useMe()
+  const character: MascotCharacter = me?.preferences.mascot === 'dun' ? 'dun' : 'tuan'
+  const petName = character === 'dun' ? '墩墩' : '团团'
+  const timeZone = me?.profile.timeZone ?? BUSINESS_TIME_ZONE
   const panelRef = useRef<HTMLDivElement>(null)
 
   if (!panelOpen) return null
 
-  const title = conversations.data?.items.find((c) => c.id === conversationId)?.title ?? '团团'
+  const title = conversations.data?.items.find((c) => c.id === conversationId)?.title ?? petName
 
   return (
     <div
       ref={panelRef}
       role="dialog"
-      aria-label="团团对话"
+      aria-label={`${petName}对话`}
       className={cn(
         'bg-surface shadow-float border-border animate-fade-up fixed z-50 flex flex-col overflow-hidden rounded-3xl border',
         // 手机：顶部留 1/4（25vh）、左侧留 1/5（20vw）；桌面：右下角卡片
@@ -43,9 +50,15 @@ export function AgentPanel() {
         'md:top-auto md:right-6 md:bottom-6 md:left-auto md:h-[min(74vh,700px)] md:w-[min(26rem,92vw)]',
       )}
     >
-      {/* 顶部小导航栏：左上角为放大按钮，紧随标题「团团」 */}
+      {/* 顶部小导航栏：左上角为放大按钮，紧随标题 */}
       <header className="border-border flex items-center gap-1 border-b px-2 py-1.5">
-        <NavButton label="全屏放大" onClick={() => router.push('/agent')}>
+        <NavButton
+          label="全屏放大"
+          onClick={() => {
+            ui.closePanel()
+            router.push('/agent')
+          }}
+        >
           <Icon name="maximize" size={15} lineOnly />
         </NavButton>
 
@@ -53,51 +66,17 @@ export function AgentPanel() {
           {title}
         </span>
 
-        <Popover
-          open={historyOpen}
-          onOpenChange={setHistoryOpen}
-          side="bottom"
-          align="end"
-          sideOffset={6}
-          positionerClassName="z-[60]"
-          clean
-          className="shadow-float max-h-72 w-64 max-w-[calc(100vw-1.5rem)] overflow-y-auto"
-          trigger={
-            <NavButton label="历史对话" active={historyOpen}>
+        <ConversationHistoryPopover
+          timeZone={timeZone}
+          openPanelOnReset={true}
+          renderTrigger={(open) => (
+            <NavButton label="历史对话" active={open}>
               <Icon name="clock" size={15} lineOnly />
             </NavButton>
-          }
-        >
-          {conversations.data?.items.length === 0 && (
-            <p className="text-caption text-subtle px-2 py-3 text-center">还没有对话</p>
           )}
-          {conversations.data?.items.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => {
-                ui.setConversation(c.id)
-                setHistoryOpen(false)
-              }}
-              className={cn(
-                'flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-colors',
-                c.id === conversationId
-                  ? 'bg-primary-soft text-foreground'
-                  : 'text-muted hover:bg-surface-sunken hover:text-foreground',
-              )}
-            >
-              <span className="text-caption min-w-0 flex-1 truncate font-medium">{c.title}</span>
-              <span className="text-tiny text-subtle shrink-0">
-                {new Date(c.lastMessageAt).toLocaleDateString('zh-CN', {
-                  month: 'numeric',
-                  day: 'numeric',
-                })}
-              </span>
-            </button>
-          ))}
-        </Popover>
+        />
 
-        <NavButton label="新对话" onClick={() => ui.newConversation()}>
+        <NavButton label="新对话" onClick={() => ui.newConversation({ openPanel: true })}>
           <Icon name="plus" size={15} lineOnly />
         </NavButton>
         <NavButton label="关闭" onClick={() => ui.closePanel()}>
@@ -106,7 +85,17 @@ export function AgentPanel() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        <AgentMessages messages={messages} status={status} />
+        <AgentMessages
+          messages={messages}
+          status={status}
+          error={error}
+          isLoadingHistory={isLoadingHistory}
+          onRetry={retry}
+          character={character}
+          onQuickPrompt={(text) =>
+            send(text, undefined, { deepThink, idempotencyKey: newIdempotencyKey() })
+          }
+        />
       </div>
 
       {/* 底部输入框与消息区之间无分隔线 */}

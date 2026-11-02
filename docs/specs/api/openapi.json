@@ -174,6 +174,8 @@
               "EMAIL_DOMAIN_NOT_ALLOWED",
               "MAKEUP_NOT_ALLOWED",
               "REDEEM_CODE_INVALID",
+              "FRIEND_INVITE_INVALID",
+              "FRIEND_SELF_INVITE",
               "UNAUTHENTICATED",
               "QUOTA_INSUFFICIENT",
               "FORBIDDEN",
@@ -186,6 +188,7 @@
               "TODO_NOT_FOUND",
               "USER_NOT_FOUND",
               "REDEEM_CODE_NOT_FOUND",
+              "FRIEND_NOT_FOUND",
               "ALREADY_ONBOARDED",
               "GOAL_LIMIT_REACHED",
               "TODO_LIMIT_REACHED",
@@ -194,6 +197,7 @@
               "REDEEM_CODE_USED",
               "IDEMPOTENCY_KEY_REUSED",
               "REQUEST_IN_PROGRESS",
+              "FRIEND_ALREADY_EXISTS",
               "PAYLOAD_TOO_LARGE",
               "UNSUPPORTED_MEDIA_TYPE",
               "AI_RECOGNITION_FAILED",
@@ -545,7 +549,8 @@
       "AiPurpose": {
         "type": "string",
         "enum": [
-          "diet-recognition"
+          "diet-recognition",
+          "agent-chat"
         ]
       },
       "AiRunStatus": {
@@ -2244,6 +2249,180 @@
           "remaining"
         ]
       },
+      "FriendList": {
+        "type": "object",
+        "properties": {
+          "me": {
+            "$ref": "#/components/schemas/PublicUser"
+          },
+          "friends": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FriendSummary"
+            }
+          }
+        },
+        "required": [
+          "me",
+          "friends"
+        ]
+      },
+      "PublicUser": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "userId",
+          "nickname",
+          "avatar"
+        ]
+      },
+      "FriendSummary": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "streak": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "todayDone": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "todayPlanned": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "todayMood": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 5
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "userId",
+          "nickname",
+          "avatar",
+          "streak",
+          "todayDone",
+          "todayPlanned",
+          "todayMood",
+          "createdAt"
+        ]
+      },
+      "FriendInvite": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "serverNow": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "code",
+          "expiresAt",
+          "serverNow"
+        ]
+      },
+      "FriendInvitePreview": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          },
+          "inviter": {
+            "$ref": "#/components/schemas/PublicUser"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "code",
+          "inviter",
+          "expiresAt"
+        ]
+      },
+      "FriendInviteCodeInput": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "FriendAcceptResult": {
+        "type": "object",
+        "properties": {
+          "friend": {
+            "$ref": "#/components/schemas/FriendSummary"
+          }
+        },
+        "required": [
+          "friend"
+        ]
+      },
+      "FriendDashboard": {
+        "type": "object",
+        "properties": {
+          "friend": {
+            "$ref": "#/components/schemas/FriendSummary"
+          },
+          "dashboard": {
+            "$ref": "#/components/schemas/DashboardToday"
+          }
+        },
+        "required": [
+          "friend",
+          "dashboard"
+        ]
+      },
       "RankBoard": {
         "type": "object",
         "properties": {
@@ -2618,6 +2797,76 @@
           "proteinGrams",
           "fatGrams",
           "carbGrams"
+        ]
+      },
+      "AgentConversationList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentConversation"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "AgentConversation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "lastMessageAt",
+          "createdAt"
+        ]
+      },
+      "AgentConversationDetail": {
+        "type": "object",
+        "properties": {
+          "conversation": {
+            "$ref": "#/components/schemas/AgentConversation"
+          },
+          "messages": {
+            "type": "array",
+            "items": {}
+          }
+        },
+        "required": [
+          "conversation",
+          "messages"
+        ]
+      },
+      "RenameConversation": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "title"
         ]
       },
       "RedeemResult": {
@@ -3066,17 +3315,17 @@
           "signupPerIpDaily": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 200
+            "maximum": 1000
           },
           "otpPerEmailDaily": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 200
+            "maximum": 500
           },
           "otpPerIpDaily": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 1000
+            "maximum": 5000
           }
         },
         "required": [
@@ -3131,17 +3380,17 @@
           "signupPerIpDaily": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 200
+            "maximum": 1000
           },
           "otpPerEmailDaily": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 200
+            "maximum": 500
           },
           "otpPerIpDaily": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 1000
+            "maximum": 5000
           }
         }
       }
@@ -4567,6 +4816,297 @@
         }
       }
     },
+    "/api/v1/friends": {
+      "get": {
+        "tags": [
+          "friend"
+        ],
+        "summary": "获取本人与好友列表",
+        "responses": {
+          "200": {
+            "description": "本人与好友列表摘要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/friends/invite": {
+      "post": {
+        "tags": [
+          "friend"
+        ],
+        "summary": "获取或生成 10 分钟有效的 6 位好友配对码",
+        "responses": {
+          "200": {
+            "description": "6 位配对码与过期时间",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendInvite"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/friends/invite/preview": {
+      "post": {
+        "tags": [
+          "friend"
+        ],
+        "summary": "校验 6 位配对码并返回邀请人头像与昵称",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FriendInviteCodeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "邀请人信息预览",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendInvitePreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED | FRIEND_INVITE_INVALID | FRIEND_SELF_INVITE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "USER_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "FRIEND_ALREADY_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/friends/accept": {
+      "post": {
+        "tags": [
+          "friend"
+        ],
+        "summary": "确认接受好友邀请",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FriendInviteCodeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已成为好友",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendAcceptResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED | FRIEND_INVITE_INVALID | FRIEND_SELF_INVITE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "FRIEND_ALREADY_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/friends/{friendUserId}/dashboard": {
+      "get": {
+        "tags": [
+          "friend"
+        ],
+        "summary": "获取指定好友的完整今日打卡仪表盘",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "friendUserId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "好友信息与完整今日打卡仪表盘",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendDashboard"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "FRIEND_NOT_FOUND | USER_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/rank": {
       "get": {
         "tags": [
@@ -5110,6 +5650,231 @@
           },
           "503": {
             "description": "AI_PAUSED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent/conversations": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Agent 会话列表",
+        "responses": {
+          "200": {
+            "description": "最近会话",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentConversationList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent/conversations/{conversationId}": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "单个会话与消息",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "conversationId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "会话 + 消息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentConversationDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "重命名会话",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "conversationId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameConversation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "已重命名"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "删除会话",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "conversationId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已删除"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
             "content": {
               "application/json": {
                 "schema": {

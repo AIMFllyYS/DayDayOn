@@ -28,7 +28,7 @@ export function FloatingPet({ className }: { className?: string }) {
 
   const pet = usePetDrag({
     size: PET_SIZE,
-    bottomInset: dockInset(),
+    bottomInset: dockInset,
     storageKey: STORAGE_KEY,
     onTap: () => ui.openPanel(),
   })
@@ -38,7 +38,8 @@ export function FloatingPet({ className }: { className?: string }) {
       type="button"
       aria-label={`打开${character === 'dun' ? '墩墩' : '团团'}对话`}
       className={cn(
-        'fixed z-40 flex touch-none items-center justify-center outline-none select-none',
+        'fixed z-40 flex touch-none items-center justify-center transition-opacity duration-(--dur-fast) outline-none select-none',
+        !pet.ready && 'pointer-events-none opacity-0',
         className,
       )}
       style={{ left: pet.position.left, top: pet.position.top, width: PET_SIZE, height: PET_SIZE }}

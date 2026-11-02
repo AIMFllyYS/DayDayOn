@@ -33,6 +33,11 @@ export const keys = {
     all: ['dashboard'] as const,
     today: () => ['dashboard', 'today'] as const,
   },
+  friends: {
+    all: ['friends'] as const,
+    list: () => ['friends', 'list'] as const,
+    dashboard: (friendUserId: string) => ['friends', 'dashboard', friendUserId] as const,
+  },
   rank: {
     all: ['rank'] as const,
     board: (range: RankRange) => ['rank', 'board', { range }] as const,

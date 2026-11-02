@@ -103,13 +103,20 @@ export async function loadMessages(
   dbOrTx: DbOrTx,
   userId: string,
   conversationId: string,
+  options: { allowMissing?: boolean } = {},
 ): Promise<StoredMessage[]> {
   const [conversation] = await dbOrTx
-    .select({ id: agentConversations.id })
+    .select({ id: agentConversations.id, userId: agentConversations.userId })
     .from(agentConversations)
-    .where(and(eq(agentConversations.id, conversationId), eq(agentConversations.userId, userId)))
+    .where(eq(agentConversations.id, conversationId))
     .limit(1)
-  if (!conversation) throw new ApiError('NOT_FOUND', '对话不存在')
+  if (!conversation) {
+    if (options.allowMissing) return []
+    throw new ApiError('NOT_FOUND', '对话不存在')
+  }
+  if (conversation.userId !== userId) {
+    throw new ApiError('NOT_FOUND', '对话不存在')
+  }
 
   const rows = await dbOrTx
     .select({

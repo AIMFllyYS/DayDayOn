@@ -1,8 +1,12 @@
 'use client'
 
+import { Avatar } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import { HomeDashboard } from '@/features/dashboard/components/home-dashboard'
 import type { DashboardToday } from '@/features/dashboard/schemas'
 import { useCheckinLauncher } from '@/features/checkin/launcher-store'
+import { friendActions, useFriendStore } from '@/features/friend/friend-store'
+import { PLAYBOOK_DEMO_FRIENDS } from './app-shell'
 
 /*
  * 主页（仪表盘，固定布局，PRD 2.8）。渲染正式组件 HomeDashboard，数据是演示用的，不接后端。
@@ -119,13 +123,57 @@ const demo: DashboardToday = {
 
 export function HomeScreen() {
   const launcher = useCheckinLauncher()
+  const { viewingFriendId } = useFriendStore()
+  const activeFriend = PLAYBOOK_DEMO_FRIENDS.find((f) => f.userId === viewingFriendId) ?? null
+
+  const currentData: DashboardToday = activeFriend
+    ? {
+        ...demo,
+        completion: { done: activeFriend.todayDone, planned: activeFriend.todayPlanned },
+        streak: activeFriend.streak,
+        mood: activeFriend.todayMood,
+        reminder: null,
+      }
+    : demo
+
   return (
     <HomeDashboard
-      data={demo}
+      data={currentData}
       now={DEMO_NOW}
       timeZone="Asia/Shanghai"
       onOpenWeight={() => launcher.open('weight')}
       onOpenMood={() => launcher.open('mood')}
+      readOnly={Boolean(activeFriend)}
+      friendBanner={
+        activeFriend ? (
+          <div className="bg-primary-soft/75 border-primary/20 flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-2.5">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <Avatar
+                name={activeFriend.nickname}
+                avatar={activeFriend.avatar}
+                size="sm"
+                ring={activeFriend.streak > 0}
+              />
+              <div className="min-w-0">
+                <div className="text-caption text-foreground truncate font-bold">
+                  正在查看 {activeFriend.nickname} 的打卡主页
+                </div>
+                <div className="text-tiny text-muted truncate">
+                  好友双方完整公开打卡仪表盘 · 只读模式
+                </div>
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => friendActions.selectFriend(null)}
+              className="shrink-0"
+            >
+              返回我的主页
+            </Button>
+          </div>
+        ) : undefined
+      }
     />
   )
 }

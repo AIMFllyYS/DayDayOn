@@ -95,10 +95,14 @@ done < <(find "$stage" -type l -print0)
 printf '%s\n' "$sha" > "$stage/.commit"
 log "artifact ok size=${size}"
 
-# 4. 切换前备份数据库（备份脚本存在且可执行时执行；迁移在服务启动钩子 instrumentation.ts 中幂等执行）
-if [[ -x /mnt/data/daydayon/compose/backup-db.sh ]]; then
-  log "running pre-deploy db backup"
-  /mnt/data/daydayon/compose/backup-db.sh >> "$LOG" 2>&1 || log "pre-deploy backup skipped"
+# 4. 切换前备份数据库（优先使用免密 sudo 调用备份脚本，保证跨权限目录可用；迁移在服务启动钩子 instrumentation.ts 中幂等执行）
+BACKUP_SH=/mnt/data/daydayon/compose/backup-db.sh
+if sudo -n "$BACKUP_SH" >> "$LOG" 2>&1; then
+  log "pre-deploy db backup completed via sudo"
+elif [[ -x "$BACKUP_SH" ]] && "$BACKUP_SH" >> "$LOG" 2>&1; then
+  log "pre-deploy db backup completed directly"
+else
+  log "pre-deploy db backup skipped or failed (check permissions/docker)"
 fi
 
 # 5. 切换
