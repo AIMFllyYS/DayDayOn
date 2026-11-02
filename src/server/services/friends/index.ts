@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomInt } from 'node:crypto'
-import { and, asc, desc, eq, gt, inArray, isNull } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gt, inArray, isNull, or } from 'drizzle-orm'
 import type {
   FriendAcceptResult,
   FriendDashboard,
@@ -9,16 +9,31 @@ import type {
   FriendList,
   FriendSummary,
 } from '@/features/friend/schemas'
+import type { MascotRegistryCharacter } from '@/features/me/schemas'
 import type { PublicUser } from '@/features/shared/schemas'
 import { ApiError } from '@/server/api/errors'
-import type { DbOrTx } from '@/server/db/client'
+import { db as defaultDb, type DbOrTx } from '@/server/db/client'
 import { friendInvites, friendships, profiles, user } from '@/server/db/schema'
 import { getDashboardToday } from '@/server/services/dashboard'
+import { recordVisitFootprint } from '@/server/services/notifications'
+
+/** 好友上限：最多 50 位 */
+export const MAX_FRIENDS = 50
 
 /** 配对码有效期：10 分钟（600,000 ms） */
 export const FRIEND_INVITE_TTL_MS = 10 * 60 * 1000
 
-async function loadPublicUsers(db: DbOrTx, userIds: string[]): Promise<Map<string, PublicUser>> {
+const MASCOT_NAMES: Record<string, string> = {
+  tuan: '团团',
+  dun: '墩墩',
+  mian: '绵绵',
+  you: '柚柚',
+}
+
+async function loadPublicUsers(
+  db: DbOrTx,
+  userIds: string[],
+): Promise<Map<string, PublicUser & { mascot?: string | null }>> {
   if (userIds.length === 0) return new Map()
   const rows = await db
     .select({
@@ -26,18 +41,20 @@ async function loadPublicUsers(db: DbOrTx, userIds: string[]): Promise<Map<strin
       name: user.name,
       nickname: profiles.nickname,
       avatar: profiles.avatar,
+      mascot: profiles.mascot,
     })
     .from(user)
     .leftJoin(profiles, eq(profiles.userId, user.id))
     .where(inArray(user.id, userIds))
 
-  const map = new Map<string, PublicUser>()
+  const map = new Map<string, PublicUser & { mascot?: string | null }>()
   for (const r of rows) {
     const nickname = r.nickname?.trim() || r.name?.trim() || 'DayDayOn 伙伴'
     map.set(r.userId, {
       userId: r.userId,
       nickname,
       avatar: r.avatar ?? null,
+      mascot: r.mascot ?? null,
     })
   }
   return map
@@ -46,15 +63,21 @@ async function loadPublicUsers(db: DbOrTx, userIds: string[]): Promise<Map<strin
 async function buildFriendSummary(
   db: DbOrTx,
   friendUserId: string,
-  publicUser: PublicUser,
+  publicUser: PublicUser & { mascot?: string | null },
   friendshipCreatedAt: Date,
   now: Date,
 ): Promise<FriendSummary> {
   const dash = await getDashboardToday(db, friendUserId, now)
+  const rawMascot = publicUser.mascot
+  const mascot: MascotRegistryCharacter =
+    rawMascot === 'tuan' || rawMascot === 'dun' || rawMascot === 'mian' || rawMascot === 'you'
+      ? rawMascot
+      : 'tuan'
   return {
     userId: publicUser.userId,
     nickname: publicUser.nickname,
     avatar: publicUser.avatar,
+    mascot,
     streak: dash.streak,
     todayDone: dash.completion.done,
     todayPlanned: dash.completion.planned,
@@ -275,6 +298,20 @@ export async function acceptInviteCode(
       throw new ApiError('FRIEND_ALREADY_EXISTS', 'Already friends with this user')
     }
 
+    const [userCountRow] = await tx
+      .select({ count: count() })
+      .from(friendships)
+      .where(eq(friendships.userId, userId))
+
+    const [inviterCountRow] = await tx
+      .select({ count: count() })
+      .from(friendships)
+      .where(eq(friendships.userId, invite.inviterId))
+
+    if ((userCountRow?.count ?? 0) >= MAX_FRIENDS || (inviterCountRow?.count ?? 0) >= MAX_FRIENDS) {
+      throw new ApiError('FRIEND_LIMIT_REACHED', `好友数量已达上限（最多 ${MAX_FRIENDS} 位）`)
+    }
+
     const updated = await tx
       .update(friendInvites)
       .set({
@@ -330,23 +367,60 @@ export async function getFriendDashboard(
     throw new ApiError('FRIEND_NOT_FOUND', 'Friendship not found')
   }
 
-  const userMap = await loadPublicUsers(db, [friendUserId])
+  const userMap = await loadPublicUsers(db, [friendUserId, userId])
   const pub = userMap.get(friendUserId)
   if (!pub) {
     throw new ApiError('USER_NOT_FOUND', 'Friend user not found')
   }
 
+  // 串门造访小窝时静默记录 24 小时足迹（Issue #20 · Feature 16 / Issue #21）
+  const visitor = userMap.get(userId)
+  const visitorMascot = visitor?.mascot ?? 'tuan'
+  const visitorMascotName = MASCOT_NAMES[visitorMascot] ?? '团团'
+  await recordVisitFootprint(db, friendUserId, userId, visitorMascotName, now).catch((err) => {
+    console.error('Failed to record silent visit footprint:', err)
+  })
+
   const dashboard = await getDashboardToday(db, friendUserId, now)
-  const friend: FriendSummary = {
-    userId: pub.userId,
-    nickname: pub.nickname,
-    avatar: pub.avatar,
-    streak: dashboard.streak,
-    todayDone: dashboard.completion.done,
-    todayPlanned: dashboard.completion.planned,
-    todayMood: dashboard.mood,
-    createdAt: relation.createdAt.toISOString(),
-  }
+  const friend = await buildFriendSummary(db, friendUserId, pub, relation.createdAt, now)
 
   return { friend, dashboard }
+}
+
+/**
+ * 解除好友关系：
+ * - 校验双方当前是否为好友，若不是则抛出 404 FRIEND_NOT_FOUND
+ * - 在事务中原子删除双向关系行 (userId ↔ friendUserId)
+ */
+export async function removeFriend(db: DbOrTx, userId: string, friendUserId: string): Promise<void>
+export async function removeFriend(userId: string, friendUserId: string): Promise<void>
+export async function removeFriend(
+  dbOrUserId: DbOrTx | string,
+  userIdOrFriendId: string,
+  maybeFriendId?: string,
+): Promise<void> {
+  const targetDb: DbOrTx = typeof dbOrUserId === 'string' ? defaultDb : dbOrUserId
+  const userId = typeof dbOrUserId === 'string' ? dbOrUserId : userIdOrFriendId
+  const friendUserId = typeof dbOrUserId === 'string' ? userIdOrFriendId : maybeFriendId!
+
+  return targetDb.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: friendships.id })
+      .from(friendships)
+      .where(and(eq(friendships.userId, userId), eq(friendships.friendId, friendUserId)))
+      .limit(1)
+
+    if (!existing) {
+      throw new ApiError('FRIEND_NOT_FOUND', 'Friendship not found')
+    }
+
+    await tx
+      .delete(friendships)
+      .where(
+        or(
+          and(eq(friendships.userId, userId), eq(friendships.friendId, friendUserId)),
+          and(eq(friendships.userId, friendUserId), eq(friendships.friendId, userId)),
+        ),
+      )
+  })
 }
