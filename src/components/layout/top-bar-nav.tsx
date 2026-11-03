@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Avatar, AvatarStack } from '@/components/ui/avatar'
 import { Icon } from '@/components/ui/icon'
 import { Menu, type MenuItemDef } from '@/components/ui/menu'
@@ -27,16 +27,27 @@ const AddFriendSheet = dynamic(
   () => import('@/features/friend/components/add-friend-sheet').then((m) => m.AddFriendSheet),
   { loading: () => null },
 )
+const UnfriendConfirmDialog = dynamic(
+  () =>
+    import('@/features/friend/components/unfriend-confirm-dialog').then(
+      (m) => m.UnfriendConfirmDialog,
+    ),
+  { loading: () => null },
+)
 
 interface TopBarUserAvatarProps {
   /** Playbook 演示时可传入模拟好友列表 */
   demoFriends?: FriendSummary[]
 }
 
+const LONG_PRESS_MS = 420
+
 /**
  * 顶栏左上角用户与好友堆叠头像（ADR-0026）：
  * - 复用 AvatarStack：有好友时叠放展示（人数较多时最多显示 3 个 + "+N"），无好友时展示本人头像
- * - 点击弹出好友面板菜单（第一行本人，下方按顺序排列好友），点击任意行切换打卡仪表盘视角
+ * - 点击弹出好友面板菜单（第一行本人，下方按顺序排列好友）：
+ *   - 单击任意行：切换打卡仪表盘视角
+ *   - 长按（或右键）任意好友行：在面板内展开二级菜单（进入好友空间 / 删除此好友）
  * - 接受好友邀请后承接流星终点，触发 Q 弹展开动效与引导气泡
  */
 export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
@@ -48,6 +59,11 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
   const { viewingFriendId, avatarPopping, hintBubbleOpen } = useFriendStore()
 
   const [panelOpen, setPanelOpen] = useState(false)
+  const [contextFriend, setContextFriend] = useState<FriendSummary | null>(null)
+
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressTriggeredRef = useRef(false)
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null)
 
   const myNickname = friendList?.me.nickname || me?.profile?.nickname || '小满'
   const myAvatar = friendList?.me.avatar ?? me?.profile?.avatar ?? 'mascot:tuan:cheer:exercise'
@@ -56,8 +72,20 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
   const stackNames = [myNickname, ...friends.map((f) => f.nickname)]
   const stackAvatars = [myAvatar, ...friends.map((f) => f.avatar)]
 
-  function handleSelectTarget(targetFriendId: string | null) {
-    friendActions.selectFriend(targetFriendId)
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+    pointerStartRef.current = null
+  }
+
+  function handleSelectTarget(
+    targetFriendId: string | null,
+    meta?: { nickname?: string | null; avatar?: string | null },
+  ) {
+    friendActions.selectFriend(targetFriendId, meta)
+    setContextFriend(null)
     setPanelOpen(false)
     if (pathname !== '/' && !pathname.startsWith('/dev')) {
       router.push('/')
@@ -70,7 +98,12 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
         open={panelOpen}
         onOpenChange={(next) => {
           setPanelOpen(next)
-          if (next) friendActions.dismissHintBubble()
+          if (!next) {
+            clearLongPressTimer()
+            setContextFriend(null)
+          } else {
+            friendActions.dismissHintBubble()
+          }
         }}
         align="start"
         side="bottom"
@@ -100,89 +133,194 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
           </button>
         }
       >
-        <div className="flex flex-col gap-1">
-          <div className="text-tiny text-muted flex items-center justify-between px-2.5 pt-1 pb-0.5 font-semibold">
-            <span>打卡视角切换</span>
-            <span>{friends.length > 0 ? `共 ${friends.length} 位好友` : '暂无好友'}</span>
-          </div>
+        {contextFriend ? (
+          /* 长按好友行触发的面板内二级菜单：(a) 进入好友空间 (b) 删除此好友 */
+          <div data-testid="friend-context-menu" className="flex flex-col gap-1.5 p-0.5">
+            <div className="border-border/60 flex items-center justify-between gap-2 border-b px-2 pt-1 pb-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <Avatar
+                  name={contextFriend.nickname}
+                  avatar={contextFriend.avatar}
+                  size="sm"
+                  ring={contextFriend.streak > 0}
+                />
+                <div className="min-w-0">
+                  <div className="text-body text-foreground truncate font-semibold">
+                    {contextFriend.nickname}
+                  </div>
+                  <div className="text-tiny text-muted truncate tabular-nums">
+                    今日 {contextFriend.todayDone}/{contextFriend.todayPlanned} 项 · 连续{' '}
+                    {contextFriend.streak} 天
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setContextFriend(null)}
+                className="text-tiny text-muted hover:text-foreground shrink-0 rounded-lg px-2 py-1 font-semibold transition-colors"
+              >
+                返回
+              </button>
+            </div>
 
-          <div className="divide-border/50 flex max-h-72 flex-col divide-y overflow-y-auto">
-            {/* 第一行：置顶当前用户自己 */}
             <button
               type="button"
-              onClick={() => handleSelectTarget(null)}
-              className={cn(
-                'hover:bg-surface-sunken flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors',
-                viewingFriendId === null && 'bg-primary-soft/60',
-              )}
+              data-testid="friend-context-enter"
+              onClick={() =>
+                handleSelectTarget(contextFriend.userId, {
+                  nickname: contextFriend.nickname,
+                  avatar: contextFriend.avatar,
+                })
+              }
+              className="hover:bg-surface-sunken text-body text-foreground flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left font-semibold transition-colors"
             >
-              <Avatar name={myNickname} avatar={myAvatar} size="sm" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-body text-foreground truncate font-semibold">
-                    {myNickname}
-                  </span>
-                  <span className="bg-surface-sunken text-muted text-tiny py-0.2 shrink-0 rounded-full px-1.5 font-medium">
-                    我自己
-                  </span>
-                </div>
-                <div className="text-tiny text-muted truncate">查看我的打卡主页</div>
-              </div>
-              {viewingFriendId === null && (
-                <Icon name="check" size={16} className="text-primary-ink shrink-0" />
-              )}
+              <Icon name="sparkles" size={18} className="text-primary-ink shrink-0" />
+              <span>进入好友空间</span>
             </button>
 
-            {/* 下方按顺序展示所有好友 */}
-            {friends.map((friend) => {
-              const selected = viewingFriendId === friend.userId
-              return (
-                <button
-                  key={friend.userId}
-                  type="button"
-                  onClick={() => handleSelectTarget(friend.userId)}
-                  className={cn(
-                    'hover:bg-surface-sunken flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors',
-                    selected && 'bg-primary-soft/60',
-                  )}
-                >
-                  <Avatar
-                    name={friend.nickname}
-                    avatar={friend.avatar}
-                    size="sm"
-                    ring={friend.streak > 0}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-body text-foreground truncate font-semibold">
-                      {friend.nickname}
-                    </div>
-                    <div className="text-tiny text-muted truncate tabular-nums">
-                      今日 {friend.todayDone}/{friend.todayPlanned} 项 · 连续 {friend.streak} 天
-                    </div>
-                  </div>
-                  {selected ? (
-                    <Icon name="check" size={16} className="text-primary-ink shrink-0" />
-                  ) : (
-                    <Icon name="chevron-right" size={15} className="text-muted shrink-0" />
-                  )}
-                </button>
-              )
-            })}
+            <button
+              type="button"
+              data-testid="friend-context-unfriend"
+              onClick={() => {
+                const target = contextFriend
+                setContextFriend(null)
+                setPanelOpen(false)
+                friendActions.requestUnfriend({
+                  userId: target.userId,
+                  nickname: target.nickname,
+                  avatar: target.avatar,
+                })
+              }}
+              className="text-danger-ink hover:bg-danger-soft text-body flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left font-semibold transition-colors"
+            >
+              <Icon name="user-x" size={18} className="shrink-0" />
+              <span>删除此好友</span>
+            </button>
           </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <div className="text-tiny text-muted flex items-center justify-between px-2.5 pt-1 pb-0.5 font-semibold">
+              <span>打卡视角切换</span>
+              <span>{friends.length > 0 ? '单击切换 · 长按管理' : '暂无好友'}</span>
+            </div>
 
-          {/* 底部快捷添加好友按钮 */}
-          <button
-            type="button"
-            onClick={() => {
-              setPanelOpen(false)
-              friendActions.openAddSheet()
-            }}
-            className="text-caption text-primary-ink hover:bg-primary-soft/60 mt-0.5 flex w-full items-center justify-center gap-1.5 rounded-xl py-2 font-semibold transition-colors"
-          >
-            <Icon name="plus" size={15} />
-            <span>添加好友</span>
-          </button>
-        </div>
+            <div className="divide-border/50 flex max-h-72 flex-col divide-y overflow-y-auto">
+              {/* 第一行：置顶当前用户自己 */}
+              <button
+                type="button"
+                onClick={() => handleSelectTarget(null)}
+                className={cn(
+                  'hover:bg-surface-sunken flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors',
+                  viewingFriendId === null && 'bg-primary-soft/60',
+                )}
+              >
+                <Avatar name={myNickname} avatar={myAvatar} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-body text-foreground truncate font-semibold">
+                      {myNickname}
+                    </span>
+                    <span className="bg-surface-sunken text-muted text-tiny py-0.2 shrink-0 rounded-full px-1.5 font-medium">
+                      我自己
+                    </span>
+                  </div>
+                  <div className="text-tiny text-muted truncate">查看我的打卡主页</div>
+                </div>
+                {viewingFriendId === null && (
+                  <Icon name="check" size={16} className="text-primary-ink shrink-0" />
+                )}
+              </button>
+
+              {/* 下方按顺序展示所有好友：单击切换空间，长按 420ms 或右键弹出二级菜单 */}
+              {friends.map((friend) => {
+                const selected = viewingFriendId === friend.userId
+                return (
+                  <button
+                    key={friend.userId}
+                    type="button"
+                    data-testid={`friend-row-${friend.userId}`}
+                    onPointerDown={(e) => {
+                      if (e.button !== 0 && e.pointerType === 'mouse') return
+                      longPressTriggeredRef.current = false
+                      pointerStartRef.current = { x: e.clientX, y: e.clientY }
+                      clearLongPressTimer()
+                      longPressTimerRef.current = setTimeout(() => {
+                        longPressTriggeredRef.current = true
+                        setContextFriend(friend)
+                      }, LONG_PRESS_MS)
+                    }}
+                    onPointerMove={(e) => {
+                      if (!pointerStartRef.current) return
+                      const dist = Math.hypot(
+                        e.clientX - pointerStartRef.current.x,
+                        e.clientY - pointerStartRef.current.y,
+                      )
+                      if (dist > 8) {
+                        clearLongPressTimer()
+                      }
+                    }}
+                    onPointerUp={clearLongPressTimer}
+                    onPointerCancel={clearLongPressTimer}
+                    onPointerLeave={clearLongPressTimer}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      clearLongPressTimer()
+                      longPressTriggeredRef.current = true
+                      setContextFriend(friend)
+                    }}
+                    onClick={() => {
+                      if (longPressTriggeredRef.current) {
+                        longPressTriggeredRef.current = false
+                        return
+                      }
+                      handleSelectTarget(friend.userId, {
+                        nickname: friend.nickname,
+                        avatar: friend.avatar,
+                      })
+                    }}
+                    className={cn(
+                      'hover:bg-surface-sunken flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors select-none',
+                      selected && 'bg-primary-soft/60',
+                    )}
+                  >
+                    <Avatar
+                      name={friend.nickname}
+                      avatar={friend.avatar}
+                      size="sm"
+                      ring={friend.streak > 0}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-body text-foreground truncate font-semibold">
+                        {friend.nickname}
+                      </div>
+                      <div className="text-tiny text-muted truncate tabular-nums">
+                        今日 {friend.todayDone}/{friend.todayPlanned} 项 · 连续 {friend.streak} 天
+                      </div>
+                    </div>
+                    {selected ? (
+                      <Icon name="check" size={16} className="text-primary-ink shrink-0" />
+                    ) : (
+                      <Icon name="chevron-right" size={15} className="text-muted shrink-0" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* 底部快捷添加好友按钮 */}
+            <button
+              type="button"
+              onClick={() => {
+                setPanelOpen(false)
+                friendActions.openAddSheet()
+              }}
+              className="text-caption text-primary-ink hover:bg-primary-soft/60 mt-0.5 flex w-full items-center justify-center gap-1.5 rounded-xl py-2 font-semibold transition-colors"
+            >
+              <Icon name="plus" size={15} />
+              <span>添加好友</span>
+            </button>
+          </div>
+        )}
       </Popover>
 
       {/* 添加好友成功后的引导气泡提示 */}
@@ -209,26 +347,55 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
 const actionBtnClass =
   'ease-spring text-foreground hover:bg-surface-sunken flex size-8.5 shrink-0 items-center justify-center rounded-full transition-[transform,background-color] duration-(--dur-fast) active:scale-95'
 
-/** 顶栏右上角操作区：通知按钮 + 微信风格加号下拉菜单 */
+/** 顶栏右上角操作区：通知按钮 + 微信风格加号下拉菜单（在好友空间时第一项切换为红色的「解除此好友」） */
 export function TopBarActions() {
   const router = useRouter()
   const pathname = usePathname()
   const isDemo = pathname.startsWith('/dev')
   const { data: summary } = useNotificationSummary({ enabled: !isDemo })
+  const { data: friendList } = useFriendsList({ enabled: !isDemo })
   const launcher = useCheckinLauncher()
-  const { addSheetOpen } = useFriendStore()
+  const {
+    viewingFriendId,
+    viewingFriendNickname,
+    viewingFriendAvatar,
+    addSheetOpen,
+    unfriendTarget,
+  } = useFriendStore()
   const [goalSheetOpen, setGoalSheetOpen] = useState(false)
   const [goalSheetLoaded, setGoalSheetLoaded] = useState(false)
   const [friendSheetLoaded, setFriendSheetLoaded] = useState(false)
+  const [unfriendDialogLoaded, setUnfriendDialogLoaded] = useState(false)
   if (goalSheetOpen && !goalSheetLoaded) setGoalSheetLoaded(true)
   if (addSheetOpen && !friendSheetLoaded) setFriendSheetLoaded(true)
+  if (unfriendTarget !== null && !unfriendDialogLoaded) setUnfriendDialogLoaded(true)
+
+  const activeFriend =
+    viewingFriendId !== null
+      ? friendList?.friends.find((f) => f.userId === viewingFriendId)
+      : undefined
+
+  const firstMenuItem: MenuItemDef =
+    viewingFriendId !== null
+      ? {
+          icon: 'user-x',
+          label: '解除此好友',
+          danger: true,
+          onSelect: () =>
+            friendActions.requestUnfriend({
+              userId: viewingFriendId,
+              nickname: activeFriend?.nickname ?? viewingFriendNickname ?? '该好友',
+              avatar: activeFriend?.avatar ?? viewingFriendAvatar ?? null,
+            }),
+        }
+      : {
+          icon: 'user',
+          label: '添加好友',
+          onSelect: () => friendActions.openAddSheet(),
+        }
 
   const items: MenuItemDef[] = [
-    {
-      icon: 'user',
-      label: '添加好友',
-      onSelect: () => friendActions.openAddSheet(),
-    },
+    firstMenuItem,
     {
       icon: 'flame',
       label: '立即打卡',
@@ -266,6 +433,7 @@ export function TopBarActions() {
       </div>
       {goalSheetLoaded && <GoalSettingSheet open={goalSheetOpen} onOpenChange={setGoalSheetOpen} />}
       {friendSheetLoaded && <AddFriendSheet />}
+      {unfriendDialogLoaded && <UnfriendConfirmDialog />}
       <FriendMeteorOverlay />
     </>
   )
