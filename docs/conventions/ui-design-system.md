@@ -178,8 +178,8 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 | `SegmentedControl` | `segmented-control.tsx` | Base UI Tabs 驱动的页面内视图切换，方向键可切换 |
 | `Rating` | `rating.tsx` | 满意度 1–5，选中项用板块色；选中时有情绪反馈（第 5 节），`feedback={false}` 关闭 |
 | `MenuList` / `MenuItem` | `menu-list.tsx` | 设置列表；`danger` 用于退出登录、注销 |
-| `Sheet` | `sheet.tsx` | Base UI Drawer（`<768px` 底部抽屉，支持下滑关闭）+ Dialog（`≥768px` 居中对话框），打开时锁住背景滚动 |
-| `ConfirmDialog` | `confirm-dialog.tsx` | Base UI AlertDialog：高危或丢数据操作二次确认（点遮罩不关闭），支持异步 `onConfirm` |
+| `Sheet` | `sheet.tsx` | Base UI Drawer（`<768px` 底部抽屉，支持下滑关闭）+ Dialog（`≥768px` 居中对话框），`z-40`，打开时锁住背景滚动；内置 `useAnimatedOpen` 保障按需首次挂载时的 `360ms` 底部上拉过渡 |
+| `ConfirmDialog` | `confirm-dialog.tsx` | Base UI AlertDialog（`z-50`）：高危或丢数据操作二次确认（点遮罩不关闭），支持异步 `onConfirm` 与按需挂载进场过渡 |
 | `Popover` / `Tooltip` / `Menu` / `Collapsible` | `popover.tsx`、`tooltip.tsx`、`menu.tsx`、`collapsible.tsx` | Base UI 浮层、行内操作菜单与折叠面板，统一 `z-50` 与 `data-starting-style` / `data-ending-style` 过渡 |
 | `ToastViewport` / `toast` | `toast.tsx` | Base UI Toast：`toast.success / error / info`，手机在底栏上方、桌面在右下角 |
 | `Calendar` | `calendar.tsx` | `react-day-picker` 唯一封装入口：周一起始、中文月份、板块色调选中态，支持补卡日期范围限制 |
