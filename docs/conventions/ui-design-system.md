@@ -363,6 +363,6 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 | 图标库 | 不引入。2026-10-31 决定所有图标手绘（第 6 节） | — |
 | clsx + tailwind-merge | 已定不引入：`cn()` 只做拼接（tailwind-merge 会吞掉语义字号，见 libraries.md） | — |
 | 动效库 | 已定不引入（ADR-0005） | — |
-| 团团形象、logo | 团团已细化（第 9 节）；logo 已定（ADR-0022）：唯一源 `src/components/layout/logo-svg.ts`，App 图标是团团和墩墩肩并肩，标签页图标与 `BrandMark` 是团团大头，底色固定奶茶焦糖，不随主题变 | 设计评审后定稿；CSS 动画不够用时走 libraries.md 的变更规则（Rive、Lottie 目前在禁令里） |
+| 团团形象、logo | 团团已细化（第 9 节）；logo 已升级定稿（ADR-0022、2026-11-03 评审决议）：唯一源 `src/components/layout/logo-svg.ts`，采用【05 连击热力·五彩织锦】方案，底色统一为晨曦奶油纸底 `#fff8f0`。App 图标为四色板块积木环抱连击火种，标签页图标与 `BrandMark` 聚焦核心连击色块，保留 08 纸飞机为备用社交资产 | 已完成定稿并在 `/dev/playbook/foundations` 接入演示 |
 | 深色模式 | 未做；token 已分层 | 浅色定稿后 |
 | Prettier 类名排序 | `prettier-plugin-tailwindcss` 没有配置 `tailwindStylesheet`，自定义 token 类会被排到最前 | 在 `.prettierrc.json` 加 `"tailwindStylesheet": "./src/app/globals.css"` |

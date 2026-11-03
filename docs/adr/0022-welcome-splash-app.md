@@ -25,10 +25,10 @@
    - 第一帧底色 = manifest `background_color` = `--background`，和系统开屏衔接成一段。
 4. **APK 壳约定**：WebView 的 User-Agent 末尾追加 `DayDayOnApp/<版本号>`；网页经 `src/lib/native.ts` 识别，以后的原生桥接入口也放这里。壳加载 `/`，接口复用 `/api/v1`。
 5. **下载**：每次发版的安装包固定命名 `DayDayOn.apk`，落地页链接 `releases/latest/download/DayDayOn.apk`（`src/features/welcome/download.ts`）。第一个 Release 发出前 `APK_AVAILABLE = false`，只显示"去 GitHub Release 看看"。iPhone 显示"添加到主屏幕"三步说明。已在 APK / PWA 里时整块隐藏。
-6. **Logo 与图标**：唯一图标源 `src/components/layout/logo-svg.ts`（纯 SVG 字符串）。
-   - `full`：团团和墩墩肩并肩、中间一颗小爱心，用于 App 图标（≥ 96px）。
-   - `mark`：团团大头，用于标签页图标和界面里的 `BrandMark`。
-   - 底色固定为默认主题奶茶焦糖 `#93603f` + 手账点阵，不随用户主题变。
+6. **Logo 与图标**：唯一图标源 `src/components/layout/logo-svg.ts`（纯 SVG 字符串）。2026-11-03 正式升级为【05 连击热力·五彩织锦 (Streak Heatmap & Mosaic)】方案，底色统一为温润晨曦奶油纸底 `#fff8f0`（同 `--background`）：
+   - `full`：运动、饮食、睡眠、学习四色板块积木贴纸围绕中心连击火种（Streak Core），外加手账象形印与微星，用于 App 图标（≥ 96px）、PWA 192/512 与 APK 壳。
+   - `mark`：聚焦四色方块与跳动连击火苗，去除边缘细微杂点，强化轮廓与对比度，用于标签页图标（Favicon 16–48px）和界面里的 `BrandMark`。
+   - 备用资产：【08 信笺、纸飞机与朋友的回音】在 `logo-svg.ts` 中导出 `paperPlaneSvg()`，并在 Playbook 沉淀为社交动态投递场景备用。
    - `app/icon.tsx`、`app/apple-icon.tsx`、`app/icons/[name]` 在构建时生成 PNG / SVG（含 maskable、Android 自适应图标前景层），PWA manifest 和 APK 工程都从这里取。删除 create-next-app 的占位 `favicon.ico`。
 
 ## 理由

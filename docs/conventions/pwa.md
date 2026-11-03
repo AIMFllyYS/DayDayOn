@@ -13,7 +13,7 @@
 | `public/sw.js` | 手写的 Service Worker（ESLint 已忽略此文件） |
 | `src/app/offline/page.tsx` | 离线页，被预缓存 |
 | `src/app/icons/[name]/route.tsx` | 192、512 尺寸图标、maskable 图标、Android 自适应图标前景层，构建时由 `src/components/layout/logo-svg.ts` 生成（不放 `public/icons/`） |
-| `src/app/icon.tsx`、`src/app/apple-icon.tsx` | 标签页图标（团团大头）与 iPhone 主屏幕图标 |
+| `src/app/icon.tsx`、`src/app/apple-icon.tsx` | 标签页图标（05 连击热力·五彩织锦）与 iPhone 主屏幕图标 |
 
 ## 2. manifest
 
