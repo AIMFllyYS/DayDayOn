@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { DateField } from '@/components/ui/date-field'
@@ -24,7 +24,7 @@ import {
  * 新建 / 编辑待办的抽屉（PRD 2.10）。字段：标题、DDL（datetime-local，按用户时区转成时刻）、优先级。
  * 校验用与接口相同的 zod schema；服务端 400 的 fields 由调用方通过 serverErrors 传回来。
  * 编辑时只提交改动过的字段；什么都没改直接关闭。
- * 调用方在打开时用 key 重新挂载（key = todo?.id ?? 'new'），表单状态从 todo 初始化。
+ * Sheet 实例保持常驻以保留完整上下滑动过渡，内部表单按 session key 在每次打开时从 todo 重新初始化。
  */
 
 const priorities = [
@@ -36,6 +36,8 @@ export type TodoSheetSubmit =
   { kind: 'create'; input: CreateTodo } | { kind: 'update'; patch: UpdateTodo }
 
 interface TodoSheetProps {
+  /** 每次打开递增，用于重置内部表单状态而不销毁外层 Sheet */
+  session?: number
   open: boolean
   onOpenChange: (open: boolean) => void
   /** 编辑的待办；null 为新建 */
@@ -49,11 +51,13 @@ interface TodoSheetProps {
 const FORM_ID = 'todo-sheet-form'
 
 // 只有关闭时有未保存改动才会用到（ui-primitives.md 第 3 节：懒加载）
-const ConfirmDialog = dynamic(() =>
-  import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+const ConfirmDialog = dynamic(
+  () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+  { loading: () => null },
 )
 
 export function TodoSheet({
+  session = 0,
   open,
   onOpenChange,
   todo,
@@ -62,6 +66,75 @@ export function TodoSheet({
   serverErrors,
   onSubmit,
 }: TodoSheetProps) {
+  const [dirty, setDirty] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmLoaded, setConfirmLoaded] = useState(false)
+  if (confirmOpen && !confirmLoaded) setConfirmLoaded(true)
+
+  function close() {
+    setDirty(false)
+    onOpenChange(false)
+  }
+
+  function requestOpenChange(next: boolean) {
+    if (!next && dirty && !submitting) return setConfirmOpen(true)
+    if (next) onOpenChange(true)
+    else close()
+  }
+
+  return (
+    <>
+      <Sheet
+        open={open}
+        onOpenChange={requestOpenChange}
+        title={todo ? '编辑待办' : '新建待办'}
+        footer={
+          <Button type="submit" form={FORM_ID} className="w-full" loading={submitting}>
+            {todo ? '保存' : '记下来'}
+          </Button>
+        }
+      >
+        <TodoSheetForm
+          key={`${session}-${todo?.id ?? 'new'}`}
+          todo={todo}
+          timeZone={timeZone}
+          serverErrors={serverErrors}
+          onDirtyChange={setDirty}
+          onNoopClose={close}
+          onSubmit={onSubmit}
+        />
+      </Sheet>
+      {confirmLoaded && (
+        <ConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="还没保存，确定关闭？"
+          description="填了的内容会丢掉"
+          confirmLabel="不保存，关闭"
+          cancelLabel="继续编辑"
+          tone="danger"
+          onConfirm={close}
+        />
+      )}
+    </>
+  )
+}
+
+function TodoSheetForm({
+  todo,
+  timeZone,
+  serverErrors,
+  onDirtyChange,
+  onNoopClose,
+  onSubmit,
+}: {
+  todo: Todo | null
+  timeZone: string
+  serverErrors?: FormErrors
+  onDirtyChange: (dirty: boolean) => void
+  onNoopClose: () => void
+  onSubmit: (value: TodoSheetSubmit) => void
+}) {
   const [title, setTitle] = useState(todo?.title ?? '')
   const [due, setDue] = useState(todo?.dueAt ? toLocalDateTimeValue(todo.dueAt, timeZone) : '')
   const [priority, setPriority] = useState<TodoPriority>(todo?.priority ?? 'normal')
@@ -70,12 +143,10 @@ export function TodoSheet({
   // 未保存的改动：与打开时的值比较；有改动时下滑、点遮罩、Esc 关闭前先确认（client-data-and-forms.md 第 6 节）
   const [initial] = useState(() => JSON.stringify([title, due, priority]))
   const dirty = JSON.stringify([title, due, priority]) !== initial
-  const [confirmOpen, setConfirmOpen] = useState(false)
 
-  function requestOpenChange(next: boolean) {
-    if (!next && dirty && !submitting) return setConfirmOpen(true)
-    onOpenChange(next)
-  }
+  useEffect(() => {
+    onDirtyChange(dirty)
+  }, [dirty, onDirtyChange])
 
   function dueInstant(): string | null {
     return due === '' ? null : combineLocalDateTime(due, timeZone).toISOString()
@@ -94,7 +165,7 @@ export function TodoSheet({
     if (nextDue !== (todo.dueAt === null ? null : new Date(todo.dueAt).toISOString()))
       draft.dueAt = nextDue
     if (priority !== todo.priority) draft.priority = priority
-    if (Object.keys(draft).length === 0) return onOpenChange(false)
+    if (Object.keys(draft).length === 0) return onNoopClose()
     const r = UpdateTodoSchema.safeParse(draft)
     if (!r.success) return setErrors(z.flattenError(r.error).fieldErrors)
     setErrors(undefined)
@@ -103,86 +174,63 @@ export function TodoSheet({
 
   const dueError = shown.dueAt
   return (
-    <Sheet
-      open={open}
-      onOpenChange={requestOpenChange}
-      title={todo ? '编辑待办' : '新建待办'}
-      footer={
-        <Button type="submit" form={FORM_ID} className="w-full" loading={submitting}>
-          {todo ? '保存' : '记下来'}
-        </Button>
-      }
-    >
-      <Form id={FORM_ID} errors={shown} onFormSubmit={submit} aria-label="待办">
-        <Field
-          label="要做什么"
-          htmlFor="todo-title"
-          name="title"
-          aside={`${title.trim().length} / ${TODO_TITLE_MAX}`}
-        >
-          <Input
-            id="todo-title"
-            value={title}
-            maxLength={TODO_TITLE_MAX}
-            placeholder="比如：交实验报告"
-            autoComplete="off"
-            onChange={(e) => {
-              setTitle(e.target.value)
-              setErrors((prev) => (prev?.title ? { ...prev, title: undefined } : prev))
-            }}
-          />
-        </Field>
-        <DateField
-          label="DDL"
-          id="todo-due"
-          withTime
-          value={due}
-          onValueChange={(next) => {
-            setDue(next)
+    <Form id={FORM_ID} errors={shown} onFormSubmit={submit} aria-label="待办">
+      <Field
+        label="要做什么"
+        htmlFor="todo-title"
+        name="title"
+        aside={`${title.trim().length} / ${TODO_TITLE_MAX}`}
+      >
+        <Input
+          id="todo-title"
+          value={title}
+          maxLength={TODO_TITLE_MAX}
+          placeholder="比如：交实验报告"
+          autoComplete="off"
+          onChange={(e) => {
+            setTitle(e.target.value)
+            setErrors((prev) => (prev?.title ? { ...prev, title: undefined } : prev))
+          }}
+        />
+      </Field>
+      <DateField
+        label="DDL"
+        id="todo-due"
+        withTime
+        value={due}
+        onValueChange={(next) => {
+          setDue(next)
+          setErrors((prev) => (prev?.dueAt ? { ...prev, dueAt: undefined } : prev))
+        }}
+        aside="可选"
+        hint="到点前 24 小时会标出“快到期”"
+        error={typeof dueError === 'string' ? dueError : dueError?.[0]}
+      />
+      {due !== '' && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-mt-2 self-start"
+          onClick={() => {
+            setDue('')
             setErrors((prev) => (prev?.dueAt ? { ...prev, dueAt: undefined } : prev))
           }}
-          aside="可选"
-          hint="到点前 24 小时会标出“快到期”"
-          error={typeof dueError === 'string' ? dueError : dueError?.[0]}
-        />
-        {due !== '' && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="-mt-2 self-start"
-            onClick={() => {
-              setDue('')
-              setErrors((prev) => (prev?.dueAt ? { ...prev, dueAt: undefined } : prev))
-            }}
-          >
-            不设 DDL
-          </Button>
-        )}
-        <div className="flex flex-col gap-1.5">
-          <span aria-hidden className="text-caption font-semibold">
-            优先级
-          </span>
-          <SegmentedControl
-            options={priorities}
-            value={priority}
-            onValueChange={setPriority}
-            label="优先级"
-            className="w-48"
-          />
-        </div>
-      </Form>
-      {dirty && (
-        <ConfirmDialog
-          open={confirmOpen}
-          onOpenChange={setConfirmOpen}
-          title="还没保存，确定关闭？"
-          description="填了的内容会丢掉"
-          confirmLabel="不保存，关闭"
-          cancelLabel="继续编辑"
-          tone="danger"
-          onConfirm={() => onOpenChange(false)}
-        />
+        >
+          不设 DDL
+        </Button>
       )}
-    </Sheet>
+      <div className="flex flex-col gap-1.5">
+        <span aria-hidden className="text-caption font-semibold">
+          优先级
+        </span>
+        <SegmentedControl
+          options={priorities}
+          value={priority}
+          onValueChange={setPriority}
+          label="优先级"
+          className="w-48"
+        />
+      </div>
+    </Form>
   )
 }

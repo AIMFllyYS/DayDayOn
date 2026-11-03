@@ -269,6 +269,15 @@ const icons = {
     ),
     tint: <rect x="9.6" y="9.6" width="11" height="11" rx="2.5" />,
   },
+  'paper-plane': {
+    line: (
+      <>
+        <path d="m3.5 11.5 17-7.5-7.5 17-3-6.5-6.5-3Z" />
+        <path d="m10 14.5 10.5-10.5" />
+      </>
+    ),
+    tint: <polygon points="4.5,12.5 21.5,5 14,22 11,15.5" />,
+  },
   trash: {
     line: <path d="M5 7h14M10 7V5h4v2M7 7l1 12.5h8L17 7M10.5 11v5M13.5 11v5" />,
     tint: <path d="M8.1 8.1h10l-1 12.5h-8z" />,

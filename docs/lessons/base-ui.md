@@ -56,3 +56,9 @@
 - 规则：凡是可能溢出触发容器的弹出层（`Popover`、`Menu`），必须通过 `Portal` 挂载到 body 顶层，并配合高层级（如 `z-[60]`）与 Floating UI 的碰撞检测（`align="end"` + 视口避让）；`Popover` 封装层提供 `positionerClassName` 与 `clean` 属性，方便内部列表直接复用。
 - 元：@base-ui/react@1.9.0 | 2026-11-02 | 候选毕业方向：已沉淀到 `src/components/ui/popover.tsx` 与 `agent-panel.tsx`
 
+### 弹层按需挂载（初始 open=true）时跳过 data-starting-style 导致无进场动画
+- 症状：`Sheet` 或 `ConfirmDialog` 在首次打开时才挂载（或每次打开通过 `key` 重新挂载），抽屉/弹窗直接瞬移出现在最终位置，完全不播放 `360ms` 底部缓慢上拉或缩放进场过渡。
+- 根因：`Drawer.Root` / `Dialog.Root` / `AlertDialog.Root` 内部调用 `useTransitionStatus(open, false, false, animateInitialOpen = false)`，首次挂载即 `open=true` 时被视为 SSR 默认展开内容而跳过 `'starting'` 阶段；同时 `{open && <Sheet />}` 在关闭瞬间直接卸载组件，也会截断 `data-ending-style` 退场动画。
+- 规则：`sheet.tsx` 与 `confirm-dialog.tsx` 统一经 `useAnimatedOpen(open)` 在首次以 `open=true` 挂载时先传 `false` 再于下一动画帧切 `true`；业务侧用 `loaded` 状态保持弹层挂载，重置表单的 `key` 只挂在 `Sheet` 内部表单子组件上。
+- 元：@base-ui/react@1.9.0 | 2026-11-03 | 候选毕业方向：已沉淀到 `src/components/ui/use-animated-open.ts`、`sheet.tsx`、`confirm-dialog.tsx`
+

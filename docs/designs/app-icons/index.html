@@ -1,0 +1,2984 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DayDayOn 品牌图标重塑提案 — 10款治愈系设计全景方案 (单文件完整独立版)</title>
+    <style>
+      :root {
+        --bg: #fff8f0;
+        --surface: #fffdf9;
+        --surface-sunken: #f8eee2;
+        --foreground: #4a3f35;
+        --muted: #7a6a5b;
+        --subtle: #a8998a;
+        --border: #eadccb;
+        --primary: #93603f;
+        --primary-soft: #f3e2cf;
+        --primary-hover: #7d4f32;
+        --radius-sm: 8px;
+        --radius-md: 16px;
+        --radius-lg: 24px;
+        --radius-full: 9999px;
+        --shadow-sm: 0 2px 8px rgba(74, 63, 53, 0.05);
+        --shadow-md: 0 8px 24px rgba(74, 63, 53, 0.08);
+        --shadow-lg: 0 16px 40px rgba(74, 63, 53, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--bg);
+        color: var(--foreground);
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB',
+          'Microsoft YaHei', sans-serif;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        padding-bottom: 80px;
+      }
+
+      /* 顶部导航与 Header */
+      header {
+        background: linear-gradient(180deg, #fffdf9 0%, rgba(255, 253, 249, 0.95) 100%);
+        backdrop-filter: blur(16px);
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        padding: 16px 24px;
+      }
+
+      .header-inner {
+        max-width: 1360px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .brand-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand-badge {
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 13px;
+        padding: 4px 10px;
+        border-radius: var(--radius-full);
+        letter-spacing: 0.5px;
+      }
+
+      .brand-name {
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        color: var(--primary);
+      }
+
+      .header-controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .btn {
+        background: var(--surface);
+        color: var(--foreground);
+        border: 1px solid var(--border);
+        padding: 8px 16px;
+        border-radius: var(--radius-full);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        user-select: none;
+      }
+
+      .btn:hover {
+        background: var(--surface-sunken);
+        border-color: var(--subtle);
+      }
+
+      .btn.active {
+        background: var(--primary);
+        color: #fffdf9;
+        border-color: var(--primary);
+        box-shadow: 0 4px 12px rgba(147, 96, 63, 0.25);
+      }
+
+      /* 主体布局 */
+      .container {
+        max-width: 1360px;
+        margin: 0 auto;
+        padding: 32px 24px;
+      }
+
+      /* 诊断与背景卡片 */
+      .banner {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 32px;
+        margin-bottom: 40px;
+        box-shadow: var(--shadow-sm);
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 32px;
+        align-items: center;
+      }
+
+      .banner-text h1 {
+        font-size: 28px;
+        font-weight: 800;
+        margin-bottom: 12px;
+        color: var(--foreground);
+      }
+
+      .banner-text p {
+        color: var(--muted);
+        font-size: 15px;
+        max-width: 780px;
+        margin-bottom: 16px;
+      }
+
+      .core-tags {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .tag {
+        background: var(--surface-sunken);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: var(--radius-full);
+        border: 1px solid var(--border);
+      }
+
+      .contrast-box {
+        background: #fdf4e9;
+        border: 1px dashed var(--primary);
+        border-radius: var(--radius-md);
+        padding: 16px 20px;
+        text-align: center;
+        min-width: 250px;
+      }
+
+      .contrast-title {
+        font-size: 12px;
+        color: var(--primary);
+        font-weight: 700;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .contrast-desc {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      /* 控制栏工具条 */
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 12px 20px;
+        margin-bottom: 32px;
+        flex-wrap: wrap;
+        gap: 16px;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .tool-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .tool-label {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      /* 图标方案大网格 */
+      .icon-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 28px;
+        margin-bottom: 56px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        flex-direction: column;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+      }
+
+      .card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-4px);
+        border-color: var(--subtle);
+      }
+
+      .card.selected {
+        border: 2px solid var(--primary);
+        box-shadow:
+          0 0 0 4px var(--primary-soft),
+          var(--shadow-md);
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .option-id {
+        font-size: 18px;
+        font-weight: 900;
+        color: var(--primary);
+        background: var(--primary-soft);
+        padding: 4px 12px;
+        border-radius: var(--radius-full);
+        display: inline-block;
+      }
+
+      .card-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .icon-preview-stage {
+        background: #fdf9f3;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        padding: 28px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        background-image: radial-gradient(#eadccb 1.5px, transparent 1.5px);
+        background-size: 20px 20px;
+      }
+
+      .icon-img-wrap {
+        width: 160px;
+        height: 160px;
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        cursor: pointer;
+        filter: drop-shadow(0 12px 20px rgba(110, 70, 40, 0.16));
+        border-radius: 36px;
+        overflow: hidden;
+      }
+
+      .icon-img-wrap:hover {
+        transform: scale(1.08) rotate(2deg);
+      }
+
+      .icon-img-wrap svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      /* 方案文案 */
+      .card-meta {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .card-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--foreground);
+        margin-bottom: 4px;
+      }
+
+      .card-subtitle {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--primary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+      }
+
+      .card-narrative {
+        font-size: 14px;
+        color: var(--foreground);
+        line-height: 1.6;
+        margin-bottom: 16px;
+        background: var(--surface-sunken);
+        padding: 12px 14px;
+        border-radius: var(--radius-sm);
+        border-left: 3px solid var(--primary);
+      }
+
+      .card-details {
+        margin-top: auto;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .detail-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      .detail-label {
+        font-weight: 700;
+        color: var(--foreground);
+        white-space: nowrap;
+      }
+
+      /* 手机主屏环境模拟 */
+      .simulation-section {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 36px 32px;
+        margin-bottom: 48px;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .section-title {
+        font-size: 24px;
+        font-weight: 800;
+        margin-bottom: 8px;
+      }
+
+      .section-desc {
+        color: var(--muted);
+        font-size: 14px;
+        margin-bottom: 28px;
+      }
+
+      .phones-container {
+        display: flex;
+        gap: 36px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .mockup-phone {
+        width: 330px;
+        height: 600px;
+        border-radius: 46px;
+        padding: 14px;
+        box-shadow:
+          0 25px 60px -15px rgba(0, 0, 0, 0.3),
+          0 0 0 1px rgba(0, 0, 0, 0.1);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .phone-light {
+        background: linear-gradient(135deg, #ffefe2 0%, #f5d5be 50%, #e8bc99 100%);
+        border: 6px solid #282420;
+      }
+
+      .phone-dark {
+        background: linear-gradient(135deg, #1a1829 0%, #2a2038 50%, #12101e 100%);
+        border: 6px solid #36323d;
+        color: #fff;
+      }
+
+      .phone-notch {
+        width: 100px;
+        height: 24px;
+        background: #000;
+        border-radius: 12px;
+        margin: 4px auto 16px auto;
+      }
+
+      .phone-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px 8px;
+        padding: 10px;
+      }
+
+      .phone-app-slot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .phone-app-icon {
+        width: 54px;
+        height: 54px;
+        border-radius: 13px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+        background: #fff;
+      }
+
+      .phone-app-icon svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .phone-app-name {
+        font-size: 11px;
+        font-weight: 500;
+        text-align: center;
+        max-width: 60px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: inherit;
+        opacity: 0.9;
+      }
+
+      /* 多尺寸真实比例阶梯对照 */
+      .scale-benchmark {
+        background: var(--surface-sunken);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        display: flex;
+        align-items: flex-end;
+        gap: 32px;
+        overflow-x: auto;
+        margin-top: 24px;
+      }
+
+      .scale-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .scale-box {
+        background: #fff;
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+      }
+
+      .scale-box svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .scale-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      /* 弹窗与提示 */
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #2d2721;
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: var(--radius-full);
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: var(--shadow-lg);
+        transform: translateY(100px);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1000;
+      }
+
+      .toast.show {
+        transform: translateY(0);
+        opacity: 1;
+      }
+
+      @media (max-width: 768px) {
+        .banner {
+          grid-template-columns: 1fr;
+        }
+        .icon-grid {
+          grid-template-columns: 1fr;
+        }
+        .toolbar {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 顶部状态栏 -->
+    <header>
+      <div class="header-inner">
+        <div class="brand-title">
+          <span class="brand-name">DayDayOn</span>
+          <span class="brand-badge">App Icon Standalone Explorer (单文件独立版)</span>
+        </div>
+        <div class="header-controls">
+          <button class="btn" id="btnToggleSquircle" onclick="toggleCorner()">
+            切换轮廓 (圆角 / 正圆)
+          </button>
+          <a class="btn" href="#simulation">手机主屏实机对照</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+      <!-- 顶栏核心叙事阐释 -->
+      <div class="banner">
+        <div class="banner-text">
+          <h1>用治愈与陪伴，重塑 DayDayOn 的第一眼品牌印记</h1>
+          <p>
+            原图标采用单一焦糖棕色底块（#93603f）搭配简笔团子线稿，在移动端主屏或多变壁纸上暗沉发脏、小尺寸五官辨识度模糊。
+            本次设计基于<strong>“治愈系多人打卡（和朋友一起坚持）”</strong>的定位，从日出破晓、双伴微光、手账朱印、能量开关、五彩热力等多维叙事出发，构筑具有现代超级符号识别度与治愈情感温度的全新图标。
+          </p>
+          <div class="core-tags">
+            <span class="tag">#01 晨曦破晓</span>
+            <span class="tag">#02 团墩相拥</span>
+            <span class="tag">#03 笃定朱印</span>
+            <span class="tag">#04 生活开关</span>
+            <span class="tag">#05 热力方块</span>
+            <span class="tag">#06 晨光咖啡</span>
+            <span class="tag">#07 光阴沙漏</span>
+            <span class="tag">#08 呼应纸翼</span>
+            <span class="tag">#09 扉页丝带</span>
+            <span class="tag">#10 无限双环</span>
+          </div>
+        </div>
+        <div class="contrast-box">
+          <div class="contrast-title">设计突破原则</div>
+          <div class="contrast-desc">
+            1. 摆脱沉闷泥土实底，注入晨曦通透呼吸感<br />
+            2. 升华细碎插画为高辨识度超级符号<br />
+            3. 兼顾 512px 视网膜细节与 16px 极限清晰度
+          </div>
+        </div>
+      </div>
+
+      <!-- 工具栏 -->
+      <div class="toolbar">
+        <div class="tool-group">
+          <span class="tool-label">展示底色：</span>
+          <button class="btn active" id="btnThemePaper" onclick="switchThemeBg('paper')">
+            奶油手账纸底
+          </button>
+          <button class="btn" id="btnThemeLight" onclick="switchThemeBg('light')">
+            极简素白底
+          </button>
+          <button class="btn" id="btnThemeDark" onclick="switchThemeBg('dark')">深色暗夜底</button>
+        </div>
+        <div class="tool-group">
+          <span class="tool-label">交互提示：</span>
+          <span style="font-size: 13px; color: var(--muted)"
+            >点击任意方案的“实机预览”或图标本体，即可下方即时同屏检验</span
+          >
+        </div>
+      </div>
+
+      <!-- 10 款方案核心网格卡片（全部内联SVG，零外链依赖） -->
+      <div class="icon-grid" id="mainIconGrid">
+        <!-- 方案 01 -->
+        <div class="card selected" id="card-1">
+          <div class="card-header">
+            <span class="option-id">Option 01</span>
+            <div class="card-actions">
+              <button class="btn" onclick="copySvgCode(1)">复制SVG</button>
+              <button class="btn" onclick="downloadSvg(1, '01-sunrise-sprout.svg')">下载</button>
+              <button class="btn active" onclick="applyToMockup(1)">实机预览</button>
+            </div>
+          </div>
+          <div class="icon-preview-stage">
+            <div class="icon-img-wrap" onclick="applyToMockup(1)">
+              <svg
+                id="svg-opt-1"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                width="100%"
+                height="100%"
+              >
+                <defs>
+                  <linearGradient id="s1_bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFDF9" />
+                    <stop offset="50%" stop-color="#FFF6EC" />
+                    <stop offset="100%" stop-color="#FCEAD6" />
+                  </linearGradient>
+                  <radialGradient id="s1_sunGlow" cx="50%" cy="50%" r="50%" fx="45%" fy="45%">
+                    <stop offset="0%" stop-color="#FFDD78" />
+                    <stop offset="50%" stop-color="#FFA24C" />
+                    <stop offset="100%" stop-color="#EB6138" />
+                  </radialGradient>
+                  <radialGradient id="s1_sunAura" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#FFAE54" stop-opacity="0.35" />
+                    <stop offset="60%" stop-color="#FFAE54" stop-opacity="0.12" />
+                    <stop offset="100%" stop-color="#FFAE54" stop-opacity="0" />
+                  </radialGradient>
+                  <linearGradient id="s1_leafGradLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#8BE8B7" />
+                    <stop offset="60%" stop-color="#55BA8B" />
+                    <stop offset="100%" stop-color="#2D7A58" />
+                  </linearGradient>
+                  <linearGradient id="s1_leafGradRight" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#A5F0C8" />
+                    <stop offset="50%" stop-color="#6ED1A1" />
+                    <stop offset="100%" stop-color="#3D966E" />
+                  </linearGradient>
+                  <linearGradient id="s1_stemGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#55BA8B" />
+                    <stop offset="100%" stop-color="#25694B" />
+                  </linearGradient>
+                  <filter id="s1_softShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow
+                      dx="0"
+                      dy="16"
+                      stdDeviation="18"
+                      flood-color="#8C441E"
+                      flood-opacity="0.22"
+                    />
+                  </filter>
+                  <filter id="s1_leafShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow
+                      dx="0"
+                      dy="10"
+                      stdDeviation="12"
+                      flood-color="#1B4D36"
+                      flood-opacity="0.28"
+                    />
+                  </filter>
+                </defs>
+                <rect width="512" height="512" rx="116" fill="url(#s1_bgGrad)" />
+                <rect
+                  width="504"
+                  height="504"
+                  x="4"
+                  y="4"
+                  rx="112"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  stroke-width="4"
+                  stroke-opacity="0.8"
+                />
+                <rect
+                  width="512"
+                  height="512"
+                  rx="116"
+                  fill="none"
+                  stroke="#EAD5C1"
+                  stroke-width="2"
+                  stroke-opacity="0.6"
+                />
+                <circle cx="256" cy="245" r="170" fill="url(#s1_sunAura)" />
+                <g filter="url(#s1_softShadow)">
+                  <circle cx="256" cy="245" r="115" fill="url(#s1_sunGlow)" />
+                  <ellipse
+                    cx="230"
+                    cy="180"
+                    rx="60"
+                    ry="24"
+                    fill="#FFFFFF"
+                    opacity="0.3"
+                    transform="rotate(-15 230 180)"
+                  />
+                </g>
+                <path
+                  d="M70 380 Q 256 348 442 380"
+                  fill="none"
+                  stroke="#DDB896"
+                  stroke-width="4"
+                  stroke-linecap="round"
+                  opacity="0.7"
+                />
+                <g filter="url(#s1_leafShadow)">
+                  <path
+                    d="M256 395 C256 345 254 300 256 260"
+                    fill="none"
+                    stroke="url(#s1_stemGrad)"
+                    stroke-width="14"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M256 280 C235 240 180 220 156 250 C138 274 162 318 214 316 C238 315 252 296 256 280 Z"
+                    fill="url(#s1_leafGradLeft)"
+                  />
+                  <path
+                    d="M236 270 C218 245 182 238 168 256 C160 268 172 290 200 292"
+                    fill="none"
+                    stroke="#FFFFFF"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    opacity="0.45"
+                  />
+                  <path
+                    d="M256 265 C275 220 330 205 352 235 C370 260 348 300 300 298 C276 297 262 278 256 265 Z"
+                    fill="url(#s1_leafGradRight)"
+                  />
+                  <path
+                    d="M272 255 C288 230 324 222 338 240 C344 252 334 274 308 276"
+                    fill="none"
+                    stroke="#FFFFFF"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    opacity="0.5"
+                  />
+                  <ellipse cx="258" cy="228" rx="10" ry="14" fill="#FFFFFF" opacity="0.9" />
+                  <circle cx="256" cy="224" r="4" fill="#E4FBF0" />
+                </g>
+                <path
+                  d="M382 120 Q394 135 408 138 Q394 141 382 156 Q370 141 356 138 Q370 135 382 120 Z"
+                  fill="#FFAF40"
+                  opacity="0.8"
+                />
+                <circle cx="382" cy="138" r="3" fill="#FFFFFF" />
+                <path
+                  d="M120 160 Q128 170 138 172 Q128 174 120 184 Q112 174 102 172 Q112 170 120 160 Z"
+                  fill="#FFAF40"
+                  opacity="0.5"
+                />
+              </svg>
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="card-title">晨曦破晓与初生嫩芽</div>
+            <div class="card-subtitle">Sunrise &amp; Sprout</div>
+            <div class="card-narrative">
+              <strong>叙事核心：</strong
+              >“每一天都是自新，每一天都有生长”。温暖柔和的初升旭日破晓而出，孕育出一株晶莹翠绿的双瓣幼芽，叶尖凝着一滴朝露晨曦。象征着每一天的打卡，就像在清晨给生活的幼苗浇一点水。
+            </div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">核心符号：</span>旭日、初生嫩芽、晨露微芒
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">色彩系统：</span>晨曦金橙 (#FFA24C) + 薄荷玉绿 (#55BA8B)
+                + 晨阳奶油底 (#FFF6EC)
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">适用场景：</span
+                >极其契合习惯养成与自我提升类应用，在手机壁纸上生机盎然。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 方案 02 -->
+        <div class="card" id="card-2">
+          <div class="card-header">
+            <span class="option-id">Option 02</span>
+            <div class="card-actions">
+              <button class="btn" onclick="copySvgCode(2)">复制SVG</button>
+              <button class="btn" onclick="downloadSvg(2, '02-tuan-dun-embrace.svg')">下载</button>
+              <button class="btn" onclick="applyToMockup(2)">实机预览</button>
+            </div>
+          </div>
+          <div class="icon-preview-stage">
+            <div class="icon-img-wrap" onclick="applyToMockup(2)">
+              <svg
+                id="svg-opt-2"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                width="100%"
+                height="100%"
+              >
+                <defs>
+                  <linearGradient id="s2_bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFDF9" />
+                    <stop offset="60%" stop-color="#FBF0E4" />
+                    <stop offset="100%" stop-color="#F5DFCB" />
+                  </linearGradient>
+                  <linearGradient id="s2_mochiDun" x1="20%" y1="10%" x2="80%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFFFF" />
+                    <stop offset="70%" stop-color="#FFF5E8" />
+                    <stop offset="100%" stop-color="#F0DCB8" />
+                  </linearGradient>
+                  <linearGradient id="s2_mochiTuan" x1="20%" y1="10%" x2="80%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFFFF" />
+                    <stop offset="70%" stop-color="#FFF6EB" />
+                    <stop offset="100%" stop-color="#F2DEC0" />
+                  </linearGradient>
+                  <linearGradient id="s2_capGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#94C5EC" />
+                    <stop offset="60%" stop-color="#6AA2D1" />
+                    <stop offset="100%" stop-color="#4B81B0" />
+                  </linearGradient>
+                  <radialGradient id="s2_heartGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#FF94B4" />
+                    <stop offset="100%" stop-color="#F25B88" />
+                  </radialGradient>
+                  <filter id="s2_shadowDun" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow
+                      dx="-4"
+                      dy="16"
+                      stdDeviation="16"
+                      flood-color="#804C28"
+                      flood-opacity="0.22"
+                    />
+                  </filter>
+                  <filter id="s2_shadowTuan" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow
+                      dx="6"
+                      dy="16"
+                      stdDeviation="16"
+                      flood-color="#804C28"
+                      flood-opacity="0.22"
+                    />
+                  </filter>
+                  <filter id="s2_heartShadow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feDropShadow
+                      dx="0"
+                      dy="6"
+                      stdDeviation="8"
+                      flood-color="#E03C6B"
+                      flood-opacity="0.3"
+                    />
+                  </filter>
+                </defs>
+                <rect width="512" height="512" rx="116" fill="url(#s2_bgGrad)" />
+                <rect
+                  width="504"
+                  height="504"
+                  x="4"
+                  y="4"
+                  rx="112"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  stroke-width="4"
+                  stroke-opacity="0.9"
+                />
+                <rect
+                  width="512"
+                  height="512"
+                  rx="116"
+                  fill="none"
+                  stroke="#E6C8B0"
+                  stroke-width="2"
+                  stroke-opacity="0.5"
+                />
+                <ellipse cx="256" cy="405" rx="180" ry="24" fill="#A86A42" opacity="0.14" />
+                <g filter="url(#s2_shadowDun)">
+                  <path
+                    d="M110 325 C100 240 145 180 205 180 C265 180 285 240 275 325 C270 380 230 405 190 405 C145 405 115 375 110 325 Z"
+                    fill="url(#s2_mochiDun)"
+                  />
+                  <ellipse
+                    cx="160"
+                    cy="225"
+                    rx="35"
+                    ry="18"
+                    fill="#FFFFFF"
+                    opacity="0.65"
+                    transform="rotate(-25 160 225)"
+                  />
+                  <ellipse cx="140" cy="315" rx="15" ry="9" fill="#FFA592" opacity="0.8" />
+                  <ellipse cx="232" cy="315" rx="15" ry="9" fill="#FFA592" opacity="0.8" />
+                  <path
+                    d="M152 290 Q 165 278 178 290"
+                    fill="none"
+                    stroke="#4A3F35"
+                    stroke-width="4.5"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M200 290 Q 213 278 226 290"
+                    fill="none"
+                    stroke="#4A3F35"
+                    stroke-width="4.5"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M182 312 Q 189 319 196 312"
+                    fill="none"
+                    stroke="#4A3F35"
+                    stroke-width="3.5"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M142 195 C145 142 220 140 235 192 C205 180 165 182 142 195 Z"
+                    fill="url(#s2_capGrad)"
+                  />
+                  <path
+                    d="M130 198 C120 200 102 208 92 220 C118 225 152 215 165 198 Z"
+                    fill="#4B81B0"
+                  />
+                  <polygon
+                    points="186,160 189,168 198,168 191,173 194,181 186,176 179,181 182,173 175,168 183,168"
+                    fill="#F5C95E"
+                  />
+                </g>
+                <g filter="url(#s2_shadowTuan)">
+                  <path
+                    d="M236 325 C226 240 268 180 326 180 C388 180 415 240 405 325 C398 380 360 405 320 405 C275 405 242 375 236 325 Z"
+                    fill="url(#s2_mochiTuan)"
+                  />
+                  <ellipse
+                    cx="350"
+                    cy="225"
+                    rx="35"
+                    ry="18"
+                    fill="#FFFFFF"
+                    opacity="0.65"
+                    transform="rotate(-15 350 225)"
+                  />
+                  <ellipse cx="278" cy="315" rx="15" ry="9" fill="#FFA592" opacity="0.8" />
+                  <ellipse cx="370" cy="315" rx="15" ry="9" fill="#FFA592" opacity="0.8" />
+                  <circle cx="295" cy="285" r="9" fill="#4A3F35" />
+                  <circle cx="298" cy="282" r="3.2" fill="#FFFFFF" />
+                  <circle cx="352" cy="285" r="9" fill="#4A3F35" />
+                  <circle cx="355" cy="282" r="3.2" fill="#FFFFFF" />
+                  <path
+                    d="M316 308 Q 323 318 331 308"
+                    fill="none"
+                    stroke="#4A3F35"
+                    stroke-width="3.5"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M326 182 C324 165 325 150 328 138"
+                    fill="none"
+                    stroke="#2B7A58"
+                    stroke-width="4.5"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M328 140 C312 136 302 148 308 160 C316 162 326 152 328 140 Z"
+                    fill="#7CC9A6"
+                  />
+                  <path
+                    d="M328 140 C344 132 355 142 350 156 C342 160 330 152 328 140 Z"
+                    fill="#6AD8A3"
+                  />
+                  <path d="M356 168 C346 156 342 166 352 176 Z" fill="#F2A0B8" />
+                  <path d="M366 168 C376 156 380 166 370 176 Z" fill="#F2A0B8" />
+                  <circle cx="361" cy="172" r="4" fill="#E883A2" />
+                </g>
+                <g filter="url(#s2_heartShadow)">
+                  <path
+                    d="M256 142 C256 142 225 110 225 85 C225 65 240 50 256 68 C272 50 287 65 287 85 C287 110 256 142 256 142 Z"
+                    fill="url(#s2_heartGlow)"
+                    stroke="#FFFFFF"
+                    stroke-width="3.5"
+                  />
+                  <ellipse
+                    cx="246"
+                    cy="74"
+                    rx="5"
+                    ry="3"
+                    fill="#FFFFFF"
+                    opacity="0.6"
+                    transform="rotate(-30 246 74)"
+                  />
+                </g>
+                <polygon
+                  points="120,110 123,117 130,120 123,123 120,130 117,123 110,120 117,117"
+                  fill="#F5C95E"
+                  opacity="0.85"
+                />
+                <polygon
+                  points="395,115 397,121 403,123 397,125 395,131 393,125 387,123 393,121"
+                  fill="#F5C95E"
+                  opacity="0.75"
+                />
+              </svg>
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="card-title">团团与墩墩·相拥微光</div>
+            <div class="card-subtitle">Tuan &amp; Dun: Companionship</div>
+            <div class="card-narrative">
+              <strong>叙事核心：</strong
+              >“和最好的朋友在一起，坚持从不孤单”。将官方吉祥物升华提炼为两只圆糯饱满的麻薯萌团——戴棒球帽的墩墩与头顶嫩芽的团团肩并肩靠在一起，面颊泛红，头顶升起一颗发光的小爱心。
+            </div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">核心符号：</span
+                >双萌麻薯团子、小芽、雾蓝棒球帽、相拥小爱心
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">色彩系统：</span>软玉糯米白 (#FFFDF9) + 雾霾蓝 (#6AA2D1)
+                + 蜜桃粉 (#F25B88)
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">适用场景：</span
+                >突出“治愈”、“陪伴”、“双人打卡”的最强情感纽带。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 方案 03 -->
+        <div class="card" id="card-3">
+          <div class="card-header">
+            <span class="option-id">Option 03</span>
+            <div class="card-actions">
+              <button class="btn" onclick="copySvgCode(3)">复制SVG</button>
+              <button class="btn" onclick="downloadSvg(3, '03-healing-stamp.svg')">下载</button>
+              <button class="btn" onclick="applyToMockup(3)">实机预览</button>
+            </div>
+          </div>
+          <div class="icon-preview-stage">
+            <div class="icon-img-wrap" onclick="applyToMockup(3)">
+              <svg
+                id="svg-opt-3"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                width="100%"
+                height="100%"
+              >
+                <defs>
+                  <linearGradient id="s3_paperBg" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFDF9" />
+                    <stop offset="60%" stop-color="#FBF2E6" />
+                    <stop offset="100%" stop-color="#F5E4D0" />
+                  </linearGradient>
+                  <linearGradient id="s3_sealInkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#E85D41" />
+                    <stop offset="50%" stop-color="#C53E26" />
+                    <stop offset="100%" stop-color="#992612" />
+                  </linearGradient>
+                  <linearGradient id="s3_goldAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFF0BE" />
+                    <stop offset="40%" stop-color="#FCD369" />
+                    <stop offset="100%" stop-color="#D99E28" />
+                  </linearGradient>
+                  <filter id="s3_stampShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow
+                      dx="0"
+                      dy="16"
+                      stdDeviation="16"
+                      flood-color="#802110"
+                      flood-opacity="0.28"
+                    />
+                  </filter>
+                  <filter id="s3_innerDeboss">
+                    <feOffset dx="1" dy="2" />
+                    <feGaussianBlur stdDeviation="2" result="offset-blur" />
+                    <feComposite
+                      operator="out"
+                      in="SourceGraphic"
+                      in2="offset-blur"
+                      result="inverse"
+                    />
+                    <feFlood flood-color="#551206" flood-opacity="0.35" result="color" />
+                    <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+                    <feComposite operator="over" in="shadow" in2="SourceGraphic" />
+                  </filter>
+                </defs>
+                <rect width="512" height="512" rx="116" fill="url(#s3_paperBg)" />
+                <rect
+                  width="504"
+                  height="504"
+                  x="4"
+                  y="4"
+                  rx="112"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  stroke-width="4"
+                  stroke-opacity="0.9"
+                />
+                <rect
+                  width="512"
+                  height="512"
+                  rx="116"
+                  fill="none"
+                  stroke="#E3C9B0"
+                  stroke-width="2"
+                  stroke-opacity="0.6"
+                />
+                <g fill="#A8754E" opacity="0.12">
+                  <circle cx="76" cy="76" r="3.5" />
+                  <circle cx="166" cy="76" r="3.5" />
+                  <circle cx="256" cy="76" r="3.5" />
+                  <circle cx="346" cy="76" r="3.5" />
+                  <circle cx="436" cy="76" r="3.5" />
+                  <circle cx="76" cy="166" r="3.5" />
+                  <circle cx="166" cy="166" r="3.5" />
+                  <circle cx="346" cy="166" r="3.5" />
+                  <circle cx="436" cy="166" r="3.5" />
+                  <circle cx="76" cy="256" r="3.5" />
+                  <circle cx="436" cy="256" r="3.5" />
+                  <circle cx="76" cy="346" r="3.5" />
+                  <circle cx="166" cy="346" r="3.5" />
+                  <circle cx="346" cy="346" r="3.5" />
+                  <circle cx="436" cy="346" r="3.5" />
+                  <circle cx="76" cy="436" r="3.5" />
+                  <circle cx="166" cy="436" r="3.5" />
+                  <circle cx="256" cy="436" r="3.5" />
+                  <circle cx="346" cy="436" r="3.5" />
+                  <circle cx="436" cy="436" r="3.5" />
+                </g>
+                <g transform="rotate(-5 256 256)" filter="url(#s3_stampShadow)">
+                  <path
+                    d="M 256 76 C 365 74, 436 145, 436 256 C 438 368, 366 438, 256 436 C 144 438, 74 366, 76 256 C 74 146, 145 74, 256 76 Z"
+                    fill="url(#s3_sealInkGrad)"
+                  />
+                  <path
+                    d="M 256 94 C 352 92, 418 158, 418 256 C 420 354, 354 420, 256 418 C 158 420, 92 354, 94 256 C 92 158, 158 92, 256 94 Z"
+                    fill="none"
+                    stroke="#FFF7ED"
+                    stroke-width="6"
+                    stroke-linecap="round"
+                    stroke-dasharray="32 8 48 8"
+                    opacity="0.85"
+                  />
+                  <circle cx="256" cy="256" r="138" fill="#FFF7ED" />
+                  <rect
+                    x="180"
+                    y="172"
+                    width="28"
+                    height="168"
+                    rx="14"
+                    fill="url(#s3_sealInkGrad)"
+                  />
+                  <path
+                    d="M 194 172 C 275 172, 332 208, 332 256 C 332 304, 275 340, 194 340 Z"
+                    fill="none"
+                    stroke="url(#s3_sealInkGrad)"
+                    stroke-width="28"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M 206 258 L 244 294 L 320 206"
+                    fill="none"
+                    stroke="url(#s3_goldAccent)"
+                    stroke-width="20"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    filter="url(#s3_innerDeboss)"
+                  />
+                  <g transform="translate(256, 138) scale(0.9)" fill="url(#s3_goldAccent)">
+                    <polygon points="0,-16 4,-4 16,0 4,4 0,16 -4,4 -16,0 -4,-4" />
+                  </g>
+                </g>
+                <circle cx="430" cy="180" r="4" fill="#F5C95E" />
+                <circle cx="410" cy="120" r="6" fill="#F5C95E" opacity="0.75" />
+                <circle cx="370" cy="80" r="3.5" fill="#F5C95E" opacity="0.8" />
+                <circle cx="100" cy="380" r="5" fill="#C53E26" opacity="0.4" />
+              </svg>
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="card-title">治愈手账·笃定朱印</div>
+            <div class="card-subtitle">The Healing Stamp</div>
+            <div class="card-narrative">
+              <strong>叙事核心：</strong
+              >“打卡成功时，盖下一个笃定的章”。来自设计系统“治愈手账”灵魂隐喻：手盖朱砂火漆印泥质感，微倾斜5度保留手作温度，核心将字母“D”、晨曦旭日与完成“✓”对勾浑然一体压印入纸。
+            </div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">核心符号：</span
+                >手账火漆章、超级D字母、烫金打卡对勾、点阵纸底
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">色彩系统：</span>陶土朱红 (#C53E26) + 烫金色 (#FCD369) +
+                羊皮奶油纸 (#FFFDF9)
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">适用场景：</span
+                >仪式感拉满，给用户极其强烈的“已完成、已盖章”心理奖赏。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 方案 04 -->
+        <div class="card" id="card-4">
+          <div class="card-header">
+            <span class="option-id">Option 04</span>
+            <div class="card-actions">
+              <button class="btn" onclick="copySvgCode(4)">复制SVG</button>
+              <button class="btn" onclick="downloadSvg(4, '04-day-switch-on.svg')">下载</button>
+              <button class="btn" onclick="applyToMockup(4)">实机预览</button>
+            </div>
+          </div>
+          <div class="icon-preview-stage">
+            <div class="icon-img-wrap" onclick="applyToMockup(4)">
+              <svg
+                id="svg-opt-4"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                width="100%"
+                height="100%"
+              >
+                <defs>
+                  <linearGradient id="s4_bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFDF9" />
+                    <stop offset="60%" stop-color="#F9EFE3" />
+                    <stop offset="100%" stop-color="#EEDAC5" />
+                  </linearGradient>
+                  <linearGradient id="s4_trackGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#DDC4AA" />
+                    <stop offset="30%" stop-color="#F0DFCE" />
+                    <stop offset="100%" stop-color="#FFF9F2" />
+                  </linearGradient>
+                  <radialGradient id="s4_knobSun" cx="35%" cy="35%" r="65%">
+                    <stop offset="0%" stop-color="#FFF2AA" />
+                    <stop offset="45%" stop-color="#FFAE42" />
+                    <stop offset="90%" stop-color="#F26829" />
+                    <stop offset="100%" stop-color="#D94E14" />
+                  </radialGradient>
+                  <radialGradient id="s4_switchAura" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#FFA834" stop-opacity="0.5" />
+                    <stop offset="60%" stop-color="#FFA834" stop-opacity="0.15" />
+                    <stop offset="100%" stop-color="#FFA834" stop-opacity="0" />
+                  </radialGradient>
+                  <filter id="s4_knobShadow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feDropShadow
+                      dx="-4"
+                      dy="16"
+                      stdDeviation="16"
+                      flood-color="#8A340C"
+                      flood-opacity="0.32"
+                    />
+                  </filter>
+                  <filter id="s4_trackInnerShadow">
+                    <feOffset dx="0" dy="8" />
+                    <feGaussianBlur stdDeviation="8" result="offset-blur" />
+                    <feComposite
+                      operator="out"
+                      in="SourceGraphic"
+                      in2="offset-blur"
+                      result="inverse"
+                    />
+                    <feFlood flood-color="#7A5438" flood-opacity="0.25" result="color" />
+                    <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+                    <feComposite operator="over" in="shadow" in2="SourceGraphic" />
+                  </filter>
+                </defs>
+                <rect width="512" height="512" rx="116" fill="url(#s4_bgGrad)" />
+                <rect
+                  width="504"
+                  height="504"
+                  x="4"
+                  y="4"
+                  rx="112"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  stroke-width="4"
+                  stroke-opacity="0.9"
+                />
+                <rect
+                  width="512"
+                  height="512"
+                  rx="116"
+                  fill="none"
+                  stroke="#DFBFA2"
+                  stroke-width="2"
+                  stroke-opacity="0.6"
+                />
+                <g filter="url(#s4_trackInnerShadow)">
+                  <rect
+                    x="76"
+                    y="166"
+                    width="360"
+                    height="180"
+                    rx="90"
+                    fill="url(#s4_trackGrad)"
+                    stroke="#CBAC90"
+                    stroke-width="3"
+                  />
+                </g>
+                <rect
+                  x="86"
+                  y="176"
+                  width="340"
+                  height="160"
+                  rx="80"
+                  fill="#FFECD1"
+                  opacity="0.6"
+                />
+                <g transform="translate(136, 226)">
+                  <circle
+                    cx="28"
+                    cy="30"
+                    r="24"
+                    fill="none"
+                    stroke="#B87D4E"
+                    stroke-width="9"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M 68 54 L 68 6 L 98 54 L 98 6"
+                    fill="none"
+                    stroke="#B87D4E"
+                    stroke-width="9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </g>
+                <circle cx="346" cy="256" r="140" fill="url(#s4_switchAura)" />
+                <g filter="url(#s4_knobShadow)">
+                  <circle cx="346" cy="256" r="82" fill="url(#s4_knobSun)" />
+                  <ellipse
+                    cx="320"
+                    cy="215"
+                    rx="42"
+                    ry="20"
+                    fill="#FFFFFF"
+                    opacity="0.55"
+                    transform="rotate(-30 320 215)"
+                  />
+                  <circle cx="350" cy="210" r="6" fill="#FFFFFF" opacity="0.75" />
+                  <g transform="translate(346, 174)">
+                    <path
+                      d="M 0 0 C -12 -18 -32 -16 -36 -2 C -24 4 -6 2 0 0 Z"
+                      fill="#6AD8A3"
+                      stroke="#2B7A58"
+                      stroke-width="2"
+                    />
+                    <path
+                      d="M 0 0 C 14 -22 36 -18 38 -2 C 26 6 8 3 0 0 Z"
+                      fill="#8BE8B7"
+                      stroke="#2B7A58"
+                      stroke-width="2"
+                    />
+                    <circle cx="0" cy="0" r="4" fill="#FFA24C" />
+                  </g>
+                  <path
+                    d="M 324 265 Q 332 258 340 265"
+                    fill="none"
+                    stroke="#FFFFFF"
+                    stroke-width="4.5"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M 356 265 Q 364 258 372 265"
+                    fill="none"
+                    stroke="#FFFFFF"
+                    stroke-width="4.5"
+                    stroke-linecap="round"
+                  />
+                  <ellipse cx="316" cy="275" rx="8" ry="5" fill="#FF3E24" opacity="0.6" />
+                  <ellipse cx="380" cy="275" rx="8" ry="5" fill="#FF3E24" opacity="0.6" />
+                  <path
+                    d="M 344 278 Q 348 284 352 278"
+                    fill="none"
+                    stroke="#FFFFFF"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                  />
+                </g>
+                <polygon
+                  points="440,110 443,118 451,121 443,124 440,132 437,124 429,121 437,118"
+                  fill="#F5C95E"
+                />
+                <circle cx="86" cy="116" r="4.5" fill="#F5C95E" opacity="0.7" />
+              </svg>
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="card-title">生活的开关·点亮常在</div>
+            <div class="card-subtitle">Day Switch ON</div>
+            <div class="card-narrative">
+              <strong>叙事核心：</strong>“今天的生活，从拨到 ON
+              开始”。深度契合产品名“DayDayOn”的【ON】。将日常待机切换为一个温暖的日光胶囊开关，滑块是一颗发光的晨阳萌球，滑向
+              ON 的瞬间点亮生活，顶端萌出新叶。
+            </div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">核心符号：</span
+                >软拟态跑道开关、发光小太阳滑块、ON刻印、顶端小苗
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">色彩系统：</span>焦糖奶茶轨道 (#EEDAC5) + 暖阳橙金
+                (#FFAE42) + 生机嫩绿 (#6AD8A3)
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">适用场景：</span>既有科技互动感，又有治愈温度，极具现代
+                App 特质。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 方案 05 -->
+        <div class="card" id="card-5">
+          <div class="card-header">
+            <span class="option-id">Option 05</span>
+            <div class="card-actions">
+              <button class="btn" onclick="copySvgCode(5)">复制SVG</button>
+              <button class="btn" onclick="downloadSvg(5, '05-streak-heatmap.svg')">下载</button>
+              <button class="btn" onclick="applyToMockup(5)">实机预览</button>
+            </div>
+          </div>
+          <div class="icon-preview-stage">
+            <div class="icon-img-wrap" onclick="applyToMockup(5)">
+              <svg
+                id="svg-opt-5"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                width="100%"
+                height="100%"
+              >
+                <defs>
+                  <linearGradient id="s5_bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFDF9" />
+                    <stop offset="60%" stop-color="#FBF2E7" />
+                    <stop offset="100%" stop-color="#F4E3D0" />
+                  </linearGradient>
+                  <linearGradient id="s5_tileExercise" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#9DE8C5" />
+                    <stop offset="100%" stop-color="#56B88B" />
+                  </linearGradient>
+                  <linearGradient id="s5_tileDiet" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFE483" />
+                    <stop offset="100%" stop-color="#F5B938" />
+                  </linearGradient>
+                  <linearGradient id="s5_tileStudy" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#A8D6FA" />
+                    <stop offset="100%" stop-color="#64A8E0" />
+                  </linearGradient>
+                  <linearGradient id="s5_tileSleep" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#C5BCF8" />
+                    <stop offset="100%" stop-color="#8F80DD" />
+                  </linearGradient>
+                  <radialGradient id="s5_centerFire" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#FFFFFF" />
+                    <stop offset="40%" stop-color="#FFD15C" />
+                    <stop offset="85%" stop-color="#FF7832" />
+                    <stop offset="100%" stop-color="#E24A16" />
+                  </radialGradient>
+                  <filter id="s5_tileShadow" x="-25%" y="-25%" width="150%" height="150%">
+                    <feDropShadow
+                      dx="0"
+                      dy="12"
+                      stdDeviation="12"
+                      flood-color="#885A3C"
+                      flood-opacity="0.2"
+                    />
+                  </filter>
+                  <filter id="s5_centerGlow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feDropShadow
+                      dx="0"
+                      dy="6"
+                      stdDeviation="10"
+                      flood-color="#E05018"
+                      flood-opacity="0.35"
+                    />
+                  </filter>
+                </defs>
+                <rect width="512" height="512" rx="116" fill="url(#s5_bgGrad)" />
+                <rect
+                  width="504"
+                  height="504"
+                  x="4"
+                  y="4"
+                  rx="112"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  stroke-width="4"
+                  stroke-opacity="0.9"
+                />
+                <rect
+                  width="512"
+                  height="512"
+                  rx="116"
+                  fill="none"
+                  stroke="#E3C7AE"
+                  stroke-width="2"
+                  stroke-opacity="0.6"
+                />
+                <g transform="rotate(-6 256 256)" filter="url(#s5_tileShadow)">
+                  <g transform="translate(110, 110)">
+                    <rect width="130" height="130" rx="36" fill="url(#s5_tileExercise)" />
+                    <rect
+                      width="126"
+                      height="126"
+                      x="2"
+                      y="2"
+                      rx="34"
+                      fill="none"
+                      stroke="#FFFFFF"
+                      stroke-width="3"
+                      stroke-opacity="0.5"
+                    />
+                    <path
+                      d="M 42 75 C 50 55, 75 55, 88 75 C 75 82, 50 82, 42 75 Z"
+                      fill="#FFFFFF"
+                      opacity="0.65"
+                    />
+                  </g>
+                  <g transform="translate(272, 110)">
+                    <rect width="130" height="130" rx="36" fill="url(#s5_tileDiet)" />
+                    <rect
+                      width="126"
+                      height="126"
+                      x="2"
+                      y="2"
+                      rx="34"
+                      fill="none"
+                      stroke="#FFFFFF"
+                      stroke-width="3"
+                      stroke-opacity="0.5"
+                    />
+                    <path
+                      d="M 50 68 Q 65 82 80 68"
+                      fill="none"
+                      stroke="#FFFFFF"
+                      stroke-width="6"
+                      stroke-linecap="round"
+                      opacity="0.75"
+                    />
+                  </g>
+                  <g transform="translate(110, 272)">
+                    <rect width="130" height="130" rx="36" fill="url(#s5_tileStudy)" />
+                    <rect
+                      width="126"
+                      height="126"
+                      x="2"
+                      y="2"
+                      rx="34"
+                      fill="none"
+                      stroke="#FFFFFF"
+                      stroke-width="3"
+                      stroke-opacity="0.5"
+                    />
+                    <path
+                      d="M 44 72 Q 65 62 65 78 Q 65 62 86 72"
+                      fill="none"
+                      stroke="#FFFFFF"
+                      stroke-width="5"
+                      stroke-linecap="round"
+                      opacity="0.75"
+                    />
+                  </g>
+                  <g transform="translate(272, 272)">
+                    <rect width="130" height="130" rx="36" fill="url(#s5_tileSleep)" />
+                    <rect
+                      width="126"
+                      height="126"
+                      x="2"
+                      y="2"
+                      rx="34"
+                      fill="none"
+                      stroke="#FFFFFF"
+                      stroke-width="3"
+                      stroke-opacity="0.5"
+                    />
+                    <path
+                      d="M 58 54 A 18 18 0 1 0 76 76 A 14 14 0 0 1 58 54 Z"
+                      fill="#FFFFFF"
+                      opacity="0.75"
+                    />
+                  </g>
+                  <circle
+                    cx="256"
+                    cy="256"
+                    r="62"
+                    fill="#FFFDF9"
+                    stroke="#E6C8B0"
+                    stroke-width="3"
+                  />
+                  <g filter="url(#s5_centerGlow)">
+                    <circle cx="256" cy="256" r="48" fill="url(#s5_centerFire)" />
+                    <polygon
+                      points="256,224 263,246 286,256 263,266 256,288 249,266 226,256 249,246"
+                      fill="#FFFFFF"
+                    />
+                    <circle cx="256" cy="256" r="6" fill="#FFEDB8" />
+                  </g>
+                </g>
+                <circle cx="92" cy="74" r="5" fill="#7CC9A6" opacity="0.7" />
+                <circle cx="430" cy="86" r="7" fill="#F5C95E" opacity="0.8" />
+                <circle cx="436" cy="420" r="5.5" fill="#A99DE6" opacity="0.7" />
+                <circle cx="82" cy="426" r="6" fill="#86BDE8" opacity="0.7" />
+              </svg>
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="card-title">连击热力·五彩织锦</div>
+            <div class="card-subtitle">Streak Heatmap &amp; Mosaic</div>
+            <div class="card-narrative">
+              <strong>叙事核心：</strong>“运动、饮食、睡眠、学习，拼出丰盈日常”。将 DayDayOn
+              五大板块与打卡热力图提炼为如手账贴纸般的四色圆角方块阵列，中心汇聚成点燃所有板块的连续打卡火核（Streak
+              Core）。
+            </div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">核心符号：</span
+                >四色手账积木贴纸、中心连击火种、多维生活象形
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">色彩系统：</span>薄荷绿 + 黄油金 + 晴空蓝 + 薰衣草紫 +
+                核心焦糖金
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">适用场景：</span
+                >突出多元功能与全面习惯管理，色彩缤纷活泼、治愈耐看。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 方案 06 -->
+        <div class="card" id="card-6">
+          <div class="card-header">
+            <span class="option-id">Option 06</span>
+            <div class="card-actions">
+              <button class="btn" onclick="copySvgCode(6)">复制SVG</button>
+              <button class="btn" onclick="downloadSvg(6, '06-morning-cup.svg')">下载</button>
+              <button class="btn" onclick="applyToMockup(6)">实机预览</button>
+            </div>
+          </div>
+          <div class="icon-preview-stage">
+            <div class="icon-img-wrap" onclick="applyToMockup(6)">
+              <svg
+                id="svg-opt-6"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                width="100%"
+                height="100%"
+              >
+                <defs>
+                  <linearGradient id="s6_bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFDF9" />
+                    <stop offset="60%" stop-color="#FCEEE0" />
+                    <stop offset="100%" stop-color="#F2D8C0" />
+                  </linearGradient>
+                  <linearGradient id="s6_ceramicCup" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFFFF" />
+                    <stop offset="70%" stop-color="#FFF5EA" />
+                    <stop offset="100%" stop-color="#EEDAC5" />
+                  </linearGradient>
+                  <radialGradient id="s6_coffeeLiquid" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#A56E4A" />
+                    <stop offset="70%" stop-color="#7A4928" />
+                    <stop offset="100%" stop-color="#552F15" />
+                  </radialGradient>
+                  <linearGradient id="s6_steamCheckGrad" x1="0%" y1="100%" x2="50%" y2="0%">
+                    <stop offset="0%" stop-color="#FFA24C" />
+                    <stop offset="40%" stop-color="#FF7A38" />
+                    <stop offset="85%" stop-color="#E6441D" />
+                    <stop offset="100%" stop-color="#BA2908" />
+                  </linearGradient>
+                  <filter id="s6_cupShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow
+                      dx="0"
+                      dy="16"
+                      stdDeviation="16"
+                      flood-color="#804B2A"
+                      flood-opacity="0.22"
+                    />
+                  </filter>
+                  <filter id="s6_steamGlow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feDropShadow
+                      dx="0"
+                      dy="8"
+                      stdDeviation="12"
+                      flood-color="#FF5C26"
+                      flood-opacity="0.32"
+                    />
+                  </filter>
+                </defs>
+                <rect width="512" height="512" rx="116" fill="url(#s6_bgGrad)" />
+                <rect
+                  width="504"
+                  height="504"
+                  x="4"
+                  y="4"
+                  rx="112"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  stroke-width="4"
+                  stroke-opacity="0.9"
+                />
+                <rect
+                  width="512"
+                  height="512"
+                  rx="116"
+                  fill="none"
+                  stroke="#E3C4A8"
+                  stroke-width="2"
+                  stroke-opacity="0.6"
+                />
+                <ellipse cx="236" cy="425" rx="140" ry="20" fill="#99603D" opacity="0.18" />
+                <ellipse
+                  cx="236"
+                  cy="415"
+                  rx="160"
+                  ry="24"
+                  fill="#DDBFA6"
+                  stroke="#C8A588"
+                  stroke-width="3"
+                />
+                <ellipse cx="236" cy="413" rx="140" ry="18" fill="#ECD3BE" />
+                <g filter="url(#s6_cupShadow)">
+                  <path
+                    d="M 330 260 C 395 260, 400 350, 320 360"
+                    fill="none"
+                    stroke="url(#s6_ceramicCup)"
+                    stroke-width="26"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M 330 260 C 395 260, 400 350, 320 360"
+                    fill="none"
+                    stroke="#E0C6AE"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M 120 230 C 120 340, 160 400, 236 400 C 312 400, 352 340, 352 230 Z"
+                    fill="url(#s6_ceramicCup)"
+                    stroke="#EBD3BD"
+                    stroke-width="2"
+                  />
+                  <ellipse
+                    cx="236"
+                    cy="230"
+                    rx="116"
+                    ry="32"
+                    fill="#FAF0E3"
+                    stroke="#DEC1A6"
+                    stroke-width="2"
+                  />
+                  <ellipse cx="236" cy="232" rx="104" ry="26" fill="url(#s6_coffeeLiquid)" />
+                  <path
+                    d="M 236 244 C 236 244, 218 226, 218 214 C 218 205, 226 198, 236 206 C 246 198, 254 205, 254 214 C 254 226, 236 244, 236 244 Z"
+                    fill="#FFF2E0"
+                    opacity="0.85"
+                  />
+                  <ellipse cx="195" cy="320" rx="6" ry="7" fill="#6B4B32" />
+                  <circle cx="197" cy="318" r="2" fill="#FFFFFF" />
+                  <ellipse cx="277" cy="320" rx="6" ry="7" fill="#6B4B32" />
+                  <circle cx="279" cy="318" r="2" fill="#FFFFFF" />
+                  <ellipse cx="178" cy="328" rx="10" ry="6" fill="#FFA592" opacity="0.7" />
+                  <ellipse cx="294" cy="328" rx="10" ry="6" fill="#FFA592" opacity="0.7" />
+                  <path
+                    d="M 226 325 Q 236 332 246 325"
+                    fill="none"
+                    stroke="#6B4B32"
+                    stroke-width="3.5"
+                    stroke-linecap="round"
+                  />
+                </g>
+                <g filter="url(#s6_steamGlow)">
+                  <path
+                    d="M 180 200 C 170 160, 195 140, 205 110"
+                    fill="none"
+                    stroke="#FFFFFF"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                    opacity="0.4"
+                  />
+                  <path
+                    d="M 172 135 L 222 185 C 240 160, 310 80, 370 65"
+                    fill="none"
+                    stroke="url(#s6_steamCheckGrad)"
+                    stroke-width="22"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M 178 135 L 222 178 C 240 156, 306 82, 362 70"
+                    fill="none"
+                    stroke="#FFF1B8"
+                    stroke-width="6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    opacity="0.8"
+                  />
+                </g>
+                <g transform="translate(378, 62)">
+                  <polygon points="0,-16 4,-4 16,0 4,4 0,16 -4,4 -16,0 -4,-4" fill="#FFA534" />
+                  <circle cx="0" cy="0" r="4" fill="#FFFFFF" />
+                </g>
+                <circle cx="280" cy="115" r="4.5" fill="#FFA24C" opacity="0.7" />
+                <circle cx="340" cy="130" r="3.5" fill="#FFC966" opacity="0.8" />
+              </svg>
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="card-title">晨光咖啡杯与上升之勾</div>
+            <div class="card-subtitle">Morning Cup &amp; Check Steam</div>
+            <div class="card-narrative">
+              <strong>叙事核心：</strong
+              >“慢下来，喝口热茶，完成今天的小确幸”。温润胖乎的陶瓷马克杯带着微笑脸，杯中是焦糖拉花小爱心，杯口升腾而起的两股暖白蒸汽在空中优雅舒展成一枚力量感十足的打卡对勾（✓）。
+            </div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">核心符号：</span
+                >治愈陶瓷马克杯、爱心拉花、腾空蒸汽对勾、晨星
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">色彩系统：</span>奶咖焦糖 (#93603F) + 陶瓷象牙白
+                (#FFF5EA) + 暖阳橙光 (#FF7A38)
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">适用场景：</span
+                >让人一眼感受到生活的舒适、松弛与自律的从容。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 方案 07 -->
+        <div class="card" id="card-7">
+          <div class="card-header">
+            <span class="option-id">Option 07</span>
+            <div class="card-actions">
+              <button class="btn" onclick="copySvgCode(7)">复制SVG</button>
+              <button class="btn" onclick="downloadSvg(7, '07-hourglass-growth.svg')">下载</button>
+              <button class="btn" onclick="applyToMockup(7)">实机预览</button>
+            </div>
+          </div>
+          <div class="icon-preview-stage">
+            <div class="icon-img-wrap" onclick="applyToMockup(7)">
+              <svg
+                id="svg-opt-7"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                width="100%"
+                height="100%"
+              >
+                <defs>
+                  <linearGradient id="s7_bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFDF9" />
+                    <stop offset="60%" stop-color="#FAF1E6" />
+                    <stop offset="100%" stop-color="#EEDAC5" />
+                  </linearGradient>
+                  <linearGradient id="s7_woodGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#B87D52" />
+                    <stop offset="50%" stop-color="#93603F" />
+                    <stop offset="100%" stop-color="#734526" />
+                  </linearGradient>
+                  <linearGradient id="s7_goldSand" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFF2AA" />
+                    <stop offset="50%" stop-color="#FFBD4A" />
+                    <stop offset="100%" stop-color="#EA7A24" />
+                  </linearGradient>
+                  <linearGradient id="s7_sproutGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                    <stop offset="0%" stop-color="#2D7A58" />
+                    <stop offset="60%" stop-color="#55BA8B" />
+                    <stop offset="100%" stop-color="#8FE7B9" />
+                  </linearGradient>
+                  <filter id="s7_hourglassShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow
+                      dx="0"
+                      dy="16"
+                      stdDeviation="16"
+                      flood-color="#7A4E2C"
+                      flood-opacity="0.25"
+                    />
+                  </filter>
+                </defs>
+                <rect width="512" height="512" rx="116" fill="url(#s7_bgGrad)" />
+                <rect
+                  width="504"
+                  height="504"
+                  x="4"
+                  y="4"
+                  rx="112"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  stroke-width="4"
+                  stroke-opacity="0.9"
+                />
+                <rect
+                  width="512"
+                  height="512"
+                  rx="116"
+                  fill="none"
+                  stroke="#DEC1A6"
+                  stroke-width="2"
+                  stroke-opacity="0.6"
+                />
+                <g filter="url(#s7_hourglassShadow)">
+                  <rect x="156" y="80" width="200" height="26" rx="13" fill="url(#s7_woodGrad)" />
+                  <rect x="156" y="406" width="200" height="26" rx="13" fill="url(#s7_woodGrad)" />
+                  <path
+                    d="M 180 106 C 180 180, 230 226, 246 256 C 230 286, 180 332, 180 406 L 332 406 C 332 332, 282 286, 266 256 C 282 226, 332 180, 332 106 Z"
+                    fill="#FFFFFF"
+                    fill-opacity="0.55"
+                    stroke="#CBB199"
+                    stroke-width="6"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M 194 120 C 194 175, 230 215, 242 242"
+                    fill="none"
+                    stroke="#FFFFFF"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                    opacity="0.8"
+                  />
+                  <path
+                    d="M 194 392 C 194 337, 230 297, 242 270"
+                    fill="none"
+                    stroke="#FFFFFF"
+                    stroke-width="8"
+                    stroke-linecap="round"
+                    opacity="0.6"
+                  />
+                  <path
+                    d="M 194 130 C 205 180, 240 210, 252 250 L 260 250 C 272 210, 307 180, 318 130 Z"
+                    fill="url(#s7_goldSand)"
+                    opacity="0.85"
+                  />
+                  <line
+                    x1="256"
+                    y1="250"
+                    x2="256"
+                    y2="340"
+                    stroke="#FFA238"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                    stroke-dasharray="8 6"
+                  />
+                  <path d="M 192 400 C 205 355, 307 355, 320 400 Z" fill="#8C5C38" />
+                  <path d="M 210 380 C 225 362, 287 362, 302 380 Z" fill="#DFA050" opacity="0.7" />
+                  <path
+                    d="M 256 365 C 254 320, 262 290, 258 266"
+                    fill="none"
+                    stroke="url(#s7_sproutGrad)"
+                    stroke-width="9"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M 256 295 C 235 275, 205 285, 210 305 C 220 315, 246 308, 256 295 Z"
+                    fill="#6AD8A3"
+                  />
+                  <path
+                    d="M 258 275 C 280 255, 310 265, 305 285 C 295 295, 270 288, 258 275 Z"
+                    fill="#8FE7B9"
+                  />
+                  <ellipse cx="258" cy="260" rx="6" ry="10" fill="#A8F5CD" />
+                </g>
+                <polygon
+                  points="120,240 123,247 130,250 123,253 120,260 117,253 110,250 117,247"
+                  fill="#F5C95E"
+                />
+                <polygon
+                  points="392,230 395,236 401,238 395,240 392,246 389,240 383,238 389,236"
+                  fill="#F5C95E"
+                  opacity="0.85"
+                />
+                <circle cx="370" cy="180" r="4.5" fill="#FFA54A" opacity="0.7" />
+                <circle cx="140" cy="330" r="3.5" fill="#55BA8B" opacity="0.75" />
+              </svg>
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="card-title">沙漏与生长的多米诺</div>
+            <div class="card-subtitle">Hourglass of Growth</div>
+            <div class="card-narrative">
+              <strong>叙事核心：</strong
+              >“时间流逝不是消耗，而是生命的积蓄”。打破传统沙漏令人焦虑的压迫感，上方流下的金黄时间之沙，在沙漏下半截化为肥沃土壤，生机盎然地抽出一株青翠藤蔓。
+            </div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">核心符号：</span>双球晶透沙漏、金辉流沙柱、向上破土的新芽
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">色彩系统：</span>温润木质褐 (#93603F) + 金沙光辉
+                (#FFBD4A) + 生机嫩绿 (#55BA8B)
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">适用场景：</span>时间管理、专注记录、日积月累蜕变。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 方案 08 -->
+        <div class="card" id="card-8">
+          <div class="card-header">
+            <span class="option-id">Option 08</span>
+            <div class="card-actions">
+              <button class="btn" onclick="copySvgCode(8)">复制SVG</button>
+              <button class="btn" onclick="downloadSvg(8, '08-paper-plane.svg')">下载</button>
+              <button class="btn" onclick="applyToMockup(8)">实机预览</button>
+            </div>
+          </div>
+          <div class="icon-preview-stage">
+            <div class="icon-img-wrap" onclick="applyToMockup(8)">
+              <svg
+                id="svg-opt-8"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                width="100%"
+                height="100%"
+              >
+                <defs>
+                  <linearGradient id="s8_bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#E8F4FD" />
+                    <stop offset="60%" stop-color="#F2F8FD" />
+                    <stop offset="100%" stop-color="#FFFDF9" />
+                  </linearGradient>
+                  <linearGradient id="s8_wingLeftTop" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFFFF" />
+                    <stop offset="100%" stop-color="#E8F2FA" />
+                  </linearGradient>
+                  <linearGradient id="s8_wingRightTop" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFF6EC" />
+                    <stop offset="100%" stop-color="#FCE1C6" />
+                  </linearGradient>
+                  <linearGradient id="s8_planeUnderbody" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#B8D7EF" />
+                    <stop offset="100%" stop-color="#8BBDE3" />
+                  </linearGradient>
+                  <filter id="s8_planeShadow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feDropShadow
+                      dx="-10"
+                      dy="24"
+                      stdDeviation="20"
+                      flood-color="#4F799E"
+                      flood-opacity="0.25"
+                    />
+                  </filter>
+                </defs>
+                <rect width="512" height="512" rx="116" fill="url(#s8_bgGrad)" />
+                <rect
+                  width="504"
+                  height="504"
+                  x="4"
+                  y="4"
+                  rx="112"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  stroke-width="4"
+                  stroke-opacity="0.9"
+                />
+                <rect
+                  width="512"
+                  height="512"
+                  rx="116"
+                  fill="none"
+                  stroke="#BCD7EB"
+                  stroke-width="2"
+                  stroke-opacity="0.6"
+                />
+                <path
+                  d="M 80 430 Q 150 400 210 320 T 320 190"
+                  fill="none"
+                  stroke="#7CC9A6"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                  stroke-dasharray="10 14"
+                  opacity="0.8"
+                />
+                <path
+                  d="M 95 440 Q 165 410 225 330 T 335 200"
+                  fill="none"
+                  stroke="#F5C95E"
+                  stroke-width="4"
+                  stroke-linecap="round"
+                  stroke-dasharray="8 12"
+                  opacity="0.8"
+                />
+                <path
+                  d="M 110 450 Q 180 420 240 340 T 350 210"
+                  fill="none"
+                  stroke="#F2A0B8"
+                  stroke-width="4"
+                  stroke-linecap="round"
+                  stroke-dasharray="8 12"
+                  opacity="0.7"
+                />
+                <g filter="url(#s8_planeShadow)">
+                  <polygon points="390,110 140,320 220,335" fill="url(#s8_planeUnderbody)" />
+                  <polygon points="390,110 205,320 120,270" fill="url(#s8_wingLeftTop)" />
+                  <line x1="390" y1="110" x2="205" y2="320" stroke="#FFFFFF" stroke-width="3" />
+                  <polygon points="390,110 350,300 240,330" fill="url(#s8_wingRightTop)" />
+                  <line x1="390" y1="110" x2="240" y2="330" stroke="#FCD3AA" stroke-width="2.5" />
+                  <polygon points="390,110 240,330 215,325" fill="#7FAECD" />
+                  <g transform="translate(230, 245) rotate(40) scale(0.8)">
+                    <path d="M 0 0 C -8 -16 -24 -14 -26 -2 C -18 3 -4 2 0 0 Z" fill="#7CC9A6" />
+                    <path d="M 0 0 C 10 -18 26 -14 28 -2 C 20 4 6 2 0 0 Z" fill="#56BA8B" />
+                    <circle cx="0" cy="0" r="3" fill="#3D8A65" />
+                  </g>
+                </g>
+                <g transform="translate(416, 90)">
+                  <polygon points="0,-18 5,-5 18,0 5,5 0,18 -5,5 -18,0 -5,-5" fill="#FFA534" />
+                  <circle cx="0" cy="0" r="4.5" fill="#FFFFFF" />
+                </g>
+                <path
+                  d="M 380 180 Q 392 172 404 180 Q 416 172 428 180"
+                  fill="none"
+                  stroke="#689ECA"
+                  stroke-width="3.5"
+                  stroke-linecap="round"
+                  opacity="0.6"
+                />
+                <circle cx="150" cy="140" r="4" fill="#FFA534" opacity="0.6" />
+                <circle cx="120" cy="165" r="2.5" fill="#FFA534" opacity="0.4" />
+              </svg>
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="card-title">信笺、纸飞机与朋友的回音</div>
+            <div class="card-subtitle">Paper Plane &amp; Resonance</div>
+            <div class="card-narrative">
+              <strong>叙事核心：</strong
+              >“和朋友一起互相督促，放飞心声”。打完卡像折起一只奶油纸小飞机投向高空，在澄澈晴空中拉出一道由五大板块色构成的彩虹航迹虚线，与远方的朋友呼应共振。
+            </div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">核心符号：</span
+                >折纸手账小飞机、绿芽机徽、多色虚线共振航道、晨星
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">色彩系统：</span>澄澈晴空蓝 (#E8F4FD) + 暖白纸面 +
+                彩虹虚线轨迹
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">适用场景：</span
+                >突出社交属性、朋友动态互动、轻松飞扬的年轻朝气。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 方案 09 -->
+        <div class="card" id="card-9">
+          <div class="card-header">
+            <span class="option-id">Option 09</span>
+            <div class="card-actions">
+              <button class="btn" onclick="copySvgCode(9)">复制SVG</button>
+              <button class="btn" onclick="downloadSvg(9, '09-journal-ribbon.svg')">下载</button>
+              <button class="btn" onclick="applyToMockup(9)">实机预览</button>
+            </div>
+          </div>
+          <div class="icon-preview-stage">
+            <div class="icon-img-wrap" onclick="applyToMockup(9)">
+              <svg
+                id="svg-opt-9"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                width="100%"
+                height="100%"
+              >
+                <defs>
+                  <linearGradient id="s9_leatherGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#A6734D" />
+                    <stop offset="50%" stop-color="#93603F" />
+                    <stop offset="100%" stop-color="#784524" />
+                  </linearGradient>
+                  <linearGradient id="s9_pageFoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFDF9" />
+                    <stop offset="70%" stop-color="#FAF0E3" />
+                    <stop offset="100%" stop-color="#E9D2BA" />
+                  </linearGradient>
+                  <linearGradient id="s9_foldShadowGrad" x1="100%" y1="100%" x2="0%" y2="0%">
+                    <stop offset="0%" stop-color="#4A2810" stop-opacity="0.45" />
+                    <stop offset="60%" stop-color="#4A2810" stop-opacity="0.1" />
+                    <stop offset="100%" stop-color="#4A2810" stop-opacity="0" />
+                  </linearGradient>
+                  <linearGradient id="s9_ribbonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#F7AEC3" />
+                    <stop offset="50%" stop-color="#F28EAA" />
+                    <stop offset="100%" stop-color="#DC6A89" />
+                  </linearGradient>
+                  <linearGradient id="s9_goldCharm" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFF5CB" />
+                    <stop offset="50%" stop-color="#FFD15C" />
+                    <stop offset="100%" stop-color="#D99A1C" />
+                  </linearGradient>
+                  <filter id="s9_ribbonShadow" x="-25%" y="-25%" width="150%" height="150%">
+                    <feDropShadow
+                      dx="3"
+                      dy="12"
+                      stdDeviation="10"
+                      flood-color="#4D1F08"
+                      flood-opacity="0.3"
+                    />
+                  </filter>
+                  <filter id="s9_charmGlow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feDropShadow
+                      dx="0"
+                      dy="6"
+                      stdDeviation="8"
+                      flood-color="#C2820B"
+                      flood-opacity="0.35"
+                    />
+                  </filter>
+                </defs>
+                <rect width="512" height="512" rx="116" fill="url(#s9_leatherGrad)" />
+                <rect
+                  width="504"
+                  height="504"
+                  x="4"
+                  y="4"
+                  rx="112"
+                  fill="none"
+                  stroke="#C59672"
+                  stroke-width="3"
+                  stroke-opacity="0.6"
+                />
+                <rect
+                  width="472"
+                  height="472"
+                  x="20"
+                  y="20"
+                  rx="100"
+                  fill="none"
+                  stroke="#DAB496"
+                  stroke-width="2.5"
+                  stroke-dasharray="10 8"
+                  stroke-linecap="round"
+                  opacity="0.6"
+                />
+                <line x1="86" y1="20" x2="86" y2="492" stroke="#68391A" stroke-width="4" />
+                <line
+                  x1="90"
+                  y1="20"
+                  x2="90"
+                  y2="492"
+                  stroke="#B5845E"
+                  stroke-width="2"
+                  opacity="0.6"
+                />
+                <g transform="translate(256, 210) scale(1.1)">
+                  <circle
+                    cx="0"
+                    cy="0"
+                    r="54"
+                    fill="none"
+                    stroke="url(#s9_goldCharm)"
+                    stroke-width="6"
+                    stroke-linecap="round"
+                    stroke-dasharray="24 8"
+                    opacity="0.8"
+                  />
+                  <path
+                    d="M -16 -24 L -16 24 C 6 24, 24 16, 24 0 C 24 -16, 6 -24, -16 -24 Z"
+                    fill="none"
+                    stroke="url(#s9_goldCharm)"
+                    stroke-width="7"
+                  />
+                  <path
+                    d="M -6 2 L 6 14 L 20 -4"
+                    fill="none"
+                    stroke="#FFF7D6"
+                    stroke-width="6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </g>
+                <g>
+                  <polygon points="340,512 512,340 512,512" fill="url(#s9_foldShadowGrad)" />
+                  <polygon points="360,512 512,360 512,512" fill="#FFFDF9" />
+                  <circle cx="430" cy="450" r="3" fill="#A8754E" opacity="0.25" />
+                  <circle cx="465" cy="450" r="3" fill="#A8754E" opacity="0.25" />
+                  <circle cx="465" cy="415" r="3" fill="#A8754E" opacity="0.25" />
+                  <polygon
+                    points="360,512 512,360 360,360"
+                    fill="url(#s9_pageFoldGrad)"
+                    stroke="#DFBE9F"
+                    stroke-width="2"
+                  />
+                  <line
+                    x1="360"
+                    y1="512"
+                    x2="512"
+                    y2="360"
+                    stroke="#7A4523"
+                    stroke-width="4"
+                    opacity="0.4"
+                  />
+                </g>
+                <g filter="url(#s9_ribbonShadow)">
+                  <path
+                    d="M 160 0 L 194 0 C 194 130, 200 280, 194 360 L 177 344 L 160 360 C 154 280, 160 130, 160 0 Z"
+                    fill="url(#s9_ribbonGrad)"
+                  />
+                  <path d="M 177 0 L 177 344" stroke="#FFF0F4" stroke-width="3" opacity="0.5" />
+                </g>
+                <g transform="translate(177, 366)" filter="url(#s9_charmGlow)">
+                  <line
+                    x1="0"
+                    y1="-12"
+                    x2="0"
+                    y2="0"
+                    stroke="url(#s9_goldCharm)"
+                    stroke-width="3"
+                  />
+                  <circle
+                    cx="0"
+                    cy="18"
+                    r="22"
+                    fill="url(#s9_goldCharm)"
+                    stroke="#FFFFFF"
+                    stroke-width="2"
+                  />
+                  <text
+                    x="0"
+                    y="25"
+                    font-family="system-ui, sans-serif"
+                    font-size="20"
+                    font-weight="bold"
+                    fill="#754704"
+                    text-anchor="middle"
+                  >
+                    D
+                  </text>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="card-title">日记本的折角与金色书签</div>
+            <div class="card-subtitle">Journal Fold &amp; Golden Ribbon</div>
+            <div class="card-narrative">
+              <strong>叙事核心：</strong>“每一天都是值得珍藏的扉页”。将 App Icon
+              整体塑造成一本精工手账——奶茶焦糖皮面，四周点缀马鞍双缝线，右下角微微翻开露出奶油色内页，樱花粉丝绒书签垂下一枚烫金
+              D 勋章。
+            </div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">核心符号：</span
+                >手账皮面缝线、翻开折角内页、丝绒书签带、烫金勋章
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">色彩系统：</span>奶茶焦糖皮纹 (#93603F) + 樱花粉丝带
+                (#F28EAA) + 烫金色 (#FFD15C)
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">适用场景：</span
+                >极致还原“治愈手账”本体，质感高雅复古，手作温情浓郁。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 方案 10 -->
+        <div class="card" id="card-10">
+          <div class="card-header">
+            <span class="option-id">Option 10</span>
+            <div class="card-actions">
+              <button class="btn" onclick="copySvgCode(10)">复制SVG</button>
+              <button class="btn" onclick="downloadSvg(10, '10-dayday-infinite.svg')">下载</button>
+              <button class="btn" onclick="applyToMockup(10)">实机预览</button>
+            </div>
+          </div>
+          <div class="icon-preview-stage">
+            <div class="icon-img-wrap" onclick="applyToMockup(10)">
+              <svg
+                id="svg-opt-10"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                width="100%"
+                height="100%"
+              >
+                <defs>
+                  <linearGradient id="s10_bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFDF9" />
+                    <stop offset="60%" stop-color="#FAF1E6" />
+                    <stop offset="100%" stop-color="#F2DFCA" />
+                  </linearGradient>
+                  <linearGradient id="s10_infiniteGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFA44A" />
+                    <stop offset="40%" stop-color="#F26E2E" />
+                    <stop offset="100%" stop-color="#A8572D" />
+                  </linearGradient>
+                  <linearGradient id="s10_infiniteGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#FFCE52" />
+                    <stop offset="50%" stop-color="#FFA44A" />
+                    <stop offset="100%" stop-color="#804423" />
+                  </linearGradient>
+                  <radialGradient id="s10_centerHeartGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#FFFFFF" />
+                    <stop offset="60%" stop-color="#FFA26B" />
+                    <stop offset="100%" stop-color="#F25B88" />
+                  </radialGradient>
+                  <filter id="s10_loopShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow
+                      dx="0"
+                      dy="18"
+                      stdDeviation="18"
+                      flood-color="#8A3D14"
+                      flood-opacity="0.28"
+                    />
+                  </filter>
+                </defs>
+                <rect width="512" height="512" rx="116" fill="url(#s10_bgGrad)" />
+                <rect
+                  width="504"
+                  height="504"
+                  x="4"
+                  y="4"
+                  rx="112"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  stroke-width="4"
+                  stroke-opacity="0.9"
+                />
+                <rect
+                  width="512"
+                  height="512"
+                  rx="116"
+                  fill="none"
+                  stroke="#E3C7AE"
+                  stroke-width="2"
+                  stroke-opacity="0.6"
+                />
+                <g filter="url(#s10_loopShadow)">
+                  <path
+                    d="M 256 160 C 200 160, 120 195, 120 256 C 120 317, 200 352, 256 352 C 290 352, 330 330, 355 295 C 340 280, 310 270, 290 286 C 278 296, 266 304, 256 304 C 224 304, 168 284, 168 256 C 168 228, 224 208, 256 208 C 266 208, 278 216, 290 226 C 310 242, 340 232, 355 217 C 330 182, 290 160, 256 160 Z"
+                    fill="url(#s10_infiniteGrad1)"
+                  />
+                  <path
+                    d="M 256 160 C 312 160, 392 195, 392 256 C 392 317, 312 352, 256 352 C 222 352, 182 330, 157 295 C 172 280, 202 270, 222 286 C 234 296, 246 304, 256 304 C 288 304, 344 284, 344 256 C 344 228, 288 208, 256 208 C 246 208, 234 216, 222 226 C 202 242, 172 232, 157 217 C 182 182, 222 160, 256 160 Z"
+                    fill="url(#s10_infiniteGrad2)"
+                    opacity="0.92"
+                  />
+                  <path
+                    d="M 150 220 C 180 180, 230 172, 256 172 C 282 172, 332 180, 362 220"
+                    fill="none"
+                    stroke="#FFFFFF"
+                    stroke-width="7"
+                    stroke-linecap="round"
+                    opacity="0.65"
+                  />
+                  <circle
+                    cx="256"
+                    cy="256"
+                    r="28"
+                    fill="url(#s10_centerHeartGlow)"
+                    stroke="#FFFFFF"
+                    stroke-width="3"
+                  />
+                  <circle cx="256" cy="256" r="6" fill="#FFFFFF" />
+                </g>
+                <g transform="translate(390, 160) rotate(25)">
+                  <path
+                    d="M 0 0 C 12 -22 36 -18 38 -2 C 26 6 8 3 0 0 Z"
+                    fill="#6AD8A3"
+                    stroke="#2B7A58"
+                    stroke-width="2"
+                  />
+                  <circle cx="0" cy="0" r="3.5" fill="#FFA44A" />
+                </g>
+                <polygon
+                  points="100,140 103,147 110,150 103,153 100,160 97,153 90,150 97,147"
+                  fill="#FFA44A"
+                  opacity="0.8"
+                />
+                <circle cx="420" cy="380" r="5" fill="#FFA44A" opacity="0.6" />
+              </svg>
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="card-title">超级符号·双环生生</div>
+            <div class="card-subtitle">DayDay Infinite Loop</div>
+            <div class="card-narrative">
+              <strong>叙事核心：</strong>“日日相继，生生不息；你我同行，没有终点”。品牌名 DayDayOn
+              的双 D
+              超级构图——两枚圆润流线的“D”相互拥抱，拓扑构成莫比乌斯无限循环环（∞），相交核心孕育发光暖心。
+            </div>
+            <div class="card-details">
+              <div class="detail-row">
+                <span class="detail-label">核心符号：</span>双 D
+                莫比乌斯流动环、中心发光心核、点缀生机小叶
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">色彩系统：</span>焦糖金橙渐变 (#FFA44A -> #804423) +
+                羊脂玉暖白底 (#FAF1E6)
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">适用场景：</span
+                >国际一流现代顶级超级符号，极简大气，极小尺寸下辨识度卓越。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 真实场景实机模拟器 -->
+      <div class="simulation-section" id="simulation">
+        <div class="section-title">真实场景模拟器 (Real-world Device Simulator)</div>
+        <div class="section-desc">
+          将当前选中的图标置入真实的手机桌面环境与微缩比例，直观检验其在不同壁纸、不同分辨率下的辨识度与美感。
+        </div>
+
+        <div class="phones-container">
+          <!-- 浅色手机主屏 -->
+          <div class="mockup-phone phone-light">
+            <div class="phone-notch"></div>
+            <div class="phone-grid">
+              <div class="phone-app-slot">
+                <div class="phone-app-icon" id="mockSlotLight"></div>
+                <div class="phone-app-name">DayDayOn</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #e2f3e9;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #2b7a58;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  微信
+                </div>
+                <div class="phone-app-name">微信</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #fdece9;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #d34b38;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  小红书
+                </div>
+                <div class="phone-app-name">小红书</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #ebf3fc;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #3f7ec2;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  日历
+                </div>
+                <div class="phone-app-name">日历</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #fff9e6;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #b8860b;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  备忘录
+                </div>
+                <div class="phone-app-name">备忘录</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #f6e8f6;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #8a4b8a;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  播客
+                </div>
+                <div class="phone-app-name">播客</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #e7f7f7;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #2a8585;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  健身
+                </div>
+                <div class="phone-app-name">健身</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #fff0f5;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #c71585;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  相册
+                </div>
+                <div class="phone-app-name">照片</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 深色暗夜手机主屏 -->
+          <div class="mockup-phone phone-dark">
+            <div class="phone-notch"></div>
+            <div class="phone-grid">
+              <div class="phone-app-slot">
+                <div class="phone-app-icon" id="mockSlotDark"></div>
+                <div class="phone-app-name">DayDayOn</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #1c2b22;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #6ad8a3;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  微信
+                </div>
+                <div class="phone-app-name">微信</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #2d1c1b;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #f57c6c;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  小红书
+                </div>
+                <div class="phone-app-name">小红书</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #1b232d;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #78b4f5;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  日历
+                </div>
+                <div class="phone-app-name">日历</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #2d2817;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #f5d061;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  备忘录
+                </div>
+                <div class="phone-app-name">备忘录</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #2c1c2c;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #d88ad8;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  播客
+                </div>
+                <div class="phone-app-name">播客</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #182a2a;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #6ad6d6;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  健身
+                </div>
+                <div class="phone-app-name">健身</div>
+              </div>
+              <div class="phone-app-slot">
+                <div
+                  class="phone-app-icon"
+                  style="
+                    background: #2d1823;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #f578b3;
+                    font-weight: 800;
+                    font-size: 11px;
+                  "
+                >
+                  相册
+                </div>
+                <div class="phone-app-name">照片</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 尺寸阶梯标尺测试 -->
+        <div class="scale-benchmark">
+          <div class="scale-item">
+            <div
+              class="scale-box"
+              style="width: 140px; height: 140px; border-radius: 32px"
+              id="bench-140"
+            ></div>
+            <span class="scale-label">140px 大卡片</span>
+          </div>
+          <div class="scale-item">
+            <div
+              class="scale-box"
+              style="width: 80px; height: 80px; border-radius: 18px"
+              id="bench-80"
+            ></div>
+            <span class="scale-label">80px PWA</span>
+          </div>
+          <div class="scale-item">
+            <div
+              class="scale-box"
+              style="width: 54px; height: 54px; border-radius: 13px"
+              id="bench-54"
+            ></div>
+            <span class="scale-label">54px 手机主屏</span>
+          </div>
+          <div class="scale-item">
+            <div
+              class="scale-box"
+              style="width: 32px; height: 32px; border-radius: 8px"
+              id="bench-32"
+            ></div>
+            <span class="scale-label">32px Favicon</span>
+          </div>
+          <div class="scale-item">
+            <div
+              class="scale-box"
+              style="width: 16px; height: 16px; border-radius: 4px"
+              id="bench-16"
+            ></div>
+            <span class="scale-label">16px 极限标签</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast">已成功复制该方案的 SVG 源码到剪贴板！</div>
+
+    <script>
+      let currentCorner = 'squircle'
+
+      function toggleCorner() {
+        const wraps = document.querySelectorAll('.icon-img-wrap, .phone-app-icon, .scale-box')
+        if (currentCorner === 'squircle') {
+          wraps.forEach((w) => (w.style.borderRadius = '50%'))
+          currentCorner = 'circle'
+        } else {
+          wraps.forEach((w) => (w.style.borderRadius = ''))
+          currentCorner = 'squircle'
+        }
+        showToast('已切换图标轮廓外形（圆角方块 / 自适应正圆）')
+      }
+
+      function switchThemeBg(theme) {
+        const stages = document.querySelectorAll('.icon-preview-stage')
+        const btnP = document.getElementById('btnThemePaper')
+        const btnL = document.getElementById('btnThemeLight')
+        const btnD = document.getElementById('btnThemeDark')
+        ;[btnP, btnL, btnD].forEach((b) => b && b.classList.remove('active'))
+
+        stages.forEach((stage) => {
+          if (theme === 'paper') {
+            stage.style.background = '#FDF9F3'
+            stage.style.backgroundImage = 'radial-gradient(#EADCCB 1.5px, transparent 1.5px)'
+            btnP && btnP.classList.add('active')
+          } else if (theme === 'light') {
+            stage.style.background = '#FFFFFF'
+            stage.style.backgroundImage = 'none'
+            btnL && btnL.classList.add('active')
+          } else if (theme === 'dark') {
+            stage.style.background = '#1E1B18'
+            stage.style.backgroundImage = 'radial-gradient(#3A342E 1.5px, transparent 1.5px)'
+            btnD && btnD.classList.add('active')
+          }
+        })
+        showToast('已切换展示底色')
+      }
+
+      function applyToMockup(id) {
+        const sourceSvg = document.getElementById(`svg-opt-${id}`)
+        if (!sourceSvg) return
+
+        const svgCloneHtml = sourceSvg.outerHTML
+
+        const targetSlots = [
+          document.getElementById('mockSlotLight'),
+          document.getElementById('mockSlotDark'),
+          document.getElementById('bench-140'),
+          document.getElementById('bench-80'),
+          document.getElementById('bench-54'),
+          document.getElementById('bench-32'),
+          document.getElementById('bench-16'),
+        ]
+
+        targetSlots.forEach((slot) => {
+          if (slot) {
+            slot.innerHTML = svgCloneHtml
+          }
+        })
+
+        // 选中的卡片高亮
+        document.querySelectorAll('.card').forEach((c) => c.classList.remove('selected'))
+        const activeCard = document.getElementById(`card-${id}`)
+        if (activeCard) {
+          activeCard.classList.add('selected')
+        }
+
+        showToast(`已将方案 #${id} 置入实机模拟器与阶梯标尺`)
+
+        if (window.innerWidth < 800) {
+          const sim = document.getElementById('simulation')
+          sim && sim.scrollIntoView({ behavior: 'smooth' })
+        }
+      }
+
+      function copySvgCode(id) {
+        const el = document.getElementById(`svg-opt-${id}`)
+        if (!el) return
+        const text = el.outerHTML
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard
+            .writeText(text)
+            .then(() => {
+              showToast(`已成功复制方案 #${id} 的完整 SVG 源码！`)
+            })
+            .catch(() => {
+              fallbackCopy(text, id)
+            })
+        } else {
+          fallbackCopy(text, id)
+        }
+      }
+
+      function fallbackCopy(text, id) {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        document.body.appendChild(ta)
+        ta.select()
+        try {
+          document.execCommand('copy')
+          showToast(`已复制方案 #${id} 的完整 SVG 源码！`)
+        } catch (err) {
+          showToast('请直接在页面查看或下载文件')
+        }
+        document.body.removeChild(ta)
+      }
+
+      function downloadSvg(id, filename) {
+        const el = document.getElementById(`svg-opt-${id}`)
+        if (!el) return
+        const text = el.outerHTML
+        const blob = new Blob([text], { type: 'image/svg+xml;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename || `daydayon-icon-option-${id}.svg`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        showToast(`方案 #${id} SVG 下载已启动！`)
+      }
+
+      function showToast(msg) {
+        const toast = document.getElementById('toast')
+        toast.innerText = msg
+        toast.classList.add('show')
+        setTimeout(() => {
+          toast.classList.remove('show')
+        }, 2600)
+      }
+
+      // 页面初始化时，将方案 1 注入实机模拟区
+      window.addEventListener('DOMContentLoaded', () => {
+        applyToMockup(1)
+      })
+      // 立即执行一次防止 DOMContentLoaded 错过
+      applyToMockup(1)
+    </script>
+  </body>
+</html>

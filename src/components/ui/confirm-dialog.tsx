@@ -3,14 +3,19 @@
 import { AlertDialog } from '@base-ui/react/alert-dialog'
 import { useState, type ReactNode } from 'react'
 import { Button } from './button'
+import { useAnimatedOpen } from './use-animated-open'
 
 /*
  * 确认对话框（Base UI AlertDialog）：删除、注销、退出这类不可撤销的操作先问一句。
  * 能撤销的操作（删除待办）不弹确认，改用 toast.undo()（ui-design-system.md 第 11 节语气）。
  * 点遮罩不关闭，只能点按钮或按 Esc；确认按钮返回 Promise 时显示加载中，完成后自动关闭，失败保持打开。
+ * 内置 useAnimatedOpen：即便首次在 open=true 状态下懒加载挂载，也能完整播放缩放弹出过渡。
  *
- * 推荐用法：在使用处懒加载（ui-primitives.md 第 3 节）。
- *   const ConfirmDialog = dynamic(() => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog))
+ * 推荐用法：在使用处懒加载并传 loading: () => null（ui-primitives.md 第 3 节）。
+ *   const ConfirmDialog = dynamic(
+ *     () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+ *     { loading: () => null },
+ *   )
  *   <ConfirmDialog open={open} onOpenChange={setOpen} title="删除这个目标？" tone="danger"
  *     confirmLabel="删除" onConfirm={() => remove.mutateAsync(id)} />
  */
@@ -49,6 +54,7 @@ export function ConfirmDialog({
   onConfirm,
 }: ConfirmDialogProps) {
   const [pending, setPending] = useState(false)
+  const animatedOpen = useAnimatedOpen(open)
 
   async function handleConfirm() {
     setPending(true)
@@ -64,7 +70,7 @@ export function ConfirmDialog({
 
   return (
     <AlertDialog.Root
-      open={open}
+      open={animatedOpen}
       onOpenChange={(next) => {
         if (!pending) onOpenChange(next)
       }}
@@ -72,13 +78,13 @@ export function ConfirmDialog({
       <AlertDialog.Portal>
         <AlertDialog.Backdrop
           className={
-            'bg-foreground/30 ease-out-soft fixed inset-0 min-h-dvh transition-opacity duration-(--dur-base) ' +
+            'bg-foreground/30 ease-out-soft fixed inset-0 z-50 min-h-dvh transition-opacity duration-(--dur-base) ' +
             'data-ending-style:opacity-0 data-starting-style:opacity-0 supports-[-webkit-touch-callout:none]:absolute'
           }
         />
         <AlertDialog.Popup
           className={
-            'bg-surface text-foreground shadow-float fixed top-1/2 left-1/2 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-5 rounded-3xl p-6 outline-none ' +
+            'bg-surface text-foreground shadow-float fixed top-1/2 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-5 rounded-3xl p-6 outline-none ' +
             'ease-spring transition-[scale,opacity] duration-(--dur-base) ' +
             'data-starting-style:scale-90 data-starting-style:opacity-0 ' +
             'data-ending-style:ease-in-soft data-ending-style:scale-95 data-ending-style:opacity-0'

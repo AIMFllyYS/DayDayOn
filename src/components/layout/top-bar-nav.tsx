@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Avatar, AvatarStack } from '@/components/ui/avatar'
@@ -7,17 +8,25 @@ import { Icon } from '@/components/ui/icon'
 import { Menu, type MenuItemDef } from '@/components/ui/menu'
 import { Popover } from '@/components/ui/popover'
 import { useCheckinLauncher } from '@/features/checkin/launcher-store'
-import { AddFriendSheet } from '@/features/friend/components/add-friend-sheet'
 import { FriendMeteorOverlay } from '@/features/friend/components/friend-meteor'
 import { friendActions, useFriendStore } from '@/features/friend/friend-store'
 import type { FriendSummary } from '@/features/friend/schemas'
-import { GoalSettingSheet } from '@/features/goal/components/goal-setting-sheet'
 import { NotificationBellBadge } from '@/features/notification'
 import { useQuery } from '@/lib/api'
 import { useFriendsList } from '@/lib/api/queries/friends'
 import { meQuery } from '@/lib/api/queries/me'
 import { useNotificationSummary } from '@/lib/api/queries/notifications'
 import { cn } from '@/lib/cn'
+
+// 顶栏操作弹层不进首屏（ui-primitives.md 第 3 节）：首次打开时才加载
+const GoalSettingSheet = dynamic(
+  () => import('@/features/goal/components/goal-setting-sheet').then((m) => m.GoalSettingSheet),
+  { loading: () => null },
+)
+const AddFriendSheet = dynamic(
+  () => import('@/features/friend/components/add-friend-sheet').then((m) => m.AddFriendSheet),
+  { loading: () => null },
+)
 
 interface TopBarUserAvatarProps {
   /** Playbook 演示时可传入模拟好友列表 */
@@ -207,7 +216,12 @@ export function TopBarActions() {
   const isDemo = pathname.startsWith('/dev')
   const { data: summary } = useNotificationSummary({ enabled: !isDemo })
   const launcher = useCheckinLauncher()
+  const { addSheetOpen } = useFriendStore()
   const [goalSheetOpen, setGoalSheetOpen] = useState(false)
+  const [goalSheetLoaded, setGoalSheetLoaded] = useState(false)
+  const [friendSheetLoaded, setFriendSheetLoaded] = useState(false)
+  if (goalSheetOpen && !goalSheetLoaded) setGoalSheetLoaded(true)
+  if (addSheetOpen && !friendSheetLoaded) setFriendSheetLoaded(true)
 
   const items: MenuItemDef[] = [
     {
@@ -250,8 +264,8 @@ export function TopBarActions() {
           side="bottom"
         />
       </div>
-      <GoalSettingSheet open={goalSheetOpen} onOpenChange={setGoalSheetOpen} />
-      <AddFriendSheet />
+      {goalSheetLoaded && <GoalSettingSheet open={goalSheetOpen} onOpenChange={setGoalSheetOpen} />}
+      {friendSheetLoaded && <AddFriendSheet />}
       <FriendMeteorOverlay />
     </>
   )

@@ -13,8 +13,9 @@ import type { CreateGoal, GoalDetail } from '../schemas'
 import { GoalForm } from './goal-form'
 
 // 只有关闭时有未保存改动才会用到（ui-primitives.md 第 3 节：懒加载）
-const ConfirmDialog = dynamic(() =>
-  import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+const ConfirmDialog = dynamic(
+  () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+  { loading: () => null },
 )
 
 interface GoalEditSheetProps {
@@ -34,6 +35,8 @@ export function GoalEditSheet({ goal, open, onOpenChange }: GoalEditSheetProps) 
   const [serverErrors, setServerErrors] = useState<GoalFormErrors>()
   const [dirty, setDirty] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmLoaded, setConfirmLoaded] = useState(false)
+  if (confirmOpen && !confirmLoaded) setConfirmLoaded(true)
   const formId = `edit-goal-${goal.id}`
 
   function close() {
@@ -95,7 +98,7 @@ export function GoalEditSheet({ goal, open, onOpenChange }: GoalEditSheetProps) 
           />
         )}
       </Sheet>
-      {dirty && (
+      {confirmLoaded && (
         <ConfirmDialog
           open={confirmOpen}
           onOpenChange={setConfirmOpen}

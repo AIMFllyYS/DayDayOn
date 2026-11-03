@@ -37,9 +37,13 @@
 - 全站只有一个 `Toast.Provider`（带全局 toast 管理器），放在根布局。
 - 这几处要改 `src/app/layout.tsx` 和 `src/app/globals.css`，动手前先和正在改设计系统的会话对齐，避免互相覆盖。
 
-## 3. 懒加载
+## 3. 懒加载与挂载生命周期
 
 - 弹层类组件（Drawer、Dialog、AlertDialog、Select、Combobox、Menu、Popover）在使用处用 `next/dynamic` 懒加载，或在第一次打开时加载。主页外壳的首屏不加载任何弹层代码（M1 完成标准）。
+- **必须传 `loading: () => null`**：用 `next/dynamic` 懒加载弹层时，必须写 `dynamic(loader, { loading: () => null })`（块级占位用 `<Skeleton />`）。禁止裸调 `dynamic(loader)`——Next.js 16 在未传 `loading` 且未设 `ssr: false` 时不生成内部 `<Suspense>` 边界，首次挂载抛出的 Promise 会向上击穿页面级 `<Suspense fallback={<PageSkeleton />}>`，导致背景页面全屏闪屏。
+- **首次打开时挂载、关闭后保持挂载**：用 `loaded` 状态记录“是否打开过”（`if (open && !loaded) setLoaded(true); if (!loaded) return null`），关闭时只把 `open` 设为 `false`，由 Base UI 在退场动画结束后自动卸载 Portal DOM。禁止写 `{open && <Sheet open={open} />}` 或 `{open && <ConfirmDialog open={open} />}`，否则 `open` 变 `false` 瞬间组件被直接卸载，截断 `data-ending-style` 退场动画。
+- **重置表单的 `key` 放在抽屉内部**：需要每次打开抽屉时重置表单状态，必须把 `key` 挂在 `Sheet` 内部的表单子组件上（如 `<TodoSheetForm key={session} />`），禁止把 `key` 挂在 `<Sheet>` 或其外层懒加载包装组件上，否则每次打开都会销毁重建 `Drawer.Root`。
+- **高频全局弹层空闲预热**：底栏“＋”打卡弹层（`CheckinLauncher`）在客户端首屏水合后的浏览器空闲期（`requestIdleCallback` / `setTimeout`）静默预取模块，兼顾首屏零体积负担与首次点击零网络等待。
 - Toast 是例外：全局常驻，随根布局加载。
 
 ## 4. 底部抽屉
@@ -53,6 +57,7 @@
 ## 5. 动效
 
 - 弹层、Toast 的进退场用 Base UI 的 `data-starting-style` / `data-ending-style` 写 CSS 过渡，时长和缓动只用 ui-design-system.md 第 5 节的 token。
+- `sheet.tsx` 与 `confirm-dialog.tsx` 内部统一经 `useAnimatedOpen(open)` 驱动 Base UI Root：即使组件在 `open={true}` 状态下首次按需挂载，首帧也先以 `false` 初始化并在下一动画帧切为 `true`，确保 100% 触发 `data-starting-style` 进场动画。
 - 列表增删、页面切换用 React 的 `<ViewTransition>`。浏览器不支持时没有过渡动画，功能照常。
 - 不引入任何动效库（[libraries.md](../libraries.md) 互斥禁令）。团团的动画继续用 CSS 类。
 

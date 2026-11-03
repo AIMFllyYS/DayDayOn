@@ -37,7 +37,9 @@ import { TodoScreen } from './todo-screen'
  */
 
 // 抽屉代码不进首屏（ui-primitives.md 第 3 节）：第一次打开时才加载
-const TodoSheet = dynamic(() => import('./todo-sheet').then((m) => m.TodoSheet))
+const TodoSheet = dynamic(() => import('./todo-sheet').then((m) => m.TodoSheet), {
+  loading: () => null,
+})
 
 /** 时区来自 GET /me（与外壳的 ThemeSync 共用同一份缓存） */
 function useTimeZone(): { timeZone: string | null } {
@@ -174,7 +176,7 @@ export function TodoPage() {
       />
       {loaded && timeZone !== null && (
         <TodoSheet
-          key={sheet.session}
+          session={sheet.session}
           open={sheet.open}
           onOpenChange={(next) => (next ? undefined : closeSheet())}
           todo={sheet.todo}

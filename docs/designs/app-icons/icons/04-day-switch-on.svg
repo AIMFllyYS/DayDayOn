@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 背景：焦糖奶茶基底 -->
+    <linearGradient id="bgGrad4" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFDF9" />
+      <stop offset="60%" stop-color="#F9EFE3" />
+      <stop offset="100%" stop-color="#EEDAC5" />
+    </linearGradient>
+
+    <!-- 开关下凹轨道渐变 -->
+    <linearGradient id="trackGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#DDC4AA" />
+      <stop offset="30%" stop-color="#F0DFCE" />
+      <stop offset="100%" stop-color="#FFF9F2" />
+    </linearGradient>
+
+    <!-- 滑块发光小太阳渐变 -->
+    <radialGradient id="knobSun" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FFF2AA" />
+      <stop offset="45%" stop-color="#FFAE42" />
+      <stop offset="90%" stop-color="#F26829" />
+      <stop offset="100%" stop-color="#D94E14" />
+    </radialGradient>
+
+    <!-- 暖光发散光晕 -->
+    <radialGradient id="switchAura" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFA834" stop-opacity="0.5" />
+      <stop offset="60%" stop-color="#FFA834" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#FFA834" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- 柔和滑块投影 -->
+    <filter id="knobShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="-4" dy="16" stdDeviation="16" flood-color="#8A340C" flood-opacity="0.32" />
+    </filter>
+
+    <!-- 轨道内阴影 -->
+    <filter id="trackInnerShadow">
+      <feOffset dx="0" dy="8" />
+      <feGaussianBlur stdDeviation="8" result="offset-blur" />
+      <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse" />
+      <feFlood flood-color="#7A5438" flood-opacity="0.25" result="color" />
+      <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+      <feComposite operator="over" in="shadow" in2="SourceGraphic" />
+    </filter>
+  </defs>
+
+  <!-- 图标底板 -->
+  <rect width="512" height="512" rx="116" fill="url(#bgGrad4)" />
+  <rect width="504" height="504" x="4" y="4" rx="112" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.9" />
+  <rect width="512" height="512" rx="116" fill="none" stroke="#DFBFA2" stroke-width="2" stroke-opacity="0.6" />
+
+  <!-- 滑道背景层（下凹式软塑跑道） -->
+  <g filter="url(#trackInnerShadow)">
+    <rect x="76" y="166" width="360" height="180" rx="90" fill="url(#trackGrad)" stroke="#CBAC90" stroke-width="3" />
+  </g>
+
+  <!-- 轨道内侧暖金激活态发光地毯 -->
+  <rect x="86" y="176" width="340" height="160" rx="80" fill="#FFECD1" opacity="0.6" />
+
+  <!-- 雕刻质感的 "ON" 标识（左侧激活区） -->
+  <g transform="translate(136, 226)">
+    <!-- O -->
+    <circle cx="28" cy="30" r="24" fill="none" stroke="#B87D4E" stroke-width="9" stroke-linecap="round" />
+    <!-- N -->
+    <path d="M 68 54 L 68 6 L 98 54 L 98 6" fill="none" stroke="#B87D4E" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+
+  <!-- 滑块身后的温暖光芒辐射 -->
+  <circle cx="346" cy="256" r="140" fill="url(#switchAura)" />
+
+  <!-- 滑块主体（已拨到右侧 ON 位置的饱满光球） -->
+  <g filter="url(#knobShadow)">
+    <circle cx="346" cy="256" r="82" fill="url(#knobSun)" />
+
+    <!-- 太阳滑块的高光反射弧 -->
+    <ellipse cx="320" cy="215" rx="42" ry="20" fill="#FFFFFF" opacity="0.55" transform="rotate(-30 320 215)" />
+    <circle cx="350" cy="210" r="6" fill="#FFFFFF" opacity="0.75" />
+
+    <!-- 滑块顶端萌出的一抹初生嫩绿（通电生长） -->
+    <g transform="translate(346, 174)">
+      <path d="M 0 0 C -12 -18 -32 -16 -36 -2 C -24 4 -6 2 0 0 Z" fill="#6AD8A3" stroke="#2B7A58" stroke-width="2" />
+      <path d="M 0 0 C 14 -22 36 -18 38 -2 C 26 6 8 3 0 0 Z" fill="#8BE8B7" stroke="#2B7A58" stroke-width="2" />
+      <circle cx="0" cy="0" r="4" fill="#FFA24C" />
+    </g>
+
+    <!-- 滑块上的微表情（萌感笑眼，给开关赋予生命） -->
+    <path d="M 324 265 Q 332 258 340 265" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" />
+    <path d="M 356 265 Q 364 258 372 265" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" />
+    <ellipse cx="316" cy="275" rx="8" ry="5" fill="#FF3E24" opacity="0.6" />
+    <ellipse cx="380" cy="275" rx="8" ry="5" fill="#FF3E24" opacity="0.6" />
+    <!-- 浅浅微笑 -->
+    <path d="M 344 278 Q 348 284 352 278" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" />
+  </g>
+
+  <!-- 晨曦光芒小四角星 -->
+  <polygon points="440,110 443,118 451,121 443,124 440,132 437,124 429,121 437,118" fill="#F5C95E" />
+  <circle cx="86" cy="116" r="4.5" fill="#F5C95E" opacity="0.7" />
+</svg>

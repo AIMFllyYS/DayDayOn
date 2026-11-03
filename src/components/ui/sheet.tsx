@@ -4,15 +4,19 @@ import { Dialog } from '@base-ui/react/dialog'
 import { Drawer } from '@base-ui/react/drawer'
 import { useSyncExternalStore, type ReactNode } from 'react'
 import { IconButton } from './button'
+import { useAnimatedOpen } from './use-animated-open'
 
 /*
  * 底部弹层（ui-primitives.md 第 4 节）。对外接口沿用原生 <dialog> 版本，调用方不用改。
  * - < 768px：Base UI Drawer，向下滑动关闭；内含 VirtualKeyboardProvider，软键盘弹出时滚动让聚焦的输入框可见。
  * - ≥ 768px：Base UI Dialog，收到 lg 宽，离底部 16px，同样从下往上滑出（2026-11-01 评审）。
  * 焦点圈定、背景滚动锁定、Esc、点遮罩关闭由 Base UI 负责；进退场用 data-starting-style / data-ending-style 过渡。
+ * 内置 useAnimatedOpen：即便首次在 open=true 状态下懒加载挂载，也能完整播放 360ms 底部缓慢拉出动画。
  *
- * 推荐用法：弹层代码不进首屏，在使用处懒加载（ui-primitives.md 第 3 节）：
- *   const CheckinSheet = dynamic(() => import('./checkin-sheet').then((m) => m.CheckinSheet))
+ * 推荐用法：弹层代码不进首屏，在使用处懒加载并传 loading: () => null（ui-primitives.md 第 3 节）：
+ *   const CheckinSheet = dynamic(() => import('./checkin-sheet').then((m) => m.CheckinSheet), {
+ *     loading: () => null,
+ *   })
  * 抽屉里有自己处理横向拖动的区域（轮播）加 data-base-ui-swipe-ignore="x"；完全不参与滑动关闭的加 data-base-ui-swipe-ignore。
  * 自定义样式里用到软键盘高度时写 var(--drawer-keyboard-inset, 0px)，必须带默认值。
  */
@@ -46,7 +50,7 @@ function useIsDesktop(): boolean {
 
 // iOS 26 Safari 的遮罩要用 absolute 才能盖满可视区域（配合 globals.css 的 body { position: relative }）
 const backdropClass =
-  'bg-foreground/30 fixed inset-0 min-h-dvh transition-opacity duration-(--dur-slow) ease-out-soft ' +
+  'bg-foreground/30 fixed inset-0 z-40 min-h-dvh transition-opacity duration-(--dur-slow) ease-out-soft ' +
   'data-starting-style:opacity-0 data-ending-style:opacity-0 data-ending-style:duration-(--dur-base) data-ending-style:ease-in-soft ' +
   'supports-[-webkit-touch-callout:none]:absolute'
 
@@ -56,8 +60,13 @@ export function Sheet(props: SheetProps) {
 }
 
 function DrawerSheet({ open, onOpenChange, title, description, children, footer }: SheetProps) {
+  const animatedOpen = useAnimatedOpen(open)
   return (
-    <Drawer.Root open={open} onOpenChange={(next) => onOpenChange(next)} swipeDirection="down">
+    <Drawer.Root
+      open={animatedOpen}
+      onOpenChange={(next) => onOpenChange(next)}
+      swipeDirection="down"
+    >
       <Drawer.VirtualKeyboardProvider>
         <Drawer.Portal>
           <Drawer.Backdrop
@@ -66,7 +75,7 @@ function DrawerSheet({ open, onOpenChange, title, description, children, footer 
               ' opacity-[calc(1-var(--drawer-swipe-progress,0))] data-swiping:duration-0'
             }
           />
-          <Drawer.Viewport className="fixed inset-0 flex items-end justify-center">
+          <Drawer.Viewport className="fixed inset-0 z-40 flex items-end justify-center">
             {/*
              * --bleed：弹层底部多出一截藏在屏幕外，向上拖动时底部不会露出缝隙。
              * 拖动时跟随 --drawer-swipe-movement-y；松手关闭的时长按滑动力度缩放。
@@ -109,13 +118,14 @@ function DrawerSheet({ open, onOpenChange, title, description, children, footer 
 }
 
 function DialogSheet({ open, onOpenChange, title, description, children, footer }: SheetProps) {
+  const animatedOpen = useAnimatedOpen(open)
   return (
-    <Dialog.Root open={open} onOpenChange={(next) => onOpenChange(next)}>
+    <Dialog.Root open={animatedOpen} onOpenChange={(next) => onOpenChange(next)}>
       <Dialog.Portal>
         <Dialog.Backdrop className={backdropClass} />
         <Dialog.Popup
           className={
-            'bg-surface text-foreground shadow-float fixed inset-x-0 bottom-4 mx-auto flex max-h-[80dvh] w-[calc(100%-2rem)] max-w-lg flex-col overflow-hidden rounded-3xl outline-none ' +
+            'bg-surface text-foreground shadow-float fixed inset-x-0 bottom-4 z-40 mx-auto flex max-h-[80dvh] w-[calc(100%-2rem)] max-w-lg flex-col overflow-hidden rounded-3xl outline-none ' +
             'ease-out-soft transition-[translate] duration-(--dur-slow) ' +
             'data-ending-style:translate-y-[calc(100%+2rem)] data-starting-style:translate-y-[calc(100%+2rem)] ' +
             'data-ending-style:ease-in-soft data-ending-style:duration-(--dur-base)'

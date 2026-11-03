@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Field, Input, Textarea } from '@/components/ui/field'
 import { Form } from '@/components/ui/form'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Skeleton } from '@/components/ui/skeleton'
 import { mealLabel } from '../format'
 import { NOTE_MAX, type Checkin, type DietMethod, type MealType } from '../schemas'
 import { NOTE_PLACEHOLDER, type ModuleFormProps } from './form-types'
@@ -16,8 +17,9 @@ import { NOTE_PLACEHOLDER, type ModuleFormProps } from './form-types'
  * 拍照识别整块交给 D6 的 DietRecognizer（确认后它自己创建打卡，回调 onConfirmed）。
  */
 
-const DietRecognizer = dynamic(() =>
-  import('@/features/diet/components/diet-recognizer').then((m) => m.DietRecognizer),
+const DietRecognizer = dynamic(
+  () => import('@/features/diet/components/diet-recognizer').then((m) => m.DietRecognizer),
+  { loading: () => <Skeleton className="h-48 w-full rounded-2xl" /> },
 )
 
 const methodOptions = [
