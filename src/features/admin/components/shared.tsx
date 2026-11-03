@@ -8,9 +8,12 @@ import { errorMessage, FALLBACK_MESSAGE, isApiError } from '@/lib/api'
  * 后台各面板共用的小件：页头、错误文案、懒加载的弹层（ui-primitives.md 第 3 节）。
  */
 
-export const Sheet = dynamic(() => import('@/components/ui/sheet').then((m) => m.Sheet))
-export const ConfirmDialog = dynamic(() =>
-  import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+export const Sheet = dynamic(() => import('@/components/ui/sheet').then((m) => m.Sheet), {
+  loading: () => null,
+})
+export const ConfirmDialog = dynamic(
+  () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+  { loading: () => null },
 )
 
 /** 任意错误 → 用户文案（只来自 error-messages.ts） */

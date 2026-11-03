@@ -21,9 +21,12 @@ import type { GoalDetail } from '../schemas'
 import { GoalLinkButton } from './goal-link-button'
 
 // 弹层不进首屏（ui-primitives.md 第 3 节）
-const GoalEditSheet = dynamic(() => import('./goal-edit-sheet').then((m) => m.GoalEditSheet))
-const ConfirmDialog = dynamic(() =>
-  import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+const GoalEditSheet = dynamic(() => import('./goal-edit-sheet').then((m) => m.GoalEditSheet), {
+  loading: () => null,
+})
+const ConfirmDialog = dynamic(
+  () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+  { loading: () => null },
 )
 
 /** /goals/[goalId] 页面主体：加载 / 不存在 / 出错 / 正常 */
@@ -61,7 +64,11 @@ export function GoalDetailView({ goalId }: { goalId: string }) {
 /** 详情内容：概览卡 + 打卡日历 + 打卡记录 + 管理操作。Playbook 原型用演示数据渲染它 */
 export function GoalDetailContent({ goal }: { goal: GoalDetail }) {
   const [editing, setEditing] = useState(false)
+  const [editLoaded, setEditLoaded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteLoaded, setDeleteLoaded] = useState(false)
+  if (editing && !editLoaded) setEditLoaded(true)
+  if (confirmDelete && !deleteLoaded) setDeleteLoaded(true)
 
   return (
     <div className="grid gap-3 pb-8 @3xl:grid-cols-[1fr_1.1fr] @3xl:gap-4">
@@ -74,8 +81,8 @@ export function GoalDetailContent({ goal }: { goal: GoalDetail }) {
         <GoalManageCard goal={goal} onDelete={() => setConfirmDelete(true)} />
       </div>
 
-      {editing && <GoalEditSheet goal={goal} open={editing} onOpenChange={setEditing} />}
-      {confirmDelete && (
+      {editLoaded && <GoalEditSheet goal={goal} open={editing} onOpenChange={setEditing} />}
+      {deleteLoaded && (
         <DeleteGoalDialog
           goalId={goal.id}
           title={goal.title}
