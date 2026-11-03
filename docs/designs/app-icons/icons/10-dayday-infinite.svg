@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 背景：纯净温润的奶油羊脂玉渐变 -->
+    <linearGradient id="bgGrad10" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFDF9" />
+      <stop offset="60%" stop-color="#FAF1E6" />
+      <stop offset="100%" stop-color="#F2DFCA" />
+    </linearGradient>
+
+    <!-- 莫比乌斯环色彩渐变：焦糖暖阳流体 -->
+    <linearGradient id="infiniteGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFA44A" />
+      <stop offset="40%" stop-color="#F26E2E" />
+      <stop offset="100%" stop-color="#A8572D" />
+    </linearGradient>
+
+    <linearGradient id="infiniteGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFCE52" />
+      <stop offset="50%" stop-color="#FFA44A" />
+      <stop offset="100%" stop-color="#804423" />
+    </linearGradient>
+
+    <radialGradient id="centerHeartGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="60%" stop-color="#FFA26B" />
+      <stop offset="100%" stop-color="#F25B88" />
+    </radialGradient>
+
+    <filter id="loopShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#8A3D14" flood-opacity="0.28" />
+    </filter>
+  </defs>
+
+  <!-- 图标底板 -->
+  <rect width="512" height="512" rx="116" fill="url(#bgGrad10)" />
+  <rect width="504" height="504" x="4" y="4" rx="112" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.9" />
+  <rect width="512" height="512" rx="116" fill="none" stroke="#E3C7AE" stroke-width="2" stroke-opacity="0.6" />
+
+  <!-- 主体：双 D 相互拥抱交织的无限循环超级符号 -->
+  <g filter="url(#loopShadow)">
+    
+    <!-- 左环 D（向左隆起，怀抱今日） -->
+    <path d="M 256 160 
+             C 200 160, 120 195, 120 256 
+             C 120 317, 200 352, 256 352 
+             C 290 352, 330 330, 355 295 
+             C 340 280, 310 270, 290 286 
+             C 278 296, 266 304, 256 304 
+             C 224 304, 168 284, 168 256 
+             C 168 228, 224 208, 256 208 
+             C 266 208, 278 216, 290 226 
+             C 310 242, 340 232, 355 217 
+             C 330 182, 290 160, 256 160 Z" 
+          fill="url(#infiniteGrad1)" />
+
+    <!-- 右环 D（向右隆起，拥抱明日与伙伴，在中心立体交错） -->
+    <path d="M 256 160 
+             C 312 160, 392 195, 392 256 
+             C 392 317, 312 352, 256 352 
+             C 222 352, 182 330, 157 295 
+             C 172 280, 202 270, 222 286 
+             C 234 296, 246 304, 256 304 
+             C 288 304, 344 284, 344 256 
+             C 344 228, 288 208, 256 208 
+             C 246 208, 234 216, 222 226 
+             C 202 242, 172 232, 157 217 
+             C 182 182, 222 160, 256 160 Z" 
+          fill="url(#infiniteGrad2)" opacity="0.92" />
+
+    <!-- 顶部高光弧线（如同流光在跑道上奔驰） -->
+    <path d="M 150 220 C 180 180, 230 172, 256 172 C 282 172, 332 180, 362 220" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.65" />
+
+    <!-- 中心交汇处升起的微光心核（彼此照亮） -->
+    <circle cx="256" cy="256" r="28" fill="url(#centerHeartGlow)" stroke="#FFFFFF" stroke-width="3" />
+    <circle cx="256" cy="256" r="6" fill="#FFFFFF" />
+  </g>
+
+  <!-- 伴随生长的两枚小嫩叶（打破冷酷几何，融入有机的治愈温度） -->
+  <g transform="translate(390, 160) rotate(25)">
+    <path d="M 0 0 C 12 -22 36 -18 38 -2 C 26 6 8 3 0 0 Z" fill="#6AD8A3" stroke="#2B7A58" stroke-width="2" />
+    <circle cx="0" cy="0" r="3.5" fill="#FFA44A" />
+  </g>
+
+  <!-- 灵动微星 -->
+  <polygon points="100,140 103,147 110,150 103,153 100,160 97,153 90,150 97,147" fill="#FFA44A" opacity="0.8" />
+  <circle cx="420" cy="380" r="5" fill="#FFA44A" opacity="0.6" />
+</svg>

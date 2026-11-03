@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 背景：温润柔和的奶油浅驼底 -->
+    <linearGradient id="bgGrad7" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFDF9" />
+      <stop offset="60%" stop-color="#FAF1E6" />
+      <stop offset="100%" stop-color="#EEDAC5" />
+    </linearGradient>
+
+    <!-- 沙漏木质端盖渐变 -->
+    <linearGradient id="woodGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#B87D52" />
+      <stop offset="50%" stop-color="#93603F" />
+      <stop offset="100%" stop-color="#734526" />
+    </linearGradient>
+
+    <!-- 金沙落粒渐变 -->
+    <linearGradient id="goldSand" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFF2AA" />
+      <stop offset="50%" stop-color="#FFBD4A" />
+      <stop offset="100%" stop-color="#EA7A24" />
+    </linearGradient>
+
+    <!-- 底部萌芽渐变 -->
+    <linearGradient id="sproutGrad7" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#2D7A58" />
+      <stop offset="60%" stop-color="#55BA8B" />
+      <stop offset="100%" stop-color="#8FE7B9" />
+    </linearGradient>
+
+    <filter id="hourglassShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#7A4E2C" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- 图标底板 -->
+  <rect width="512" height="512" rx="116" fill="url(#bgGrad7)" />
+  <rect width="504" height="504" x="4" y="4" rx="112" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.9" />
+  <rect width="512" height="512" rx="116" fill="none" stroke="#DEC1A6" stroke-width="2" stroke-opacity="0.6" />
+
+  <!-- 主体沙漏 -->
+  <g filter="url(#hourglassShadow)">
+    <!-- 顶部木座 -->
+    <rect x="156" y="80" width="200" height="26" rx="13" fill="url(#woodGrad)" />
+    <!-- 底部木座 -->
+    <rect x="156" y="406" width="200" height="26" rx="13" fill="url(#woodGrad)" />
+
+    <!-- 玻璃双球主体（柔润连贯曲率） -->
+    <path d="M 180 106 
+             C 180 180, 230 226, 246 256 
+             C 230 286, 180 332, 180 406 
+             L 332 406 
+             C 332 332, 282 286, 266 256 
+             C 282 226, 332 180, 332 106 Z" 
+          fill="#FFFFFF" fill-opacity="0.55" stroke="#CBB199" stroke-width="6" stroke-linejoin="round" />
+
+    <!-- 玻璃高光反光弧（左侧） -->
+    <path d="M 194 120 C 194 175, 230 215, 242 242" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.8" />
+    <path d="M 194 392 C 194 337, 230 297, 242 270" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.6" />
+
+    <!-- 上半截金沙（从满溢到缓缓流下） -->
+    <path d="M 194 130 C 205 180, 240 210, 252 250 L 260 250 C 272 210, 307 180, 318 130 Z" fill="url(#goldSand)" opacity="0.85" />
+
+    <!-- 正在下落的金色流沙细柱 -->
+    <line x1="256" y1="250" x2="256" y2="340" stroke="#FFA238" stroke-width="5" stroke-linecap="round" stroke-dasharray="8 6" />
+
+    <!-- 下半截：金沙化为土壤并孕育萌芽 -->
+    <!-- 土壤弧形底座 -->
+    <path d="M 192 400 C 205 355, 307 355, 320 400 Z" fill="#8C5C38" />
+    <path d="M 210 380 C 225 362, 287 362, 302 380 Z" fill="#DFA050" opacity="0.7" />
+
+    <!-- 破土而出的绿色生命（藤蔓嫩叶向上穿透） -->
+    <path d="M 256 365 C 254 320, 262 290, 258 266" fill="none" stroke="url(#sproutGrad7)" stroke-width="9" stroke-linecap="round" />
+    
+    <!-- 嫩芽分瓣 -->
+    <!-- 左叶 -->
+    <path d="M 256 295 C 235 275, 205 285, 210 305 C 220 315, 246 308, 256 295 Z" fill="#6AD8A3" />
+    <!-- 右叶 -->
+    <path d="M 258 275 C 280 255, 310 265, 305 285 C 295 295, 270 288, 258 275 Z" fill="#8FE7B9" />
+    <!-- 顶端小嫩尖 -->
+    <ellipse cx="258" cy="260" rx="6" ry="10" fill="#A8F5CD" />
+  </g>
+
+  <!-- 闪耀在沙漏两侧的时间星尘 -->
+  <polygon points="120,240 123,247 130,250 123,253 120,260 117,253 110,250 117,247" fill="#F5C95E" />
+  <polygon points="392,230 395,236 401,238 395,240 392,246 389,240 383,238 389,236" fill="#F5C95E" opacity="0.85" />
+  <circle cx="370" cy="180" r="4.5" fill="#FFA54A" opacity="0.7" />
+  <circle cx="140" cy="330" r="3.5" fill="#55BA8B" opacity="0.75" />
+</svg>

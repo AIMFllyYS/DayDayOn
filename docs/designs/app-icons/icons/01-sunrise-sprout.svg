@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 背景渐变：温暖透亮的晨曦奶油纸 -->
+    <linearGradient id="bgGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFDF9" />
+      <stop offset="50%" stop-color="#FFF6EC" />
+      <stop offset="100%" stop-color="#FCEAD6" />
+    </linearGradient>
+
+    <!-- 太阳晨光渐变 -->
+    <radialGradient id="sunGlow1" cx="50%" cy="50%" r="50%" fx="45%" fy="45%">
+      <stop offset="0%" stop-color="#FFDD78" />
+      <stop offset="50%" stop-color="#FFA24C" />
+      <stop offset="100%" stop-color="#EB6138" />
+    </radialGradient>
+
+    <!-- 太阳柔光漫射 -->
+    <radialGradient id="sunAura1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFAE54" stop-opacity="0.35" />
+      <stop offset="60%" stop-color="#FFAE54" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#FFAE54" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- 嫩芽主叶渐变 -->
+    <linearGradient id="leafGradLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8BE8B7" />
+      <stop offset="60%" stop-color="#55BA8B" />
+      <stop offset="100%" stop-color="#2D7A58" />
+    </linearGradient>
+
+    <!-- 嫩芽右叶渐变 -->
+    <linearGradient id="leafGradRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A5F0C8" />
+      <stop offset="50%" stop-color="#6ED1A1" />
+      <stop offset="100%" stop-color="#3D966E" />
+    </linearGradient>
+
+    <!-- 茎部渐变 -->
+    <linearGradient id="stemGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#55BA8B" />
+      <stop offset="100%" stop-color="#25694B" />
+    </linearGradient>
+
+    <!-- 柔和阴影滤镜 -->
+    <filter id="softShadow1" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#8C441E" flood-opacity="0.22" />
+    </filter>
+
+    <filter id="leafShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#1B4D36" flood-opacity="0.28" />
+    </filter>
+  </defs>
+
+  <!-- 图标基底（圆角连续曲率 116px，对应现代手机 App Icon 标准） -->
+  <rect width="512" height="512" rx="116" fill="url(#bgGrad1)" />
+  <rect width="504" height="504" x="4" y="4" rx="112" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.8" />
+  <rect width="512" height="512" rx="116" fill="none" stroke="#EAD5C1" stroke-width="2" stroke-opacity="0.6" />
+
+  <!-- 太阳背后的柔和晨曦光晕 -->
+  <circle cx="256" cy="245" r="170" fill="url(#sunAura1)" />
+
+  <!-- 晨阳主体 -->
+  <g filter="url(#softShadow1)">
+    <circle cx="256" cy="245" r="115" fill="url(#sunGlow1)" />
+    <!-- 太阳顶部有机高光圈 -->
+    <ellipse cx="230" cy="180" rx="60" ry="24" fill="#FFFFFF" opacity="0.3" transform="rotate(-15 230 180)" />
+  </g>
+
+  <!-- 地平线暖阳微弧线（大地晨醒） -->
+  <path d="M70 380 Q 256 348 442 380" fill="none" stroke="#DDB896" stroke-width="4" stroke-linecap="round" opacity="0.7" />
+
+  <!-- 新生嫩芽主体（破土向上，带来希望） -->
+  <g filter="url(#leafShadow)">
+    <!-- 嫩芽幼茎 -->
+    <path d="M256 395 C256 345 254 300 256 260" fill="none" stroke="url(#stemGrad)" stroke-width="14" stroke-linecap="round" />
+
+    <!-- 嫩芽主叶（左侧向上舒展，充满张力） -->
+    <path d="M256 280 C235 240 180 220 156 250 C138 274 162 318 214 316 C238 315 252 296 256 280 Z" fill="url(#leafGradLeft)" />
+    <!-- 左叶高光弧 -->
+    <path d="M236 270 C218 245 182 238 168 256 C160 268 172 290 200 292" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.45" />
+
+    <!-- 嫩芽次叶（右侧嫩俏回卷） -->
+    <path d="M256 265 C275 220 330 205 352 235 C370 260 348 300 300 298 C276 297 262 278 256 265 Z" fill="url(#leafGradRight)" />
+    <!-- 右叶高光弧 -->
+    <path d="M272 255 C288 230 324 222 338 240 C344 252 334 274 308 276" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.5" />
+
+    <!-- 朝露水滴（点睛之笔：凝聚一天的纯净精力） -->
+    <ellipse cx="258" cy="228" rx="10" ry="14" fill="#FFFFFF" opacity="0.9" />
+    <circle cx="256" cy="224" r="4" fill="#E4FBF0" />
+  </g>
+
+  <!-- 治愈手账小星芒（右上方晨星） -->
+  <path d="M382 120 Q394 135 408 138 Q394 141 382 156 Q370 141 356 138 Q370 135 382 120 Z" fill="#FFAF40" opacity="0.8" />
+  <circle cx="382" cy="138" r="3" fill="#FFFFFF" />
+  
+  <path d="M120 160 Q128 170 138 172 Q128 174 120 184 Q112 174 102 172 Q112 170 120 160 Z" fill="#FFAF40" opacity="0.5" />
+</svg>
