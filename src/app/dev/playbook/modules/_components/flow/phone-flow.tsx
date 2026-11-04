@@ -201,7 +201,7 @@ export function PhoneFlow({
 
           <div
             className={cn(
-              'flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3.5 pt-3',
+              'flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3.5 pt-3 [&>*]:shrink-0',
               agent !== 'none' && agentOpen ? 'pb-96' : 'pb-28',
             )}
           >

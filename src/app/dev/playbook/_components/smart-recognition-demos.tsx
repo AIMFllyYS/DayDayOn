@@ -357,16 +357,16 @@ export function SmartScannerLens({
 
         {/* 视窗内容 */}
         {isIdle ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-3 text-center">
+          <div className="flex flex-col items-center justify-center gap-2.5 pt-3 pb-5 text-center">
             <IconTile
               icon={effectiveMode === 'smart-capture' ? 'camera' : 'sparkles'}
               tone={activeTone}
               size="md"
             />
-            <p className="text-caption font-bold">
+            <p className="text-caption font-bold whitespace-nowrap">
               {effectiveMode === 'smart-capture'
-                ? '点击拍照或从右侧选择模拟样本开始扫描'
-                : '上传图片或 HTML / TXT 附件开始智能识别'}
+                ? '点击拍照，开始智能识别'
+                : '上传图片或附件，开始智能识别'}
             </p>
             <p className="text-tiny text-muted">未扫描出结果前，下方分区与表单不会提前暴露</p>
             <Button size="sm" variant="soft" icon="sparkles" onClick={onRescan}>
@@ -406,53 +406,60 @@ export function SmartScannerLens({
       </div>
 
       {/* 下方实时 1、2、3 步骤轨迹：始终展示 1、2、3 图标，进行到哪一步哪一步前面就转圈圈 */}
-      <ol className="bg-surface-sunken/60 flex min-w-0 flex-col gap-1.5 rounded-xl px-3 py-2">
-        {preset.scanSteps.map((step, idx) => {
-          const doneStep = phase === 'done' || (isScanning && idx < activeStepIdx)
-          const activeStep = isScanning && idx === activeStepIdx
-          return (
-            <li key={step} className="flex min-w-0 items-center gap-2">
-              {activeStep ? (
-                <Icon
-                  name="loader"
-                  size={14}
-                  strokeWidth={2.5}
-                  className="animate-spin-slow text-primary shrink-0"
-                />
-              ) : doneStep ? (
-                <Icon name="check" size={14} strokeWidth={2.5} className="text-success shrink-0" />
-              ) : (
-                <span className="size-3.5 shrink-0" aria-hidden />
-              )}
+      {!isIdle && (
+        <ol className="bg-surface-sunken/60 flex min-w-0 flex-col gap-1.5 rounded-xl px-3 py-2">
+          {preset.scanSteps.map((step, idx) => {
+            const doneStep = phase === 'done' || (isScanning && idx < activeStepIdx)
+            const activeStep = isScanning && idx === activeStepIdx
+            return (
+              <li key={step} className="flex min-w-0 items-center gap-2">
+                {activeStep ? (
+                  <Icon
+                    name="loader"
+                    size={14}
+                    strokeWidth={2.5}
+                    className="animate-spin-slow text-primary shrink-0"
+                  />
+                ) : doneStep ? (
+                  <Icon
+                    name="check"
+                    size={14}
+                    strokeWidth={2.5}
+                    className="text-success shrink-0"
+                  />
+                ) : (
+                  <span className="size-3.5 shrink-0" aria-hidden />
+                )}
 
-              <span
-                className={cn(
-                  'font-display text-tiny flex size-5 shrink-0 items-center justify-center rounded-full font-bold',
-                  doneStep
-                    ? 'bg-success-soft text-success-ink'
-                    : activeStep
-                      ? 'bg-primary-soft text-primary-ink ring-primary/30 ring-2'
-                      : 'bg-surface text-subtle',
-                )}
-              >
-                {idx + 1}
-              </span>
-              <span
-                className={cn(
-                  'text-tiny min-w-0 flex-1 truncate',
-                  activeStep
-                    ? 'text-primary-ink font-semibold'
-                    : doneStep
-                      ? 'text-foreground font-semibold'
-                      : 'text-muted',
-                )}
-              >
-                {step}
-              </span>
-            </li>
-          )
-        })}
-      </ol>
+                <span
+                  className={cn(
+                    'font-display text-tiny flex size-5 shrink-0 items-center justify-center rounded-full font-bold',
+                    doneStep
+                      ? 'bg-success-soft text-success-ink'
+                      : activeStep
+                        ? 'bg-primary-soft text-primary-ink ring-primary/30 ring-2'
+                        : 'bg-surface text-subtle',
+                  )}
+                >
+                  {idx + 1}
+                </span>
+                <span
+                  className={cn(
+                    'text-tiny min-w-0 flex-1 truncate',
+                    activeStep
+                      ? 'text-primary-ink font-semibold'
+                      : doneStep
+                        ? 'text-foreground font-semibold'
+                        : 'text-muted',
+                  )}
+                >
+                  {step}
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+      )}
     </div>
   )
 }
