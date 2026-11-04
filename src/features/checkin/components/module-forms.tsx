@@ -9,7 +9,8 @@ import { NumberField } from '@/components/ui/number-field'
 import { Rating, type RatingValue } from '@/components/ui/rating'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TimeRangeField } from '@/components/ui/time-range-field'
-import { buildSchema } from '@/features/goal/build-schema'
+import { toast } from '@/components/ui/toast'
+import { buildSchema, sanitizeCustomValues } from '@/features/goal/build-schema'
 import { SchemaForm } from '@/features/goal/components/schema-form'
 import { clearChangedErrors } from '@/features/goal/form-errors'
 import type { FieldValues } from '@/features/goal/schemas'
@@ -84,7 +85,9 @@ export function ExerciseForm({
     }
     return base
   })
-  const [category, setCategory] = useState<string | null>(aiEx?.category ?? null)
+  const [category, setCategory] = useState<string | null>(
+    aiEx?.category ?? (smartContext ? '跑步' : null),
+  )
   const [minutes, setMinutes] = useState<number | null>(aiEx?.durationMinutes ?? 30)
   const [intensity, setIntensity] = useState<Intensity>(aiEx?.intensity ?? 'moderate')
   const [note, setNote] = useState(aiEx?.note ?? '')
@@ -109,9 +112,9 @@ export function ExerciseForm({
         onSubmit({
           module: 'exercise',
           isMakeup,
-          category: category ?? '',
+          category: (category ?? '').trim() || (smartContext ? '跑步' : ''),
           intensity,
-          durationSeconds: Math.round((minutes ?? 0) * 60),
+          durationSeconds: Math.round((minutes ?? 30) * 60),
           note: noteOf(note),
           ...aiMeta,
         })
@@ -203,7 +206,7 @@ export function SleepForm({
   const [bed, setBed] = useState(aiSl?.bedTime ?? '23:00')
   const [wake, setWake] = useState(aiSl?.wakeTime ?? '07:00')
   const [quality, setQuality] = useState<RatingValue | null>(
-    (aiSl?.quality as RatingValue | undefined) ?? null,
+    (aiSl?.quality as RatingValue | undefined) ?? (smartContext ? 4 : null),
   )
   const [note, setNote] = useState(aiSl?.note ?? '')
   const [localError, setLocalError] = useState<string>()
@@ -232,8 +235,18 @@ export function SleepForm({
       className="min-w-0 gap-2.5"
       onFormSubmit={() => {
         const range = sleepRangeForDay(day, bed, wake, clock.timeZone, clock.dayStartHour)
-        if (!range) return setLocalError('入睡和起床时间不能一样')
-        if (quality === null) return setLocalError('给睡眠质量打个分吧')
+        if (!range) {
+          const msg = '入睡和起床时间不能一样'
+          setLocalError(msg)
+          toast.error(msg)
+          return
+        }
+        if (quality === null) {
+          const msg = '给睡眠质量打个分吧'
+          setLocalError(msg)
+          toast.error(msg)
+          return
+        }
         setLocalError(undefined)
         onSubmit({
           module: 'sleep',
@@ -299,8 +312,12 @@ export function StudyForm({
 }: ModuleFormProps) {
   const aiSt = smartContext?.draft.study
   const streamSt = streamedContext?.draft.study
-  const [what, setWhat] = useState(aiSt?.what ?? '')
-  const [minutes, setMinutes] = useState<number | null>(aiSt?.durationMinutes ?? null)
+  const [what, setWhat] = useState(
+    aiSt?.what ?? (smartContext ? smartContext.draft.summary.slice(0, 60) : ''),
+  )
+  const [minutes, setMinutes] = useState<number | null>(
+    aiSt?.durationMinutes ?? (smartContext ? 30 : null),
+  )
   const [note, setNote] = useState(aiSt?.note ?? '')
 
   const shownWhat = magicStreaming && streamSt ? streamSt.what : what
@@ -323,7 +340,7 @@ export function StudyForm({
         onSubmit({
           module: 'study',
           isMakeup,
-          what,
+          what: what.trim() || (smartContext ? '学习打卡' : ''),
           durationSeconds: minutes === null ? undefined : Math.round(minutes * 60),
           note: noteOf(note),
           ...aiMeta,
@@ -392,11 +409,18 @@ export function CustomForm({
   const fields = goal.fields ?? []
   const aiCu = smartContext?.draft.custom
   const streamCu = streamedContext?.draft.custom
-  const [values, setValues] = useState<FieldValues>(() => aiCu?.values ?? {})
+  const [values, setValues] = useState<FieldValues>(() =>
+    sanitizeCustomValues(fields, aiCu?.values, { fillRequiredDefaults: Boolean(smartContext) }),
+  )
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>()
-  const [note, setNote] = useState(aiCu?.note ?? '')
+  const [note, setNote] = useState(
+    aiCu?.note ?? (smartContext ? smartContext.draft.summary.slice(0, NOTE_MAX) : ''),
+  )
 
-  const shownValues = magicStreaming && streamCu ? streamCu.values : values
+  const shownValues =
+    magicStreaming && streamCu
+      ? sanitizeCustomValues(fields, streamCu.values, { fillRequiredDefaults: true })
+      : values
   const shownNote = magicStreaming && streamCu ? (streamCu.note ?? '') : note
 
   const aiMeta =
@@ -412,8 +436,18 @@ export function CustomForm({
       errors={errors}
       className="min-w-0 gap-2.5"
       onFormSubmit={() => {
-        const r = buildSchema(fields).safeParse(values)
-        if (!r.success) return setFieldErrors(z.flattenError(r.error).fieldErrors)
+        const sanitized = sanitizeCustomValues(fields, values, {
+          fillRequiredDefaults: Boolean(smartContext),
+        })
+        const r = buildSchema(fields).safeParse(sanitized)
+        if (!r.success) {
+          const flat = z.flattenError(r.error)
+          setFieldErrors(flat.fieldErrors)
+          const firstMsg =
+            flat.formErrors[0] ?? Object.values(flat.fieldErrors).flat().find(Boolean)
+          toast.error(firstMsg ?? '请先完成必填项后再确认记录')
+          return
+        }
         setFieldErrors(undefined)
         const clean = Object.fromEntries(
           Object.entries(r.data).filter(

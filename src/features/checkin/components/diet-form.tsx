@@ -56,9 +56,18 @@ export function DietForm({
           key: ++seq,
           name: it.name,
           portion: it.portion ?? '',
-          kcal: it.kcal === null ? '' : String(it.kcal),
+          kcal: it.kcal === null ? '' : String(Math.round(it.kcal)),
         }))
-      : [blankItem()],
+      : smartContext
+        ? [
+            {
+              key: ++seq,
+              name: smartContext.draft.summary.slice(0, 24) || '识别餐食',
+              portion: '1 份',
+              kcal: '',
+            },
+          ]
+        : [blankItem()],
   )
   const [note, setNote] = useState(aiDiet?.note ?? '')
 
@@ -105,9 +114,9 @@ export function DietForm({
               : {}),
             mealType: meal,
             items: items.map((i) => ({
-              name: i.name,
+              name: i.name.trim() || (isAi ? '识别餐食' : ''),
               portion: i.portion,
-              kcal: i.kcal.trim() === '' ? null : Number(i.kcal),
+              kcal: i.kcal.trim() === '' ? null : Math.round(Number(i.kcal)),
             })),
             note: note.trim() === '' ? null : note.trim(),
           })

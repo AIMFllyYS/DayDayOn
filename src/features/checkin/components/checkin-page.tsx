@@ -123,7 +123,11 @@ export function CheckinPage({
       onSubmit={submit}
       onAiConfirmed={aiConfirmed}
       toFormErrors={(e) => {
-        if (isApiError(e) && e.fields) return e.fields
+        if (isApiError(e) && e.fields) {
+          const firstMsg = Object.values(e.fields).flat().find(Boolean)
+          toast.error(firstMsg ?? errorMessage(e))
+          return e.fields
+        }
         toast.error(isApiError(e) ? errorMessage(e) : '出了点小状况，稍后再试试')
         return undefined
       }}
