@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Input } from '@/components/ui/field'
 import { Button } from '@/components/ui/button'
@@ -153,7 +153,7 @@ interface Data {
   note: string
 }
 
-const SNACK_TIMES = ['10:00', '15:30', '21:00']
+const DEFAULT_PINNED_TIMES = ['10:00', '15:30', '21:00']
 const DEFAULT_FAVS = ['糙米杂粮饭', '清蒸鲈鱼', '蒜蓉西兰花', '番茄炒蛋', '小冰淇淋', '红油牛肉面']
 
 function splitNames(text: string): string[] {
@@ -497,8 +497,8 @@ export function DietFlowSandbox() {
   const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0]!
   const [data, setData] = useState<Data>(SCENARIOS[0]!.data)
   const [favs, setFavs] = useState<string[]>(DEFAULT_FAVS)
-  const [sheet, setSheet] = useState<null | 'favs' | 'snack'>(null)
-  const [prevMeal, setPrevMeal] = useState<Meal>('lunch')
+  const [sheet, setSheet] = useState<null | 'favs'>(null)
+  const [pinnedTimes, setPinnedTimes] = useState<string[]>(DEFAULT_PINNED_TIMES)
   const [draftFav, setDraftFav] = useState('')
 
   const ds = parseDishes(data.text)
@@ -578,9 +578,15 @@ export function DietFlowSandbox() {
             filled: true,
             summary: data.snackTime,
             content: (
-              <TimeChips
+              <TimePicker
                 value={data.snackTime}
+                pinned={pinnedTimes}
                 onChange={(snackTime) => setData((d) => ({ ...d, snackTime }))}
+                onTogglePin={(t) =>
+                  setPinnedTimes((p) =>
+                    p.includes(t) ? p.filter((x) => x !== t) : [...p, t].sort(),
+                  )
+                }
               />
             ),
           },
@@ -613,20 +619,12 @@ export function DietFlowSandbox() {
     setData(SCENARIOS.find((s) => s.id === id)?.data ?? SCENARIOS[0]!.data)
   }
 
-  function pickMeal(meal: Meal) {
-    if (meal === 'snack') {
-      setPrevMeal(data.meal)
-      setSheet('snack')
-    }
-    setData((d) => ({ ...d, meal }))
-  }
-
   const selector = (
     <SegmentedControl
       size="sm"
       label="餐次"
       value={data.meal}
-      onValueChange={pickMeal}
+      onValueChange={(meal) => setData((d) => ({ ...d, meal }))}
       options={[
         { value: 'breakfast', label: '早餐' },
         { value: 'lunch', label: '午餐' },
@@ -637,39 +635,7 @@ export function DietFlowSandbox() {
   )
 
   const overlay =
-    sheet === 'snack' ? (
-      <div
-        className="bg-foreground/30 absolute inset-0 z-30 flex items-center justify-center px-6"
-        role="dialog"
-        aria-label="加餐时间"
-      >
-        <div className="bg-surface animate-fade-up flex w-full flex-col gap-3 rounded-xl p-4">
-          <div className="flex items-center gap-2">
-            <Icon name="clock" size={16} className="text-diet-ink" />
-            <span className="text-subhead font-bold">加餐时间</span>
-          </div>
-          <TimeChips
-            value={data.snackTime}
-            onChange={(snackTime) => setData((d) => ({ ...d, snackTime }))}
-          />
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              className="flex-1"
-              onClick={() => {
-                setData((d) => ({ ...d, meal: prevMeal }))
-                setSheet(null)
-              }}
-            >
-              取消
-            </Button>
-            <Button className="flex-1" onClick={() => setSheet(null)}>
-              确定
-            </Button>
-          </div>
-        </div>
-      </div>
-    ) : sheet === 'favs' ? (
+    sheet === 'favs' ? (
       <div
         className="bg-foreground/30 absolute inset-0 z-30 flex items-end"
         role="dialog"
@@ -757,25 +723,119 @@ export function DietFlowSandbox() {
   )
 }
 
-function TimeChips({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
+
+/** 右键（电脑）/ 长按（手机）触发 */
+function useLongPress(action: () => void) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clear = () => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = null
+  }
+  return {
+    onContextMenu: (e: MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      action()
+    },
+    onPointerDown: (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return
+      timer.current = setTimeout(action, 550)
+    },
+    onPointerUp: clear,
+    onPointerLeave: clear,
+  }
+}
+
+function PinChip({
+  time,
+  active,
+  onPick,
+  onToggle,
+}: {
+  time: string
+  active: boolean
+  onPick: () => void
+  onToggle: () => void
+}) {
+  const press = useLongPress(onToggle)
   return (
-    <div className="flex flex-wrap gap-1.5" role="group" aria-label="加餐时间">
-      {SNACK_TIMES.map((t) => (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onPick}
+      {...press}
+      className={cn(
+        'text-tiny min-h-7 shrink-0 rounded-full border px-3 font-semibold tabular-nums transition-colors',
+        active
+          ? 'border-diet bg-diet-soft text-diet-ink'
+          : 'border-border bg-surface-sunken text-muted hover:text-foreground',
+      )}
+    >
+      {time}
+    </button>
+  )
+}
+
+/** 加餐时间选择器：上面是固定的常用时间（右键 / 长按增删），下面是时、分两列滚动选择 */
+function TimePicker({
+  value,
+  pinned,
+  onChange,
+  onTogglePin,
+}: {
+  value: string
+  pinned: string[]
+  onChange: (v: string) => void
+  onTogglePin: (v: string) => void
+}) {
+  const [h, m] = value.split(':') as [string, string]
+  const pickerPress = useLongPress(() => onTogglePin(value))
+  const col = (items: string[], cur: string, pick: (v: string) => void, label: string) => (
+    <div
+      role="listbox"
+      aria-label={label}
+      className="flex h-28 flex-1 [scrollbar-width:none] flex-col gap-1 overflow-y-auto py-1 [&::-webkit-scrollbar]:hidden"
+    >
+      {items.map((it) => (
         <button
-          key={t}
+          key={it}
           type="button"
-          aria-pressed={value === t}
-          onClick={() => onChange(t)}
+          role="option"
+          aria-selected={it === cur}
+          onClick={() => pick(it)}
           className={cn(
-            'text-tiny min-h-9 rounded-full border px-4 font-semibold tabular-nums transition-colors',
-            value === t
-              ? 'border-diet bg-diet-soft text-diet-ink'
-              : 'border-border bg-surface-sunken text-muted hover:text-foreground',
+            'text-caption min-h-8 shrink-0 rounded-md font-semibold tabular-nums transition-colors',
+            it === cur ? 'bg-diet-soft text-diet-ink' : 'text-muted hover:text-foreground',
           )}
         >
-          {t}
+          {it}
         </button>
       ))}
+    </div>
+  )
+  return (
+    <div className="flex flex-col gap-2.5" role="group" aria-label="加餐时间">
+      <div
+        className="flex [scrollbar-width:none] gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+        aria-label="常用时间"
+      >
+        {pinned.map((t) => (
+          <PinChip
+            key={t}
+            time={t}
+            active={value === t}
+            onPick={() => onChange(t)}
+            onToggle={() => onTogglePin(t)}
+          />
+        ))}
+      </div>
+      <div className="bg-surface-sunken flex items-center gap-1 rounded-lg px-2" {...pickerPress}>
+        {col(HOURS, h, (v) => onChange(`${v}:${m}`), '时')}
+        <span className="text-subhead text-muted font-bold">:</span>
+        {col(MINUTES, m, (v) => onChange(`${h}:${v}`), '分')}
+      </div>
     </div>
   )
 }
