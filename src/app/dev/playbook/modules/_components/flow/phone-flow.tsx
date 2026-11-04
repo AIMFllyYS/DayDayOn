@@ -2,13 +2,15 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { Mascot } from '@/components/mascot/mascot'
+import { AgentTurn } from '@/features/agent/components/agent-turn'
+import type { AgentPart, AgentTurnView } from '@/features/agent/types'
 import { Badge, IconTile } from '@/components/ui/badge'
 import { Button, IconButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Icon, type IconName } from '@/components/ui/icon'
 import { ProgressRing } from '@/components/ui/progress'
 import { Stamp } from '@/components/ui/stamp'
-import { moduleMeta, softToneClass, type Tone } from '@/components/ui/tone'
+import { moduleMeta, softToneClass, type ModuleTone, type Tone } from '@/components/ui/tone'
 import { cn } from '@/lib/cn'
 import {
   CheckinModeTabs,
@@ -229,20 +231,18 @@ export function PhoneFlow({
           </div>
 
           {/* 固定在底部（不随内容滚动）：Agent 抽屉 + 玻璃拟态操作条 */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col gap-2 px-3 pb-3">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col">
             {agent !== 'none' && (
               <AgentDrawer
-                steps={steps}
-                stepIdx={stepIdx}
+                turn={buildAgentTurn(config.tone, steps, stepIdx, agent === 'done', verdict.detail)}
                 done={agent === 'done'}
                 open={agentOpen}
                 onToggle={() => setAgentOpen((v) => !v)}
                 folders={report.folders}
                 recognized={smart ? aiSummary : undefined}
-                verdict={verdict}
               />
             )}
-            <div className="border-border/60 bg-background/55 shadow-float pointer-events-auto rounded-2xl border p-2 backdrop-blur-md">
+            <div className="border-border/60 bg-background/55 pointer-events-auto rounded-t-lg border-t px-3.5 pt-2.5 pb-4 backdrop-blur-md">
               {!smart && agent === 'none' ? (
                 <Button
                   icon="sparkles"
@@ -390,102 +390,108 @@ const DEFAULT_AGENT_STEPS = [
   '生成分析结果与评分',
 ]
 
+/** 每个板块 Agent 会调用的工具（名字取自 features/agent/tool-meta.ts，图标和文案由 ActivityTrail 自动渲染） */
+const AGENT_TOOLS: Record<ModuleTone, string[]> = {
+  diet: ['estimateFoodNutrition', 'webSearch'],
+  exercise: ['lookupMet', 'calcExerciseKcal'],
+  sleep: ['getDaySummary', 'listCheckins'],
+  study: ['listCheckins', 'webSearch'],
+  custom: ['listGoals', 'draftCheckin'],
+}
+
+/** 把流程里的分析进度，翻译成路由里 Agent 原子组件吃的 AgentTurnView */
+function buildAgentTurn(
+  tone: ModuleTone,
+  steps: string[],
+  stepIdx: number,
+  done: boolean,
+  answer: string,
+): AgentTurnView {
+  const parts: AgentPart[] = [
+    { type: 'step-start' },
+    {
+      type: 'reasoning',
+      id: 'r1',
+      text: steps[0] ?? '',
+      state: done || stepIdx >= 1 ? 'done' : 'streaming',
+    },
+  ]
+  AGENT_TOOLS[tone].forEach((toolName, i) => {
+    if (!done && stepIdx < i + 1) return
+    const finished = done || stepIdx > i + 1
+    parts.push({
+      type: 'tool',
+      id: `t${i}`,
+      toolName,
+      state: finished ? 'output-available' : 'input-available',
+      summary: steps[i + 1],
+      durationMs: finished ? 400 + i * 300 : undefined,
+    })
+  })
+  if (done) parts.push({ type: 'text', id: 'a1', text: answer, state: 'done' })
+  return {
+    id: 'agent-flow',
+    status: done ? 'done' : 'streaming',
+    parts,
+    durationMs: (stepIdx + 1) * 600,
+  }
+}
+
 /**
- * Agent 分析抽屉：从底部圆角处向上弹出，默认展开，胶囊右侧的按钮可折叠 / 展开。
- * 里面是 Agent 的思考步骤（逐条流出），完成后给出各项分析结果与结论。
+ * Agent 分析抽屉：贴在底部操作条上方，圆角小；胶囊右侧的按钮可折叠 / 展开。
+ * 思考与工具调用直接复用路由里的 <AgentTurn>（团团头像 + 活动条 + 回答），完成后在下面追加各项分析结果。
  */
 function AgentDrawer({
-  steps,
-  stepIdx,
+  turn,
   done,
   open,
   onToggle,
   folders,
   recognized,
-  verdict,
 }: {
-  steps: string[]
-  stepIdx: number
+  turn: AgentTurnView
   done: boolean
   open: boolean
   onToggle: () => void
   folders: FolderSpec[]
   recognized?: string
-  verdict: Verdict
 }) {
-  const shown = done ? steps : steps.slice(0, Math.min(stepIdx + 1, steps.length))
   return (
-    <div
-      className="border-border bg-surface/90 shadow-float animate-fade-up pointer-events-auto rounded-3xl border backdrop-blur-md"
-      data-ann="playbook.modules.flow.agent"
-    >
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className="flex min-h-12 w-full items-center gap-2.5 px-3.5 text-left"
-      >
-        <span className="bg-primary-soft text-primary-ink grid size-7 shrink-0 place-items-center rounded-full">
-          <Icon
-            name={done ? 'sparkles' : 'loader'}
-            size={14}
-            className={cn(!done && 'animate-spin-slow')}
-          />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="text-caption font-bold">Agent 分析</span>
-          <span className="text-tiny text-muted">{done ? '分析完成' : '正在解析…'}</span>
-        </span>
-        <span className="bg-surface-sunken text-muted grid size-7 shrink-0 place-items-center rounded-full">
-          <Icon
-            name="chevron-down"
-            size={14}
-            className={cn('transition-transform duration-(--dur-base)', open && 'rotate-180')}
-          />
-        </span>
-      </button>
-      <Collapse open={open}>
-        <div className="flex max-h-64 flex-col gap-3 overflow-y-auto px-3.5 pb-3.5">
-          <ol className="flex flex-col gap-1.5">
-            {shown.map((s, i) => {
-              const finished = done || i < stepIdx
-              return (
-                <li key={s} className="text-tiny flex items-center gap-2">
-                  <Icon
-                    name={finished ? 'check' : 'loader'}
-                    size={12}
-                    className={cn(
-                      'shrink-0',
-                      finished ? 'text-success' : 'text-primary animate-spin-slow',
-                    )}
-                  />
-                  <span className={finished ? 'text-muted' : 'text-foreground font-semibold'}>
-                    {s}
-                  </span>
-                </li>
-              )
-            })}
-          </ol>
-          {done && (
-            <div className="border-border flex flex-col gap-2 border-t border-dashed pt-3">
-              {recognized && <ResultRow label="识别内容" value={recognized} />}
-              {folders.map((f) => (
-                <ResultRow key={f.id} label={f.title} value={f.headline} />
-              ))}
-              <p
-                className={cn(
-                  'text-tiny mt-1 rounded-xl px-3 py-2 font-semibold',
-                  verdict.passed
-                    ? 'bg-success-soft text-success-ink'
-                    : 'bg-warning-soft text-warning-ink',
-                )}
-              >
-                {verdict.detail}
-              </p>
-            </div>
-          )}
-        </div>
-      </Collapse>
+    <div className="pointer-events-auto px-3 pb-2" data-ann="playbook.modules.flow.agent">
+      <div className="border-border bg-surface/90 shadow-float animate-fade-up rounded-xl border backdrop-blur-md">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={onToggle}
+          className="flex min-h-11 w-full items-center gap-2.5 px-3.5 text-left"
+        >
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="text-caption font-bold">Agent 分析</span>
+            <span className="text-tiny text-muted">{done ? '分析完成' : '正在解析…'}</span>
+          </span>
+          <span className="bg-surface-sunken text-muted grid size-7 shrink-0 place-items-center rounded-full">
+            <Icon
+              name="chevron-down"
+              size={14}
+              className={cn('transition-transform duration-(--dur-base)', open && 'rotate-180')}
+            />
+          </span>
+        </button>
+        <Collapse open={open}>
+          <div className="max-h-64 overflow-y-auto px-3.5 pb-3.5">
+            <AgentTurn turn={turn}>
+              {done && (
+                <div className="border-border flex flex-col gap-2 border-t border-dashed pt-3">
+                  {recognized && <ResultRow label="识别内容" value={recognized} />}
+                  {folders.map((f) => (
+                    <ResultRow key={f.id} label={f.title} value={f.headline} />
+                  ))}
+                </div>
+              )}
+            </AgentTurn>
+          </div>
+        </Collapse>
+      </div>
     </div>
   )
 }
