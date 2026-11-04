@@ -28,9 +28,9 @@ export function Collapse({ open, children }: { open: boolean; children: ReactNod
 }
 
 /**
- * 文件夹卡片：顶部一个圆角标签，下面是圆角主体。
+ * 文件夹卡片：小圆角整体卡片，左上角是「图标块 + 小标题」，右侧徽章与展开箭头，结论一行写在标题下。
  * 折叠时主体只剩一行结论；展开后看明细（数值行、进度条、清单、嵌套的子文件夹）。
- * 嵌套的子文件夹（compact）去掉标签，用凹陷底，像文件夹里的文件。
+ * 嵌套的子文件夹（compact）用凹陷底、更小的圆角，像文件夹里的文件。
  */
 export function FolderCard({
   spec,
@@ -55,12 +55,24 @@ export function FolderCard({
       onClick={() => setOpen((v) => !v)}
       className={cn(
         'flex w-full min-w-0 items-center gap-2 text-left',
-        compact ? 'min-h-12 px-3 py-2' : 'min-h-14 px-3.5 py-2.5',
+        compact ? 'min-h-12 px-3 py-2' : 'min-h-14 px-3 py-2.5',
       )}
     >
-      {compact && <Icon name={spec.icon} size={16} className="text-muted shrink-0" />}
+      {compact ? (
+        <Icon name={spec.icon} size={16} className="text-muted shrink-0" />
+      ) : (
+        <span
+          className={cn('grid size-8 shrink-0 place-items-center rounded-md', softToneClass[tone])}
+        >
+          <Icon name={spec.icon} size={16} />
+        </span>
+      )}
       <span className="flex min-w-0 flex-1 flex-col">
-        {compact && <span className="text-caption truncate font-bold">{spec.title}</span>}
+        {compact ? (
+          <span className="text-caption truncate font-bold">{spec.title}</span>
+        ) : (
+          <span className="text-tiny text-muted font-semibold">{spec.title}</span>
+        )}
         <span
           className={cn(
             'leading-snug',
@@ -86,7 +98,7 @@ export function FolderCard({
 
   const body = (
     <Collapse open={open}>
-      <div className={cn('flex flex-col gap-3 pb-3.5', compact ? 'px-3' : 'px-3.5')}>
+      <div className={cn('flex flex-col gap-3 pb-3.5', compact ? 'px-3' : 'px-3')}>
         {spec.rows && spec.rows.length > 0 && (
           <ul className="flex flex-col gap-2.5">
             {spec.rows.map((r) => (
@@ -110,7 +122,7 @@ export function FolderCard({
   if (compact) {
     return (
       <div
-        className="bg-surface-sunken min-w-0 rounded-2xl"
+        className="bg-surface-sunken min-w-0 rounded-md"
         data-ann={`playbook.modules.flow.folder.${spec.id}`}
       >
         {header}
@@ -120,17 +132,8 @@ export function FolderCard({
   }
 
   return (
-    <section className="relative min-w-0 pt-7" data-ann={`playbook.modules.flow.folder.${spec.id}`}>
-      <span
-        className={cn(
-          'text-tiny absolute top-0 left-3.5 inline-flex h-8 items-center gap-1.5 rounded-t-2xl px-3.5 font-bold',
-          softToneClass[tone],
-        )}
-      >
-        <Icon name={spec.icon} size={14} />
-        {spec.title}
-      </span>
-      <div className="border-border bg-surface shadow-soft rounded-2xl border">
+    <section className="min-w-0" data-ann={`playbook.modules.flow.folder.${spec.id}`}>
+      <div className="border-border bg-surface shadow-soft rounded-lg border">
         {header}
         {body}
       </div>

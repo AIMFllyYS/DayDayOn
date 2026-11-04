@@ -230,7 +230,7 @@ export function PhoneFlow({
               ))
             )}
             {agent === 'done' && (
-              <div className="flex flex-col gap-1" data-ann="playbook.modules.flow.report-inline">
+              <div className="flex flex-col gap-2.5" data-ann="playbook.modules.flow.report-inline">
                 <ReportDivider />
                 {smart && <p className="text-tiny text-muted px-1 pb-1">识别内容：{aiSummary}</p>}
                 {report.folders.map((f, i) => (
@@ -298,7 +298,7 @@ export function PhoneFlow({
       {page === 'report' && (
         <>
           <PageBar title={report.title} onBack={back} />
-          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3.5 pb-6">
+          <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3.5 pb-6">
             <div
               className={cn(
                 'text-tiny mb-1 flex items-center gap-2 rounded-2xl px-3 py-2.5 font-semibold',
