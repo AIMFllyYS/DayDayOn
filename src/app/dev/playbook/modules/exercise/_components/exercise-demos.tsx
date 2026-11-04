@@ -17,6 +17,7 @@ import { softToneClass, type Tone } from '@/components/ui/tone'
 import type { Intensity } from '@/features/checkin/schemas'
 import { cn } from '@/lib/cn'
 import { PhoneFrame } from '../../../_components/device-frame'
+import { deckClass } from '../../_components/deck'
 import {
   CheckinModeTabs,
   SmartScannerLens,
@@ -186,7 +187,7 @@ export function ExerciseThresholdMatrix() {
       </div>
 
       {/* 每行 2 卡（md:grid-cols-2）展示 4 大品类分级有效阈值 */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={deckClass}>
         {(Object.values(EXERCISE_THRESHOLD_SPECS) as ExerciseCategoryThresholdSpec[]).map(
           (spec) => {
             const minMinAdjusted =
@@ -622,7 +623,7 @@ export function ExerciseVerdictCard({ scenario, compact = false, ann }: Exercise
 
 export function ExerciseVerdictComparisonMatrix() {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className={deckClass}>
       <ExerciseVerdictCard
         scenario={EXERCISE_VERDICT_SCENARIOS['run-valid']}
         ann="playbook.modules.exercise.verdict-a-pass"
@@ -743,8 +744,9 @@ export function ExerciseFullPageSandbox() {
       className="grid items-start gap-6 lg:grid-cols-[auto_minmax(0,1fr)]"
     >
       {/* 左侧：360px 手机外框完整「动一动」打卡页 */}
-      <div className="flex justify-center">
+      <div className="flex justify-center max-lg:order-2">
         <PhoneFrame
+          fluid
           label="手机 · /goals/exercise/checkin（动一动完整打卡页）"
           className="h-[780px]"
         >
@@ -1062,7 +1064,7 @@ export function ExerciseFullPageSandbox() {
           </div>
         </Card>
 
-        <Card variant="sunken" className="flex flex-col gap-2.5">
+        <Card variant="sunken" className="flex flex-col gap-2.5 max-lg:hidden">
           <h4 className="text-caption font-bold">为什么运动板块要按品类分级拦截「伪运动」？</h4>
           <ul className="text-tiny text-muted space-y-1.5 leading-relaxed">
             <li className="flex items-start gap-2">

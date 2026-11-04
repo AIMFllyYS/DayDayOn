@@ -406,7 +406,7 @@ export function SmartScannerLens({
       </div>
 
       {/* 下方实时 1、2、3 步骤轨迹：始终展示 1、2、3 图标，进行到哪一步哪一步前面就转圈圈 */}
-      <ol className="bg-surface-sunken/60 grid gap-1.5 rounded-xl px-3 py-2">
+      <ol className="bg-surface-sunken/60 flex min-w-0 flex-col gap-1.5 rounded-xl px-3 py-2">
         {preset.scanSteps.map((step, idx) => {
           const doneStep = phase === 'done' || (isScanning && idx < activeStepIdx)
           const activeStep = isScanning && idx === activeStepIdx
@@ -479,7 +479,7 @@ export function SmartModuleDetector({
     <div
       role="radiogroup"
       aria-label="识别出的打卡方向"
-      className="bg-surface-sunken animate-pop-in flex min-w-0 items-center gap-1 rounded-full p-1"
+      className="bg-surface-sunken animate-pop-in flex w-full min-w-0 items-center gap-1 overflow-hidden rounded-full p-1"
     >
       {moduleTones.map((m) => {
         const active = m === selectedModule
@@ -491,7 +491,7 @@ export function SmartModuleDetector({
             aria-checked={active}
             onClick={() => onSelectModule(m)}
             className={cn(
-              'text-tiny relative flex h-9 flex-1 items-center justify-center gap-1 overflow-hidden rounded-full px-1.5 font-semibold whitespace-nowrap transition-all duration-(--dur-fast) select-none active:scale-95',
+              'text-tiny relative flex h-8.5 min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-full px-1 font-semibold whitespace-nowrap transition-all duration-(--dur-fast) select-none active:scale-95',
               active
                 ? cn(softToneClass[m], 'shadow-soft font-bold')
                 : 'text-muted hover:text-foreground',
@@ -501,7 +501,7 @@ export function SmartModuleDetector({
               <span className="bg-sheen animate-shimmer pointer-events-none absolute inset-0" />
             )}
             <Icon name={moduleMeta[m].icon} size={13} className="relative shrink-0" />
-            <span className="relative">{moduleMeta[m].label}</span>
+            <span className="relative truncate">{moduleMeta[m].label}</span>
           </button>
         )
       })}
@@ -544,13 +544,14 @@ export function ExerciseSmartFill({
   const shownNote = magicStreaming ? sliceStr(init.note, noteProg) : note
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-2.5">
       <MagicFieldBlock stage={1} activeStage={magicStage} streaming={magicStreaming}>
-        <Field label="运动品类" htmlFor="smart-ex-cat" aside="AI 已识别">
+        <Field label="运动品类" htmlFor="smart-ex-cat" aside="AI 已识别" className="min-w-0 gap-1">
           <Input
             id="smart-ex-cat"
             value={shownCategory}
             onChange={(e) => setCategory(e.target.value)}
+            className="text-caption h-10 px-3"
           />
         </Field>
       </MagicFieldBlock>
@@ -558,11 +559,17 @@ export function ExerciseSmartFill({
         stage={2}
         activeStage={magicStage}
         streaming={magicStreaming}
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-2.5"
       >
-        <Field label="运动时长" htmlFor="smart-ex-min" aside={`约消耗 ${init.kcal} kcal`}>
+        <Field
+          label="运动时长"
+          htmlFor="smart-ex-min"
+          aside={`约消耗 ${init.kcal} kcal`}
+          className="min-w-0 gap-1"
+        >
           <NumberField
             id="smart-ex-min"
+            size="sm"
             value={shownMinutes}
             onValueChange={setMinutes}
             min={1}
@@ -571,9 +578,10 @@ export function ExerciseSmartFill({
             unit="分钟"
           />
         </Field>
-        <div className="flex min-w-0 flex-col gap-1.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="text-caption font-semibold">运动强度</span>
           <SegmentedControl
+            size="sm"
             label="运动强度"
             value={intensity}
             onValueChange={setIntensity}
@@ -586,13 +594,19 @@ export function ExerciseSmartFill({
         </div>
       </MagicFieldBlock>
       <MagicFieldBlock stage={3} activeStage={magicStage} streaming={magicStreaming}>
-        <Field label="备注" htmlFor="smart-ex-note" aside="可微调">
-          <Input id="smart-ex-note" value={shownNote} onChange={(e) => setNote(e.target.value)} />
+        <Field label="备注" htmlFor="smart-ex-note" aside="可微调" className="min-w-0 gap-1">
+          <Input
+            id="smart-ex-note"
+            value={shownNote}
+            onChange={(e) => setNote(e.target.value)}
+            className="text-caption h-10 px-3"
+          />
         </Field>
       </MagicFieldBlock>
       <Button
+        size="sm"
         icon="check"
-        className="w-full"
+        className="h-10 w-full"
         onClick={() => onConfirm(`运动打卡：${category} ${minutes ?? 0} 分钟`)}
       >
         确认记录到「动一动」
@@ -626,7 +640,7 @@ export function DietSmartFill({
   const totalKcal = shownItems.reduce((acc, i) => acc + i.kcal, 0)
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-2.5">
       <SegmentedControl
         size="sm"
         label="餐次"
@@ -640,11 +654,11 @@ export function DietSmartFill({
         ]}
       />
       <MagicFieldBlock stage={1} activeStage={magicStage} streaming={magicStreaming}>
-        <div className="bg-surface-sunken divide-border divide-y rounded-2xl px-3.5 py-1">
+        <div className="bg-surface-sunken divide-border divide-y rounded-2xl px-3 py-0.5">
           {shownItems.map((item, idx) => (
             <div
               key={idx}
-              className="animate-fade-up flex min-w-0 items-center justify-between gap-2 py-2.5"
+              className="animate-fade-up flex min-w-0 items-center justify-between gap-2 py-2"
             >
               <div className="min-w-0 flex-1">
                 <input
@@ -655,11 +669,11 @@ export function DietSmartFill({
                     )
                   }
                   aria-label={`第 ${idx + 1} 项食物名称`}
-                  className="text-body w-full min-w-0 truncate bg-transparent font-semibold outline-none"
+                  className="text-caption w-full min-w-0 truncate bg-transparent font-semibold outline-none"
                 />
                 <span className="text-tiny text-muted block truncate">{item.portion}</span>
               </div>
-              <span className="font-display text-diet-ink bg-diet-soft text-tiny shrink-0 rounded-full px-2.5 py-0.5 font-semibold tabular-nums">
+              <span className="font-display text-diet-ink bg-diet-soft text-tiny shrink-0 rounded-full px-2 py-0.5 font-semibold tabular-nums">
                 {item.kcal} kcal
               </span>
             </div>
@@ -671,8 +685,9 @@ export function DietSmartFill({
         <span className="font-display text-foreground font-semibold">合计约 {totalKcal} kcal</span>
       </p>
       <Button
+        size="sm"
         icon="check"
-        className="w-full"
+        className="h-10 w-full"
         onClick={() =>
           onConfirm(`饮食打卡：${items.map((i) => i.name).join('、')}（${totalKcal} kcal）`)
         }
@@ -704,7 +719,7 @@ export function SleepSmartFill({
   const shownNote = magicStreaming ? sliceStr(init.note, noteProg) : note
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-2.5">
       <MagicFieldBlock stage={1} activeStage={magicStage} streaming={magicStreaming}>
         <TimeRangeField
           label="入睡与起床时刻"
@@ -716,19 +731,25 @@ export function SleepSmartFill({
         />
       </MagicFieldBlock>
       <MagicFieldBlock stage={2} activeStage={magicStage} streaming={magicStreaming}>
-        <div className="flex min-w-0 flex-col gap-1.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="text-caption font-semibold">睡眠质量</span>
           <Rating value={shownQuality} onValueChange={setQuality} tone="sleep" label="睡眠质量" />
         </div>
       </MagicFieldBlock>
       <MagicFieldBlock stage={3} activeStage={magicStage} streaming={magicStreaming}>
-        <Field label="睡眠备注" htmlFor="smart-sl-note" aside="可微调">
-          <Input id="smart-sl-note" value={shownNote} onChange={(e) => setNote(e.target.value)} />
+        <Field label="睡眠备注" htmlFor="smart-sl-note" aside="可微调" className="min-w-0 gap-1">
+          <Input
+            id="smart-sl-note"
+            value={shownNote}
+            onChange={(e) => setNote(e.target.value)}
+            className="text-caption h-10 px-3"
+          />
         </Field>
       </MagicFieldBlock>
       <Button
+        size="sm"
         icon="check"
-        className="w-full"
+        className="h-10 w-full"
         onClick={() => onConfirm(`睡眠打卡：${bed} → ${wake}（质量 ${quality ?? 4}/5）`)}
       >
         确认记录到「早点睡」
@@ -757,16 +778,22 @@ export function StudySmartFill({
   const shownNote = magicStreaming ? sliceStr(init.note, noteProg) : note
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-2.5">
       <MagicFieldBlock stage={1} activeStage={magicStage} streaming={magicStreaming}>
-        <Field label="学了什么" htmlFor="smart-st-what" aside="AI 提炼">
-          <Input id="smart-st-what" value={shownWhat} onChange={(e) => setWhat(e.target.value)} />
+        <Field label="学了什么" htmlFor="smart-st-what" aside="AI 提炼" className="min-w-0 gap-1">
+          <Input
+            id="smart-st-what"
+            value={shownWhat}
+            onChange={(e) => setWhat(e.target.value)}
+            className="text-caption h-10 px-3"
+          />
         </Field>
       </MagicFieldBlock>
       <MagicFieldBlock stage={2} activeStage={magicStage} streaming={magicStreaming}>
-        <Field label="专注时长" htmlFor="smart-st-min">
+        <Field label="专注时长" htmlFor="smart-st-min" className="min-w-0 gap-1">
           <NumberField
             id="smart-st-min"
+            size="sm"
             value={shownMinutes}
             onValueChange={setMinutes}
             min={1}
@@ -777,18 +804,20 @@ export function StudySmartFill({
         </Field>
       </MagicFieldBlock>
       <MagicFieldBlock stage={3} activeStage={magicStage} streaming={magicStreaming}>
-        <Field label="要点摘录" htmlFor="smart-st-note" aside="可微调">
+        <Field label="要点摘录" htmlFor="smart-st-note" aside="可微调" className="min-w-0 gap-1">
           <Textarea
             id="smart-st-note"
             rows={2}
             value={shownNote}
             onChange={(e) => setNote(e.target.value)}
+            className="text-caption min-h-16 px-3 py-2"
           />
         </Field>
       </MagicFieldBlock>
       <Button
+        size="sm"
         icon="check"
-        className="w-full"
+        className="h-10 w-full"
         onClick={() => onConfirm(`学习打卡：${what}（${minutes ?? 0} 分钟）`)}
       >
         确认记录到「学一点」
@@ -814,15 +843,18 @@ export function CustomSmartFill({
   const shownNote = magicStreaming ? sliceStr(init.moodNote, noteProg) : moodNote
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-2.5">
       <div className="bg-custom-soft/50 text-custom-ink flex min-w-0 items-center justify-between gap-2 rounded-xl px-3 py-2">
         <span className="text-caption min-w-0 truncate font-semibold">{init.habitName}</span>
-        <Badge tone="custom">动态字段</Badge>
+        <Badge tone="custom" className="shrink-0">
+          动态字段
+        </Badge>
       </div>
       <MagicFieldBlock stage={1} activeStage={magicStage} streaming={magicStreaming}>
-        <Field label="今日完成数量" htmlFor="smart-cu-cups">
+        <Field label="今日完成数量" htmlFor="smart-cu-cups" className="min-w-0 gap-1">
           <NumberField
             id="smart-cu-cups"
+            size="sm"
             value={shownCups}
             onValueChange={setCups}
             min={1}
@@ -833,17 +865,24 @@ export function CustomSmartFill({
         </Field>
       </MagicFieldBlock>
       <MagicFieldBlock stage={3} activeStage={magicStage} streaming={magicStreaming}>
-        <Field label="习惯打卡心得" htmlFor="smart-cu-note" aside="可微调">
+        <Field
+          label="习惯打卡心得"
+          htmlFor="smart-cu-note"
+          aside="可微调"
+          className="min-w-0 gap-1"
+        >
           <Input
             id="smart-cu-note"
             value={shownNote}
             onChange={(e) => setMoodNote(e.target.value)}
+            className="text-caption h-10 px-3"
           />
         </Field>
       </MagicFieldBlock>
       <Button
+        size="sm"
         icon="check"
-        className="w-full"
+        className="h-10 w-full"
         onClick={() => onConfirm(`自定义打卡：${init.habitName} · ${cups ?? 0} 杯`)}
       >
         确认记录到「我的小目标」

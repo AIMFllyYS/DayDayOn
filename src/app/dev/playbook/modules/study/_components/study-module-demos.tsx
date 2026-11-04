@@ -15,6 +15,7 @@ import { Stamp } from '@/components/ui/stamp'
 import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/cn'
 import { PhoneFrame } from '../../../_components/device-frame'
+import { deckClass } from '../../_components/deck'
 import {
   CheckinModeTabs,
   SmartScannerLens,
@@ -104,7 +105,7 @@ export function StudyDualMechanismDemo() {
   const [minFocus, setMinFocus] = useState<MinFocusOption>('25')
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className={deckClass}>
       {/* 左卡：机制 01 · 最低专注时长门槛（番茄钟防糊弄） */}
       <Card
         data-ann="playbook.modules.study.mechanism.pomodoro"
@@ -255,7 +256,7 @@ export function StudyDualMechanismDemo() {
 
 export function StudyRefereeComparisonMatrix() {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className={deckClass}>
       {/* 场景 A：上传二叉树笔记 HTML · 专注 45 分钟 · 有效打卡 */}
       <Card
         data-ann="playbook.modules.study.verdict.valid"
@@ -578,8 +579,11 @@ export function StudyModulePhoneSandbox() {
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[auto_minmax(0,1fr)]">
       {/* 左侧：360px 真实手机外框 */}
-      <div className="flex justify-center" data-ann="playbook.modules.study.sandbox.phone">
-        <PhoneFrame label="手机 · /goals/study/checkin（学一点专页）" className="h-[760px]">
+      <div
+        className="flex justify-center max-lg:order-2"
+        data-ann="playbook.modules.study.sandbox.phone"
+      >
+        <PhoneFrame fluid label="手机 · /goals/study/checkin（学一点专页）" className="h-[760px]">
           <div className="flex h-full flex-col overflow-hidden">
             <TopBar
               sticky={false}
@@ -893,7 +897,7 @@ export function StudyModulePhoneSandbox() {
           </div>
         </Card>
 
-        <Card variant="sunken" className="flex flex-col gap-2">
+        <Card variant="sunken" className="flex flex-col gap-2 max-lg:hidden">
           <p className="text-caption font-bold">学一点板块设计要点</p>
           <ul className="text-tiny text-muted space-y-1.5 leading-relaxed">
             <li>

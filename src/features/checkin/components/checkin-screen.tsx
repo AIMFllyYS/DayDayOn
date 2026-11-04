@@ -12,6 +12,7 @@ import { Rating, type RatingValue } from '@/components/ui/rating'
 import { Stamp } from '@/components/ui/stamp'
 import { Switch } from '@/components/ui/switch'
 import { moduleMeta } from '@/components/ui/tone'
+import { cn } from '@/lib/cn'
 import { addDays, formatLocalDateLabel } from '@/lib/time'
 import { progressText, targetText } from '../format'
 import type { Checkin, CreateCheckinInput, DietMethod, GoalProgress } from '../schemas'
@@ -164,16 +165,18 @@ export function CheckinScreen(props: CheckinScreenProps) {
   const showFormCard = !isSmartMode || smartPhase === 'done'
 
   return (
-    <div className="mx-auto grid w-full max-w-xl gap-3 pt-2 pb-8">
-      <div className="flex items-center gap-2.5">
-        <IconTile icon={moduleMeta[tone].icon} tone={tone} />
+    <div className="mx-auto flex w-full max-w-lg min-w-0 flex-col gap-2.5 pt-1.5 pb-6">
+      <div className="flex min-w-0 items-center gap-2">
+        <IconTile icon={moduleMeta[tone].icon} tone={tone} size="sm" />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{goal.title}</p>
-          <p className="text-tiny text-muted">
+          <p className="text-caption truncate font-bold">{goal.title}</p>
+          <p className="text-tiny text-muted truncate">
             {targetText(goal.target)} · 今天 {progressText(goal.target.kind, shownProgress)}
           </p>
         </div>
-        <Badge tone={tone}>{moduleMeta[tone].label}</Badge>
+        <Badge tone={tone} className="shrink-0">
+          {moduleMeta[tone].label}
+        </Badge>
       </div>
       <ProgressBar
         value={shownProgress.value}
@@ -192,12 +195,15 @@ export function CheckinScreen(props: CheckinScreenProps) {
         }}
       />
 
-      <Card variant="outline" className="flex items-center gap-3 py-2 md:py-2">
+      <Card
+        variant="outline"
+        className="flex min-w-0 items-center gap-3 px-3.5 py-2 md:px-4 md:py-2"
+      >
         <div className="min-w-0 flex-1">
           <p id="makeup-label" className="text-caption font-semibold">
             补昨天
           </p>
-          <p className="text-tiny text-muted">
+          <p className="text-tiny text-muted truncate">
             {isMakeup ? `记到 ${formatLocalDateLabel(day)}` : '昨天忘了记？打开后记到昨天'}
           </p>
         </div>
@@ -248,7 +254,10 @@ export function CheckinScreen(props: CheckinScreenProps) {
         <Card
           key={`${formKey}-${smartContext?.aiRunId ?? 'manual'}`}
           onPointerDown={() => magic.finishImmediately()}
-          className={isSmartMode ? 'animate-fade-up' : undefined}
+          className={cn(
+            'w-full min-w-0 overflow-hidden p-3.5 md:p-4',
+            isSmartMode && 'animate-fade-up',
+          )}
         >
           {goal.module === 'exercise' && <ExerciseForm {...formProps} />}
           {goal.module === 'diet' && (
@@ -264,8 +273,8 @@ export function CheckinScreen(props: CheckinScreenProps) {
         </Card>
       )}
 
-      <Card>
-        <p className="text-caption mb-2 font-semibold">这一项今天满意吗？</p>
+      <Card className="w-full min-w-0 p-3.5 md:p-4">
+        <p className="text-caption mb-1.5 font-semibold">这一项今天满意吗？</p>
         <Rating
           value={rating}
           onValueChange={onRate}

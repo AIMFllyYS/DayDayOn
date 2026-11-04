@@ -88,9 +88,9 @@ export function SmartCheckinScreen() {
       </div>
 
       {/* 主体：手机端单列纵向流，桌面端（@3xl）左右双栏 */}
-      <div className="grid items-start gap-4 @3xl:grid-cols-[370px_minmax(0,1fr)]">
+      <div className="grid min-w-0 grid-cols-1 items-start gap-3 @3xl:grid-cols-[360px_minmax(0,1fr)]">
         {/* 左栏：扫描镜取景器 + 组件 01 一行识别方向条 */}
-        <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-2.5">
           <SmartScannerLens
             preset={preset}
             phase={phase}
@@ -114,33 +114,31 @@ export function SmartCheckinScreen() {
         {phase === 'scanning' ? (
           <SmartPartitionSearchLoader />
         ) : phase === 'done' ? (
-          <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-2.5">
             <SmartMagicTurnBanner
               tone={selectedModule}
               summary={activePreset.summaryText ?? activePreset.visualTitle}
               streaming={false}
               magicStage={4}
             />
-            <Card className="animate-fade-up flex min-w-0 flex-col gap-3.5">
-              <div className="border-border flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-                <div className="flex min-w-0 items-center gap-2.5">
+            <Card className="animate-fade-up flex min-w-0 flex-col gap-2.5 overflow-hidden p-3.5 md:p-4">
+              <div className="border-border flex min-w-0 items-center justify-between gap-2 border-b pb-2.5">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
                   <IconTile
                     icon={moduleMeta[selectedModule].icon}
                     tone={selectedModule}
-                    size="md"
+                    size="sm"
                   />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-subhead truncate font-bold">
-                        {activePreset.goalTitle}
-                      </span>
-                      <Badge tone={selectedModule}>{moduleMeta[selectedModule].label}</Badge>
-                    </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-caption truncate font-bold">{activePreset.goalTitle}</p>
                     <p className="text-tiny text-muted truncate">
                       AI 已流式魔法填入识别数值，核对无误后点击底部确认即可入库
                     </p>
                   </div>
                 </div>
+                <Badge tone={selectedModule} className="shrink-0">
+                  {moduleMeta[selectedModule].label}
+                </Badge>
               </div>
 
               {stampedText ? (

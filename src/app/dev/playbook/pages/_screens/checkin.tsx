@@ -122,19 +122,21 @@ export function CheckinScreen() {
       </div>
 
       {/* 目标摘要头卡 + 全板块统一 Tab 栏（手动填写 | 智能拍照 | 智能上传） */}
-      <Card className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <IconTile icon={moduleMeta[activeModule].icon} tone={activeModule} size="md" />
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-heading font-bold">{preset.goalTitle}</h3>
-                <Badge tone={activeModule}>{moduleMeta[activeModule].label}</Badge>
+      <Card className="flex min-w-0 flex-col gap-2.5 p-3.5 md:p-4">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <IconTile icon={moduleMeta[activeModule].icon} tone={activeModule} size="sm" />
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <h3 className="text-caption truncate font-bold">{preset.goalTitle}</h3>
+                <Badge tone={activeModule} className="shrink-0">
+                  {moduleMeta[activeModule].label}
+                </Badge>
               </div>
-              <p className="text-tiny text-muted">{meta.progressText}</p>
+              <p className="text-tiny text-muted truncate">{meta.progressText}</p>
             </div>
           </div>
-          <Badge tone="primary" icon="flame">
+          <Badge tone="primary" icon="flame" className="shrink-0">
             连续 {meta.streak} 天
           </Badge>
         </div>
@@ -160,11 +162,15 @@ export function CheckinScreen() {
 
       {/* 根据 Tab 模式切换内容区：手机端单列，桌面端（@3xl）左右双栏 */}
       {inputMode === 'manual' ? (
-        <div className="grid items-start gap-4 @3xl:grid-cols-[minmax(0,1fr)_320px]">
-          <Card className="flex flex-col gap-3">
-            <div className="border-border flex items-center justify-between border-b pb-2.5">
-              <span className="text-caption font-bold">手动填写「{preset.goalTitle}」打卡数值</span>
-              <Badge tone="neutral">默认 Tab · 手动模式</Badge>
+        <div className="grid min-w-0 grid-cols-1 items-start gap-3 @3xl:grid-cols-[minmax(0,1fr)_320px]">
+          <Card className="flex min-w-0 flex-col gap-2.5 overflow-hidden p-3.5 md:p-4">
+            <div className="border-border flex min-w-0 items-center justify-between gap-2 border-b pb-2">
+              <span className="text-caption truncate font-bold">
+                手动填写「{preset.goalTitle}」打卡数值
+              </span>
+              <Badge tone="neutral" className="shrink-0">
+                默认 Tab · 手动模式
+              </Badge>
             </div>
             {stampedText ? (
               <div className="flex flex-col items-center gap-2 py-6 text-center">
@@ -214,12 +220,12 @@ export function CheckinScreen() {
           </Card>
         </div>
       ) : (
-        <div className="grid items-start gap-4 @3xl:grid-cols-[370px_minmax(0,1fr)]">
+        <div className="grid min-w-0 grid-cols-1 items-start gap-3 @3xl:grid-cols-[360px_minmax(0,1fr)]">
           {/* 左栏：直接挂载扫描镜（因为已知当前板块，无需挂载板块判别器！） */}
-          <div className="flex flex-col gap-3">
-            <div className="border-primary/20 bg-primary-soft/50 text-primary-ink text-tiny flex items-center gap-2 rounded-2xl border px-3.5 py-2.5">
-              <Icon name="sparkles" size={15} className="shrink-0" />
-              <span>
+          <div className="flex min-w-0 flex-col gap-2.5">
+            <div className="border-primary/20 bg-primary-soft/50 text-primary-ink text-tiny flex min-w-0 items-center gap-2 rounded-2xl border px-3 py-2">
+              <Icon name="sparkles" size={14} className="shrink-0" />
+              <span className="min-w-0 break-words">
                 当前已在
                 <strong>
                   「{moduleMeta[activeModule].label} · {preset.goalTitle}」
@@ -246,14 +252,14 @@ export function CheckinScreen() {
           </div>
 
           {/* 右栏：当前板块的专属填充子组件 */}
-          <Card className="flex flex-col gap-3">
-            <div className="border-border flex items-center justify-between border-b pb-2.5">
-              <div className="flex items-center gap-2">
-                <span className="text-caption font-bold">
+          <Card className="flex min-w-0 flex-col gap-2.5 overflow-hidden p-3.5 md:p-4">
+            <div className="border-border flex min-w-0 items-center justify-between gap-2 border-b pb-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="text-caption truncate font-bold">
                   AI 识别填充 · {moduleMeta[activeModule].label}SmartFill
                 </span>
               </div>
-              <Badge tone={activeModule} icon="sparkles">
+              <Badge tone={activeModule} icon="sparkles" className="shrink-0">
                 {inputMode === 'smart-capture' ? '智能拍照识别' : '智能上传识别'}
               </Badge>
             </div>

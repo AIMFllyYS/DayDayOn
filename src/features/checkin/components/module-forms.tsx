@@ -38,13 +38,15 @@ const intensityOptions = (['easy', 'moderate', 'hard'] as const).map((v) => ({
 
 function NoteField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <Field label="备注" htmlFor="checkin-note" name="note" aside="可选">
+    <Field label="备注" htmlFor="checkin-note" name="note" aside="可选" className="min-w-0 gap-1">
       <Textarea
         id="checkin-note"
+        rows={2}
         value={value}
         maxLength={NOTE_MAX}
         placeholder={NOTE_PLACEHOLDER}
         onChange={(e) => onChange(e.target.value)}
+        className="text-caption min-h-16 px-3 py-2"
       />
     </Field>
   )
@@ -54,7 +56,7 @@ const noteOf = (note: string) => (note.trim() === '' ? null : note.trim())
 
 function SubmitButton({ submitting }: { submitting: boolean }) {
   return (
-    <Button type="submit" icon="check" className="w-full" loading={submitting}>
+    <Button type="submit" size="sm" icon="check" className="h-10 w-full" loading={submitting}>
       确认记录
     </Button>
   )
@@ -102,6 +104,7 @@ export function ExerciseForm({
   return (
     <Form
       errors={errors}
+      className="min-w-0 gap-2.5"
       onFormSubmit={() =>
         onSubmit({
           module: 'exercise',
@@ -120,6 +123,7 @@ export function ExerciseForm({
           htmlFor="checkin-category"
           name="category"
           hint="没有合适的可以直接输入新建"
+          className="min-w-0 gap-1"
         >
           <Combobox
             id="checkin-category"
@@ -141,11 +145,18 @@ export function ExerciseForm({
         stage={2}
         activeStage={magicStage}
         streaming={magicStreaming}
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-2.5"
       >
-        <Field label="时长" htmlFor="checkin-minutes" name="durationSeconds" hint="1–600 分钟">
+        <Field
+          label="时长"
+          htmlFor="checkin-minutes"
+          name="durationSeconds"
+          hint="1–600 分钟"
+          className="min-w-0 gap-1"
+        >
           <NumberField
             id="checkin-minutes"
+            size="sm"
             value={shownMinutes}
             onValueChange={setMinutes}
             min={1}
@@ -154,13 +165,14 @@ export function ExerciseForm({
             unit="分钟"
           />
         </Field>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="text-caption font-semibold">强度</span>
           <SegmentedControl
             options={intensityOptions}
             value={intensity}
             onValueChange={setIntensity}
             label="强度"
+            size="sm"
           />
           <p className="text-tiny text-muted">消耗按 MET × 体重 × 时长估算，估算结果，非医疗建议</p>
         </div>
@@ -217,6 +229,7 @@ export function SleepForm({
   return (
     <Form
       errors={errors}
+      className="min-w-0 gap-2.5"
       onFormSubmit={() => {
         const range = sleepRangeForDay(day, bed, wake, clock.timeZone, clock.dayStartHour)
         if (!range) return setLocalError('入睡和起床时间不能一样')
@@ -252,7 +265,7 @@ export function SleepForm({
       </MagicFieldBlock>
 
       <MagicFieldBlock stage={2} activeStage={magicStage} streaming={magicStreaming}>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="text-caption font-semibold">睡眠质量</span>
           <Rating
             value={shownQuality}
@@ -305,6 +318,7 @@ export function StudyForm({
   return (
     <Form
       errors={errors}
+      className="min-w-0 gap-2.5"
       onFormSubmit={() =>
         onSubmit({
           module: 'study',
@@ -322,6 +336,7 @@ export function StudyForm({
           htmlFor="checkin-what"
           name="what"
           aside={`${shownWhat.length} / 60`}
+          className="min-w-0 gap-1"
         >
           <Input
             id="checkin-what"
@@ -329,14 +344,22 @@ export function StudyForm({
             maxLength={60}
             placeholder="例如：背了 30 个单词"
             onChange={(e) => setWhat(e.target.value)}
+            className="text-caption h-10 px-3"
           />
         </Field>
       </MagicFieldBlock>
 
       <MagicFieldBlock stage={2} activeStage={magicStage} streaming={magicStreaming}>
-        <Field label="时长" htmlFor="checkin-study-minutes" name="durationSeconds" aside="可选">
+        <Field
+          label="时长"
+          htmlFor="checkin-study-minutes"
+          name="durationSeconds"
+          aside="可选"
+          className="min-w-0 gap-1"
+        >
           <NumberField
             id="checkin-study-minutes"
+            size="sm"
             value={shownMinutes}
             onValueChange={setMinutes}
             min={1}
@@ -387,6 +410,7 @@ export function CustomForm({
   return (
     <Form
       errors={errors}
+      className="min-w-0 gap-2.5"
       onFormSubmit={() => {
         const r = buildSchema(fields).safeParse(values)
         if (!r.success) return setFieldErrors(z.flattenError(r.error).fieldErrors)

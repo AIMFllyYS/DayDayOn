@@ -15,6 +15,7 @@ import { softToneClass, solidToneClass, type Tone } from '@/components/ui/tone'
 import type { MealType } from '@/features/checkin/schemas'
 import { cn } from '@/lib/cn'
 import { PhoneFrame } from '../../../_components/device-frame'
+import { deckClass } from '../../_components/deck'
 import {
   CheckinModeTabs,
   SmartScannerLens,
@@ -550,7 +551,7 @@ export function DietConstitutionAndRuleSection() {
   const [tier, setTier] = useState<ConstitutionTierId>('strict-fat-loss')
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className={deckClass}>
       <PersonalConstitutionTierPicker
         value={tier}
         onValueChange={setTier}
@@ -846,7 +847,7 @@ export function DietRefereeScenariosMatrix() {
       </div>
 
       {/* 严格 md:grid-cols-2 每行 2 卡 */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={deckClass}>
         <DietRefereeScoreCard
           scenario={DIET_REFEREE_SCENARIOS['clean-lunch']}
           constitutionTier={tier}
@@ -900,8 +901,12 @@ export function DietFullPageSandbox() {
       className="grid items-start gap-6 lg:grid-cols-[auto_minmax(0,1fr)]"
     >
       {/* 左侧：360px 手机外框完整「好好吃饭」打卡页 */}
-      <div className="flex justify-center">
-        <PhoneFrame label="手机 · /goals/diet/checkin（好好吃饭完整打卡页）" className="h-[780px]">
+      <div className="flex justify-center max-lg:order-2">
+        <PhoneFrame
+          fluid
+          label="手机 · /goals/diet/checkin（好好吃饭完整打卡页）"
+          className="h-[780px]"
+        >
           <div className="flex h-full flex-col overflow-hidden">
             <TopBar
               sticky={false}
@@ -1153,7 +1158,7 @@ export function DietFullPageSandbox() {
           </div>
         </Card>
 
-        <Card variant="sunken" className="flex flex-col gap-2.5">
+        <Card variant="sunken" className="flex flex-col gap-2.5 max-lg:hidden">
           <h4 className="text-caption font-bold">为什么饮食打卡采用「5 分制 + 3.0 分有效线」？</h4>
           <ul className="text-tiny text-muted space-y-1.5 leading-relaxed">
             <li className="flex items-start gap-2">

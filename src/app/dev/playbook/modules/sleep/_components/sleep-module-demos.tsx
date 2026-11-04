@@ -16,6 +16,7 @@ import { formatSpanMinutes, TimeRangeField, timeRangeSpan } from '@/components/u
 import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/cn'
 import { PhoneFrame } from '../../../_components/device-frame'
+import { deckClass } from '../../_components/deck'
 import {
   CheckinModeTabs,
   SmartScannerLens,
@@ -132,7 +133,7 @@ export function SleepDualThresholdRulesDemo() {
   const [curfew, setCurfew] = useState<CurfewOption>('23:30')
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className={deckClass}>
       {/* 左卡：双门槛配置与科学依据 */}
       <Card
         data-ann="playbook.modules.sleep.threshold.config"
@@ -293,7 +294,7 @@ export function SleepDualThresholdRulesDemo() {
 
 export function SleepRefereeComparisonMatrix() {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className={deckClass}>
       {/* 场景 A：23:15 入睡 → 07:10 起床 · 有效打卡 */}
       <Card
         data-ann="playbook.modules.sleep.verdict.valid"
@@ -591,8 +592,11 @@ export function SleepModulePhoneSandbox() {
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[auto_minmax(0,1fr)]">
       {/* 左侧：360px 真实手机外框 */}
-      <div className="flex justify-center" data-ann="playbook.modules.sleep.sandbox.phone">
-        <PhoneFrame label="手机 · /goals/sleep/checkin（早点睡专页）" className="h-[760px]">
+      <div
+        className="flex justify-center max-lg:order-2"
+        data-ann="playbook.modules.sleep.sandbox.phone"
+      >
+        <PhoneFrame fluid label="手机 · /goals/sleep/checkin（早点睡专页）" className="h-[760px]">
           <div className="flex h-full flex-col overflow-hidden">
             <TopBar
               sticky={false}
@@ -881,7 +885,7 @@ export function SleepModulePhoneSandbox() {
           </div>
         </Card>
 
-        <Card variant="sunken" className="flex flex-col gap-2">
+        <Card variant="sunken" className="flex flex-col gap-2 max-lg:hidden">
           <p className="text-caption font-bold">睡眠板块页面核心构成</p>
           <ul className="text-tiny text-muted space-y-1.5 leading-relaxed">
             <li>

@@ -122,7 +122,13 @@ export function PlaybookNav() {
 
               {/* 桌面端树形子层级 + 手机端横向平铺子胶囊 */}
               {expanded && p.children && (
-                <ul className="border-border flex gap-1 md:ml-4 md:flex-col md:border-l md:pl-2.5">
+                // 手机上二级板块只在板块页内显示（页内有板块切换器），避免目录横滚越来越长
+                <ul
+                  className={cn(
+                    'border-border flex gap-1 md:ml-4 md:flex-col md:border-l md:pl-2.5',
+                    !inModules && 'max-md:hidden',
+                  )}
+                >
                   {p.children.map((child) => {
                     const childActive = pathname === child.href
                     return (

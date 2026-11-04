@@ -214,7 +214,7 @@ export function SmartCheckinPage({
   const showResultSection = scanPhase === 'done' || scanPhase === 'manual'
 
   return (
-    <div className="mx-auto grid w-full max-w-xl gap-3 pt-2 pb-8">
+    <div className="mx-auto flex w-full max-w-lg min-w-0 flex-col gap-2.5 pt-1.5 pb-6">
       {/* 1. 极简扫描镜 */}
       <SmartScannerLens
         mode={initialAction === 'upload' ? 'smart-upload' : 'smart-capture'}
@@ -259,7 +259,7 @@ export function SmartCheckinPage({
           )}
 
           {!activeGoal || !formProps ? (
-            <Card className="animate-fade-up">
+            <Card className="animate-fade-up w-full min-w-0 overflow-hidden p-3.5 md:p-4">
               <EmptyState
                 size="compact"
                 title={`还没有「${moduleMeta[selectedModule].label}」板块的目标`}
@@ -271,10 +271,10 @@ export function SmartCheckinPage({
             <Card
               key={`${activeGoal.id}-${smartContext?.aiRunId ?? 'init'}`}
               onPointerDown={() => magic.finishImmediately()}
-              className="animate-fade-up flex flex-col gap-3"
+              className="animate-fade-up flex w-full min-w-0 flex-col gap-2.5 overflow-hidden p-3.5 md:p-4"
             >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
                   <IconTile
                     icon={moduleMeta[selectedModule].icon}
                     tone={selectedModule}
@@ -282,13 +282,13 @@ export function SmartCheckinPage({
                   />
                   <div className="min-w-0 flex-1">
                     <p className="text-caption truncate font-bold">{activeGoal.title}</p>
-                    <p className="text-tiny text-muted">
+                    <p className="text-tiny text-muted truncate">
                       {targetText(activeGoal.target)} · 今天{' '}
                       {progressText(activeGoal.target.kind, progress)}
                     </p>
                   </div>
                 </div>
-                <Badge tone={selectedModule}>
+                <Badge tone={selectedModule} className="shrink-0">
                   {magic.isMagicStreaming
                     ? '魔法写入中…'
                     : smartContext
@@ -309,7 +309,7 @@ export function SmartCheckinPage({
                         aria-checked={isSelected}
                         onClick={() => setSelectedGoalId(g.id)}
                         className={cn(
-                          'text-tiny rounded-full px-3 py-1 font-semibold transition-colors',
+                          'text-tiny rounded-full px-2.5 py-1 font-semibold transition-colors',
                           isSelected
                             ? 'bg-primary-soft text-primary-ink font-bold'
                             : 'bg-surface-sunken text-muted hover:text-foreground',
@@ -337,8 +337,12 @@ export function SmartCheckinPage({
 
 function SmartCheckinSkeleton() {
   return (
-    <div role="status" aria-label="加载中" className="mx-auto grid w-full max-w-xl gap-3 pt-2">
-      <Skeleton className="h-56 w-full rounded-2xl" />
+    <div
+      role="status"
+      aria-label="加载中"
+      className="mx-auto flex w-full max-w-lg min-w-0 flex-col gap-2.5 pt-1.5"
+    >
+      <Skeleton className="h-52 w-full rounded-2xl" />
     </div>
   )
 }

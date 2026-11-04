@@ -79,7 +79,7 @@ export function DietForm({
       : items
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-2.5">
       <SegmentedControl
         options={mealOptions}
         value={meal}
@@ -90,6 +90,7 @@ export function DietForm({
 
       <Form
         errors={errors}
+        className="min-w-0 gap-2.5"
         onFormSubmit={() =>
           onSubmit({
             module: 'diet',
@@ -113,15 +114,15 @@ export function DietForm({
         }
       >
         <MagicFieldBlock stage={1} activeStage={magicStage} streaming={magicStreaming}>
-          <Card variant="sunken" className="flex flex-col gap-3">
+          <Card variant="sunken" className="flex min-w-0 flex-col gap-2.5 p-3 md:p-3.5">
             {shownItems.map((item, idx) => (
-              <div key={item.key} className="animate-fade-up flex flex-col gap-2">
-                <div className="flex items-end gap-2">
+              <div key={item.key} className="animate-fade-up flex min-w-0 flex-col gap-2">
+                <div className="flex min-w-0 items-end gap-2">
                   <Field
                     label={`第 ${idx + 1} 样`}
                     htmlFor={`food-${item.key}`}
                     name={`items.${idx}.name`}
-                    className="flex-1"
+                    className="min-w-0 flex-1 gap-1"
                   >
                     <Input
                       id={`food-${item.key}`}
@@ -129,24 +130,32 @@ export function DietForm({
                       maxLength={30}
                       placeholder="例如：番茄炒蛋"
                       onChange={(e) => update(item.key, { name: e.target.value })}
+                      className="text-caption h-10 px-3"
                     />
                   </Field>
                   {items.length > 1 && !magicStreaming && (
                     <IconButton
                       icon="trash"
+                      size="sm"
                       label={`删除第 ${idx + 1} 样`}
                       onClick={() => setItems((l) => l.filter((i) => i.key !== item.key))}
                     />
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="份量" htmlFor={`portion-${item.key}`} aside="可选">
+                <div className="grid min-w-0 grid-cols-2 gap-2">
+                  <Field
+                    label="份量"
+                    htmlFor={`portion-${item.key}`}
+                    aside="可选"
+                    className="min-w-0 gap-1"
+                  >
                     <Input
                       id={`portion-${item.key}`}
                       value={item.portion}
                       maxLength={30}
                       placeholder="一碗"
                       onChange={(e) => update(item.key, { portion: e.target.value })}
+                      className="text-caption h-10 px-3"
                     />
                   </Field>
                   <Field
@@ -154,6 +163,7 @@ export function DietForm({
                     htmlFor={`kcal-${item.key}`}
                     name={`items.${idx}.kcal`}
                     aside="可选"
+                    className="min-w-0 gap-1"
                   >
                     <Input
                       id={`kcal-${item.key}`}
@@ -164,6 +174,7 @@ export function DietForm({
                       onChange={(e) =>
                         update(item.key, { kcal: e.target.value.replace(/\D/g, '').slice(0, 4) })
                       }
+                      className="text-caption h-10 px-3"
                     />
                   </Field>
                 </div>
@@ -174,7 +185,7 @@ export function DietForm({
                 variant="ghost"
                 icon="plus"
                 size="sm"
-                className="self-start"
+                className="text-caption h-8 self-start px-2.5"
                 onClick={() => setItems((l) => [...l, blankItem()])}
               >
                 再加一样
@@ -184,17 +195,25 @@ export function DietForm({
         </MagicFieldBlock>
 
         <MagicFieldBlock stage={3} activeStage={magicStage} streaming={magicStreaming}>
-          <Field label="备注" htmlFor="checkin-note" name="note" aside="可选">
+          <Field
+            label="备注"
+            htmlFor="checkin-note"
+            name="note"
+            aside="可选"
+            className="min-w-0 gap-1"
+          >
             <Textarea
               id="checkin-note"
+              rows={2}
               value={shownNote}
               maxLength={NOTE_MAX}
               placeholder={NOTE_PLACEHOLDER}
               onChange={(e) => setNote(e.target.value)}
+              className="text-caption min-h-16 px-3 py-2"
             />
           </Field>
         </MagicFieldBlock>
-        <Button type="submit" icon="check" className="w-full" loading={submitting}>
+        <Button type="submit" size="sm" icon="check" className="h-10 w-full" loading={submitting}>
           确认记录
         </Button>
       </Form>

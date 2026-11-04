@@ -51,7 +51,7 @@ export function CheckinModeTabs({
     <div
       role="tablist"
       aria-label="打卡记录方式"
-      className="bg-surface-sunken grid grid-cols-3 gap-1 rounded-full p-1"
+      className="bg-surface-sunken grid w-full min-w-0 grid-cols-3 gap-1 overflow-hidden rounded-full p-1"
     >
       {modeTabOptions.map((tab) => {
         const active = tab.value === value
@@ -63,14 +63,14 @@ export function CheckinModeTabs({
             aria-selected={active}
             onClick={() => onValueChange(tab.value)}
             className={cn(
-              'text-caption flex h-9 min-w-0 items-center justify-center gap-1 rounded-full px-1.5 font-semibold whitespace-nowrap transition-all duration-(--dur-fast) select-none',
+              'text-tiny flex h-8.5 min-w-0 items-center justify-center gap-1 rounded-full px-1.5 font-semibold whitespace-nowrap transition-all duration-(--dur-fast) select-none',
               active
                 ? 'bg-surface text-primary-ink shadow-soft'
                 : 'text-muted hover:text-foreground',
             )}
           >
-            <Icon name={tab.icon} size={14} lineOnly={active} className="shrink-0" />
-            <span>{tab.label}</span>
+            <Icon name={tab.icon} size={13} lineOnly={active} className="shrink-0" />
+            <span className="truncate">{tab.label}</span>
           </button>
         )
       })}
@@ -93,7 +93,7 @@ export function SmartModuleDetector({
     <div
       role="radiogroup"
       aria-label="识别出的打卡方向"
-      className="bg-surface-sunken animate-pop-in flex min-w-0 items-center gap-1 rounded-full p-1"
+      className="bg-surface-sunken animate-pop-in flex w-full min-w-0 items-center gap-1 overflow-hidden rounded-full p-1"
     >
       {moduleTones.map((m) => {
         const active = m === selectedModule
@@ -105,7 +105,7 @@ export function SmartModuleDetector({
             aria-checked={active}
             onClick={() => onSelectModule(m)}
             className={cn(
-              'text-tiny relative flex h-9 flex-1 items-center justify-center gap-1 overflow-hidden rounded-full px-1.5 font-semibold whitespace-nowrap transition-all duration-(--dur-fast) select-none active:scale-95',
+              'text-tiny relative flex h-8.5 min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-full px-1 font-semibold whitespace-nowrap transition-all duration-(--dur-fast) select-none active:scale-95',
               active
                 ? cn(softToneClass[m], 'shadow-soft font-bold')
                 : 'text-muted hover:text-foreground',
@@ -115,7 +115,7 @@ export function SmartModuleDetector({
               <span className="bg-sheen animate-shimmer pointer-events-none absolute inset-0" />
             )}
             <Icon name={moduleMeta[m].icon} size={13} className="relative shrink-0" />
-            <span className="relative">{moduleMeta[m].label}</span>
+            <span className="relative truncate">{moduleMeta[m].label}</span>
           </button>
         )
       })}
@@ -329,7 +329,7 @@ export function SmartScannerLens({
       : '重新扫描'
 
   return (
-    <div className="border-border bg-surface shadow-soft flex min-w-0 flex-col gap-2.5 overflow-hidden rounded-2xl border p-3.5">
+    <div className="border-border bg-surface shadow-soft flex w-full min-w-0 flex-col gap-2.5 overflow-hidden rounded-2xl border p-3.5">
       <input
         ref={captureInputRef}
         type="file"
@@ -351,8 +351,8 @@ export function SmartScannerLens({
       />
 
       {/* 极简顶部栏：左状态 + 右唯一操作按钮 */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {isScanning ? (
             <Icon
               name="loader"
@@ -482,7 +482,7 @@ export function SmartScannerLens({
       )}
 
       {/* 下方实时 1、2、3 步骤轨迹：始终展示 1、2、3 序号图标，进行到哪一步哪一步前面就转圈圈 */}
-      <ol className="bg-surface-sunken/60 grid gap-1.5 rounded-xl px-3 py-2">
+      <ol className="bg-surface-sunken/60 flex min-w-0 flex-col gap-1.5 rounded-xl px-3 py-2">
         {steps.map((step, idx) => {
           const doneStep = Boolean(draft) || (isScanning && idx < activeStepIdx)
           const activeStep = isScanning && idx === activeStepIdx

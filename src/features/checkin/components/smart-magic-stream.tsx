@@ -224,11 +224,14 @@ export function SmartPartitionSearchLoader({
     <Card
       role="status"
       aria-live="polite"
-      className={cn('animate-fade-in flex flex-col gap-3 overflow-hidden', className)}
+      className={cn(
+        'animate-fade-in flex w-full min-w-0 flex-col gap-2.5 overflow-hidden p-3.5',
+        className,
+      )}
     >
       {/* 顶部搜索旋转动画行 */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <span className="relative flex size-6 shrink-0 items-center justify-center">
             <span className="bg-primary-soft absolute inset-0 animate-ping rounded-full [animation-duration:1.5s]" />
             <Icon
@@ -245,7 +248,7 @@ export function SmartPartitionSearchLoader({
             <ThinkingDots className="text-primary ml-1" />
           </span>
         </div>
-        <Badge tone={activeModule}>
+        <Badge tone={activeModule} className="shrink-0">
           <Icon name="search" size={12} className="mr-0.5 inline-block" />
           {knownModule ? moduleMeta[knownModule].label : `探测 · ${moduleMeta[activeModule].label}`}
         </Badge>
@@ -255,7 +258,7 @@ export function SmartPartitionSearchLoader({
       {!knownModule && (
         <div
           aria-hidden
-          className="bg-surface-sunken flex min-w-0 items-center gap-1 rounded-full p-1"
+          className="bg-surface-sunken flex w-full min-w-0 items-center gap-1 overflow-hidden rounded-full p-1"
         >
           {moduleTones.map((m, idx) => {
             const probing = idx === probeIndex
@@ -263,7 +266,7 @@ export function SmartPartitionSearchLoader({
               <div
                 key={m}
                 className={cn(
-                  'text-tiny relative flex h-8 flex-1 items-center justify-center gap-1 overflow-hidden rounded-full px-1.5 font-semibold whitespace-nowrap transition-all duration-(--dur-base)',
+                  'text-tiny relative flex h-8 min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-full px-1 font-semibold whitespace-nowrap transition-all duration-(--dur-base)',
                   probing ? cn(softToneClass[m], 'shadow-soft font-bold') : 'text-muted opacity-60',
                 )}
               >
@@ -280,7 +283,7 @@ export function SmartPartitionSearchLoader({
                 ) : (
                   <Icon name={moduleMeta[m].icon} size={12} className="relative shrink-0" />
                 )}
-                <span className="relative">{moduleMeta[m].label}</span>
+                <span className="relative truncate">{moduleMeta[m].label}</span>
               </div>
             )
           })}
@@ -288,22 +291,22 @@ export function SmartPartitionSearchLoader({
       )}
 
       {/* 下方懒加载搜索进度骨架行 */}
-      <div className="bg-surface-sunken/70 flex flex-col gap-2 rounded-xl p-3">
-        <div className="flex items-center gap-2">
+      <div className="bg-surface-sunken/70 flex min-w-0 flex-col gap-2 rounded-xl p-3">
+        <div className="flex min-w-0 items-center gap-2">
           <Icon
             name="loader"
             size={13}
             strokeWidth={2.4}
             className="animate-spin-slow text-primary shrink-0"
           />
-          <span className="text-tiny text-foreground font-semibold">
+          <span className="text-tiny text-foreground truncate font-semibold">
             正在比对进行中的目标与计量单位…
           </span>
         </div>
         <div className="bg-shimmer animate-shimmer h-2.5 w-3/4 rounded-full" />
-        <div className="flex items-center gap-2 pt-0.5">
+        <div className="flex min-w-0 items-center gap-2 pt-0.5">
           <Icon name="sparkles" size={13} className="text-subtle shrink-0" />
-          <span className="text-tiny text-muted">识别完成后将开启流式魔法填表</span>
+          <span className="text-tiny text-muted truncate">识别完成后将开启流式魔法填表</span>
         </div>
       </div>
     </Card>
@@ -341,15 +344,15 @@ export function SmartMagicTurnBanner({
     <div
       aria-live="polite"
       className={cn(
-        'border-border bg-surface/90 shadow-soft animate-fade-up flex flex-col gap-2 rounded-2xl border p-3',
+        'border-border bg-surface/90 shadow-soft animate-fade-up flex w-full min-w-0 flex-col gap-2 overflow-hidden rounded-2xl border p-3',
         streaming && 'border-primary/35 ring-primary/15 ring-2',
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className="bg-surface-sunken shrink-0 rounded-full p-0.5">
-            <MascotSvg mood={streaming ? 'thinking' : 'happy'} size={22} />
+            <MascotSvg mood={streaming ? 'thinking' : 'happy'} size={20} />
           </span>
           {streaming ? (
             <Icon
@@ -359,8 +362,8 @@ export function SmartMagicTurnBanner({
               className="animate-spin-slow text-primary shrink-0"
             />
           ) : (
-            <span className="bg-success-soft text-success-ink flex size-4.5 shrink-0 items-center justify-center rounded-full">
-              <Icon name="check" size={11} strokeWidth={2.6} />
+            <span className="bg-success-soft text-success-ink flex size-4 shrink-0 items-center justify-center rounded-full">
+              <Icon name="check" size={10} strokeWidth={2.6} />
             </span>
           )}
           <span className="text-tiny text-foreground truncate font-semibold">
@@ -368,7 +371,7 @@ export function SmartMagicTurnBanner({
             {streaming && <ThinkingDots className="text-primary ml-1" />}
           </span>
         </div>
-        <Badge tone={streaming ? 'primary' : tone} icon="sparkles">
+        <Badge tone={streaming ? 'primary' : tone} icon="sparkles" className="shrink-0">
           {streaming ? '魔法填充中' : '流式已完成'}
         </Badge>
       </div>
@@ -377,7 +380,7 @@ export function SmartMagicTurnBanner({
         <AnswerText
           text={summary}
           streaming={streaming}
-          className="bg-surface-sunken/70 w-full rounded-xl px-3 py-2 shadow-none"
+          className="bg-surface-sunken/70 text-tiny md:text-caption w-full max-w-full min-w-0 rounded-xl px-3 py-2 break-words shadow-none"
         />
       )}
     </div>
@@ -402,7 +405,7 @@ export function MagicFieldBlock({
   className?: string
 }) {
   if (!streaming || activeStage === undefined) {
-    return <div className={className}>{children}</div>
+    return <div className={cn('min-w-0', className)}>{children}</div>
   }
 
   const isWaiting = activeStage < stage
@@ -411,9 +414,9 @@ export function MagicFieldBlock({
   return (
     <div
       className={cn(
-        'relative rounded-xl transition-all duration-(--dur-base)',
+        'relative min-w-0 rounded-xl transition-all duration-(--dur-base)',
         isWaiting && 'translate-y-1 opacity-45',
-        isCurrent && 'ring-primary/30 bg-primary-soft/20 -mx-1.5 px-1.5 py-1 ring-2',
+        isCurrent && 'ring-primary/30 bg-primary-soft/20 px-2 py-1.5 ring-2',
         className,
       )}
     >
