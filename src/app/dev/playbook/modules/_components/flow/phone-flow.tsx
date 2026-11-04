@@ -3,7 +3,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Mascot } from '@/components/mascot/mascot'
 import { AgentTurn } from '@/features/agent/components/agent-turn'
+import { PetAvatar } from '@/features/agent/components/pet-avatar'
 import type { AgentPart, AgentTurnView } from '@/features/agent/types'
+import { PET_SIZE } from '@/features/agent/use-pet-drag'
 import { Badge, IconTile } from '@/components/ui/badge'
 import { Button, IconButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -19,12 +21,11 @@ import {
   type ScanPhase,
 } from '../../../_components/smart-recognition-demos'
 import { FillSection } from './fill-section'
-import { Collapse, FolderCard } from './folder-card'
+import { FolderCard } from './folder-card'
 import type {
   DocPageSpec,
   FillSectionSpec,
   FlowMode,
-  FolderSpec,
   PhoneFlowConfig,
   ReportSpec,
   Verdict,
@@ -201,7 +202,7 @@ export function PhoneFlow({
           <div
             className={cn(
               'flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3.5 pt-3',
-              agent === 'none' ? 'pb-28' : agentOpen ? 'pb-96' : 'pb-48',
+              agent !== 'none' && agentOpen ? 'pb-96' : 'pb-28',
             )}
           >
             {smart ? (
@@ -228,6 +229,15 @@ export function PhoneFlow({
                 />
               ))
             )}
+            {agent === 'done' && (
+              <div className="flex flex-col gap-1" data-ann="playbook.modules.flow.report-inline">
+                <ReportDivider />
+                {smart && <p className="text-tiny text-muted px-1 pb-1">识别内容：{aiSummary}</p>}
+                {report.folders.map((f, i) => (
+                  <FolderCard key={f.id} spec={f} defaultOpen={i <= 1} />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 固定在底部（不随内容滚动）：Agent 抽屉 + 玻璃拟态操作条 */}
@@ -238,8 +248,6 @@ export function PhoneFlow({
                 done={agent === 'done'}
                 open={agentOpen}
                 onToggle={() => setAgentOpen((v) => !v)}
-                folders={report.folders}
-                recognized={smart ? aiSummary : undefined}
                 verdict={verdict}
               />
             )}
@@ -436,34 +444,63 @@ function buildAgentTurn(
   }
 }
 
+const STATIC_PET = {
+  position: { left: 0, top: 0, edge: 'none' as const },
+  swaying: false,
+  spinning: false,
+  peeking: false,
+  dragging: false,
+}
+
 /**
- * Agent 分析抽屉：贴在底部操作条上方，圆角小；胶囊右侧：状态小徽章 + 折叠 / 展开按钮。
- * 思考与工具调用复用路由里的 <AgentTurn>（整体 zoom 缩小一档以适配手机内宽度），
- * 完成后依次是：评分结论卡（绿 / 红）→ 各项分析结果。
+ * Agent 分析抽屉：贴在底部操作条上方，圆角小；头部右侧是状态徽章 + 折叠按钮。
+ * 折叠后缩成真实项目里的小宠物（PetAvatar），点它再展开。
+ * 思考与工具调用复用路由里的 <AgentTurn>（整体 zoom 缩小一档），完成后追加评分结论卡；
+ * 完整的分析报告在页面内容区里，不塞在抽屉里。
  */
 function AgentDrawer({
   turn,
   done,
   open,
   onToggle,
-  folders,
-  recognized,
   verdict,
 }: {
   turn: AgentTurnView
   done: boolean
   open: boolean
   onToggle: () => void
-  folders: FolderSpec[]
-  recognized?: string
   verdict: Verdict
 }) {
+  if (!open) {
+    return (
+      <div
+        className="pointer-events-auto flex justify-end px-3 pb-2"
+        data-ann="playbook.modules.flow.agent"
+      >
+        <button
+          type="button"
+          aria-label="展开 Agent 分析"
+          onClick={onToggle}
+          className="animate-fade-up relative active:scale-95"
+          style={{ width: PET_SIZE, height: PET_SIZE }}
+        >
+          <PetAvatar pet={STATIC_PET} size={PET_SIZE} />
+          <span
+            className={cn(
+              'ring-surface absolute top-0 right-0 size-3 rounded-full ring-2',
+              done ? 'bg-success' : 'bg-primary animate-pulse',
+            )}
+          />
+        </button>
+      </div>
+    )
+  }
   return (
     <div className="pointer-events-auto px-3 pb-2" data-ann="playbook.modules.flow.agent">
       <div className="border-border bg-surface/90 shadow-float animate-fade-up rounded-xl border backdrop-blur-md">
         <button
           type="button"
-          aria-expanded={open}
+          aria-expanded
           onClick={onToggle}
           className="flex min-h-12 w-full items-center gap-2 px-3.5 py-2.5 text-left"
         >
@@ -472,32 +509,27 @@ function AgentDrawer({
             {done ? '已完成' : '解析中'}
           </Badge>
           <span className="bg-surface-sunken text-muted grid size-7 shrink-0 place-items-center rounded-full">
-            <Icon
-              name="chevron-down"
-              size={14}
-              className={cn('transition-transform duration-(--dur-base)', open && 'rotate-180')}
-            />
+            <Icon name="chevron-down" size={14} />
           </span>
         </button>
-        <Collapse open={open}>
-          <div className="max-h-64 overflow-y-auto px-3.5 pb-3">
-            <div className="flex [zoom:0.88] flex-col gap-2.5">
-              <AgentTurn turn={turn} />
-              {done && (
-                <>
-                  <VerdictCard verdict={verdict} />
-                  <div className="flex flex-col gap-1.5">
-                    {recognized && <ResultRow label="识别内容" value={recognized} />}
-                    {folders.map((f) => (
-                      <ResultRow key={f.id} label={f.title} value={f.headline} />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+        <div className="max-h-64 overflow-y-auto px-3.5 pb-3">
+          <div className="flex [zoom:0.88] flex-col gap-2.5">
+            <AgentTurn turn={turn} />
+            {done && <VerdictCard verdict={verdict} />}
           </div>
-        </Collapse>
+        </div>
       </div>
+    </div>
+  )
+}
+
+/** 内容区里「备注」下面的分隔栏：两侧渐细的线 + 中间小标题，下面是完整的分析报告 */
+function ReportDivider() {
+  return (
+    <div className="flex items-center gap-2.5 py-2" aria-hidden>
+      <span className="bg-border h-[3px] flex-1 [clip-path:polygon(0_50%,100%_0,100%_100%)]" />
+      <span className="text-tiny text-muted font-bold">分析报告</span>
+      <span className="bg-border h-[3px] flex-1 [clip-path:polygon(0_0,100%_50%,0_100%)]" />
     </div>
   )
 }
@@ -535,15 +567,6 @@ function VerdictCard({ verdict }: { verdict: Verdict }) {
           )}
         </span>
       )}
-    </div>
-  )
-}
-
-function ResultRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span className="text-tiny text-muted shrink-0">{label}</span>
-      <span className="text-tiny text-right font-bold">{value}</span>
     </div>
   )
 }
