@@ -367,6 +367,7 @@ export function ExerciseFlowSandbox() {
         <PhoneFlow
           key={scenarioId}
           config={CONFIG}
+          contentMark={KIND_LABEL[data.kind].slice(0, 1)}
           selector={selector}
           sections={sections}
           aiSummary={`${KIND_LABEL[data.kind]} · ${data.minutes ?? 0} 分钟`}

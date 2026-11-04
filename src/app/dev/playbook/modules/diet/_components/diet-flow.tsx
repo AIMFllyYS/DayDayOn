@@ -516,6 +516,7 @@ export function DietFlowSandbox() {
         <PhoneFlow
           key={scenarioId}
           config={CONFIG}
+          contentMark={MEAL_LABEL[data.meal].slice(0, 1)}
           selector={selector}
           sections={sections}
           aiSummary={`${MEAL_LABEL[data.meal]} · ${ds.length} 道菜`}
