@@ -146,33 +146,37 @@ const CreateBase = {
     .max(NOTE_MAX, { error: `备注最多 ${NOTE_MAX} 个字` })
     .nullable()
     .optional(),
+  /** 数据来源：手动填写或 AI 智能识别草稿确认 */
+  source: CheckinSourceSchema.default('manual'),
+  /** source = 'ai' 时必填：识别接口返回的 aiRunId */
+  aiRunId: IdSchema.optional(),
+  /** AI 草稿的 summary，入库为 parsedText */
+  parsedText: z.string().max(500).optional(),
 }
 
-export const CreateExerciseCheckinSchema = z.object({
-  ...CreateBase,
-  module: z.literal('exercise'),
-  category: ExercisePayloadSchema.shape.category,
-  intensity: IntensitySchema,
-  durationSeconds: ExerciseDurationSchema,
-})
+const refineAiSource = <T extends { source: CheckinSource; aiRunId?: string }>(v: T) =>
+  (v.source === 'ai') === (v.aiRunId !== undefined)
+const aiSourceError = { error: 'AI 记录需要 aiRunId', path: ['aiRunId'] as PropertyKey[] }
+
+export const CreateExerciseCheckinSchema = z
+  .object({
+    ...CreateBase,
+    module: z.literal('exercise'),
+    category: ExercisePayloadSchema.shape.category,
+    intensity: IntensitySchema,
+    durationSeconds: ExerciseDurationSchema,
+  })
+  .refine(refineAiSource, aiSourceError)
 
 export const CreateDietCheckinSchema = z
   .object({
     ...CreateBase,
     module: z.literal('diet'),
-    source: CheckinSourceSchema.default('manual'),
-    /** source = 'ai' 时必填：识别接口返回的 aiRunId */
-    aiRunId: IdSchema.optional(),
-    /** AI 草稿的 summary，入库为 parsedText */
-    parsedText: z.string().max(500).optional(),
     method: DietMethodSchema,
     mealType: MealTypeSchema,
     items: DietItemsSchema,
   })
-  .refine((v) => (v.source === 'ai') === (v.aiRunId !== undefined), {
-    error: 'AI 记录需要 aiRunId',
-    path: ['aiRunId'],
-  })
+  .refine(refineAiSource, aiSourceError)
 
 export const CreateSleepCheckinSchema = z
   .object({
@@ -190,22 +194,27 @@ export const CreateSleepCheckinSchema = z
     },
     { error: '睡眠时长应在 30 分钟到 20 小时之间', path: ['wakeAt'] },
   )
+  .refine(refineAiSource, aiSourceError)
 
-export const CreateStudyCheckinSchema = z.object({
-  ...CreateBase,
-  module: z.literal('study'),
-  what: StudyPayloadSchema.shape.what,
-  /** 可选 */
-  durationSeconds: z.number().int().min(60).max(86_400).optional(),
-})
+export const CreateStudyCheckinSchema = z
+  .object({
+    ...CreateBase,
+    module: z.literal('study'),
+    what: StudyPayloadSchema.shape.what,
+    /** 可选 */
+    durationSeconds: z.number().int().min(60).max(86_400).optional(),
+  })
+  .refine(refineAiSource, aiSourceError)
 
-export const CreateCustomCheckinSchema = z.object({
-  ...CreateBase,
-  module: z.literal('custom'),
-  /** 提交时的字段版本；与当前版本不一致返回 400 */
-  fieldVersion: z.number().int().min(1),
-  values: z.record(z.string(), FieldValueSchema),
-})
+export const CreateCustomCheckinSchema = z
+  .object({
+    ...CreateBase,
+    module: z.literal('custom'),
+    /** 提交时的字段版本；与当前版本不一致返回 400 */
+    fieldVersion: z.number().int().min(1),
+    values: z.record(z.string(), FieldValueSchema),
+  })
+  .refine(refineAiSource, aiSourceError)
 
 export const CreateCheckinSchema = z
   .discriminatedUnion('module', [

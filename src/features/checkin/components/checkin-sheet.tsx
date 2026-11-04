@@ -12,6 +12,7 @@ import type { CheckinToday } from '../schemas'
 import { useCheckinLauncher, type CheckinLauncherView } from '../launcher-store'
 import { CheckinSheetList, type CheckinSheetListProps } from './checkin-sheet-list'
 import { MoodPanel } from './mood-panel'
+import { SmartActionBar } from './smart-action-bar'
 import { WeightPanel } from './weight-panel'
 
 /*
@@ -48,17 +49,9 @@ export function CheckinSheet({ open, view, onOpenChange }: CheckinSheetProps) {
           : undefined
 
   const footer =
-    view === 'list' && data?.dietPhotoGoalId ? (
-      <LinkButton
-        href={`/goals/${data.dietPhotoGoalId}/checkin?mode=photo`}
-        variant="soft"
-        icon="camera"
-        className="w-full"
-        onClick={close}
-      >
-        拍照记一餐
-      </LinkButton>
-    ) : view !== 'list' ? (
+    view === 'list' ? (
+      <SmartActionBar onNavigate={close} />
+    ) : (
       <Button
         variant="ghost"
         icon="chevron-left"
@@ -67,7 +60,7 @@ export function CheckinSheet({ open, view, onOpenChange }: CheckinSheetProps) {
       >
         返回打卡列表
       </Button>
-    ) : undefined
+    )
 
   return (
     <Sheet

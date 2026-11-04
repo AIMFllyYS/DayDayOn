@@ -119,40 +119,40 @@ export function WelcomeAiDemo() {
       id="ai"
       ann="welcome.ai"
       eyebrow="AI 帮你记"
-      title="拍一下，饭就记好了"
-      description="AI 看图估算食物和热量，结果先当草稿给你看，确认了才会记下。照片只在内存里看一眼，从不保存。"
+      title="智能拍照或上传，一下就记好"
+      description="AI 自动看图或读取附件生成草稿，你确认后才会记下。图片只在内存里看一眼，从不保存。"
     >
-      <div className="grid gap-4 @2xl:grid-cols-2 @2xl:items-start">
-        <div className="flex flex-col items-center gap-4">
+      <div className="grid gap-3.5 @2xl:grid-cols-2 @2xl:items-start @2xl:gap-4">
+        <div className="flex flex-col items-center gap-3 @2xl:gap-4">
           <div
             ref={frame}
             className={cn(
-              'border-border-strong bg-surface relative flex aspect-[4/3] w-full max-w-sm items-center justify-center rounded-3xl border-2 border-dashed transition-[border-color,transform] duration-(--dur-fast)',
+              'border-border-strong bg-surface relative flex aspect-[16/9] w-full max-w-sm items-center justify-center rounded-3xl border-2 border-dashed px-4 transition-[border-color,transform] duration-(--dur-fast) @2xl:aspect-[4/3]',
               drag?.over && 'border-primary scale-[1.02]',
             )}
           >
             {shownId ? (
               <span key={shownId} className="animate-pop-in">
-                <TreatGlyph id={shownId} size={96} />
+                <TreatGlyph id={shownId} size={88} />
               </span>
             ) : (
-              <span className="text-caption text-muted flex flex-col items-center gap-2">
-                <Icon name="camera" size={28} />
-                把下面的零食拖进来，或者点一下
+              <span className="text-caption text-muted flex flex-col items-center gap-1.5 text-center">
+                <Icon name="camera" size={26} />
+                点一下排在下方的零食（或拖进相框）试试看
               </span>
             )}
-            <span className="absolute -right-3 -bottom-4">
+            <span className="pointer-events-none absolute right-2 -bottom-2 @2xl:-right-3 @2xl:-bottom-4">
               <Mascot
                 mood={
                   phase.kind === 'thinking' ? 'thinking' : phase.kind === 'done' ? 'cheer' : 'happy'
                 }
-                size={72}
+                size={64}
                 character={character}
               />
             </span>
           </div>
-          <div className="bg-surface shadow-soft flex items-center gap-1 rounded-full px-3 py-1">
-            <span className="text-tiny text-muted mr-1 font-semibold">拍一下</span>
+          <div className="bg-surface shadow-soft flex w-full max-w-sm items-center justify-between gap-0.5 rounded-full px-3 py-1">
+            <span className="text-tiny text-muted shrink-0 pr-1 font-semibold">点一下</span>
             {treats.map((t) => (
               <button
                 key={t.id}
@@ -176,19 +176,19 @@ export function WelcomeAiDemo() {
                   if (e.detail === 0) recognize(t.id)
                 }}
                 className={cn(
-                  'ease-spring flex size-11 touch-none items-center justify-center rounded-full transition-transform duration-(--dur-fast) hover:-translate-y-0.5 active:scale-90',
+                  'ease-spring flex size-10 touch-none items-center justify-center rounded-full transition-transform duration-(--dur-fast) hover:-translate-y-0.5 active:scale-90 @2xl:size-11',
                   drag?.id === t.id && 'opacity-30',
                 )}
               >
-                <TreatGlyph id={t.id} size={30} />
+                <TreatGlyph id={t.id} size={28} />
               </button>
             ))}
           </div>
         </div>
 
-        <div aria-live="polite" className="min-h-48">
+        <div aria-live="polite" className="min-h-0 @2xl:min-h-48">
           {phase.kind === 'idle' && (
-            <p className="bg-surface-sunken text-caption text-muted rounded-2xl p-4">
+            <p className="bg-surface-sunken text-caption text-muted rounded-2xl p-3.5 @2xl:p-4">
               识别结果会出现在这里。演示用的是写好的数据，不会真的上传图片。
             </p>
           )}

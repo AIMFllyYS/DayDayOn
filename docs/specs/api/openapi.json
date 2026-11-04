@@ -161,7 +161,9 @@
         "type": "string",
         "enum": [
           "tuan",
-          "dun"
+          "dun",
+          "mian",
+          "you"
         ]
       },
       "Error": {
@@ -180,6 +182,8 @@
               "QUOTA_INSUFFICIENT",
               "FORBIDDEN",
               "ACCOUNT_BANNED",
+              "USER_MUTED",
+              "FRIEND_RELATION_FROZEN",
               "TWO_FACTOR_REQUIRED",
               "ONBOARDING_REQUIRED",
               "NOT_FOUND",
@@ -201,8 +205,13 @@
               "PAYLOAD_TOO_LARGE",
               "UNSUPPORTED_MEDIA_TYPE",
               "AI_RECOGNITION_FAILED",
+              "FRIEND_LIMIT_REACHED",
+              "INTERACTION_DAILY_LIMIT_EXCEEDED",
+              "REMIND_NOT_APPLICABLE",
+              "CONTENT_SENSITIVE",
               "RATE_LIMITED",
               "REDEEM_LOCKED",
+              "INTERACTION_COOLDOWN",
               "INTERNAL",
               "NOT_IMPLEMENTED",
               "AI_PAUSED"
@@ -333,7 +342,7 @@
           "string",
           "null"
         ],
-        "pattern": "^mascot:(tuan|dun):(happy|cheer|sleepy|thinking|love|surprised|shy|sad|eating):(primary|exercise|diet|sleep|study|custom)$",
+        "pattern": "^mascot:(tuan|dun|mian|you):(happy|cheer|sleepy|thinking|love|surprised|shy|sad|eating):(primary|exercise|diet|sleep|study|custom)$",
         "default": null
       },
       "Module": {
@@ -550,6 +559,7 @@
         "type": "string",
         "enum": [
           "diet-recognition",
+          "smart-recognition",
           "agent-chat"
         ]
       },
@@ -1588,6 +1598,17 @@
                 ],
                 "maxLength": 200
               },
+              "source": {
+                "$ref": "#/components/schemas/CheckinSource"
+              },
+              "aiRunId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "parsedText": {
+                "type": "string",
+                "maxLength": 500
+              },
               "module": {
                 "type": "string",
                 "enum": [
@@ -1629,12 +1650,6 @@
                 ],
                 "maxLength": 200
               },
-              "module": {
-                "type": "string",
-                "enum": [
-                  "diet"
-                ]
-              },
               "source": {
                 "$ref": "#/components/schemas/CheckinSource"
               },
@@ -1645,6 +1660,12 @@
               "parsedText": {
                 "type": "string",
                 "maxLength": 500
+              },
+              "module": {
+                "type": "string",
+                "enum": [
+                  "diet"
+                ]
               },
               "method": {
                 "$ref": "#/components/schemas/DietMethod"
@@ -1681,6 +1702,17 @@
                   "null"
                 ],
                 "maxLength": 200
+              },
+              "source": {
+                "$ref": "#/components/schemas/CheckinSource"
+              },
+              "aiRunId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "parsedText": {
+                "type": "string",
+                "maxLength": 500
               },
               "module": {
                 "type": "string",
@@ -1723,6 +1755,17 @@
                 ],
                 "maxLength": 200
               },
+              "source": {
+                "$ref": "#/components/schemas/CheckinSource"
+              },
+              "aiRunId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "parsedText": {
+                "type": "string",
+                "maxLength": 500
+              },
               "module": {
                 "type": "string",
                 "enum": [
@@ -1758,6 +1801,17 @@
                   "null"
                 ],
                 "maxLength": 200
+              },
+              "source": {
+                "$ref": "#/components/schemas/CheckinSource"
+              },
+              "aiRunId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "parsedText": {
+                "type": "string",
+                "maxLength": 500
               },
               "module": {
                 "type": "string",
@@ -2306,6 +2360,9 @@
               "null"
             ]
           },
+          "mascot": {
+            "$ref": "#/components/schemas/MascotCharacter"
+          },
           "streak": {
             "type": "integer",
             "minimum": 0
@@ -2421,6 +2478,170 @@
         "required": [
           "friend",
           "dashboard"
+        ]
+      },
+      "PetInteractionsStatus": {
+        "type": "object",
+        "properties": {
+          "friendUserId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "targetLocalDate": {
+            "type": "string"
+          },
+          "cooldownLeftSec": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "actions": {
+            "type": "object",
+            "properties": {
+              "poke": {
+                "$ref": "#/components/schemas/PetActionState"
+              },
+              "feed": {
+                "$ref": "#/components/schemas/PetActionState"
+              },
+              "remind": {
+                "$ref": "#/components/schemas/PetActionState"
+              }
+            },
+            "required": [
+              "poke",
+              "feed",
+              "remind"
+            ]
+          },
+          "remindEligible": {
+            "type": "boolean"
+          },
+          "remindDisabledReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "friendUserId",
+          "targetLocalDate",
+          "cooldownLeftSec",
+          "actions",
+          "remindEligible",
+          "remindDisabledReason"
+        ]
+      },
+      "PetActionState": {
+        "type": "object",
+        "properties": {
+          "used": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cooldownLeftSec": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "disabledReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "used",
+          "limit",
+          "cooldownLeftSec"
+        ]
+      },
+      "PetInteractResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "interaction": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "$ref": "#/components/schemas/PetInteractionKind"
+              },
+              "treatId": {
+                "$ref": "#/components/schemas/PetInteractionTreatId"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "treatId",
+              "createdAt"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/PetInteractionsStatus"
+          },
+          "feedback": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "interaction",
+          "status",
+          "feedback"
+        ]
+      },
+      "PetInteractionKind": {
+        "type": "string",
+        "enum": [
+          "poke",
+          "feed",
+          "remind"
+        ]
+      },
+      "PetInteractionTreatId": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "onigiri",
+          "strawberry",
+          "cookie",
+          "pudding",
+          "dango",
+          "milk",
+          null
+        ]
+      },
+      "PetInteractInput": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/PetInteractionKind"
+          },
+          "treatId": {
+            "$ref": "#/components/schemas/PetInteractionTreatId"
+          }
+        },
+        "required": [
+          "kind"
         ]
       },
       "RankBoard": {
@@ -2797,6 +3018,271 @@
           "proteinGrams",
           "fatGrams",
           "carbGrams"
+        ]
+      },
+      "SmartRecognitionResult": {
+        "type": "object",
+        "properties": {
+          "draft": {
+            "$ref": "#/components/schemas/SmartRecognitionDraft"
+          },
+          "aiRunId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "draft",
+          "aiRunId"
+        ]
+      },
+      "SmartRecognitionDraft": {
+        "type": "object",
+        "properties": {
+          "detectedModule": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "matchedGoalId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "scanSteps": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "string",
+                "maxLength": 80
+              }
+            ]
+          },
+          "exercise": {
+            "$ref": "#/components/schemas/SmartExerciseDraft"
+          },
+          "diet": {
+            "$ref": "#/components/schemas/SmartDietDraft"
+          },
+          "sleep": {
+            "$ref": "#/components/schemas/SmartSleepDraft"
+          },
+          "study": {
+            "$ref": "#/components/schemas/SmartStudyDraft"
+          },
+          "custom": {
+            "$ref": "#/components/schemas/SmartCustomDraft"
+          }
+        },
+        "required": [
+          "detectedModule",
+          "matchedGoalId",
+          "confidence",
+          "summary",
+          "scanSteps",
+          "exercise",
+          "diet",
+          "sleep",
+          "study",
+          "custom"
+        ]
+      },
+      "SmartExerciseDraft": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "intensity": {
+            "$ref": "#/components/schemas/Intensity"
+          },
+          "estimatedKcal": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "category",
+          "durationMinutes",
+          "intensity",
+          "estimatedKcal",
+          "note"
+        ]
+      },
+      "SmartDietDraft": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "mealType": {
+            "$ref": "#/components/schemas/MealType"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DietItem"
+            },
+            "minItems": 1,
+            "maxItems": 20
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "mealType",
+          "items",
+          "note"
+        ]
+      },
+      "SmartSleepDraft": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "bedTime": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "wakeTime": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "quality": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "bedTime",
+          "wakeTime",
+          "quality",
+          "note"
+        ]
+      },
+      "SmartStudyDraft": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "what": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "durationMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 1440
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "what",
+          "durationMinutes",
+          "note"
+        ]
+      },
+      "SmartCustomDraft": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "values": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "values",
+          "note"
         ]
       },
       "AgentConversationList": {
@@ -5042,6 +5528,80 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "FRIEND_LIMIT_REACHED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/friends/{friendUserId}": {
+      "delete": {
+        "tags": [
+          "friend"
+        ],
+        "summary": "解除好友关系",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "friendUserId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已解除好友关系"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "FRIEND_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -5096,6 +5656,1362 @@
           },
           "404": {
             "description": "FRIEND_NOT_FOUND | USER_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chats": {
+      "get": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "获取当前用户的私聊会话列表",
+        "responses": {
+          "200": {
+            "description": "私聊会话列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "threads": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "friendUserId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "friend": {
+                            "type": "object",
+                            "properties": {
+                              "userId": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "nickname": {
+                                "type": "string"
+                              },
+                              "avatar": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "mascot": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "userId",
+                              "nickname",
+                              "avatar"
+                            ]
+                          },
+                          "lastMessage": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "content": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "senderId": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "content",
+                              "createdAt",
+                              "senderId"
+                            ]
+                          },
+                          "unreadCount": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "isFrozen": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "friendUserId",
+                          "friend",
+                          "lastMessage",
+                          "unreadCount",
+                          "isFrozen"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "threads"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chats/{friendUserId}": {
+      "get": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "获取与指定好友的 1v1 私聊历史记录",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "friendUserId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 30
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "私聊历史记录与只读冻结状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "senderId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "recipientId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "idempotencyKey": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "readAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "isMine": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "senderId",
+                          "recipientId",
+                          "content",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isFrozen": {
+                      "type": "boolean"
+                    },
+                    "friend": {
+                      "type": "object",
+                      "properties": {
+                        "userId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "nickname": {
+                          "type": "string"
+                        },
+                        "avatar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "mascot": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "userId",
+                        "nickname",
+                        "avatar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "messages",
+                    "nextCursor",
+                    "isFrozen"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "FRIEND_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "向指定好友发送 1v1 私聊消息",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "friendUserId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "idempotencyKey": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "content"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "消息发送成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "senderId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "recipientId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "content": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "idempotencyKey": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "readAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "isMine": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "senderId",
+                        "recipientId",
+                        "content",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED | FRIEND_RELATION_FROZEN | USER_MUTED | FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CONTENT_SENSITIVE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chats/{friendUserId}/read": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "批量将指定好友发来的私聊消息标记为已读",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "friendUserId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "批量标记已读成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "markedCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "markedCount"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/friends/{friendUserId}/chat": {
+      "get": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "获取与指定好友的 1v1 私聊历史记录（别名）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "friendUserId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 30
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "私聊历史记录与只读冻结状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "senderId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "recipientId": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "content": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "idempotencyKey": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "readAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "isMine": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "senderId",
+                          "recipientId",
+                          "content",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isFrozen": {
+                      "type": "boolean"
+                    },
+                    "friend": {
+                      "type": "object",
+                      "properties": {
+                        "userId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "nickname": {
+                          "type": "string"
+                        },
+                        "avatar": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "mascot": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "userId",
+                        "nickname",
+                        "avatar"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "messages",
+                    "nextCursor",
+                    "isFrozen"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "FRIEND_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "向指定好友发送 1v1 私聊消息（别名）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "friendUserId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "idempotencyKey": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "content"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "消息发送成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "senderId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "recipientId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "content": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "idempotencyKey": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "readAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "isMine": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "senderId",
+                        "recipientId",
+                        "content",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED | FRIEND_RELATION_FROZEN | USER_MUTED | FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CONTENT_SENSITIVE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/friends/{friendUserId}/interactions": {
+      "get": {
+        "tags": [
+          "friend",
+          "pet"
+        ],
+        "summary": "获取指定好友的宠物互动额度、剩余冷却与提醒打卡资格",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "friendUserId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "宠物互动状态与额度",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PetInteractionsStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "FRIEND_NOT_FOUND | USER_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/friends/{friendUserId}/interact": {
+      "post": {
+        "tags": [
+          "friend",
+          "pet"
+        ],
+        "summary": "对好友小窝宠物执行互动（戳戳、投喂、提醒打卡）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "friendUserId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PetInteractInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "互动执行成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PetInteractResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "FRIEND_NOT_FOUND | USER_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INTERACTION_DAILY_LIMIT_EXCEEDED | REMIND_NOT_APPLICABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "INTERACTION_COOLDOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/summary": {
+      "get": {
+        "tags": [
+          "notification"
+        ],
+        "summary": "获取未读通知数与是否有未读",
+        "responses": {
+          "200": {
+            "description": "未读通知统计",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "unreadCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "hasUnread": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "unreadCount",
+                    "hasUnread"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "tags": [
+          "notification"
+        ],
+        "summary": "获取通知与动态列表",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "feed",
+                "system",
+                "all"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "required": false,
+            "name": "unreadOnly",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "通知与动态列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string"
+                          },
+                          "actorId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "actorNickname": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "actorAvatar": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "content": {
+                            "type": "string"
+                          },
+                          "metadata": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "readAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "actorId",
+                          "actorNickname",
+                          "actorAvatar",
+                          "kind",
+                          "title",
+                          "content",
+                          "metadata",
+                          "readAt",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/read": {
+      "post": {
+        "tags": [
+          "notification"
+        ],
+        "summary": "标记通知已读",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "all": {
+                    "type": "boolean"
+                  },
+                  "notificationIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "feed",
+                      "system",
+                      "all"
+                    ]
+                  },
+                  "kind": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "标记已读处理结果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "markedCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "markedCount"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
             "content": {
               "application/json": {
                 "schema": {
@@ -5564,6 +7480,156 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DietRecognitionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "QUOTA_INSUFFICIENT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "AI_RECOGNITION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI_PAUSED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/smart-recognitions": {
+      "post": {
+        "summary": "全板块智能打卡识别（支持拍照/上传图片或 TXT/HTML 文本附件，自动判别板块并返回草稿）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hintModule": {
+                    "$ref": "#/components/schemas/Module"
+                  },
+                  "goalId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "textContent": {
+                    "type": "string",
+                    "maxLength": 4000
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "可选 JPEG 图片，≤ 4 MB"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "全板块智能识别草稿；包含判别出的板块 detectedModule 与对应板块预填数据",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmartRecognitionResult"
                 }
               }
             }
