@@ -365,6 +365,7 @@ function buildReport(ds: Dish[], meal: Meal): ReportSpec {
   }
   const dishFolder: FolderSpec = {
     id: 'dishes',
+    defaultOpen: true,
     title: '逐菜分析',
     icon: 'diet',
     tone: 'study',
@@ -396,7 +397,7 @@ function buildReport(ds: Dish[], meal: Meal): ReportSpec {
         note: q.note,
       }
     }),
-    note: '默认折叠，点开每道菜看质量与各项指标；综合 GI 按各菜碳水克数加权。',
+    note: '点开每道菜看质量与各项指标；综合 GI 按各菜碳水克数加权。',
   }
   const energy: FolderSpec = {
     id: 'energy',

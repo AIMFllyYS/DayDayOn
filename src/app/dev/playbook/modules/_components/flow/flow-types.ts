@@ -54,6 +54,8 @@ export interface FolderSpec {
   title: string
   icon: IconName
   tone?: Tone
+  /** 报告里是否默认展开；不写则前两张展开 */
+  defaultOpen?: boolean
   /** 折叠时就能看到的一句话结论 */
   headline: string
   badge?: { text: string; tone: Tone }

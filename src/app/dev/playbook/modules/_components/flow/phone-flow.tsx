@@ -234,7 +234,7 @@ export function PhoneFlow({
                 <ReportDivider />
                 {smart && <p className="text-tiny text-muted px-1 pb-1">识别内容：{aiSummary}</p>}
                 {report.folders.map((f, i) => (
-                  <FolderCard key={f.id} spec={f} defaultOpen={i <= 1} />
+                  <FolderCard key={f.id} spec={f} defaultOpen={f.defaultOpen ?? i <= 1} />
                 ))}
               </div>
             )}
@@ -311,7 +311,7 @@ export function PhoneFlow({
               {verdict.detail}
             </div>
             {report.folders.map((f, i) => (
-              <FolderCard key={f.id} spec={f} defaultOpen={i === 0} />
+              <FolderCard key={f.id} spec={f} defaultOpen={f.defaultOpen ?? i === 0} />
             ))}
           </div>
         </>

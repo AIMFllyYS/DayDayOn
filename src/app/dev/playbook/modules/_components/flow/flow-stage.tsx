@@ -8,6 +8,16 @@ import { cn } from '@/lib/cn'
 import { PhoneFrame } from '../../../_components/device-frame'
 import type { FlowScenario } from './flow-types'
 
+/** 打卡页各部分的默认展开状态：以此为最终呈现的默认状态，改动时同步更新 */
+const DEFAULT_STATES: { name: string; state: string; open: boolean }[] = [
+  { name: 'Agent 分析抽屉', state: '展开（可折叠成小宠物）', open: true },
+  { name: '填写页分区（手动模式）', state: '第一项展开，其余折叠', open: true },
+  { name: '填写页分区（智能模式）', state: '不展示分区，只有扫描镜', open: false },
+  { name: '分析报告：前两张卡片', state: '展开', open: true },
+  { name: '饮食 · 逐菜分析', state: '展开，每道菜折叠，指标点开才看', open: true },
+  { name: '分析报告：校验清单', state: '折叠', open: false },
+]
+
 /**
  * 沙盒舞台：手机 + 场景控制台。
  * 桌面：手机在左、控制台在右；手机宽度：控制台收成一行场景标签排在手机上面。
@@ -82,6 +92,22 @@ export function FlowStage({
               <p className="text-tiny text-muted leading-relaxed">{active.description}</p>
             </div>
           )}
+        </Card>
+
+        <Card variant="sunken" className="flex flex-col gap-2 p-3.5" data-ann={`${ann}.defaults`}>
+          <span className="text-caption font-bold">默认展开 / 折叠（最终呈现状态）</span>
+          <ul className="text-tiny text-muted flex flex-col gap-1.5 leading-relaxed">
+            {DEFAULT_STATES.map((s) => (
+              <li key={s.name} className="flex items-start justify-between gap-3">
+                <span>{s.name}</span>
+                <span
+                  className={cn('shrink-0 font-bold', s.open ? 'text-success-ink' : 'text-subtle')}
+                >
+                  {s.state}
+                </span>
+              </li>
+            ))}
+          </ul>
         </Card>
 
         <p className="text-tiny text-muted flex items-start gap-2 px-1 leading-relaxed max-lg:hidden">
