@@ -66,11 +66,6 @@ import {
  *    - 点进去可查看之前拍摄/上传识别出的完整内容，仅存图片相对路径，无原图时展示温馨提示。
  */
 
-export function SmartTopBarTitle() {
-  const viewMode = useSmartPageViewMode()
-  return <>{viewMode === 'history' ? '历史识别记录' : '智能识别'}</>
-}
-
 export function SmartTopBarActions() {
   const viewMode = useSmartPageViewMode()
   const isHistory = viewMode === 'history'
