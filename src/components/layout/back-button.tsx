@@ -1,21 +1,17 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { IconButton } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Icon } from '@/components/ui/icon'
 import { toast } from '@/components/ui/toast'
 import {
+  invokeSmartBackHandler,
   setUnconfirmedSmartRecord,
   useUnconfirmedSmartRecord,
 } from '@/features/checkin/smart-handoff'
 import { cn } from '@/lib/cn'
-
-const ConfirmDialog = dynamic(
-  () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
-  { loading: () => null },
-)
 
 interface BackButtonProps {
   fallbackHref: string
@@ -27,7 +23,8 @@ interface BackButtonProps {
 /**
  * 二级页面的返回按钮（routing.md 第 7 节）：有历史时 router.back()，
  * 从深链接直接打开（历史只有这一页）时跳到上一级路径。
- * 当处于智能识别未确认记录状态时，自动弹出二次确认对话框，确认退出后提示可在右上角查看历史拍摄记录。
+ * - 若当前处于历史记录只读详情视图，优先由 invokeSmartBackHandler() 直接回退到历史记录列表；
+ * - 仅当处于智能识别实时扫描未确认记录状态时，才弹出二次确认对话框，确认退出后提示可在右上角查看历史拍摄记录。
  */
 export function BackButton({
   fallbackHref,
@@ -49,6 +46,9 @@ export function BackButton({
 
   function handleClick() {
     if (onBeforeBack && onBeforeBack()) {
+      return
+    }
+    if (invokeSmartBackHandler()) {
       return
     }
     if (unconfirmed) {
@@ -82,20 +82,22 @@ export function BackButton({
         />
       )}
 
-      <ConfirmDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        title="还没有确认记录，是否要退出？"
-        description="当前识别出的打卡记录尚未确认入库。退出后，你可以在上传页面右上角查看历史拍摄记录。"
-        cancelLabel="继续确认"
-        confirmLabel="确认退出"
-        buttonLayout="split"
-        onConfirm={() => {
-          setUnconfirmedSmartRecord(false)
-          toast.info('你可以在我们的上传页面右上角查看历史拍摄记录')
-          navigateBack()
-        }}
-      />
+      {confirmOpen && (
+        <ConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="还没有确认记录，是否要退出？"
+          description="当前识别出的打卡记录尚未确认入库。退出后，你可以在上传页面右上角查看历史拍摄记录。"
+          cancelLabel="继续确认"
+          confirmLabel="确认退出"
+          buttonLayout="split"
+          onConfirm={() => {
+            setUnconfirmedSmartRecord(false)
+            toast.info('你可以在我们的上传页面右上角查看历史拍摄记录')
+            navigateBack()
+          }}
+        />
+      )}
     </>
   )
 }

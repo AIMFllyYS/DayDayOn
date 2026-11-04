@@ -5,11 +5,15 @@ import type { SmartRecognitionResult } from './smart-schemas'
  * 智能拍照 / 智能上传跨组件内存交接槽与历史识别记录存储（严守 ADR-0002）：
  * 1. 刚拍摄或选择的 File 仅保存在 JS 运行时内存，绝不写入磁盘或 Web Storage；
  * 2. 历史记录仅在 localStorage 存储图片的相对路径（如 captures/2026-11-05/xxx.jpg）与识别出的结构化草稿文本，
- *    绝不存储真实图片二进制、Blob 或 Base64。
+ *    绝不存储真实图片二进制、Blob 或 Base64；
+ * 3. 页面视图分三态：
+ *    - 'scanner'：实时拍照/上传识别态（有未确认草稿时退出触发二次确认）；
+ *    - 'history'：历史记录单页列表态（顶部操作卡 + 下方触底表格容器）；
+ *    - 'history-detail'：历史记录纯只读详情态（点击返回直接回退到 'history' 列表，绝不弹退出确认框）。
  */
 
 export type SmartInputMode = 'smart-capture' | 'smart-upload'
-export type SmartPageViewMode = 'scanner' | 'history'
+export type SmartPageViewMode = 'scanner' | 'history' | 'history-detail'
 
 export interface PendingSmartPayload {
   id: string
@@ -38,6 +42,7 @@ const MAX_HISTORY_ITEMS = 50
 let pendingPayload: PendingSmartPayload | null = null
 let unconfirmedRecordActive = false
 let pageViewMode: SmartPageViewMode = 'scanner'
+let backHandler: (() => boolean) | null = null
 let handoffSeq = 0
 
 const captureListeners = new Set<() => void>()
@@ -83,6 +88,7 @@ export function setPendingSmartCapture(
   pendingPayload = payload
   pageViewMode = 'scanner'
   emit(viewModeListeners)
+  emit(guardListeners)
   emit(captureListeners)
   return payload
 }
@@ -105,7 +111,25 @@ export function subscribePendingSmartCapture(listener: () => void): () => void {
 }
 
 // ---------------------------------------------------------------------------
-// 未确认记录退出守卫（用于顶栏返回按钮二次确认拦截）
+// 视图内返回拦截器（用于历史详情回退历史列表、历史列表回退扫描镜）
+// ---------------------------------------------------------------------------
+
+export function registerSmartBackHandler(handler: (() => boolean) | null): () => void {
+  backHandler = handler
+  return () => {
+    if (backHandler === handler) {
+      backHandler = null
+    }
+  }
+}
+
+export function invokeSmartBackHandler(): boolean {
+  if (!backHandler) return false
+  return backHandler()
+}
+
+// ---------------------------------------------------------------------------
+// 未确认记录退出守卫（仅在 scanner 实时扫描视图下生效，只读历史视图永不拦截）
 // ---------------------------------------------------------------------------
 
 export function setUnconfirmedSmartRecord(active: boolean) {
@@ -115,7 +139,7 @@ export function setUnconfirmedSmartRecord(active: boolean) {
 }
 
 export function hasUnconfirmedSmartRecord(): boolean {
-  return unconfirmedRecordActive
+  return unconfirmedRecordActive && pageViewMode === 'scanner'
 }
 
 function subscribeUnconfirmedGuard(listener: () => void): () => void {
@@ -128,19 +152,20 @@ function subscribeUnconfirmedGuard(listener: () => void): () => void {
 export function useUnconfirmedSmartRecord(): boolean {
   return useSyncExternalStore(
     subscribeUnconfirmedGuard,
-    () => unconfirmedRecordActive,
+    () => hasUnconfirmedSmartRecord(),
     () => false,
   )
 }
 
 // ---------------------------------------------------------------------------
-// 智能识别页视图切换（scanner 扫描识别视图 | history 全屏历史记录列表视图）
+// 智能识别页视图切换（scanner | history | history-detail）
 // ---------------------------------------------------------------------------
 
 export function setSmartPageViewMode(mode: SmartPageViewMode) {
   if (pageViewMode === mode) return
   pageViewMode = mode
   emit(viewModeListeners)
+  emit(guardListeners)
 }
 
 export function getSmartPageViewMode(): SmartPageViewMode {

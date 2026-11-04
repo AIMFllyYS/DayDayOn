@@ -3,17 +3,26 @@ import {
   buildRelativeMediaPath,
   consumePendingSmartCapture,
   deleteSmartHistoryRecord,
+  getSmartPageViewMode,
+  hasUnconfirmedSmartRecord,
+  invokeSmartBackHandler,
   listSmartHistory,
   markSmartHistoryConfirmed,
+  registerSmartBackHandler,
   resetSmartHistoryForTests,
   saveSmartHistoryRecord,
   setPendingSmartCapture,
+  setSmartPageViewMode,
+  setUnconfirmedSmartRecord,
 } from './smart-handoff'
 
 describe('smart-handoff', () => {
   beforeEach(() => {
     consumePendingSmartCapture()
     resetSmartHistoryForTests([])
+    setUnconfirmedSmartRecord(false)
+    setSmartPageViewMode('scanner')
+    registerSmartBackHandler(null)
   })
 
   it('setPendingSmartCapture 支持智能拍照与智能上传双模式且一次性消费', () => {
@@ -68,5 +77,37 @@ describe('smart-handoff', () => {
 
     deleteSmartHistoryRecord(record.id)
     expect(listSmartHistory()).toHaveLength(0)
+  })
+
+  it('未确认守卫仅在 scanner 实时扫描视图下激活，history 与 history-detail 只读视图下永不拦截退出', () => {
+    setUnconfirmedSmartRecord(true)
+    setSmartPageViewMode('scanner')
+    expect(hasUnconfirmedSmartRecord()).toBe(true)
+
+    setSmartPageViewMode('history')
+    expect(hasUnconfirmedSmartRecord()).toBe(false)
+
+    setSmartPageViewMode('history-detail')
+    expect(hasUnconfirmedSmartRecord()).toBe(false)
+
+    setSmartPageViewMode('scanner')
+    expect(hasUnconfirmedSmartRecord()).toBe(true)
+  })
+
+  it('registerSmartBackHandler 支持在只读历史详情态拦截返回键并直接回退到历史列表', () => {
+    setSmartPageViewMode('history-detail')
+    const unregister = registerSmartBackHandler(() => {
+      if (getSmartPageViewMode() === 'history-detail') {
+        setSmartPageViewMode('history')
+        return true
+      }
+      return false
+    })
+
+    expect(invokeSmartBackHandler()).toBe(true)
+    expect(getSmartPageViewMode()).toBe('history')
+    expect(invokeSmartBackHandler()).toBe(false)
+
+    unregister()
   })
 })
