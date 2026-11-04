@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
+import { SleepFlowSandbox } from './_components/sleep-flow'
 import { ModulePage } from '../_components/module-page'
 import { MODULE_SPEC_BY_SLUG } from '../_data/module-specs'
 import {
   SleepDualThresholdRulesDemo,
-  SleepModulePhoneSandbox,
   SleepRefereeComparisonMatrix,
 } from './_components/sleep-module-demos'
 
@@ -13,7 +13,7 @@ export default function SleepModulePlaybookPage() {
   return (
     <ModulePage
       spec={MODULE_SPEC_BY_SLUG.sleep!}
-      sandbox={<SleepModulePhoneSandbox />}
+      sandbox={<SleepFlowSandbox />}
       compare={<SleepRefereeComparisonMatrix />}
       rules={<SleepDualThresholdRulesDemo />}
     />

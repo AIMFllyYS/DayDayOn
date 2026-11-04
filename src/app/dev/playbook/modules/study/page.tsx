@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
+import { StudyFlowSandbox } from './_components/study-flow'
 import { ModulePage } from '../_components/module-page'
 import { MODULE_SPEC_BY_SLUG } from '../_data/module-specs'
 import {
   StudyDualMechanismDemo,
-  StudyModulePhoneSandbox,
   StudyRefereeComparisonMatrix,
 } from './_components/study-module-demos'
 
@@ -13,7 +13,7 @@ export default function StudyModulePlaybookPage() {
   return (
     <ModulePage
       spec={MODULE_SPEC_BY_SLUG.study!}
-      sandbox={<StudyModulePhoneSandbox />}
+      sandbox={<StudyFlowSandbox />}
       compare={<StudyRefereeComparisonMatrix />}
       rules={<StudyDualMechanismDemo />}
     />

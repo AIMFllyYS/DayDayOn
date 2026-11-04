@@ -35,7 +35,7 @@ export function PhoneFrame({
         />
         {children}
       </div>
-      <span className="text-tiny text-subtle font-mono">{label}</span>
+      <span className="text-tiny text-subtle max-w-full text-center font-mono">{label}</span>
     </div>
   )
 }
@@ -70,7 +70,7 @@ export function DesktopFrame({
           </div>
         </div>
       </div>
-      <span className="text-tiny text-subtle font-mono">{label}</span>
+      <span className="text-tiny text-subtle max-w-full text-center font-mono">{label}</span>
     </div>
   )
 }
