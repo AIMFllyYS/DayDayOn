@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { IconTile } from '@/components/ui/badge'
+import { Badge, IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Icon, type IconName } from '@/components/ui/icon'
 import { toast } from '@/components/ui/toast'
@@ -16,13 +16,21 @@ import { errorMessage, isApiError, newIdempotencyKey } from '@/lib/api'
 import { useRecognizeSmart } from '@/lib/api/queries/ai'
 import { cn } from '@/lib/cn'
 import { compressImage } from '@/lib/image'
-import { consumePendingSmartCapture, subscribePendingSmartCapture } from '../smart-handoff'
+import {
+  buildRelativeMediaPath,
+  consumePendingSmartCapture,
+  saveSmartHistoryRecord,
+  subscribePendingSmartCapture,
+  type SmartHistoryRecord,
+  type SmartInputMode,
+} from '../smart-handoff'
 
 /*
  * 智能打卡正式原子组件（对齐 Playbook /dev/playbook/smart-checkin 定稿规范）：
  * 1. SmartScannerLens：
- *    - 顶栏：左侧扫描状态指示 + 右侧操作按钮（智能上传或不识别情景下显示「重新上传」）；
+ *    - 顶栏：左侧扫描状态指示 + 右侧操作按钮（智能上传模式显示「重新上传」，智能拍照模式显示「重新拍摄」）；
  *    - 视窗：四角取景框 + 真实上下往返移动的扫描光束（animate-scan-sweep）；
+ *    - 历史回看：只存图片相对路径、不存真实图片；回看无原图时展示相对路径与温馨小提示；
  *    - 底部 1、2、3 步骤栏：始终显示 1、2、3 序号图标，当前进行到哪一步，哪一步前面就转圈圈（loader 动画）。
  * 2. SmartModuleDetector：一行识别方向胶囊条（5 大板块同行排开，AI 自动高亮并带魔法扫光，点选秒切）。
  * 3. CheckinModeTabs：全板块统一的「手动填写 | 智能拍照 | 智能上传」三态 Tab 栏。
@@ -136,17 +144,19 @@ export function extractCleanText(raw: string): string {
 
 export interface SmartScannerLensProps {
   /** 当前输入模式：拍照优先或通用上传优先 */
-  mode?: 'smart-capture' | 'smart-upload'
+  mode?: SmartInputMode
   /** 已知打卡板块（在单板块打卡页内传入，全局页不传） */
   hintModule?: Module
   /** 已知目标 ID */
   goalId?: string
   /** 视觉主题色 */
   tone?: ModuleTone
+  /** 回看历史记录时传入（展示相对路径与未保存原图提示） */
+  historyRecord?: SmartHistoryRecord | null
   /** 开始扫描时的回调（通知父级展示「正在搜索哪个分区」懒加载动画） */
-  onScanStart?: () => void
+  onScanStart?: (mode: SmartInputMode) => void
   /** 识别成功后的回调 */
-  onRecognized: (result: SmartRecognitionResult) => void
+  onRecognized: (result: SmartRecognitionResult, savedRecord: SmartHistoryRecord) => void
   /** 识别失败/不识别时的回调 */
   onScanError?: (message: string) => void
   /** 不识别时用户点击「直接手动填写」的兜底回调 */
@@ -158,6 +168,7 @@ export function SmartScannerLens({
   hintModule,
   goalId,
   tone = 'exercise',
+  historyRecord = null,
   onScanStart,
   onRecognized,
   onScanError,
@@ -167,10 +178,12 @@ export function SmartScannerLens({
   const captureInputRef = useRef<HTMLInputElement>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
 
+  const [activeMode, setActiveMode] = useState<SmartInputMode>(historyRecord?.mode ?? mode)
   const [preview, setPreview] = useState<{
     kind: 'image' | 'text'
     imageUrl?: string
     textSnippet?: string
+    relativePath?: string
   } | null>(null)
   const [draft, setDraft] = useState<SmartRecognitionDraft | null>(null)
   const [errorText, setErrorText] = useState<string | null>(null)
@@ -180,9 +193,16 @@ export function SmartScannerLens({
     image?: Blob
     textContent?: string
     key: string
+    fileName: string
+    mediaKind: 'image' | 'text'
+    mode: SmartInputMode
+    relativeImagePath: string | null
+    textSnippet: string | null
   } | null>(null)
 
-  const processFileRef = useRef<(file: File) => Promise<void>>(async () => {})
+  const processFileRef = useRef<(file: File, sourceMode: SmartInputMode) => Promise<void>>(
+    async () => {},
+  )
 
   useEffect(() => {
     return () => {
@@ -208,7 +228,7 @@ export function SmartScannerLens({
     if (!payload) return
     setErrorText(null)
     setActiveStepIdx(0)
-    onScanStart?.()
+    onScanStart?.(payload.mode)
     recognize.mutate(
       {
         image: payload.image,
@@ -220,7 +240,15 @@ export function SmartScannerLens({
       {
         onSuccess: (res) => {
           setDraft(res.draft)
-          onRecognized(res)
+          const saved = saveSmartHistoryRecord({
+            mode: payload.mode,
+            mediaKind: payload.mediaKind,
+            fileName: payload.fileName,
+            relativeImagePath: payload.relativeImagePath,
+            textSnippet: payload.textSnippet,
+            result: res,
+          })
+          onRecognized(res, saved)
         },
         onError: (err) => {
           const msg = isApiError(err) ? errorMessage(err.body) : errorMessage({ code: 'INTERNAL' })
@@ -232,19 +260,30 @@ export function SmartScannerLens({
     )
   }
 
-  async function processFile(file: File) {
+  async function processFile(file: File, sourceMode: SmartInputMode) {
+    setActiveMode(sourceMode)
     setErrorText(null)
     setDraft(null)
     setActiveStepIdx(0)
+    const relPath = buildRelativeMediaPath(file.name, sourceMode)
+
     if (file.type.startsWith('image/')) {
       try {
         const compressed = await compressImage(file)
         const nextUrl = URL.createObjectURL(compressed.blob)
         setPreview((prev) => {
           if (prev?.imageUrl) URL.revokeObjectURL(prev.imageUrl)
-          return { kind: 'image', imageUrl: nextUrl }
+          return { kind: 'image', imageUrl: nextUrl, relativePath: relPath }
         })
-        pendingPayload.current = { image: compressed.blob, key: newIdempotencyKey() }
+        pendingPayload.current = {
+          image: compressed.blob,
+          key: newIdempotencyKey(),
+          fileName: file.name,
+          mediaKind: 'image',
+          mode: sourceMode,
+          relativeImagePath: relPath,
+          textSnippet: null,
+        }
         runRecognition()
       } catch (e) {
         const msg = e instanceof Error ? e.message : '这张图打不开，换一张或截个图试试'
@@ -259,19 +298,28 @@ export function SmartScannerLens({
       const raw = await file.text()
       const clean = extractCleanText(raw)
       if (!clean) {
-        const msg = '文件内容为空或无法识别，请重新上传'
+        const msg = '文件内容为空或无法识别，请重新选择'
         setErrorText(msg)
         onScanError?.(msg)
         return
       }
+      const snippet = clean.slice(0, 240)
       setPreview((prev) => {
         if (prev?.imageUrl) URL.revokeObjectURL(prev.imageUrl)
-        return { kind: 'text', textSnippet: clean.slice(0, 240) }
+        return { kind: 'text', textSnippet: snippet, relativePath: relPath }
       })
-      pendingPayload.current = { textContent: clean, key: newIdempotencyKey() }
+      pendingPayload.current = {
+        textContent: clean,
+        key: newIdempotencyKey(),
+        fileName: file.name,
+        mediaKind: 'text',
+        mode: sourceMode,
+        relativeImagePath: relPath,
+        textSnippet: snippet,
+      }
       runRecognition()
     } catch {
-      const msg = '读取文件失败，请重新上传 TXT / HTML 或图片文件'
+      const msg = '读取文件失败，请重新选择 TXT / HTML 或图片文件'
       setErrorText(msg)
       onScanError?.(msg)
     }
@@ -281,37 +329,52 @@ export function SmartScannerLens({
     processFileRef.current = processFile
   })
 
-  // 承接从打卡弹层点击「智能拍照」直接拍完照传过来的内存 File，挂载即刻进入识别态
+  // 承接从打卡弹层点击「智能拍照」或「智能上传」直接选完文件传过来的内存交接槽，挂载即刻进入识别态
   useEffect(() => {
     const consumeIfAny = () => {
       const captured = consumePendingSmartCapture()
       if (captured) {
-        void processFileRef.current(captured)
+        void processFileRef.current(captured.file, captured.mode)
       }
     }
     consumeIfAny()
     return subscribePendingSmartCapture(consumeIfAny)
   }, [])
 
-  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+  function handleCaptureFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (file) void processFile(file)
+    if (file) void processFile(file, 'smart-capture')
   }
 
+  function handleUploadFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file) void processFile(file, 'smart-upload')
+  }
+
+  const effectiveMode: SmartInputMode = preview
+    ? activeMode
+    : historyRecord
+      ? historyRecord.mode
+      : activeMode
+
   function triggerPicker() {
-    if (mode === 'smart-capture') {
+    if (effectiveMode === 'smart-capture') {
       captureInputRef.current?.click()
     } else {
       uploadInputRef.current?.click()
     }
   }
 
-  const steps: [string, string, string] = draft?.scanSteps ?? [
+  const effectiveDraft = draft ?? historyRecord?.result.draft ?? null
+  const isViewingHistoryWithoutLivePreview = Boolean(historyRecord && !preview && !isScanning)
+
+  const steps: [string, string, string] = effectiveDraft?.scanSteps ?? [
     preview
       ? '正在扫描上传的内容特征与关键数值…'
-      : mode === 'smart-capture'
-        ? '点击取景框拍照或选择图片开始扫描'
+      : effectiveMode === 'smart-capture'
+        ? '点击立即拍照开始智能扫描'
         : '点击上传图片或 TXT / HTML 文本附件',
     hintModule
       ? `自动提取「${moduleMeta[hintModule].label}」板块结构化字段`
@@ -319,14 +382,18 @@ export function SmartScannerLens({
     '流式魔法填充至下方表单，确认核对后入库',
   ]
 
-  // 智能上传模式或未识别报错情景下，按钮文案统一为「重新上传」
-  const actionButtonLabel = !preview
-    ? mode === 'smart-upload'
+  const hasContent = Boolean(preview || effectiveDraft || errorText || historyRecord)
+
+  // 严格区分右上角按钮文案：
+  // - 智能上传模式（smart-upload）：识别完或失败后显示「重新上传」
+  // - 智能拍照模式（smart-capture）：识别完或失败后显示「重新拍摄」
+  const actionButtonLabel = !hasContent
+    ? effectiveMode === 'smart-upload'
       ? '上传文件'
       : '立即拍照'
-    : mode === 'smart-upload' || Boolean(errorText)
+    : effectiveMode === 'smart-upload'
       ? '重新上传'
-      : '重新扫描'
+      : '重新拍摄'
 
   return (
     <div className="border-border bg-surface shadow-soft flex w-full min-w-0 flex-col gap-2.5 overflow-hidden rounded-2xl border p-3.5">
@@ -338,7 +405,7 @@ export function SmartScannerLens({
         className="sr-only"
         tabIndex={-1}
         aria-hidden
-        onChange={handleFileChange}
+        onChange={handleCaptureFileChange}
       />
       <input
         ref={uploadInputRef}
@@ -347,7 +414,7 @@ export function SmartScannerLens({
         className="sr-only"
         tabIndex={-1}
         aria-hidden
-        onChange={handleFileChange}
+        onChange={handleUploadFileChange}
       />
 
       {/* 极简顶部栏：左状态 + 右唯一操作按钮 */}
@@ -364,20 +431,22 @@ export function SmartScannerLens({
             <span
               className={cn(
                 'size-2 shrink-0 rounded-full',
-                draft ? 'bg-success' : errorText ? 'bg-warning' : 'bg-primary/60',
+                effectiveDraft ? 'bg-success' : errorText ? 'bg-warning' : 'bg-primary/60',
               )}
             />
           )}
           <span className="text-caption truncate font-bold">
             {isScanning
               ? '团团扫描镜识别中…'
-              : draft
-                ? '扫描识别完成'
-                : errorText
-                  ? '未能识别出有效打卡数据'
-                  : mode === 'smart-capture'
-                    ? '团团智能拍照扫描镜'
-                    : '团团智能上传扫描镜'}
+              : isViewingHistoryWithoutLivePreview
+                ? '历史识别记录回看'
+                : effectiveDraft
+                  ? '扫描识别完成'
+                  : errorText
+                    ? '未能识别出有效打卡数据'
+                    : effectiveMode === 'smart-capture'
+                      ? '团团智能拍照扫描镜'
+                      : '团团智能上传扫描镜'}
           </span>
         </div>
         <button
@@ -386,7 +455,7 @@ export function SmartScannerLens({
           onClick={triggerPicker}
           className="text-primary-ink hover:bg-primary-soft/60 text-tiny inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 font-semibold transition-colors active:scale-95 disabled:opacity-50"
         >
-          <Icon name={mode === 'smart-capture' && !errorText ? 'camera' : 'sparkles'} size={13} />
+          <Icon name={effectiveMode === 'smart-capture' ? 'camera' : 'sparkles'} size={13} />
           <span>{actionButtonLabel}</span>
         </button>
       </div>
@@ -418,6 +487,11 @@ export function SmartScannerLens({
               alt="待识别图片预览"
               className="max-h-44 rounded-xl object-contain"
             />
+            {preview.relativePath && (
+              <span className="text-tiny text-subtle max-w-full truncate font-mono">
+                {preview.relativePath}
+              </span>
+            )}
           </div>
         ) : preview?.kind === 'text' ? (
           <div className="bg-surface/90 border-border min-w-0 rounded-xl border p-3">
@@ -425,20 +499,61 @@ export function SmartScannerLens({
               {preview.textSnippet}
             </p>
           </div>
+        ) : isViewingHistoryWithoutLivePreview && historyRecord ? (
+          <div className="flex min-w-0 flex-col items-center justify-center gap-2 py-2.5 text-center">
+            <IconTile
+              icon={
+                historyRecord.mode === 'smart-capture'
+                  ? 'camera'
+                  : moduleMeta[historyRecord.result.draft.detectedModule].icon
+              }
+              tone={historyRecord.result.draft.detectedModule}
+              size="sm"
+            />
+            <div className="max-w-full min-w-0 space-y-1">
+              <p className="text-caption font-bold">
+                {historyRecord.mode === 'smart-capture' ? '历史拍摄记录' : '历史上传记录'}
+              </p>
+              <div className="bg-surface border-border mx-auto inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1">
+                <Icon
+                  name={historyRecord.mode === 'smart-capture' ? 'camera' : 'sparkles'}
+                  size={12}
+                  className="text-primary shrink-0"
+                />
+                <span className="text-tiny text-foreground truncate font-mono">
+                  {historyRecord.relativeImagePath ?? `captures/${historyRecord.fileName}`}
+                </span>
+              </div>
+              {historyRecord.textSnippet ? (
+                <p className="text-tiny text-muted line-clamp-2 pt-1 font-mono break-words">
+                  {historyRecord.textSnippet}
+                </p>
+              ) : (
+                <p className="text-tiny text-muted">
+                  小提示：为保护隐私仅存储图片的相对路径，未真实保存原图文件
+                </p>
+              )}
+            </div>
+            <Badge tone={historyRecord.confirmed ? 'success' : 'warning'}>
+              {historyRecord.confirmed
+                ? `已确认入库${historyRecord.confirmedGoalTitle ? ` · ${historyRecord.confirmedGoalTitle}` : ''}`
+                : '待确认入库'}
+            </Badge>
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-2.5 py-3 text-center">
             <IconTile
-              icon={mode === 'smart-capture' ? 'camera' : moduleMeta[tone].icon}
+              icon={effectiveMode === 'smart-capture' ? 'camera' : moduleMeta[tone].icon}
               tone={tone}
               size="md"
             />
             <div className="space-y-0.5">
               <p className="text-caption font-bold">
-                {mode === 'smart-capture'
+                {effectiveMode === 'smart-capture'
                   ? '拍下餐盘、运动记录或睡眠截图'
                   : '上传图片或 TXT / HTML 学习与打卡记录'}
               </p>
-              <p className="text-tiny text-muted">图片仅在内存压缩识别，绝不落盘保存</p>
+              <p className="text-tiny text-muted">图片仅在内存压缩识别，只记录相对路径、不存原图</p>
             </div>
             <div className="mt-1 flex flex-wrap justify-center gap-2">
               <Button
@@ -455,7 +570,7 @@ export function SmartScannerLens({
                 icon="sparkles"
                 onClick={() => uploadInputRef.current?.click()}
               >
-                上传图片 / 文本
+                智能上传
               </Button>
             </div>
           </div>
@@ -469,8 +584,13 @@ export function SmartScannerLens({
         >
           <p className="text-tiny font-medium">{errorText}</p>
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="soft" icon="sparkles" onClick={triggerPicker}>
-              重新上传
+            <Button
+              size="sm"
+              variant="soft"
+              icon={effectiveMode === 'smart-capture' ? 'camera' : 'sparkles'}
+              onClick={triggerPicker}
+            >
+              {effectiveMode === 'smart-upload' ? '重新上传' : '重新拍摄'}
             </Button>
             {onManualFallback && (
               <Button size="sm" variant="secondary" icon="edit" onClick={onManualFallback}>
@@ -484,7 +604,7 @@ export function SmartScannerLens({
       {/* 下方实时 1、2、3 步骤轨迹：始终展示 1、2、3 序号图标，进行到哪一步哪一步前面就转圈圈 */}
       <ol className="bg-surface-sunken/60 flex min-w-0 flex-col gap-1.5 rounded-xl px-3 py-2">
         {steps.map((step, idx) => {
-          const doneStep = Boolean(draft) || (isScanning && idx < activeStepIdx)
+          const doneStep = Boolean(effectiveDraft) || (isScanning && idx < activeStepIdx)
           const activeStep = isScanning && idx === activeStepIdx
           return (
             <li key={`${idx}-${step}`} className="flex min-w-0 items-center gap-2">

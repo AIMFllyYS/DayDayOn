@@ -1,16 +1,16 @@
 'use client'
 
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useRef, type ChangeEvent } from 'react'
 import { Icon } from '@/components/ui/icon'
 import { cn } from '@/lib/cn'
 import { setPendingSmartCapture } from '../smart-handoff'
+import { SMART_UPLOAD_ACCEPT } from './smart-scanner'
 
 /*
  * 打卡弹层底部双栏智能入口（正式业务组件 · 采用定稿方案 C「soft-outline 奶油描边」）：
- *   - 左按钮：智能拍照（同步直接拉起系统摄像机 capture="environment"，拍完后存入内存交接槽并跳往 /checkin/smart?action=capture 直接进入扫描识别态）
- *   - 右按钮：智能上传（直接跳往 /checkin/smart?action=upload，在页面内上传图片或 TXT / HTML 文本）
+ *   - 左按钮：智能拍照（同步直接拉起系统摄像机 capture="environment"，拍完后存入内存交接槽并跳往 /checkin/smart?action=capture&sid=... 直接进入扫描识别态）
+ *   - 右按钮：智能上传（同步直接拉起系统文件资源管理器 / 文件选择器，选好图片或 TXT/HTML 文本后存入内存交接槽并跳往 /checkin/smart?action=upload&sid=... 直接进入扫描识别态）
  */
 
 const pillBaseClass =
@@ -37,14 +37,26 @@ export function SmartActionBar({
 }: SmartActionBarProps) {
   const router = useRouter()
   const captureInputRef = useRef<HTMLInputElement>(null)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
 
   function handleCaptureFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    setPendingSmartCapture(file)
+    const payload = setPendingSmartCapture({ file, mode: 'smart-capture' })
     onNavigate?.()
-    router.push(captureHref)
+    const sep = captureHref.includes('?') ? '&' : '?'
+    router.push(`${captureHref}${sep}sid=${payload.id}`)
+  }
+
+  function handleUploadFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const payload = setPendingSmartCapture({ file, mode: 'smart-upload' })
+    onNavigate?.()
+    const sep = uploadHref.includes('?') ? '&' : '?'
+    router.push(`${uploadHref}${sep}sid=${payload.id}`)
   }
 
   return (
@@ -63,6 +75,15 @@ export function SmartActionBar({
         aria-hidden
         onChange={handleCaptureFileChange}
       />
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept={SMART_UPLOAD_ACCEPT}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={handleUploadFileChange}
+      />
       <button
         type="button"
         onClick={() => captureInputRef.current?.click()}
@@ -71,10 +92,14 @@ export function SmartActionBar({
         <Icon name="camera" size={20} className="shrink-0" />
         <span className="truncate">智能拍照</span>
       </button>
-      <Link href={uploadHref} onClick={onNavigate} className={cn(pillBaseClass, rightStyle)}>
+      <button
+        type="button"
+        onClick={() => uploadInputRef.current?.click()}
+        className={cn(pillBaseClass, rightStyle)}
+      >
         <Icon name="sparkles" size={20} className="text-primary-ink shrink-0" />
         <span className="truncate">智能上传</span>
-      </Link>
+      </button>
     </div>
   )
 }
