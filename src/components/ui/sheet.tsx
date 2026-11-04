@@ -26,6 +26,8 @@ interface SheetProps {
   onOpenChange: (open: boolean) => void
   title: string
   description?: string
+  /** 顶栏右侧关闭按钮（叉号）左侧的附加图标按钮（如历史记录图标） */
+  headerActions?: ReactNode
   children: ReactNode
   /** 底部固定操作区（主按钮等） */
   footer?: ReactNode
@@ -59,7 +61,15 @@ export function Sheet(props: SheetProps) {
   return desktop ? <DialogSheet {...props} /> : <DrawerSheet {...props} />
 }
 
-function DrawerSheet({ open, onOpenChange, title, description, children, footer }: SheetProps) {
+function DrawerSheet({
+  open,
+  onOpenChange,
+  title,
+  description,
+  headerActions,
+  children,
+  footer,
+}: SheetProps) {
   const animatedOpen = useAnimatedOpen(open)
   return (
     <Drawer.Root
@@ -105,6 +115,7 @@ function DrawerSheet({ open, onOpenChange, title, description, children, footer 
                       </Drawer.Description>
                     )
                   }
+                  headerActions={headerActions}
                   onClose={() => onOpenChange(false)}
                 />
                 <SheetLayout footer={footer}>{children}</SheetLayout>
@@ -117,7 +128,15 @@ function DrawerSheet({ open, onOpenChange, title, description, children, footer 
   )
 }
 
-function DialogSheet({ open, onOpenChange, title, description, children, footer }: SheetProps) {
+function DialogSheet({
+  open,
+  onOpenChange,
+  title,
+  description,
+  headerActions,
+  children,
+  footer,
+}: SheetProps) {
   const animatedOpen = useAnimatedOpen(open)
   return (
     <Dialog.Root open={animatedOpen} onOpenChange={(next) => onOpenChange(next)}>
@@ -141,6 +160,7 @@ function DialogSheet({ open, onOpenChange, title, description, children, footer 
                 </Dialog.Description>
               )
             }
+            headerActions={headerActions}
             onClose={() => onOpenChange(false)}
           />
           <SheetLayout footer={footer}>{children}</SheetLayout>
@@ -153,10 +173,12 @@ function DialogSheet({ open, onOpenChange, title, description, children, footer 
 function SheetHeader({
   title,
   description,
+  headerActions,
   onClose,
 }: {
   title: ReactNode
   description: ReactNode
+  headerActions?: ReactNode
   onClose: () => void
 }) {
   return (
@@ -165,7 +187,10 @@ function SheetHeader({
         {title}
         {description}
       </div>
-      <IconButton icon="x" label="关闭" onClick={onClose} className="-mt-1.5 -mr-2" />
+      <div className="-mt-1.5 -mr-2 flex shrink-0 items-center gap-0.5">
+        {headerActions}
+        <IconButton icon="x" label="关闭" onClick={onClose} />
+      </div>
     </header>
   )
 }

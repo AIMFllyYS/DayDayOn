@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Mascot } from '@/components/mascot/mascot'
 import { Badge, IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ import { cn } from '@/lib/cn'
 import { addDays, formatLocalDateLabel } from '@/lib/time'
 import { progressText, targetText } from '../format'
 import type { Checkin, CreateCheckinInput, DietMethod, GoalProgress } from '../schemas'
+import { markSmartHistoryConfirmed, setUnconfirmedSmartRecord } from '../smart-handoff'
 import { DietForm } from './diet-form'
 import type { CheckinClock, CheckinGoal, ModuleFormProps, SmartFillContext } from './form-types'
 import { CustomForm, ExerciseForm, SleepForm, StudyForm } from './module-forms'
@@ -73,6 +74,16 @@ export function CheckinScreen(props: CheckinScreenProps) {
 
   const magic = useMagicStreamFill(inputMode === 'manual' ? null : smartContext)
 
+  const isSmartMode = inputMode !== 'manual' && !isMakeup
+  const hasUnconfirmed = Boolean(isSmartMode && smartPhase === 'done' && smartContext && !done)
+
+  useEffect(() => {
+    setUnconfirmedSmartRecord(hasUnconfirmed)
+    return () => {
+      setUnconfirmedSmartRecord(false)
+    }
+  }, [hasUnconfirmed])
+
   const tone = goal.module
   const day = isMakeup ? addDays(today, -1) : today
   const shownProgress = done && done.localDate === today ? done.progress : progress
@@ -83,7 +94,12 @@ export function CheckinScreen(props: CheckinScreenProps) {
     setSubmitting(true)
     setErrors(undefined)
     try {
-      setDone(await props.onSubmit(input))
+      const res = await props.onSubmit(input)
+      if (smartContext) {
+        markSmartHistoryConfirmed(smartContext.aiRunId, goal.title)
+      }
+      setUnconfirmedSmartRecord(false)
+      setDone(res)
     } catch (e) {
       setErrors(props.toFormErrors(e))
     } finally {
@@ -92,6 +108,10 @@ export function CheckinScreen(props: CheckinScreenProps) {
   }
 
   async function aiConfirmed(c: Checkin) {
+    if (smartContext) {
+      markSmartHistoryConfirmed(smartContext.aiRunId, goal.title)
+    }
+    setUnconfirmedSmartRecord(false)
     setDone(await props.onAiConfirmed(c))
   }
 
@@ -161,7 +181,6 @@ export function CheckinScreen(props: CheckinScreenProps) {
     onSubmit: (input) => void submit(input),
   }
 
-  const isSmartMode = inputMode !== 'manual' && !isMakeup
   const showFormCard = !isSmartMode || smartPhase === 'done'
 
   return (
