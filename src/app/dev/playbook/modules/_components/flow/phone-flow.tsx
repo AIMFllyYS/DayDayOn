@@ -10,13 +10,19 @@ import { ProgressRing } from '@/components/ui/progress'
 import { Stamp } from '@/components/ui/stamp'
 import { moduleMeta, softToneClass, type Tone } from '@/components/ui/tone'
 import { cn } from '@/lib/cn'
-import { CheckinModeTabs } from '../../../_components/smart-recognition-demos'
+import {
+  CheckinModeTabs,
+  SMART_PRESETS,
+  SmartScannerLens,
+  type ScanPhase,
+} from '../../../_components/smart-recognition-demos'
 import { FillSection } from './fill-section'
-import { FolderCard } from './folder-card'
+import { Collapse, FolderCard } from './folder-card'
 import type {
   DocPageSpec,
   FillSectionSpec,
   FlowMode,
+  FolderSpec,
   PhoneFlowConfig,
   ReportSpec,
   Verdict,
@@ -62,17 +68,39 @@ export function PhoneFlow({
   const [stack, setStack] = useState<Page[]>(['fill'])
   const [mode, setMode] = useState<FlowMode>('smart-capture')
   const [openId, setOpenId] = useState<string | null>(null)
-  const [scanning, setScanning] = useState(false)
+  // 智能模式的扫描阶段；Agent 分析阶段（手动提交后、或智能扫描完成后自动开始）
+  const [scanPhase, setScanPhase] = useState<ScanPhase>('idle')
+  const [agent, setAgent] = useState<'none' | 'analyzing' | 'done'>('none')
+  const [stepIdx, setStepIdx] = useState(0)
+  const [agentOpen, setAgentOpen] = useState(true)
   const [popup, setPopup] = useState(false)
   const [bonus, setBonus] = useState(0)
   const page = stack[stack.length - 1] ?? 'fill'
   const smart = mode !== 'manual'
+  const steps = config.agentSteps ?? DEFAULT_AGENT_STEPS
 
+  // 智能扫描完成 → 自动交给 Agent 分析
   useEffect(() => {
-    if (!scanning) return
-    const t = setTimeout(() => setScanning(false), 1100)
+    if (scanPhase !== 'scanning') return
+    const t = setTimeout(() => {
+      setScanPhase('done')
+      setStepIdx(0)
+      setAgent('analyzing')
+      setAgentOpen(true)
+    }, 1400)
     return () => clearTimeout(t)
-  }, [scanning])
+  }, [scanPhase])
+
+  // Agent 思考步骤逐条流出，全部出完后进入「分析完成」
+  useEffect(() => {
+    if (agent !== 'analyzing') return
+    if (stepIdx >= steps.length) {
+      const t = setTimeout(() => setAgent('done'), 450)
+      return () => clearTimeout(t)
+    }
+    const t = setTimeout(() => setStepIdx((i) => i + 1), 600)
+    return () => clearTimeout(t)
+  }, [agent, stepIdx, steps.length])
 
   const push = (p: Page) => setStack((s) => [...s, p])
   const back = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
@@ -81,14 +109,36 @@ export function PhoneFlow({
     if (next === mode) return
     setMode(next)
     onModeChange(next)
-    // 手动：先填内容，第一个分区直接展开；智能：识别完先收起，让用户看结论
+    // 手动：先填内容，第一个分区直接展开；智能：先看上传 / 拍照区
     setOpenId(next === 'manual' ? (sections[0]?.id ?? null) : null)
-    setScanning(next !== 'manual')
+    setScanPhase('idle')
+    setAgent('none')
+    setStepIdx(0)
   }
 
-  function submit() {
+  /** 手动：提交后内容区折叠，底部抽屉弹出 Agent 分析 */
+  function startAnalyze() {
+    setOpenId(null)
+    setStepIdx(0)
+    setAgentOpen(true)
+    setAgent('analyzing')
+  }
+
+  function startScan() {
+    setAgent('none')
+    setScanPhase('scanning')
+  }
+
+  function confirm() {
     if (verdict.passed) setBonus((b) => b + 1)
     setPopup(true)
+  }
+
+  function resetAfterDone() {
+    setPopup(false)
+    setAgent('none')
+    setStepIdx(0)
+    setScanPhase('idle')
   }
 
   return (
@@ -146,43 +196,82 @@ export function PhoneFlow({
             {selector}
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3.5 pt-3 pb-3">
-            {smart && <AiBar scanning={scanning} summary={aiSummary} mode={mode} />}
-            {sections.map((s) => (
-              <FillSection
-                key={s.id}
-                spec={s}
+          <div
+            className={cn(
+              'flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3.5 pt-3',
+              agent === 'none' ? 'pb-28' : agentOpen ? 'pb-96' : 'pb-48',
+            )}
+          >
+            {smart ? (
+              <SmartScannerLens
+                preset={SMART_PRESETS[config.tone]}
+                phase={scanPhase}
+                mode={mode}
                 tone={config.tone}
-                open={openId === s.id}
-                ai={smart && !scanning}
-                onToggle={() => setOpenId((cur) => (cur === s.id ? null : s.id))}
+                onRescan={startScan}
               />
-            ))}
+            ) : (
+              sections.map((s) => (
+                <FillSection
+                  key={s.id}
+                  spec={s}
+                  tone={config.tone}
+                  open={openId === s.id}
+                  ai={false}
+                  onToggle={() => {
+                    // 再次展开内容 = 要改内容，之前的分析作废
+                    if (openId !== s.id && agent !== 'none') setAgent('none')
+                    setOpenId((cur) => (cur === s.id ? null : s.id))
+                  }}
+                />
+              ))
+            )}
           </div>
 
-          <div className="border-border bg-background flex shrink-0 flex-col gap-2 border-t px-3.5 pt-2.5 pb-4">
-            <p
-              className={cn(
-                'text-tiny text-center font-semibold',
-                !canSubmit
-                  ? 'text-subtle'
-                  : verdict.passed
-                    ? 'text-success-ink'
-                    : 'text-warning-ink',
+          {/* 固定在底部（不随内容滚动）：Agent 抽屉 + 玻璃拟态操作条 */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col gap-2 px-3 pb-3">
+            {agent !== 'none' && (
+              <AgentDrawer
+                steps={steps}
+                stepIdx={stepIdx}
+                done={agent === 'done'}
+                open={agentOpen}
+                onToggle={() => setAgentOpen((v) => !v)}
+                folders={report.folders}
+                recognized={smart ? aiSummary : undefined}
+                verdict={verdict}
+              />
+            )}
+            <div className="border-border/60 bg-background/55 shadow-float pointer-events-auto rounded-2xl border p-2 backdrop-blur-md">
+              {!smart && agent === 'none' ? (
+                <Button
+                  icon="sparkles"
+                  className="w-full"
+                  disabled={!canSubmit}
+                  onClick={startAnalyze}
+                  data-ann="playbook.modules.flow.submit"
+                >
+                  提交并 Agent 自动解析
+                </Button>
+              ) : scanPhase === 'scanning' || agent === 'analyzing' ? (
+                <Button className="w-full" loading data-ann="playbook.modules.flow.submit">
+                  {agent === 'analyzing' ? 'Agent 解析中…' : '识别中…'}
+                </Button>
+              ) : (
+                <Button
+                  variant={agent === 'done' && !verdict.passed ? 'secondary' : 'primary'}
+                  icon={agent === 'done' && !verdict.passed ? 'alert' : 'check'}
+                  className="w-full"
+                  disabled={agent !== 'done'}
+                  onClick={confirm}
+                  data-ann="playbook.modules.flow.submit"
+                >
+                  {agent === 'done' && !verdict.passed
+                    ? '仅保存记录（不计有效打卡）'
+                    : '确认有效打卡'}
+                </Button>
               )}
-            >
-              {canSubmit ? verdict.detail : '先填写内容，这里会实时告诉你能不能盖章'}
-            </p>
-            <Button
-              variant={verdict.passed ? 'primary' : 'secondary'}
-              icon={verdict.passed ? 'check' : 'alert'}
-              className="w-full"
-              disabled={!canSubmit || scanning}
-              onClick={submit}
-              data-ann="playbook.modules.flow.submit"
-            >
-              {verdict.passed ? '确认有效打卡' : '仅保存记录（不计有效打卡）'}
-            </Button>
+            </div>
           </div>
         </>
       )}
@@ -243,7 +332,6 @@ export function PhoneFlow({
               <p className="text-subhead font-bold">
                 {verdict.passed ? '打卡成功，连击 +1' : '已存档，今天先不盖章'}
               </p>
-              <p className="text-tiny text-muted mt-1">{verdict.detail}</p>
             </div>
             <div className="flex w-full flex-col gap-2">
               <Button
@@ -257,7 +345,7 @@ export function PhoneFlow({
               >
                 查看分析
               </Button>
-              <Button variant="ghost" className="w-full" onClick={() => setPopup(false)}>
+              <Button variant="ghost" className="w-full" onClick={resetAfterDone}>
                 完成
               </Button>
             </div>
@@ -295,32 +383,118 @@ function TagChip({
   )
 }
 
-function AiBar({
-  scanning,
-  summary,
-  mode,
+const DEFAULT_AGENT_STEPS = [
+  '读取你提交的内容',
+  '对照达标规则逐项核验',
+  '联网核验权威资料',
+  '生成分析结果与评分',
+]
+
+/**
+ * Agent 分析抽屉：从底部圆角处向上弹出，默认展开，胶囊右侧的按钮可折叠 / 展开。
+ * 里面是 Agent 的思考步骤（逐条流出），完成后给出各项分析结果与结论。
+ */
+function AgentDrawer({
+  steps,
+  stepIdx,
+  done,
+  open,
+  onToggle,
+  folders,
+  recognized,
+  verdict,
 }: {
-  scanning: boolean
-  summary: string
-  mode: FlowMode
+  steps: string[]
+  stepIdx: number
+  done: boolean
+  open: boolean
+  onToggle: () => void
+  folders: FolderSpec[]
+  recognized?: string
+  verdict: Verdict
 }) {
+  const shown = done ? steps : steps.slice(0, Math.min(stepIdx + 1, steps.length))
   return (
     <div
-      className="bg-primary-soft text-primary-ink flex min-h-10 items-center gap-2 rounded-2xl px-3.5 py-2"
-      data-ann="playbook.modules.flow.ai-bar"
+      className="border-border bg-surface/90 shadow-float animate-fade-up pointer-events-auto rounded-3xl border backdrop-blur-md"
+      data-ann="playbook.modules.flow.agent"
     >
-      <Icon
-        name={scanning ? 'loader' : 'sparkles'}
-        size={16}
-        className={cn('shrink-0', scanning && 'animate-spin-slow')}
-      />
-      <span className="text-tiny font-semibold">
-        {scanning
-          ? mode === 'smart-capture'
-            ? '正在识别照片…'
-            : '正在解析文件…'
-          : `AI 已识别：${summary}，点开下面各项可微调`}
-      </span>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className="flex min-h-12 w-full items-center gap-2.5 px-3.5 text-left"
+      >
+        <span className="bg-primary-soft text-primary-ink grid size-7 shrink-0 place-items-center rounded-full">
+          <Icon
+            name={done ? 'sparkles' : 'loader'}
+            size={14}
+            className={cn(!done && 'animate-spin-slow')}
+          />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="text-caption font-bold">Agent 分析</span>
+          <span className="text-tiny text-muted">{done ? '分析完成' : '正在解析…'}</span>
+        </span>
+        <span className="bg-surface-sunken text-muted grid size-7 shrink-0 place-items-center rounded-full">
+          <Icon
+            name="chevron-down"
+            size={14}
+            className={cn('transition-transform duration-(--dur-base)', open && 'rotate-180')}
+          />
+        </span>
+      </button>
+      <Collapse open={open}>
+        <div className="flex max-h-64 flex-col gap-3 overflow-y-auto px-3.5 pb-3.5">
+          <ol className="flex flex-col gap-1.5">
+            {shown.map((s, i) => {
+              const finished = done || i < stepIdx
+              return (
+                <li key={s} className="text-tiny flex items-center gap-2">
+                  <Icon
+                    name={finished ? 'check' : 'loader'}
+                    size={12}
+                    className={cn(
+                      'shrink-0',
+                      finished ? 'text-success' : 'text-primary animate-spin-slow',
+                    )}
+                  />
+                  <span className={finished ? 'text-muted' : 'text-foreground font-semibold'}>
+                    {s}
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
+          {done && (
+            <div className="border-border flex flex-col gap-2 border-t border-dashed pt-3">
+              {recognized && <ResultRow label="识别内容" value={recognized} />}
+              {folders.map((f) => (
+                <ResultRow key={f.id} label={f.title} value={f.headline} />
+              ))}
+              <p
+                className={cn(
+                  'text-tiny mt-1 rounded-xl px-3 py-2 font-semibold',
+                  verdict.passed
+                    ? 'bg-success-soft text-success-ink'
+                    : 'bg-warning-soft text-warning-ink',
+                )}
+              >
+                {verdict.detail}
+              </p>
+            </div>
+          )}
+        </div>
+      </Collapse>
+    </div>
+  )
+}
+
+function ResultRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-tiny text-muted shrink-0">{label}</span>
+      <span className="text-tiny text-right font-bold">{value}</span>
     </div>
   )
 }

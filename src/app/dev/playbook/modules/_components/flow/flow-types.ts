@@ -88,6 +88,8 @@ export interface PhoneFlowConfig {
   /** 通用名：「科学饮食打卡」，不带天数、不带具体目标 */
   title: string
   progress: { done: number; total: number }
+  /** Agent 思考步骤（逐条流出）；不传则用通用步骤 */
+  agentSteps?: string[]
   rulesDoc: DocPageSpec
   basisDoc: DocPageSpec
 }
