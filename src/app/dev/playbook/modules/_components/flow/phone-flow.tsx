@@ -97,19 +97,20 @@ export function PhoneFlow({
         <>
           <PageBar title={`${moduleMeta[config.tone].label}打卡`} onBack={() => undefined} />
 
-          <div className="shrink-0 px-3.5 pt-1 pb-3">
-            <Card className="flex items-center gap-3 p-3" data-ann="playbook.modules.flow.header">
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <IconTile icon={moduleMeta[config.tone].icon} tone={config.tone} size="sm" />
-                  <span className="text-caption truncate font-bold">{config.title}</span>
-                </div>
-                <div className="flex items-center gap-2">
+          <div className="shrink-0 px-3.5 pt-1">
+            <Card
+              className="flex items-center gap-3 px-3 py-2.5"
+              data-ann="playbook.modules.flow.header"
+            >
+              <IconTile icon={moduleMeta[config.tone].icon} tone={config.tone} size="lg" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <span className="text-caption truncate font-bold">{config.title}</span>
+                <div className="flex items-center gap-1.5">
                   <TagChip icon="shield" label="达标规则" onClick={() => push('rules')} />
                   <TagChip icon="bulb" label="评判依据" onClick={() => push('basis')} />
                 </div>
               </div>
-              <div className="flex shrink-0 flex-col items-center gap-0.5">
+              <div className="flex shrink-0 flex-col items-center gap-1.5">
                 <ProgressRing
                   value={config.progress.done + bonus}
                   max={config.progress.total}
@@ -132,13 +133,13 @@ export function PhoneFlow({
 
           <SectionDivider />
 
-          <div className="flex shrink-0 flex-col gap-2.5 px-3.5 py-3">
+          <div className="flex shrink-0 flex-col gap-2.5 px-3.5">
             <CheckinModeTabs value={mode} onValueChange={(m) => changeMode(m)} />
             {selector}
           </div>
 
           <SectionDivider />
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3.5 pt-1 pb-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3.5 pb-3">
             {smart && <AiBar scanning={scanning} summary={aiSummary} mode={mode} />}
             {sections.map((s) => (
               <FillSection
@@ -266,9 +267,9 @@ function TagChip({ icon, label, onClick }: { icon: IconName; label: string; onCl
     <button
       type="button"
       onClick={onClick}
-      className="bg-surface-sunken text-muted hover:text-foreground text-tiny inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 font-semibold whitespace-nowrap transition-colors active:scale-95"
+      className="bg-surface-sunken text-muted hover:text-foreground text-tiny inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full px-2 font-semibold whitespace-nowrap transition-colors active:scale-95"
     >
-      <Icon name={icon} size={12} />
+      <Icon name={icon} size={10} />
       {label}
     </button>
   )
@@ -345,7 +346,7 @@ function SectionDivider() {
   return (
     <div
       aria-hidden
-      className="bg-border mx-3.5 h-[3px] shrink-0 [clip-path:polygon(0_50%,50%_0,100%_50%,50%_100%)]"
+      className="bg-border mx-3.5 my-2 h-[3px] shrink-0 [clip-path:polygon(0_50%,50%_0,100%_50%,50%_100%)]"
     />
   )
 }
