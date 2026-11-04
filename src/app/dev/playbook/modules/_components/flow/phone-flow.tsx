@@ -122,19 +122,22 @@ export function PhoneFlow({
                     {config.progress.done + bonus}/{config.progress.total}
                   </span>
                 </ProgressRing>
-                <span className="text-tiny text-subtle leading-none font-semibold">day</span>
+                <span className="bg-success-soft text-success-ink text-tiny inline-flex h-5 items-center gap-1 rounded-full px-2 leading-none font-bold">
+                  <span className="bg-success size-1.5 rounded-full" />
+                  Day
+                </span>
               </div>
             </Card>
           </div>
 
-          <ShortDivider />
+          <SectionDivider />
 
           <div className="flex shrink-0 flex-col gap-2.5 px-3.5 py-3">
             <CheckinModeTabs value={mode} onValueChange={(m) => changeMode(m)} />
             {selector}
           </div>
 
-          <ShortDivider />
+          <SectionDivider />
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3.5 pt-1 pb-3">
             {smart && <AiBar scanning={scanning} summary={aiSummary} mode={mode} />}
             {sections.map((s) => (
@@ -338,6 +341,11 @@ function DocBody({ doc }: { doc: DocPageSpec }) {
 }
 
 /** 模块之间的分隔线：整行宽、很浅，中间略粗、两端渐细 */
-function ShortDivider() {
-  return <div aria-hidden className="bg-border-strong mx-auto h-0.5 w-10 shrink-0 rounded-full" />
+function SectionDivider() {
+  return (
+    <div
+      aria-hidden
+      className="bg-border mx-3.5 h-[3px] shrink-0 [clip-path:polygon(0_50%,50%_0,100%_50%,50%_100%)]"
+    />
+  )
 }
