@@ -1,6 +1,7 @@
 'use client'
 
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { friendActions } from '@/features/friend/friend-store'
 import type {
   FriendAcceptResult,
   FriendDashboard,
@@ -76,6 +77,21 @@ export function useAcceptFriendInvite() {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: keys.friends.all })
+    },
+  })
+}
+
+export function useRemoveFriend() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (friendUserId: string) =>
+      apiFetch<void>(`/friends/${encodeURIComponent(friendUserId)}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: (_data, friendUserId) => {
+      friendActions.handleUnfriend(friendUserId)
+      void queryClient.invalidateQueries({ queryKey: keys.friends.all })
+      void queryClient.invalidateQueries({ queryKey: keys.chat.all })
     },
   })
 }

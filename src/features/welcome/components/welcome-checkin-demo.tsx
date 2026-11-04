@@ -55,33 +55,38 @@ export function WelcomeCheckinDemo() {
       title="打卡就像在手账上盖个章"
       description="完成一项就点一下。热力图一格格亮起来，连续天数往上涨。"
     >
-      <Card variant="sticker" className="grid gap-5 @2xl:grid-cols-[220px_1fr] @2xl:items-center">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <div className="relative">
-            <Mascot mood={count > 0 ? 'cheer' : 'happy'} size={96} character={character} />
+      <Card
+        variant="sticker"
+        className="grid gap-4 @2xl:grid-cols-[220px_1fr] @2xl:items-center @2xl:gap-5"
+      >
+        <div className="flex items-center justify-between gap-3 @2xl:flex-col @2xl:justify-center @2xl:text-center">
+          <div className="relative shrink-0">
+            <Mascot mood={count > 0 ? 'cheer' : 'happy'} size={76} character={character} />
             {count > 0 && (
               <Stamp
                 key={count}
                 animate
-                size={56}
+                size={46}
                 tone={ROWS[cellOf(count - 1).row]}
                 caption={`11.${2 + cellOf(count - 1).day}`}
-                className="absolute -top-2 -right-10"
+                className="absolute -top-2 -right-5 @2xl:-right-10"
               />
             )}
           </div>
-          <Badge tone="primary" icon="flame">
-            {streak > 0 ? `连续 ${streak} 天全勤` : '还没有开始'}
-          </Badge>
-          {full ? (
-            <Button variant="soft" icon="undo" onClick={() => setCount(0)}>
-              再来一遍
-            </Button>
-          ) : (
-            <Button icon="check" onClick={() => setCount((c) => c + 1)}>
-              打卡：{moduleMeta[nextModule].label}
-            </Button>
-          )}
+          <div className="flex flex-col items-end gap-2 @2xl:items-center">
+            <Badge tone="primary" icon="flame">
+              {streak > 0 ? `连续 ${streak} 天全勤` : '还没有开始'}
+            </Badge>
+            {full ? (
+              <Button variant="soft" size="sm" icon="undo" onClick={() => setCount(0)}>
+                再来一遍
+              </Button>
+            ) : (
+              <Button size="sm" icon="check" onClick={() => setCount((c) => c + 1)}>
+                打卡：{moduleMeta[nextModule].label}
+              </Button>
+            )}
+          </div>
         </div>
         <WeekHeatmap days={DAYS} rows={rows} label="演示：本周打卡热力图" />
       </Card>

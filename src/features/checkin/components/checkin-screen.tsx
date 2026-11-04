@@ -16,8 +16,9 @@ import { addDays, formatLocalDateLabel } from '@/lib/time'
 import { progressText, targetText } from '../format'
 import type { Checkin, CreateCheckinInput, DietMethod, GoalProgress } from '../schemas'
 import { DietForm } from './diet-form'
-import type { CheckinClock, CheckinGoal, ModuleFormProps } from './form-types'
+import type { CheckinClock, CheckinGoal, ModuleFormProps, SmartFillContext } from './form-types'
 import { CustomForm, ExerciseForm, SleepForm, StudyForm } from './module-forms'
+import { CheckinModeTabs, SmartScannerLens, type CheckinInputMode } from './smart-scanner'
 
 /*
  * 打卡页主体（原型 Playbook pages/_screens/checkin.tsx）：目标信息 + 今天进度 → 板块表单 →
@@ -52,6 +53,10 @@ export interface CheckinScreenProps {
 
 export function CheckinScreen(props: CheckinScreenProps) {
   const { goal, today, progress, clock, rating, onRate } = props
+  const [inputMode, setInputMode] = useState<CheckinInputMode>(
+    props.initialMethod === 'photo' ? 'smart-capture' : 'manual',
+  )
+  const [smartContext, setSmartContext] = useState<SmartFillContext | null>(null)
   const [isMakeup, setMakeup] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<FormErrors>()
@@ -137,6 +142,7 @@ export function CheckinScreen(props: CheckinScreenProps) {
     clock,
     submitting,
     errors,
+    smartContext: inputMode === 'manual' ? null : smartContext,
     onSubmit: (input) => void submit(input),
   }
 
@@ -160,6 +166,15 @@ export function CheckinScreen(props: CheckinScreenProps) {
         label="今天的进度"
       />
 
+      {/* 全板块统一的「手动填写 | 智能拍照 | 智能上传」三态 Tab 栏 */}
+      <CheckinModeTabs
+        value={inputMode}
+        onValueChange={(next) => {
+          setInputMode(next)
+          setErrors(undefined)
+        }}
+      />
+
       <Card variant="outline" className="flex items-center gap-3 py-2 md:py-2">
         <div className="min-w-0 flex-1">
           <p id="makeup-label" className="text-caption font-semibold">
@@ -172,7 +187,21 @@ export function CheckinScreen(props: CheckinScreenProps) {
         <Switch checked={isMakeup} onCheckedChange={setMakeup} label="补昨天" />
       </Card>
 
-      <Card key={formKey}>
+      {/* 单板块打卡页已明确知道所属方向，切换至智能拍照/智能上传时直接挂载扫描镜（跳过板块判别器） */}
+      {inputMode !== 'manual' && !isMakeup && (
+        <SmartScannerLens
+          mode={inputMode}
+          hintModule={goal.module}
+          goalId={goal.id}
+          tone={tone}
+          onRecognized={(res) => {
+            setSmartContext(res)
+            setErrors(undefined)
+          }}
+        />
+      )}
+
+      <Card key={`${formKey}-${smartContext?.aiRunId ?? 'manual'}`}>
         {goal.module === 'exercise' && <ExerciseForm {...formProps} />}
         {goal.module === 'diet' && (
           <DietForm

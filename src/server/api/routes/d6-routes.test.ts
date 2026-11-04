@@ -9,6 +9,7 @@ import type { AccountState } from '@/server/auth/account-state'
 const mocks = vi.hoisted(() => ({
   session: null as { user: { id: string; role: string }; session: { id: string } } | null,
   recognize: vi.fn(),
+  smartRecognize: vi.fn(),
   redeem: vi.fn(),
   quota: vi.fn(),
   runs: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock('../middleware/idempotency', async () => {
 })
 vi.mock('@/server/db/client', () => ({ db: {} }))
 vi.mock('@/server/services/diet-recognition', () => ({ recognizeDiet: mocks.recognize }))
+vi.mock('@/server/services/smart-recognition', () => ({ recognizeSmart: mocks.smartRecognize }))
 vi.mock('@/server/services/redeem', () => ({ redeemCode: mocks.redeem }))
 vi.mock('@/server/services/quota-view', () => ({
   getQuotaView: mocks.quota,
@@ -55,6 +57,7 @@ function jpegForm(): FormData {
 beforeEach(() => {
   mocks.session = null
   mocks.recognize.mockReset()
+  mocks.smartRecognize.mockReset()
   mocks.redeem.mockReset()
   mocks.quota.mockReset()
   mocks.runs.mockReset()
@@ -203,5 +206,41 @@ describe('已登录', () => {
     const res = await quotaRoutes.request('/me/quota')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual(view)
+  })
+
+  it('智能识别：POST /ai/smart-recognitions 201 返回全板块草稿', async () => {
+    login()
+    const smartResult = {
+      aiRunId: KEY,
+      draft: {
+        detectedModule: 'exercise',
+        matchedGoalId: KEY,
+        confidence: 0.92,
+        summary: '户外慢跑 30 分钟',
+        scanSteps: ['扫描运动截图', '提取跑步 30 分钟', '填入动一动表单'],
+        exercise: {
+          category: '跑步',
+          durationMinutes: 30,
+          intensity: 'moderate',
+          estimatedKcal: 200,
+          note: null,
+        },
+        diet: null,
+        sleep: null,
+        study: null,
+        custom: null,
+      },
+    }
+    mocks.smartRecognize.mockResolvedValue(smartResult)
+    const form = new FormData()
+    form.append('textContent', '户外跑步 5 公里 30 分钟')
+    form.append('hintModule', 'exercise')
+    const res = await aiRoutes.request('/ai/smart-recognitions', {
+      method: 'POST',
+      body: form,
+      headers: { 'idempotency-key': KEY },
+    })
+    expect(res.status).toBe(201)
+    expect(await res.json()).toEqual(smartResult)
   })
 })

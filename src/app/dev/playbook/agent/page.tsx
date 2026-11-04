@@ -9,6 +9,10 @@ import { EditableDraftDemo, QuotaCardDemo, RecognizerPhasesDemo } from './_d6-de
 import { MobilePreviewDemo } from './_mobile-demos'
 import { manyToolsTurn, quickTurn, runningTurn } from '../_components/agent-script'
 import { PageHeader, Rules, Section, Specimen } from '../_components/section'
+import {
+  GlobalSmartRecognitionDemo,
+  UnifiedModuleCheckinTabDemo,
+} from '../_components/smart-recognition-demos'
 
 export const metadata: Metadata = { title: 'Agent 组件' }
 
@@ -171,8 +175,24 @@ export default function AgentPage() {
       </Section>
 
       <Section
+        ann="playbook.agent.smart-page"
+        title="智能识别页面（扫描镜 + 组件 1 板块判别 + 组件 2 五板块子组件）"
+        description="从打卡弹层底部点击「智能拍照」或「智能上传」进入。顶部扫描镜持续扫描上传的图片或纯文本（HTML / TXT / MD）并实时显示分析步骤；下方由【组件 1：板块智能判别器】判断归属板块，并动态挂载【组件 2：5 选 1 板块专属填充子组件】自动填入识别数值。"
+      >
+        <GlobalSmartRecognitionDemo />
+      </Section>
+
+      <Section
+        ann="playbook.agent.module-tabs"
+        title="单板块打卡页 · 统一 Tab 栏（跳过板块判别，直接复用子组件）"
+        description="5 大打卡板块（运动 / 饮食 / 睡眠 / 学习 / 自定义）顶部统一配备「手动填写 | 智能拍照 | 智能上传」Tab。由于在单板块页内已知当前所属方向，切换到「智能拍照 / 智能上传」时直接跳过板块判别器，import 扫描镜 + 对应板块子组件完成识别填表。"
+      >
+        <UnifiedModuleCheckinTabDemo />
+      </Section>
+
+      <Section
         ann="playbook.agent.diet-recognizer"
-        title="拍照识别饮食"
+        title="拍照识别饮食（原单板块草稿流）"
         description="正式组件 DietRecognizer 的展示部分：识别中活动条展开（“正在看照片”），完成后收起，草稿卡接在后面；失败给出原因和“手动填写”。"
       >
         <RecognizerPhasesDemo />

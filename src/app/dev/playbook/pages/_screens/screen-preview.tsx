@@ -34,6 +34,14 @@ function ScreenView({
       hideTopBar={def.hideTopBar}
       primaryNav={def.primaryNav}
       onNavigate={(href) => {
+        if (href === '/checkin/smart') {
+          onNavigate('smart-checkin')
+          return
+        }
+        if (href.startsWith('/goals/') && href.includes('/checkin')) {
+          onNavigate('checkin')
+          return
+        }
         const next = screenByNav.get(href)
         if (next) onNavigate(next)
       }}

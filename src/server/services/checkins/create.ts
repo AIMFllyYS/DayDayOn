@@ -62,15 +62,24 @@ async function buildDraft(
   clock: Clock,
   now: Date,
 ): Promise<Draft> {
+  if (input.source === 'ai' && input.aiRunId !== undefined) {
+    // 只认自己的识别记录；一次识别只能确认一次由唯一索引保证
+    const [run] = await db
+      .select({ id: aiRuns.id })
+      .from(aiRuns)
+      .where(and(eq(aiRuns.id, input.aiRunId), eq(aiRuns.userId, userId)))
+      .limit(1)
+    if (!run) throw invalid('aiRunId', '找不到这次识别记录')
+  }
   const base = {
     occurredAt: serverOccurredAt(now, clock, input.isMakeup),
     durationSeconds: null,
     intakeKcal: null,
     burnKcal: null,
     fieldVersion: null,
-    source: 'manual' as const,
-    aiRunId: null,
-    parsedText: null,
+    source: input.source,
+    aiRunId: input.source === 'ai' ? (input.aiRunId ?? null) : null,
+    parsedText: input.source === 'ai' ? (input.parsedText ?? null) : null,
   }
   switch (input.module) {
     case 'exercise': {
@@ -84,15 +93,6 @@ async function buildDraft(
       }
     }
     case 'diet': {
-      if (input.source === 'ai' && input.aiRunId !== undefined) {
-        // 只认自己的识别记录；一次识别只能确认一次由唯一索引保证
-        const [run] = await db
-          .select({ id: aiRuns.id })
-          .from(aiRuns)
-          .where(and(eq(aiRuns.id, input.aiRunId), eq(aiRuns.userId, userId)))
-          .limit(1)
-        if (!run) throw invalid('aiRunId', '找不到这次识别记录')
-      }
       return {
         ...base,
         module: 'diet',
@@ -103,9 +103,6 @@ async function buildDraft(
           mealType: input.mealType,
           items: input.items,
         },
-        source: input.source,
-        aiRunId: input.source === 'ai' ? (input.aiRunId ?? null) : null,
-        parsedText: input.source === 'ai' ? (input.parsedText ?? null) : null,
       }
     }
     case 'sleep': {

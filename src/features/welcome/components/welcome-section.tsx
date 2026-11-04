@@ -24,14 +24,14 @@ export function WelcomeSection({
       id={id}
       data-ann={ann}
       aria-labelledby={`${id}-title`}
-      className={cn('scroll-mt-20 py-10', className)}
+      className={cn('scroll-mt-20 py-7 @2xl:py-10', className)}
     >
       <p className="text-tiny text-primary-ink font-semibold tracking-wider">{eyebrow}</p>
       <h2 id={`${id}-title`} className="text-title mt-1 font-bold">
         {title}
       </h2>
-      {description && <p className="text-body text-muted mt-2 max-w-xl">{description}</p>}
-      <div className="mt-6">{children}</div>
+      {description && <p className="text-body text-muted mt-1.5 max-w-xl">{description}</p>}
+      <div className="mt-4 @2xl:mt-6">{children}</div>
     </section>
   )
 }

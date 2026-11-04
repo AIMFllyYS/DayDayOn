@@ -1,13 +1,15 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
-import { IconTile } from '@/components/ui/badge'
+import { Badge, IconTile } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
 import { LinkButton } from '@/features/dashboard/components/link-button'
 import { currentPlatform, type ClientPlatform } from '@/lib/native'
 import {
   APK_AVAILABLE,
   APK_DOWNLOAD_URL,
+  APK_FILE_NAME,
+  APK_VERSION,
   RELEASES_PAGE_URL,
   RELEASES_URL,
   SITE_HOST,
@@ -46,20 +48,25 @@ export function WelcomeDownload() {
       <div className="grid gap-3 @2xl:grid-cols-2">
         {showAndroid && (
           <div className="bg-surface shadow-card flex flex-col gap-3 rounded-2xl p-5">
-            <div className="flex items-center gap-3">
-              <IconTile icon="download" tone="exercise" />
-              <div>
-                <p className="font-semibold">安卓手机</p>
-                <p className="text-tiny text-muted">下载安装包，或在浏览器菜单里「添加到主屏幕」</p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <IconTile icon="download" tone="exercise" />
+                <div>
+                  <p className="font-semibold">安卓手机（Android APK）</p>
+                  <p className="text-tiny text-muted">
+                    直接安装 {APK_FILE_NAME}，支持沉浸式开屏与相机智能打卡
+                  </p>
+                </div>
               </div>
+              <Badge tone="exercise">{APK_VERSION}</Badge>
             </div>
             {APK_AVAILABLE ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <LinkButton href={APK_DOWNLOAD_URL} icon="download">
-                  下载 Android 版
+                  下载 Android 版 ({APK_FILE_NAME})
                 </LinkButton>
-                <LinkButton href={RELEASES_URL} variant="soft">
-                  更新说明
+                <LinkButton href={RELEASES_URL} variant="soft" icon="link">
+                  版本说明 ({APK_VERSION})
                 </LinkButton>
               </div>
             ) : (

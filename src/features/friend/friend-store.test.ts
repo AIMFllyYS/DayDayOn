@@ -5,6 +5,7 @@ describe('friend-store 状态机与串门流转验证', () => {
   beforeEach(() => {
     friendActions.selectFriend(null)
     friendActions.closeAddSheet()
+    friendActions.cancelUnfriend()
   })
 
   describe('好友房间视角切换 (viewingFriendId)', () => {
@@ -12,18 +13,29 @@ describe('friend-store 状态机与串门流转验证', () => {
       expect(getFriendStoreState().viewingFriendId).toBeNull()
     })
 
-    it('无缝切换到好友房间并在多个好友间切换', () => {
+    it('无缝切换到好友房间并在多个好友间切换，同步记录好友昵称与头像', () => {
       // 串门到阿柚的小窝
-      friendActions.selectFriend('user-ayou')
+      friendActions.selectFriend('user-ayou', {
+        nickname: '阿柚',
+        avatar: 'mascot:tuan:cheer:diet',
+      })
       expect(getFriendStoreState().viewingFriendId).toBe('user-ayou')
+      expect(getFriendStoreState().viewingFriendNickname).toBe('阿柚')
+      expect(getFriendStoreState().viewingFriendAvatar).toBe('mascot:tuan:cheer:diet')
 
       // 直接切换到豆豆的小窝
-      friendActions.selectFriend('user-doudou')
+      friendActions.selectFriend('user-doudou', {
+        nickname: '豆豆',
+        avatar: 'mascot:dun:happy:study',
+      })
       expect(getFriendStoreState().viewingFriendId).toBe('user-doudou')
+      expect(getFriendStoreState().viewingFriendNickname).toBe('豆豆')
 
       // 返回我的主页
       friendActions.selectFriend(null)
       expect(getFriendStoreState().viewingFriendId).toBeNull()
+      expect(getFriendStoreState().viewingFriendNickname).toBeNull()
+      expect(getFriendStoreState().viewingFriendAvatar).toBeNull()
     })
 
     it('选择好友时自动关闭提示气泡', () => {
@@ -103,6 +115,32 @@ describe('friend-store 状态机与串门流转验证', () => {
       // 清理状态回 null
       friendActions.selectFriend(null)
       expect(getFriendStoreState().viewingFriendId).toBeNull()
+    })
+
+    it('requestUnfriend 与 cancelUnfriend 正确管理二次确认目标，解除后自动清空', () => {
+      expect(getFriendStoreState().unfriendTarget).toBeNull()
+
+      friendActions.requestUnfriend({
+        userId: 'user-ayou',
+        nickname: '阿柚',
+        avatar: 'mascot:tuan:cheer:diet',
+      })
+      expect(getFriendStoreState().unfriendTarget).toEqual({
+        userId: 'user-ayou',
+        nickname: '阿柚',
+        avatar: 'mascot:tuan:cheer:diet',
+      })
+
+      friendActions.cancelUnfriend()
+      expect(getFriendStoreState().unfriendTarget).toBeNull()
+
+      // 再次发起并通过 handleUnfriend 完成解除
+      friendActions.selectFriend('user-ayou', { nickname: '阿柚' })
+      friendActions.requestUnfriend({ userId: 'user-ayou', nickname: '阿柚' })
+      friendActions.handleUnfriend('user-ayou')
+      expect(getFriendStoreState().viewingFriendId).toBeNull()
+      expect(getFriendStoreState().viewingFriendNickname).toBeNull()
+      expect(getFriendStoreState().unfriendTarget).toBeNull()
     })
   })
 })

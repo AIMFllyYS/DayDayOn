@@ -58,14 +58,36 @@ function SubmitButton({ submitting }: { submitting: boolean }) {
   )
 }
 
-export function ExerciseForm({ isMakeup, submitting, errors, onSubmit }: ModuleFormProps) {
-  const [options, setOptions] = useState<{ value: string; label: string }[]>(() =>
-    EXERCISE_CATEGORIES.map((c) => ({ value: c, label: c })),
-  )
-  const [category, setCategory] = useState<string | null>(null)
-  const [minutes, setMinutes] = useState<number | null>(30)
-  const [intensity, setIntensity] = useState<Intensity>('moderate')
-  const [note, setNote] = useState('')
+export function ExerciseForm({
+  isMakeup,
+  submitting,
+  errors,
+  smartContext,
+  onSubmit,
+}: ModuleFormProps) {
+  const aiEx = smartContext?.draft.exercise
+  const [options, setOptions] = useState<{ value: string; label: string }[]>(() => {
+    const base = EXERCISE_CATEGORIES.map((c) => ({ value: c, label: c }))
+    if (
+      aiEx?.category &&
+      !EXERCISE_CATEGORIES.includes(aiEx.category as (typeof EXERCISE_CATEGORIES)[number])
+    ) {
+      return [...base, { value: aiEx.category, label: aiEx.category }]
+    }
+    return base
+  })
+  const [category, setCategory] = useState<string | null>(aiEx?.category ?? null)
+  const [minutes, setMinutes] = useState<number | null>(aiEx?.durationMinutes ?? 30)
+  const [intensity, setIntensity] = useState<Intensity>(aiEx?.intensity ?? 'moderate')
+  const [note, setNote] = useState(aiEx?.note ?? '')
+  const aiMeta =
+    smartContext && !isMakeup
+      ? {
+          source: 'ai' as const,
+          aiRunId: smartContext.aiRunId,
+          parsedText: smartContext.draft.summary,
+        }
+      : {}
   return (
     <Form
       errors={errors}
@@ -77,6 +99,7 @@ export function ExerciseForm({ isMakeup, submitting, errors, onSubmit }: ModuleF
           intensity,
           durationSeconds: Math.round((minutes ?? 0) * 60),
           note: noteOf(note),
+          ...aiMeta,
         })
       }
     >
@@ -127,14 +150,33 @@ export function ExerciseForm({ isMakeup, submitting, errors, onSubmit }: ModuleF
   )
 }
 
-export function SleepForm({ day, isMakeup, clock, submitting, errors, onSubmit }: ModuleFormProps) {
-  const [bed, setBed] = useState('23:00')
-  const [wake, setWake] = useState('07:00')
-  const [quality, setQuality] = useState<RatingValue | null>(null)
-  const [note, setNote] = useState('')
+export function SleepForm({
+  day,
+  isMakeup,
+  clock,
+  submitting,
+  errors,
+  smartContext,
+  onSubmit,
+}: ModuleFormProps) {
+  const aiSl = smartContext?.draft.sleep
+  const [bed, setBed] = useState(aiSl?.bedTime ?? '23:00')
+  const [wake, setWake] = useState(aiSl?.wakeTime ?? '07:00')
+  const [quality, setQuality] = useState<RatingValue | null>(
+    (aiSl?.quality as RatingValue | undefined) ?? null,
+  )
+  const [note, setNote] = useState(aiSl?.note ?? '')
   const [localError, setLocalError] = useState<string>()
   const wakeError =
     localError ?? (typeof errors?.wakeAt === 'string' ? errors.wakeAt : errors?.wakeAt?.[0])
+  const aiMeta =
+    smartContext && !isMakeup
+      ? {
+          source: 'ai' as const,
+          aiRunId: smartContext.aiRunId,
+          parsedText: smartContext.draft.summary,
+        }
+      : {}
   return (
     <Form
       errors={errors}
@@ -150,6 +192,7 @@ export function SleepForm({ day, isMakeup, clock, submitting, errors, onSubmit }
           wakeAt: range.wakeAt.toISOString(),
           quality,
           note: noteOf(note),
+          ...aiMeta,
         })
       }}
     >
@@ -186,10 +229,25 @@ export function SleepForm({ day, isMakeup, clock, submitting, errors, onSubmit }
   )
 }
 
-export function StudyForm({ isMakeup, submitting, errors, onSubmit }: ModuleFormProps) {
-  const [what, setWhat] = useState('')
-  const [minutes, setMinutes] = useState<number | null>(null)
-  const [note, setNote] = useState('')
+export function StudyForm({
+  isMakeup,
+  submitting,
+  errors,
+  smartContext,
+  onSubmit,
+}: ModuleFormProps) {
+  const aiSt = smartContext?.draft.study
+  const [what, setWhat] = useState(aiSt?.what ?? '')
+  const [minutes, setMinutes] = useState<number | null>(aiSt?.durationMinutes ?? null)
+  const [note, setNote] = useState(aiSt?.note ?? '')
+  const aiMeta =
+    smartContext && !isMakeup
+      ? {
+          source: 'ai' as const,
+          aiRunId: smartContext.aiRunId,
+          parsedText: smartContext.draft.summary,
+        }
+      : {}
   return (
     <Form
       errors={errors}
@@ -200,6 +258,7 @@ export function StudyForm({ isMakeup, submitting, errors, onSubmit }: ModuleForm
           what,
           durationSeconds: minutes === null ? undefined : Math.round(minutes * 60),
           note: noteOf(note),
+          ...aiMeta,
         })
       }
     >
@@ -229,11 +288,27 @@ export function StudyForm({ isMakeup, submitting, errors, onSubmit }: ModuleForm
   )
 }
 
-export function CustomForm({ goal, isMakeup, submitting, errors, onSubmit }: ModuleFormProps) {
+export function CustomForm({
+  goal,
+  isMakeup,
+  submitting,
+  errors,
+  smartContext,
+  onSubmit,
+}: ModuleFormProps) {
   const fields = goal.fields ?? []
-  const [values, setValues] = useState<FieldValues>({})
+  const aiCu = smartContext?.draft.custom
+  const [values, setValues] = useState<FieldValues>(() => aiCu?.values ?? {})
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>()
-  const [note, setNote] = useState('')
+  const [note, setNote] = useState(aiCu?.note ?? '')
+  const aiMeta =
+    smartContext && !isMakeup
+      ? {
+          source: 'ai' as const,
+          aiRunId: smartContext.aiRunId,
+          parsedText: smartContext.draft.summary,
+        }
+      : {}
   return (
     <Form
       errors={errors}
@@ -252,6 +327,7 @@ export function CustomForm({ goal, isMakeup, submitting, errors, onSubmit }: Mod
           fieldVersion: goal.fieldVersion ?? 1,
           values: clean,
           note: noteOf(note),
+          ...aiMeta,
         })
       }}
     >

@@ -7,6 +7,7 @@ import { LoginScreen } from './login'
 import { MeScreen } from './me'
 import { NotificationsScreen } from './notifications'
 import { RankScreen } from './rank'
+import { SmartCheckinScreen } from './smart-checkin'
 import { TodoScreen } from './todo'
 import { WelcomeScreen } from './welcome'
 
@@ -23,6 +24,7 @@ export type ScreenId =
   | 'notifications'
   | 'goals'
   | 'checkin'
+  | 'smart-checkin'
   | 'welcome'
   | 'login'
   | 'admin'
@@ -104,10 +106,18 @@ export const screens: ScreenDef[] = [
   {
     id: 'checkin',
     route: '/goals/[goalId]/checkin',
-    title: '饮食打卡',
-    note: '二级页面：隐藏底栏、顶栏带返回；拍照识别出草稿，确认后盖章',
+    title: '板块打卡',
+    note: '二级页面：5 大板块统一配备「手动填写 | 智能拍照 | 智能上传」Tab，已知板块直接调用对应填充组件',
     shell: 'app',
     render: () => <CheckinScreen />,
+  },
+  {
+    id: 'smart-checkin',
+    route: '/checkin/smart',
+    title: '智能识别',
+    note: '二级页面（打卡弹层底部双按钮进入）：扫描镜实时扫描 + 组件1板块判别器 + 组件2五大板块填充子组件',
+    shell: 'app',
+    render: () => <SmartCheckinScreen />,
   },
   {
     id: 'welcome',
