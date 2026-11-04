@@ -16,12 +16,15 @@ import { errorMessage, isApiError, newIdempotencyKey } from '@/lib/api'
 import { useRecognizeSmart } from '@/lib/api/queries/ai'
 import { cn } from '@/lib/cn'
 import { compressImage } from '@/lib/image'
+import { consumePendingSmartCapture, subscribePendingSmartCapture } from '../smart-handoff'
 
 /*
  * 智能打卡正式原子组件（对齐 Playbook /dev/playbook/smart-checkin 定稿规范）：
- * 1. SmartScannerLens：极简顶栏（左状态 + 右「重新扫描」），四角取景框与呼吸扫描光束，底部 3 步实时识别轨迹；
- *    支持拍照/图片（内存压缩为 JPEG，绝不落盘）与纯文本附件（HTML/TXT/MD/CSV 提纯正文）。
- * 2. SmartModuleDetector：一行识别方向胶囊条（5 大板块同行排开，AI 自动高亮，点选秒切）。
+ * 1. SmartScannerLens：
+ *    - 顶栏：左侧扫描状态指示 + 右侧操作按钮（智能上传或不识别情景下显示「重新上传」）；
+ *    - 视窗：四角取景框 + 真实上下往返移动的扫描光束（animate-scan-sweep）；
+ *    - 底部 1、2、3 步骤栏：始终显示 1、2、3 序号图标，当前进行到哪一步，哪一步前面就转圈圈（loader 动画）。
+ * 2. SmartModuleDetector：一行识别方向胶囊条（5 大板块同行排开，AI 自动高亮并带魔法扫光，点选秒切）。
  * 3. CheckinModeTabs：全板块统一的「手动填写 | 智能拍照 | 智能上传」三态 Tab 栏。
  */
 
@@ -77,15 +80,20 @@ export function CheckinModeTabs({
 
 export interface SmartModuleDetectorProps {
   selectedModule: Module
+  magicHighlight?: boolean
   onSelectModule: (m: Module) => void
 }
 
-export function SmartModuleDetector({ selectedModule, onSelectModule }: SmartModuleDetectorProps) {
+export function SmartModuleDetector({
+  selectedModule,
+  magicHighlight = false,
+  onSelectModule,
+}: SmartModuleDetectorProps) {
   return (
     <div
       role="radiogroup"
       aria-label="识别出的打卡方向"
-      className="bg-surface-sunken flex min-w-0 items-center gap-1 rounded-full p-1"
+      className="bg-surface-sunken animate-pop-in flex min-w-0 items-center gap-1 rounded-full p-1"
     >
       {moduleTones.map((m) => {
         const active = m === selectedModule
@@ -97,14 +105,17 @@ export function SmartModuleDetector({ selectedModule, onSelectModule }: SmartMod
             aria-checked={active}
             onClick={() => onSelectModule(m)}
             className={cn(
-              'text-tiny flex h-9 flex-1 items-center justify-center gap-1 rounded-full px-1.5 font-semibold whitespace-nowrap transition-all duration-(--dur-fast) select-none active:scale-95',
+              'text-tiny relative flex h-9 flex-1 items-center justify-center gap-1 overflow-hidden rounded-full px-1.5 font-semibold whitespace-nowrap transition-all duration-(--dur-fast) select-none active:scale-95',
               active
                 ? cn(softToneClass[m], 'shadow-soft font-bold')
                 : 'text-muted hover:text-foreground',
             )}
           >
-            <Icon name={moduleMeta[m].icon} size={13} className="shrink-0" />
-            <span>{moduleMeta[m].label}</span>
+            {active && magicHighlight && (
+              <span className="bg-sheen animate-shimmer pointer-events-none absolute inset-0" />
+            )}
+            <Icon name={moduleMeta[m].icon} size={13} className="relative shrink-0" />
+            <span className="relative">{moduleMeta[m].label}</span>
           </button>
         )
       })}
@@ -132,8 +143,14 @@ export interface SmartScannerLensProps {
   goalId?: string
   /** 视觉主题色 */
   tone?: ModuleTone
+  /** 开始扫描时的回调（通知父级展示「正在搜索哪个分区」懒加载动画） */
+  onScanStart?: () => void
   /** 识别成功后的回调 */
   onRecognized: (result: SmartRecognitionResult) => void
+  /** 识别失败/不识别时的回调 */
+  onScanError?: (message: string) => void
+  /** 不识别时用户点击「直接手动填写」的兜底回调 */
+  onManualFallback?: () => void
 }
 
 export function SmartScannerLens({
@@ -141,7 +158,10 @@ export function SmartScannerLens({
   hintModule,
   goalId,
   tone = 'exercise',
+  onScanStart,
   onRecognized,
+  onScanError,
+  onManualFallback,
 }: SmartScannerLensProps) {
   const recognize = useRecognizeSmart()
   const captureInputRef = useRef<HTMLInputElement>(null)
@@ -154,6 +174,7 @@ export function SmartScannerLens({
   } | null>(null)
   const [draft, setDraft] = useState<SmartRecognitionDraft | null>(null)
   const [errorText, setErrorText] = useState<string | null>(null)
+  const [activeStepIdx, setActiveStepIdx] = useState<0 | 1 | 2>(0)
 
   const pendingPayload = useRef<{
     image?: Blob
@@ -161,16 +182,33 @@ export function SmartScannerLens({
     key: string
   } | null>(null)
 
+  const processFileRef = useRef<(file: File) => Promise<void>>(async () => {})
+
   useEffect(() => {
     return () => {
       if (preview?.imageUrl) URL.revokeObjectURL(preview.imageUrl)
     }
   }, [preview?.imageUrl])
 
+  const isScanning = recognize.isPending
+
+  // 扫描进行中时，动态推进 1 -> 2 -> 3 步骤序号，让当前进行的步骤前面转圈圈
+  useEffect(() => {
+    if (!isScanning) return
+    const t1 = window.setTimeout(() => setActiveStepIdx(1), 700)
+    const t2 = window.setTimeout(() => setActiveStepIdx(2), 1450)
+    return () => {
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+    }
+  }, [isScanning])
+
   function runRecognition() {
     const payload = pendingPayload.current
     if (!payload) return
     setErrorText(null)
+    setActiveStepIdx(0)
+    onScanStart?.()
     recognize.mutate(
       {
         image: payload.image,
@@ -187,6 +225,7 @@ export function SmartScannerLens({
         onError: (err) => {
           const msg = isApiError(err) ? errorMessage(err.body) : errorMessage({ code: 'INTERNAL' })
           setErrorText(msg)
+          onScanError?.(msg)
           toast.error(msg)
         },
       },
@@ -196,6 +235,7 @@ export function SmartScannerLens({
   async function processFile(file: File) {
     setErrorText(null)
     setDraft(null)
+    setActiveStepIdx(0)
     if (file.type.startsWith('image/')) {
       try {
         const compressed = await compressImage(file)
@@ -209,6 +249,7 @@ export function SmartScannerLens({
       } catch (e) {
         const msg = e instanceof Error ? e.message : '这张图打不开，换一张或截个图试试'
         setErrorText(msg)
+        onScanError?.(msg)
         toast.error(msg)
       }
       return
@@ -218,7 +259,9 @@ export function SmartScannerLens({
       const raw = await file.text()
       const clean = extractCleanText(raw)
       if (!clean) {
-        setErrorText('文件内容为空，换个文件试试吧')
+        const msg = '文件内容为空或无法识别，请重新上传'
+        setErrorText(msg)
+        onScanError?.(msg)
         return
       }
       setPreview((prev) => {
@@ -228,9 +271,27 @@ export function SmartScannerLens({
       pendingPayload.current = { textContent: clean, key: newIdempotencyKey() }
       runRecognition()
     } catch {
-      setErrorText('读取文件失败，请上传 TXT / HTML 或图片文件')
+      const msg = '读取文件失败，请重新上传 TXT / HTML 或图片文件'
+      setErrorText(msg)
+      onScanError?.(msg)
     }
   }
+
+  useEffect(() => {
+    processFileRef.current = processFile
+  })
+
+  // 承接从打卡弹层点击「智能拍照」直接拍完照传过来的内存 File，挂载即刻进入识别态
+  useEffect(() => {
+    const consumeIfAny = () => {
+      const captured = consumePendingSmartCapture()
+      if (captured) {
+        void processFileRef.current(captured)
+      }
+    }
+    consumeIfAny()
+    return subscribePendingSmartCapture(consumeIfAny)
+  }, [])
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -246,7 +307,6 @@ export function SmartScannerLens({
     }
   }
 
-  const isScanning = recognize.isPending
   const steps: [string, string, string] = draft?.scanSteps ?? [
     preview
       ? '正在扫描上传的内容特征与关键数值…'
@@ -256,8 +316,17 @@ export function SmartScannerLens({
     hintModule
       ? `自动提取「${moduleMeta[hintModule].label}」板块结构化字段`
       : '自动判别所属打卡方向并匹配进行中目标',
-    '填充至下方表单，确认核对后入库',
+    '流式魔法填充至下方表单，确认核对后入库',
   ]
+
+  // 智能上传模式或未识别报错情景下，按钮文案统一为「重新上传」
+  const actionButtonLabel = !preview
+    ? mode === 'smart-upload'
+      ? '上传文件'
+      : '立即拍照'
+    : mode === 'smart-upload' || Boolean(errorText)
+      ? '重新上传'
+      : '重新扫描'
 
   return (
     <div className="border-border bg-surface shadow-soft flex min-w-0 flex-col gap-2.5 overflow-hidden rounded-2xl border p-3.5">
@@ -281,28 +350,31 @@ export function SmartScannerLens({
         onChange={handleFileChange}
       />
 
-      {/* 极简顶部栏：左状态 + 右唯一「重新扫描」按钮 */}
+      {/* 极简顶部栏：左状态 + 右唯一操作按钮 */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span
-            className={cn(
-              'size-2 shrink-0 rounded-full',
-              isScanning
-                ? 'bg-primary animate-pulse'
-                : draft
-                  ? 'bg-success'
-                  : errorText
-                    ? 'bg-danger'
-                    : 'bg-primary/60',
-            )}
-          />
+          {isScanning ? (
+            <Icon
+              name="loader"
+              size={14}
+              strokeWidth={2.5}
+              className="animate-spin-slow text-primary shrink-0"
+            />
+          ) : (
+            <span
+              className={cn(
+                'size-2 shrink-0 rounded-full',
+                draft ? 'bg-success' : errorText ? 'bg-warning' : 'bg-primary/60',
+              )}
+            />
+          )}
           <span className="text-caption truncate font-bold">
             {isScanning
               ? '团团扫描镜识别中…'
               : draft
                 ? '扫描识别完成'
                 : errorText
-                  ? '扫描遇到一点小问题'
+                  ? '未能识别出有效打卡数据'
                   : mode === 'smart-capture'
                     ? '团团智能拍照扫描镜'
                     : '团团智能上传扫描镜'}
@@ -311,43 +383,35 @@ export function SmartScannerLens({
         <button
           type="button"
           disabled={isScanning}
-          onClick={() => {
-            if (pendingPayload.current && errorText) {
-              pendingPayload.current = { ...pendingPayload.current, key: newIdempotencyKey() }
-              runRecognition()
-            } else {
-              triggerPicker()
-            }
-          }}
+          onClick={triggerPicker}
           className="text-primary-ink hover:bg-primary-soft/60 text-tiny inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 font-semibold transition-colors active:scale-95 disabled:opacity-50"
         >
-          <Icon name="sparkles" size={13} />
-          <span>{preview ? '重新扫描' : '选择文件'}</span>
+          <Icon name={mode === 'smart-capture' && !errorText ? 'camera' : 'sparkles'} size={13} />
+          <span>{actionButtonLabel}</span>
         </button>
       </div>
 
-      {/* 扫描镜主视窗（四角对焦角标 + 呼吸扫描光束） */}
-      <div className="bg-surface-sunken border-border-strong relative min-w-0 overflow-hidden rounded-2xl border p-3.5">
+      {/* 扫描镜主视窗（四角对焦角标 + 真实上下往返移动的扫描条 animate-scan-sweep） */}
+      <div className="bg-surface-sunken border-border-strong relative min-h-40 min-w-0 overflow-hidden rounded-2xl border p-3.5">
         <span className="border-primary pointer-events-none absolute top-2 left-2 size-3.5 rounded-tl-md border-t-2 border-l-2" />
         <span className="border-primary pointer-events-none absolute top-2 right-2 size-3.5 rounded-tr-md border-t-2 border-r-2" />
         <span className="border-primary pointer-events-none absolute bottom-2 left-2 size-3.5 rounded-bl-md border-b-2 border-l-2" />
         <span className="border-primary pointer-events-none absolute right-2 bottom-2 size-3.5 rounded-br-md border-r-2 border-b-2" />
 
-        {/* 扫描光束 */}
+        {/* 上下往返扫描条 */}
         <div
           aria-hidden
           className={cn(
-            'pointer-events-none absolute inset-x-2 z-10 transition-all duration-(--dur-slow)',
-            isScanning ? 'animate-pulse opacity-100' : 'opacity-0',
+            'pointer-events-none absolute inset-x-2 z-10 transition-opacity duration-(--dur-base)',
+            isScanning ? 'animate-scan-sweep opacity-100' : 'top-1/2 opacity-0',
           )}
-          style={{ top: isScanning ? '36%' : '90%' }}
         >
-          <div className="bg-primary h-0.5 w-full rounded-full shadow-sm" />
-          <div className="from-primary/25 h-9 w-full bg-gradient-to-b to-transparent" />
+          <div className="via-primary/25 h-8 w-full bg-gradient-to-b from-transparent to-transparent" />
+          <div className="bg-primary -mt-4 h-0.5 w-full rounded-full shadow-sm" />
         </div>
 
         {preview?.kind === 'image' && preview.imageUrl ? (
-          <div className="flex flex-col items-center gap-2 py-1">
+          <div className="flex flex-col items-center justify-center gap-2 py-1">
             {/* eslint-disable-next-line @next/next/no-img-element -- 内存压缩后的 Blob URL，不落盘 */}
             <img
               src={preview.imageUrl}
@@ -357,12 +421,12 @@ export function SmartScannerLens({
           </div>
         ) : preview?.kind === 'text' ? (
           <div className="bg-surface/90 border-border min-w-0 rounded-xl border p-3">
-            <p className="text-tiny text-muted line-clamp-3 font-mono break-words whitespace-pre-wrap">
+            <p className="text-tiny text-muted line-clamp-4 font-mono break-words whitespace-pre-wrap">
               {preview.textSnippet}
             </p>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center gap-2.5 py-4 text-center">
+          <div className="flex flex-col items-center justify-center gap-2.5 py-3 text-center">
             <IconTile
               icon={mode === 'smart-capture' ? 'camera' : moduleMeta[tone].icon}
               tone={tone}
@@ -401,38 +465,65 @@ export function SmartScannerLens({
       {errorText && (
         <div
           role="alert"
-          className="bg-danger-soft text-danger-ink text-tiny flex items-center justify-between gap-2 rounded-xl px-3 py-2 font-medium"
+          className="bg-warning-soft/65 border-warning/30 text-warning-ink flex flex-col gap-2 rounded-xl border px-3 py-2.5"
         >
-          <span className="min-w-0 flex-1">{errorText}</span>
-          <button type="button" onClick={triggerPicker} className="shrink-0 font-bold underline">
-            换一个试试
-          </button>
+          <p className="text-tiny font-medium">{errorText}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="soft" icon="sparkles" onClick={triggerPicker}>
+              重新上传
+            </Button>
+            {onManualFallback && (
+              <Button size="sm" variant="secondary" icon="edit" onClick={onManualFallback}>
+                直接手动填写
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
-      {/* 下方实时 3 步分析轨迹 */}
+      {/* 下方实时 1、2、3 步骤轨迹：始终展示 1、2、3 序号图标，进行到哪一步哪一步前面就转圈圈 */}
       <ol className="bg-surface-sunken/60 grid gap-1.5 rounded-xl px-3 py-2">
         {steps.map((step, idx) => {
-          const doneStep = Boolean(draft) || (isScanning && idx === 0)
-          const activeStep = isScanning && idx === 1
+          const doneStep = Boolean(draft) || (isScanning && idx < activeStepIdx)
+          const activeStep = isScanning && idx === activeStepIdx
           return (
             <li key={`${idx}-${step}`} className="flex min-w-0 items-center gap-2">
+              {/* 进行到哪一步，哪一步前面就转圈圈；已完成显示勾 */}
+              {activeStep ? (
+                <Icon
+                  name="loader"
+                  size={14}
+                  strokeWidth={2.5}
+                  className="animate-spin-slow text-primary shrink-0"
+                />
+              ) : doneStep ? (
+                <Icon name="check" size={14} strokeWidth={2.5} className="text-success shrink-0" />
+              ) : (
+                <span className="size-3.5 shrink-0" aria-hidden />
+              )}
+
+              {/* 1、2、3 步骤图标徽章 */}
               <span
                 className={cn(
-                  'font-display text-tiny flex size-4.5 shrink-0 items-center justify-center rounded-full font-semibold',
+                  'font-display text-tiny flex size-5 shrink-0 items-center justify-center rounded-full font-bold transition-colors',
                   doneStep
                     ? 'bg-success-soft text-success-ink'
                     : activeStep
-                      ? 'bg-primary-soft text-primary-ink animate-breathe'
+                      ? 'bg-primary-soft text-primary-ink ring-primary/30 ring-2'
                       : 'bg-surface text-subtle',
                 )}
               >
-                {doneStep ? '✓' : idx + 1}
+                {idx + 1}
               </span>
+
               <span
                 className={cn(
-                  'text-tiny min-w-0 flex-1 truncate',
-                  doneStep ? 'text-foreground font-semibold' : 'text-muted',
+                  'text-tiny min-w-0 flex-1 truncate transition-colors',
+                  activeStep
+                    ? 'text-primary-ink font-semibold'
+                    : doneStep
+                      ? 'text-foreground font-semibold'
+                      : 'text-muted',
                 )}
               >
                 {step}

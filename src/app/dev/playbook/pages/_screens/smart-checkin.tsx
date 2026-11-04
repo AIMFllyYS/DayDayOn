@@ -9,6 +9,10 @@ import { Icon } from '@/components/ui/icon'
 import { Stamp } from '@/components/ui/stamp'
 import { toast } from '@/components/ui/toast'
 import { moduleMeta, moduleTones, type ModuleTone } from '@/components/ui/tone'
+import {
+  SmartMagicTurnBanner,
+  SmartPartitionSearchLoader,
+} from '@/features/checkin/components/smart-magic-stream'
 import { cn } from '@/lib/cn'
 import {
   SMART_PRESETS,
@@ -21,8 +25,9 @@ import {
 /*
  * 智能识别页面预览（/checkin/smart）：
  * 从打卡弹层底部「智能拍照」或「智能上传」进入的二级页面（隐藏底栏，顶栏带返回）。
- * 手机端（360px）：纵向三段流（扫描镜 + 组件1一行识别方向条 + 组件2五选一板块填充表单）。
- * 桌面端（@3xl ≥1000px）：自适应左右双栏（左栏：扫描镜取景 + 一行识别方向条；右栏：组件2动态挂载的板块表单）。
+ * 1. 未扫描前（idle）：只展示扫描镜，不提前展示下方分区与表单；
+ * 2. 扫描中（scanning）：扫描条上下往返 + 1/2/3 步骤转圈 + 展示 SmartPartitionSearchLoader 分区搜索动画；
+ * 3. 识别完成后（done）：锁定识别分区 + Agent 流式魔法摘要 + 各字段逐项流式填入。
  */
 
 export function SmartCheckinScreen() {
@@ -37,7 +42,7 @@ export function SmartCheckinScreen() {
 
   useEffect(() => {
     if (phase !== 'scanning') return
-    const timer = setTimeout(() => setPhase('done'), 1000)
+    const timer = setTimeout(() => setPhase('done'), 1150)
     return () => clearTimeout(timer)
   }, [phase])
 
@@ -93,65 +98,84 @@ export function SmartCheckinScreen() {
             onRescan={() => setPhase('scanning')}
           />
 
-          <SmartModuleDetector
-            detectedModule={preset.module}
-            selectedModule={selectedModule}
-            scanning={phase === 'scanning'}
-            onSelectModule={(m) => {
-              setSelectedModule(m)
-              setStampedText(null)
-            }}
-          />
-        </div>
-
-        {/* 右栏：组件 02 · 根据识别出的板块动态加载 5 选 1 填充子组件 */}
-        <Card className="flex min-w-0 flex-col gap-3.5">
-          <div className="border-border flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <IconTile icon={moduleMeta[selectedModule].icon} tone={selectedModule} size="md" />
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-subhead truncate font-bold">{activePreset.goalTitle}</span>
-                  <Badge tone={selectedModule}>{moduleMeta[selectedModule].label}</Badge>
-                </div>
-                <p className="text-tiny text-muted truncate">
-                  AI 已自动填入识别数值，核对无误后点击底部确认即可入库
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {stampedText ? (
-            <div className="flex flex-col items-center gap-2.5 py-8 text-center">
-              <div className="relative">
-                <Mascot mood="cheer" size={88} />
-                <Stamp
-                  caption="11.03"
-                  tone={selectedModule}
-                  animate
-                  size={64}
-                  className="absolute -top-2 -right-10"
-                />
-              </div>
-              <p className="text-subhead font-bold">{stampedText}</p>
-              <p className="text-tiny text-muted">
-                已确认入库并盖章，原始图片/附件已在内存中自动释放（ADR-0002）
-              </p>
-              <Button variant="soft" size="sm" onClick={() => setStampedText(null)}>
-                返回继续编辑
-              </Button>
-            </div>
-          ) : (
-            <FillComponent
-              key={activePreset.id}
-              preset={activePreset}
-              onConfirm={(summary) => {
-                setStampedText(summary)
-                toast.success(summary)
+          {phase === 'done' && (
+            <SmartModuleDetector
+              detectedModule={preset.module}
+              selectedModule={selectedModule}
+              onSelectModule={(m) => {
+                setSelectedModule(m)
+                setStampedText(null)
               }}
             />
           )}
-        </Card>
+        </div>
+
+        {/* 右栏：扫描中展示分区搜索动画；识别完成后展示 Agent 流式魔法摘要 + 5 选 1 填充子组件 */}
+        {phase === 'scanning' ? (
+          <SmartPartitionSearchLoader />
+        ) : phase === 'done' ? (
+          <div className="flex min-w-0 flex-col gap-3">
+            <SmartMagicTurnBanner
+              tone={selectedModule}
+              summary={activePreset.summaryText ?? activePreset.visualTitle}
+              streaming={false}
+              magicStage={4}
+            />
+            <Card className="animate-fade-up flex min-w-0 flex-col gap-3.5">
+              <div className="border-border flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <IconTile
+                    icon={moduleMeta[selectedModule].icon}
+                    tone={selectedModule}
+                    size="md"
+                  />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-subhead truncate font-bold">
+                        {activePreset.goalTitle}
+                      </span>
+                      <Badge tone={selectedModule}>{moduleMeta[selectedModule].label}</Badge>
+                    </div>
+                    <p className="text-tiny text-muted truncate">
+                      AI 已流式魔法填入识别数值，核对无误后点击底部确认即可入库
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {stampedText ? (
+                <div className="flex flex-col items-center gap-2.5 py-8 text-center">
+                  <div className="relative">
+                    <Mascot mood="cheer" size={88} />
+                    <Stamp
+                      caption="11.05"
+                      tone={selectedModule}
+                      animate
+                      size={64}
+                      className="absolute -top-2 -right-10"
+                    />
+                  </div>
+                  <p className="text-subhead font-bold">{stampedText}</p>
+                  <p className="text-tiny text-muted">
+                    已确认入库并盖章，原始图片/附件已在内存中自动释放（ADR-0002）
+                  </p>
+                  <Button variant="soft" size="sm" onClick={() => setStampedText(null)}>
+                    返回继续编辑
+                  </Button>
+                </div>
+              ) : (
+                <FillComponent
+                  key={activePreset.id}
+                  preset={activePreset}
+                  onConfirm={(summary) => {
+                    setStampedText(summary)
+                    toast.success(summary)
+                  }}
+                />
+              )}
+            </Card>
+          </div>
+        ) : null}
       </div>
     </div>
   )

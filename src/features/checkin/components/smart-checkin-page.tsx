@@ -26,13 +26,18 @@ import type { SmartRecognitionResult } from '../smart-schemas'
 import { DietForm } from './diet-form'
 import type { ModuleFormProps, SmartFillContext } from './form-types'
 import { CustomForm, ExerciseForm, SleepForm, StudyForm } from './module-forms'
+import {
+  SmartMagicTurnBanner,
+  SmartPartitionSearchLoader,
+  useMagicStreamFill,
+} from './smart-magic-stream'
 import { SmartModuleDetector, SmartScannerLens } from './smart-scanner'
 
 /*
  * 全局智能识别页面（/checkin/smart）：
- * 1. SmartScannerLens（扫描镜）：支持拍照或上传图片 / TXT / HTML 附件，实时显示 3 步扫描进度；
- * 2. SmartModuleDetector（一行识别方向条）：AI 自动高亮识别出的打卡板块，用户也可点选同行胶囊秒切方向；
- * 3. 5 选 1 板块表单：自动匹配该板块下进行中的目标并预填识别出的数值，用户确认或微调后提交入库。
+ * 1. 未扫描前（idle）：只展示 SmartScannerLens 扫描镜，不提前暴露下方分区与表单；
+ * 2. 扫描进行中（scanning）：扫描条上下往返 + 1/2/3 步骤转圈 + 下方展示 SmartPartitionSearchLoader 分区搜索动画；
+ * 3. 识别完成后（done）：锁定识别分区 + Agent 流式魔法输出摘要 + 表单各字段按序逐字流式填入。
  */
 
 export function SmartCheckinPage({
@@ -45,6 +50,7 @@ export function SmartCheckinPage({
   const me = useQuery(checkinMeQuery())
   const create = useCreateCheckin()
 
+  const [scanPhase, setScanPhase] = useState<'idle' | 'scanning' | 'done' | 'manual'>('idle')
   const [selectedModule, setSelectedModule] = useState<Module>('diet')
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const [smartContext, setSmartContext] = useState<SmartFillContext | null>(null)
@@ -59,6 +65,8 @@ export function SmartCheckinPage({
   } | null>(null)
   const [key, setKey] = useState(newIdempotencyKey)
   const [lastBody, setLastBody] = useState<string | null>(null)
+
+  const magic = useMagicStreamFill(smartContext)
 
   if (goals.isPending || today.isPending || me.isPending) {
     return <SmartCheckinSkeleton />
@@ -88,12 +96,14 @@ export function SmartCheckinPage({
     setSmartContext(res)
     setSelectedModule(res.draft.detectedModule)
     setSelectedGoalId(res.draft.matchedGoalId)
+    setScanPhase('done')
     setErrors(undefined)
     setDone(null)
   }
 
   async function handleSubmit(input: CreateCheckinInput) {
     if (!activeGoal || submitting) return
+    magic.finishImmediately()
     setSubmitting(true)
     setErrors(undefined)
     try {
@@ -161,6 +171,7 @@ export function SmartCheckinPage({
             onClick={() => {
               setDone(null)
               setSmartContext(null)
+              setScanPhase('idle')
             }}
           >
             再扫一条
@@ -193,9 +204,14 @@ export function SmartCheckinPage({
         submitting,
         errors,
         smartContext,
+        streamedContext: magic.streamedContext,
+        magicStreaming: magic.isMagicStreaming,
+        magicStage: magic.magicStage,
         onSubmit: (input) => void handleSubmit(input),
       }
     : null
+
+  const showResultSection = scanPhase === 'done' || scanPhase === 'manual'
 
   return (
     <div className="mx-auto grid w-full max-w-xl gap-3 pt-2 pb-8">
@@ -203,81 +219,117 @@ export function SmartCheckinPage({
       <SmartScannerLens
         mode={initialAction === 'upload' ? 'smart-upload' : 'smart-capture'}
         tone={selectedModule}
+        onScanStart={() => {
+          setSmartContext(null)
+          setScanPhase('scanning')
+        }}
         onRecognized={handleRecognized}
-      />
-
-      {/* 2. 一行识别方向胶囊条（AI 自动高亮，可点选秒切） */}
-      <SmartModuleDetector
-        selectedModule={selectedModule}
-        onSelectModule={(m) => {
-          setSelectedModule(m)
-          setSelectedGoalId(null)
-          setErrors(undefined)
+        onScanError={() => {
+          setScanPhase('idle')
+        }}
+        onManualFallback={() => {
+          setScanPhase('manual')
         }}
       />
 
-      {/* 3. 动态加载对应打卡板块的子表单 */}
-      {!activeGoal || !formProps ? (
-        <Card>
-          <EmptyState
-            size="compact"
-            title={`还没有「${moduleMeta[selectedModule].label}」板块的目标`}
-            description="先创建一个该板块的小目标，就能把识别结果记进去啦"
-            action={<GoalLinkButton href="/goals/new">去新建目标</GoalLinkButton>}
-          />
-        </Card>
-      ) : (
-        <Card
-          key={`${activeGoal.id}-${smartContext?.aiRunId ?? 'init'}`}
-          className="flex flex-col gap-3"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <IconTile icon={moduleMeta[selectedModule].icon} tone={selectedModule} size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="text-caption truncate font-bold">{activeGoal.title}</p>
-                <p className="text-tiny text-muted">
-                  {targetText(activeGoal.target)} · 今天{' '}
-                  {progressText(activeGoal.target.kind, progress)}
-                </p>
-              </div>
-            </div>
-            <Badge tone={selectedModule}>
-              {smartContext ? 'AI 已预填' : moduleMeta[selectedModule].label}
-            </Badge>
-          </div>
+      {/* 2. 扫描进行中：展示「正在搜索哪个打卡分区」自定义懒加载动画 */}
+      {scanPhase === 'scanning' && <SmartPartitionSearchLoader />}
 
-          {moduleGoals.length > 1 && (
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="选择具体目标">
-              {moduleGoals.map((g) => {
-                const isSelected = g.id === activeGoal.id
-                return (
-                  <button
-                    key={g.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={isSelected}
-                    onClick={() => setSelectedGoalId(g.id)}
-                    className={cn(
-                      'text-tiny rounded-full px-3 py-1 font-semibold transition-colors',
-                      isSelected
-                        ? 'bg-primary-soft text-primary-ink font-bold'
-                        : 'bg-surface-sunken text-muted hover:text-foreground',
-                    )}
-                  >
-                    {g.title}
-                  </button>
-                )
-              })}
-            </div>
+      {/* 3. 识别出结果后（或点击手动填写兜底后）：展示一行识别方向条 + 流式魔法填充表单 */}
+      {showResultSection && (
+        <>
+          <SmartModuleDetector
+            selectedModule={selectedModule}
+            magicHighlight={magic.isMagicStreaming}
+            onSelectModule={(m) => {
+              magic.finishImmediately()
+              setSelectedModule(m)
+              setSelectedGoalId(null)
+              setErrors(undefined)
+            }}
+          />
+
+          {smartContext && (
+            <SmartMagicTurnBanner
+              tone={selectedModule}
+              summary={magic.streamedSummary}
+              streaming={magic.isMagicStreaming}
+              magicStage={magic.magicStage}
+            />
           )}
 
-          {selectedModule === 'exercise' && <ExerciseForm {...formProps} />}
-          {selectedModule === 'diet' && <DietForm {...formProps} />}
-          {selectedModule === 'sleep' && <SleepForm {...formProps} />}
-          {selectedModule === 'study' && <StudyForm {...formProps} />}
-          {selectedModule === 'custom' && <CustomForm {...formProps} />}
-        </Card>
+          {!activeGoal || !formProps ? (
+            <Card className="animate-fade-up">
+              <EmptyState
+                size="compact"
+                title={`还没有「${moduleMeta[selectedModule].label}」板块的目标`}
+                description="先创建一个该板块的小目标，就能把识别结果记进去啦"
+                action={<GoalLinkButton href="/goals/new">去新建目标</GoalLinkButton>}
+              />
+            </Card>
+          ) : (
+            <Card
+              key={`${activeGoal.id}-${smartContext?.aiRunId ?? 'init'}`}
+              onPointerDown={() => magic.finishImmediately()}
+              className="animate-fade-up flex flex-col gap-3"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <IconTile
+                    icon={moduleMeta[selectedModule].icon}
+                    tone={selectedModule}
+                    size="sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-caption truncate font-bold">{activeGoal.title}</p>
+                    <p className="text-tiny text-muted">
+                      {targetText(activeGoal.target)} · 今天{' '}
+                      {progressText(activeGoal.target.kind, progress)}
+                    </p>
+                  </div>
+                </div>
+                <Badge tone={selectedModule}>
+                  {magic.isMagicStreaming
+                    ? '魔法写入中…'
+                    : smartContext
+                      ? 'AI 已预填'
+                      : moduleMeta[selectedModule].label}
+                </Badge>
+              </div>
+
+              {moduleGoals.length > 1 && (
+                <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="选择具体目标">
+                  {moduleGoals.map((g) => {
+                    const isSelected = g.id === activeGoal.id
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => setSelectedGoalId(g.id)}
+                        className={cn(
+                          'text-tiny rounded-full px-3 py-1 font-semibold transition-colors',
+                          isSelected
+                            ? 'bg-primary-soft text-primary-ink font-bold'
+                            : 'bg-surface-sunken text-muted hover:text-foreground',
+                        )}
+                      >
+                        {g.title}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {selectedModule === 'exercise' && <ExerciseForm {...formProps} />}
+              {selectedModule === 'diet' && <DietForm {...formProps} />}
+              {selectedModule === 'sleep' && <SleepForm {...formProps} />}
+              {selectedModule === 'study' && <StudyForm {...formProps} />}
+              {selectedModule === 'custom' && <CustomForm {...formProps} />}
+            </Card>
+          )}
+        </>
       )}
     </div>
   )
@@ -287,8 +339,6 @@ function SmartCheckinSkeleton() {
   return (
     <div role="status" aria-label="加载中" className="mx-auto grid w-full max-w-xl gap-3 pt-2">
       <Skeleton className="h-56 w-full rounded-2xl" />
-      <Skeleton className="h-11 w-full rounded-full" />
-      <Skeleton className="h-72 w-full rounded-2xl" />
     </div>
   )
 }

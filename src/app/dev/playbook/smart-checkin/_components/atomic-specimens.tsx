@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { toast } from '@/components/ui/toast'
 import { moduleMeta, moduleTones, softToneClass, type ModuleTone } from '@/components/ui/tone'
+import { SmartPartitionSearchLoader } from '@/features/checkin/components/smart-magic-stream'
 import { cn } from '@/lib/cn'
 import { Specimen } from '../../_components/section'
 import {
@@ -117,38 +118,38 @@ export function ScannerLensStatesMatrix() {
       {/* 状态 4：图片模糊 / 文本无打卡内容 · 温和降级态（Fallback） */}
       <Specimen
         ann="playbook.smart.scanner.fallback"
-        label="状态 04 · 画面模糊温和降级态（Fallback）"
-        note="当照片反光模糊或文本不含打卡指标时，提供重新扫描与手动填写兜底"
+        label="状态 04 · 智能上传不识别温和降级态（Fallback）"
+        note="当上传内容未能识别出打卡指标时，按钮文案显示为「重新上传」并提供手动填写兜底"
         bg="paper"
       >
         <div className="border-warning/35 bg-surface shadow-soft flex w-full min-w-0 flex-col gap-3 rounded-2xl border p-3.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="bg-warning size-2 shrink-0 rounded-full" />
-              <span className="text-caption font-bold">画面较模糊，未能看清数字</span>
+              <span className="text-caption font-bold">未能识别出有效打卡数据</span>
             </div>
             <button
               type="button"
-              onClick={() => toast.info('已触发重新扫描')}
+              onClick={() => toast.info('已拉起文件选择器重新上传')}
               className="text-primary-ink hover:bg-primary-soft/60 text-tiny inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 font-semibold"
             >
               <Icon name="sparkles" size={13} />
-              <span>重新扫描</span>
+              <span>重新上传</span>
             </button>
           </div>
           <div className="bg-warning-soft/45 border-warning/25 rounded-xl border p-3">
             <p className="text-tiny text-muted leading-relaxed">
-              照片光线较暗或存在反光，团团没能准确读出运动时长。你可以换一张清晰截图重新扫描，或直接在下方手动填入数值（不重复扣额度）。
+              上传的图片光线较暗或文本不含打卡指标，团团没能准确解析出数据。你可以点击「重新上传」换一份文件，或直接切换为手动填写（不重复扣额度）。
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"
               variant="soft"
-              icon="camera"
-              onClick={() => toast.info('已打开重新拍照/上传')}
+              icon="sparkles"
+              onClick={() => toast.info('已拉起文件选择器重新上传')}
             >
-              重新选图
+              重新上传
             </Button>
             <Button
               size="sm"
@@ -166,42 +167,37 @@ export function ScannerLensStatesMatrix() {
 }
 
 // ============================================================================
-// 2. 第 1 核心组件：板块智能判别器（SmartModuleDetector）
-//    一行识别方向样式（无把握度百分比，5 大板块一行排开，AI 自动高亮，点选秒切）
+// 2. 第 1 核心组件：板块智能判别器（SmartModuleDetector）与分区搜索动画
 // ============================================================================
 
 export function ModuleDetectorStatesMatrix() {
   const [selectedAuto, setSelectedAuto] = useState<ModuleTone>('diet')
-  const [selectedSwitched, setSelectedSwitched] = useState<ModuleTone>('study')
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <Specimen
+        ann="playbook.smart.detector.searching"
+        label="状态 A · 扫描中：正在搜索哪个打卡分区（SmartPartitionSearchLoader）"
+        note="扫描尚未得出结果前，不提前暴露下方表单，展示旋转搜索图标与 5 大分区探照灯轮询动画"
+        bg="paper"
+      >
+        <div className="w-full min-w-0">
+          <SmartPartitionSearchLoader />
+        </div>
+      </Specimen>
+
+      <Specimen
         ann="playbook.smart.detector.auto"
-        label="状态 A · AI 自动识别方向（一行胶囊高亮）"
-        note="去掉把握度百分比与冗余解释，直接在一行内高亮识别出的「饮食」方向"
+        label="状态 B · 识别完成：锁定分区并支持点选秒切（SmartModuleDetector）"
+        note="确定结果后魔法弹入并高亮识别出的「饮食」方向，用户也可点击同行胶囊秒切板块"
         bg="paper"
       >
         <div className="w-full min-w-0">
           <SmartModuleDetector
             detectedModule="diet"
             selectedModule={selectedAuto}
+            magicHighlight
             onSelectModule={setSelectedAuto}
-          />
-        </div>
-      </Specimen>
-
-      <Specimen
-        ann="playbook.smart.detector.switched"
-        label="状态 B · 用户点选同行胶囊秒切方向"
-        note="若用户想改归属板块，直接点同一行的其他板块胶囊即可切换下方填充子组件"
-        bg="paper"
-      >
-        <div className="w-full min-w-0">
-          <SmartModuleDetector
-            detectedModule="diet"
-            selectedModule={selectedSwitched}
-            onSelectModule={setSelectedSwitched}
           />
         </div>
       </Specimen>

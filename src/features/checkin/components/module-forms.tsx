@@ -18,10 +18,12 @@ import * as z from 'zod'
 import { intensityLabel } from '../format'
 import { EXERCISE_CATEGORIES, NOTE_MAX, type Intensity } from '../schemas'
 import { NOTE_PLACEHOLDER, type ModuleFormProps } from './form-types'
+import { MagicFieldBlock } from './smart-magic-stream'
 
 /*
  * 运动、睡眠、学习、自定义四个板块的打卡表单（PRD 2.4 表）。饮食在 diet-form.tsx。
  * 输入用界面单位（分钟），提交前换算成接口单位（秒）。
+ * 支持流式魔法填充（magicStreaming + streamedContext）：流式阶段实时呈现逐字输入与数字滚动。
  */
 
 // 组合框是弹层类组件，懒加载（ui-primitives.md 第 3 节）
@@ -63,9 +65,13 @@ export function ExerciseForm({
   submitting,
   errors,
   smartContext,
+  streamedContext,
+  magicStreaming,
+  magicStage,
   onSubmit,
 }: ModuleFormProps) {
   const aiEx = smartContext?.draft.exercise
+  const streamEx = streamedContext?.draft.exercise
   const [options, setOptions] = useState<{ value: string; label: string }[]>(() => {
     const base = EXERCISE_CATEGORIES.map((c) => ({ value: c, label: c }))
     if (
@@ -80,6 +86,11 @@ export function ExerciseForm({
   const [minutes, setMinutes] = useState<number | null>(aiEx?.durationMinutes ?? 30)
   const [intensity, setIntensity] = useState<Intensity>(aiEx?.intensity ?? 'moderate')
   const [note, setNote] = useState(aiEx?.note ?? '')
+
+  const shownCategory = magicStreaming && streamEx ? streamEx.category : category
+  const shownMinutes = magicStreaming && streamEx ? streamEx.durationMinutes : minutes
+  const shownNote = magicStreaming && streamEx ? (streamEx.note ?? '') : note
+
   const aiMeta =
     smartContext && !isMakeup
       ? {
@@ -103,48 +114,61 @@ export function ExerciseForm({
         })
       }
     >
-      <Field
-        label="运动品类"
-        htmlFor="checkin-category"
-        name="category"
-        hint="没有合适的可以直接输入新建"
+      <MagicFieldBlock stage={1} activeStage={magicStage} streaming={magicStreaming}>
+        <Field
+          label="运动品类"
+          htmlFor="checkin-category"
+          name="category"
+          hint="没有合适的可以直接输入新建"
+        >
+          <Combobox
+            id="checkin-category"
+            options={options}
+            value={shownCategory}
+            onValueChange={setCategory}
+            placeholder="跑步、瑜伽……"
+            creatable
+            onCreate={(label) => {
+              const v = label.slice(0, 10)
+              setOptions((o) => [...o, { value: v, label: v }])
+              return v
+            }}
+          />
+        </Field>
+      </MagicFieldBlock>
+
+      <MagicFieldBlock
+        stage={2}
+        activeStage={magicStage}
+        streaming={magicStreaming}
+        className="flex flex-col gap-3"
       >
-        <Combobox
-          id="checkin-category"
-          options={options}
-          value={category}
-          onValueChange={setCategory}
-          placeholder="跑步、瑜伽……"
-          creatable
-          onCreate={(label) => {
-            const v = label.slice(0, 10)
-            setOptions((o) => [...o, { value: v, label: v }])
-            return v
-          }}
-        />
-      </Field>
-      <Field label="时长" htmlFor="checkin-minutes" name="durationSeconds" hint="1–600 分钟">
-        <NumberField
-          id="checkin-minutes"
-          value={minutes}
-          onValueChange={setMinutes}
-          min={1}
-          max={600}
-          step={5}
-          unit="分钟"
-        />
-      </Field>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-caption font-semibold">强度</span>
-        <SegmentedControl
-          options={intensityOptions}
-          value={intensity}
-          onValueChange={setIntensity}
-          label="强度"
-        />
-        <p className="text-tiny text-muted">消耗按 MET × 体重 × 时长估算，估算结果，非医疗建议</p>
-      </div>
-      <NoteField value={note} onChange={setNote} />
+        <Field label="时长" htmlFor="checkin-minutes" name="durationSeconds" hint="1–600 分钟">
+          <NumberField
+            id="checkin-minutes"
+            value={shownMinutes}
+            onValueChange={setMinutes}
+            min={1}
+            max={600}
+            step={5}
+            unit="分钟"
+          />
+        </Field>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-caption font-semibold">强度</span>
+          <SegmentedControl
+            options={intensityOptions}
+            value={intensity}
+            onValueChange={setIntensity}
+            label="强度"
+          />
+          <p className="text-tiny text-muted">消耗按 MET × 体重 × 时长估算，估算结果，非医疗建议</p>
+        </div>
+      </MagicFieldBlock>
+
+      <MagicFieldBlock stage={3} activeStage={magicStage} streaming={magicStreaming}>
+        <NoteField value={shownNote} onChange={setNote} />
+      </MagicFieldBlock>
       <SubmitButton submitting={submitting} />
     </Form>
   )
@@ -157,9 +181,13 @@ export function SleepForm({
   submitting,
   errors,
   smartContext,
+  streamedContext,
+  magicStreaming,
+  magicStage,
   onSubmit,
 }: ModuleFormProps) {
   const aiSl = smartContext?.draft.sleep
+  const streamSl = streamedContext?.draft.sleep
   const [bed, setBed] = useState(aiSl?.bedTime ?? '23:00')
   const [wake, setWake] = useState(aiSl?.wakeTime ?? '07:00')
   const [quality, setQuality] = useState<RatingValue | null>(
@@ -167,6 +195,15 @@ export function SleepForm({
   )
   const [note, setNote] = useState(aiSl?.note ?? '')
   const [localError, setLocalError] = useState<string>()
+
+  const shownBed = magicStreaming && streamSl ? streamSl.bedTime : bed
+  const shownWake = magicStreaming && streamSl ? streamSl.wakeTime : wake
+  const shownQuality =
+    magicStreaming && streamSl
+      ? ((streamSl.quality as RatingValue | undefined) ?? quality)
+      : quality
+  const shownNote = magicStreaming && streamSl ? (streamSl.note ?? '') : note
+
   const wakeError =
     localError ?? (typeof errors?.wakeAt === 'string' ? errors.wakeAt : errors?.wakeAt?.[0])
   const aiMeta =
@@ -196,34 +233,42 @@ export function SleepForm({
         })
       }}
     >
-      <TimeRangeField
-        label={isMakeup ? '昨天的睡眠' : '昨晚的睡眠'}
-        start={bed}
-        end={wake}
-        onStartChange={(v) => {
-          setBed(v)
-          setLocalError(undefined)
-        }}
-        onEndChange={(v) => {
-          setWake(v)
-          setLocalError(undefined)
-        }}
-        error={wakeError}
-        hint="记到起床那天"
-      />
-      <div className="flex flex-col gap-1.5">
-        <span className="text-caption font-semibold">睡眠质量</span>
-        <Rating
-          value={quality}
-          onValueChange={(v) => {
-            setQuality(v)
+      <MagicFieldBlock stage={1} activeStage={magicStage} streaming={magicStreaming}>
+        <TimeRangeField
+          label={isMakeup ? '昨天的睡眠' : '昨晚的睡眠'}
+          start={shownBed}
+          end={shownWake}
+          onStartChange={(v) => {
+            setBed(v)
             setLocalError(undefined)
           }}
-          label="睡眠质量"
-          tone="sleep"
+          onEndChange={(v) => {
+            setWake(v)
+            setLocalError(undefined)
+          }}
+          error={wakeError}
+          hint="记到起床那天"
         />
-      </div>
-      <NoteField value={note} onChange={setNote} />
+      </MagicFieldBlock>
+
+      <MagicFieldBlock stage={2} activeStage={magicStage} streaming={magicStreaming}>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-caption font-semibold">睡眠质量</span>
+          <Rating
+            value={shownQuality}
+            onValueChange={(v) => {
+              setQuality(v)
+              setLocalError(undefined)
+            }}
+            label="睡眠质量"
+            tone="sleep"
+          />
+        </div>
+      </MagicFieldBlock>
+
+      <MagicFieldBlock stage={3} activeStage={magicStage} streaming={magicStreaming}>
+        <NoteField value={shownNote} onChange={setNote} />
+      </MagicFieldBlock>
       <SubmitButton submitting={submitting} />
     </Form>
   )
@@ -234,12 +279,21 @@ export function StudyForm({
   submitting,
   errors,
   smartContext,
+  streamedContext,
+  magicStreaming,
+  magicStage,
   onSubmit,
 }: ModuleFormProps) {
   const aiSt = smartContext?.draft.study
+  const streamSt = streamedContext?.draft.study
   const [what, setWhat] = useState(aiSt?.what ?? '')
   const [minutes, setMinutes] = useState<number | null>(aiSt?.durationMinutes ?? null)
   const [note, setNote] = useState(aiSt?.note ?? '')
+
+  const shownWhat = magicStreaming && streamSt ? streamSt.what : what
+  const shownMinutes = magicStreaming && streamSt ? streamSt.durationMinutes : minutes
+  const shownNote = magicStreaming && streamSt ? (streamSt.note ?? '') : note
+
   const aiMeta =
     smartContext && !isMakeup
       ? {
@@ -262,27 +316,40 @@ export function StudyForm({
         })
       }
     >
-      <Field label="学了什么" htmlFor="checkin-what" name="what" aside={`${what.length} / 60`}>
-        <Input
-          id="checkin-what"
-          value={what}
-          maxLength={60}
-          placeholder="例如：背了 30 个单词"
-          onChange={(e) => setWhat(e.target.value)}
-        />
-      </Field>
-      <Field label="时长" htmlFor="checkin-study-minutes" name="durationSeconds" aside="可选">
-        <NumberField
-          id="checkin-study-minutes"
-          value={minutes}
-          onValueChange={setMinutes}
-          min={1}
-          max={1440}
-          step={5}
-          unit="分钟"
-        />
-      </Field>
-      <NoteField value={note} onChange={setNote} />
+      <MagicFieldBlock stage={1} activeStage={magicStage} streaming={magicStreaming}>
+        <Field
+          label="学了什么"
+          htmlFor="checkin-what"
+          name="what"
+          aside={`${shownWhat.length} / 60`}
+        >
+          <Input
+            id="checkin-what"
+            value={shownWhat}
+            maxLength={60}
+            placeholder="例如：背了 30 个单词"
+            onChange={(e) => setWhat(e.target.value)}
+          />
+        </Field>
+      </MagicFieldBlock>
+
+      <MagicFieldBlock stage={2} activeStage={magicStage} streaming={magicStreaming}>
+        <Field label="时长" htmlFor="checkin-study-minutes" name="durationSeconds" aside="可选">
+          <NumberField
+            id="checkin-study-minutes"
+            value={shownMinutes}
+            onValueChange={setMinutes}
+            min={1}
+            max={1440}
+            step={5}
+            unit="分钟"
+          />
+        </Field>
+      </MagicFieldBlock>
+
+      <MagicFieldBlock stage={3} activeStage={magicStage} streaming={magicStreaming}>
+        <NoteField value={shownNote} onChange={setNote} />
+      </MagicFieldBlock>
       <SubmitButton submitting={submitting} />
     </Form>
   )
@@ -294,13 +361,21 @@ export function CustomForm({
   submitting,
   errors,
   smartContext,
+  streamedContext,
+  magicStreaming,
+  magicStage,
   onSubmit,
 }: ModuleFormProps) {
   const fields = goal.fields ?? []
   const aiCu = smartContext?.draft.custom
+  const streamCu = streamedContext?.draft.custom
   const [values, setValues] = useState<FieldValues>(() => aiCu?.values ?? {})
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>()
   const [note, setNote] = useState(aiCu?.note ?? '')
+
+  const shownValues = magicStreaming && streamCu ? streamCu.values : values
+  const shownNote = magicStreaming && streamCu ? (streamCu.note ?? '') : note
+
   const aiMeta =
     smartContext && !isMakeup
       ? {
@@ -331,17 +406,20 @@ export function CustomForm({
         })
       }}
     >
-      <SchemaForm
-        fields={fields}
-        value={values}
-        onChange={(next) => {
-          setValues(next)
-          // Field 带 error 时 Base UI 判为无效、Form 不再调 onFormSubmit；改过的字段要先清掉错误才能重新提交
-          setFieldErrors((prev) => clearChangedErrors(prev, values, next))
-        }}
-        errors={fieldErrors}
-      />
-      <NoteField value={note} onChange={setNote} />
+      <MagicFieldBlock stage={1} activeStage={magicStage} streaming={magicStreaming}>
+        <SchemaForm
+          fields={fields}
+          value={shownValues}
+          onChange={(next) => {
+            setValues(next)
+            setFieldErrors((prev) => clearChangedErrors(prev, values, next))
+          }}
+          errors={fieldErrors}
+        />
+      </MagicFieldBlock>
+      <MagicFieldBlock stage={3} activeStage={magicStage} streaming={magicStreaming}>
+        <NoteField value={shownNote} onChange={setNote} />
+      </MagicFieldBlock>
       <SubmitButton submitting={submitting} />
     </Form>
   )
