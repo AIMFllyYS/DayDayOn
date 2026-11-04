@@ -7,7 +7,7 @@ import { Field, Input, Textarea } from '@/components/ui/field'
 import { Form } from '@/components/ui/form'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { mealLabel } from '../format'
-import { NOTE_MAX, type Checkin, type DietMethod, type MealType } from '../schemas'
+import { NOTE_MAX, type MealType } from '../schemas'
 import { NOTE_PLACEHOLDER, type ModuleFormProps } from './form-types'
 import { MagicFieldBlock } from './smart-magic-stream'
 
@@ -32,11 +32,6 @@ interface ItemDraft {
 let seq = 0
 const blankItem = (): ItemDraft => ({ key: ++seq, name: '', portion: '', kcal: '' })
 
-export interface DietFormProps extends ModuleFormProps {
-  initialMethod?: DietMethod
-  onConfirmed?: (checkin: Checkin) => void
-}
-
 export function DietForm({
   isMakeup,
   submitting,
@@ -46,7 +41,7 @@ export function DietForm({
   magicStreaming,
   magicStage,
   onSubmit,
-}: DietFormProps) {
+}: ModuleFormProps) {
   const aiDiet = smartContext?.draft.diet
   const streamDiet = streamedContext?.draft.diet
   const [meal, setMeal] = useState<MealType>(aiDiet?.mealType ?? 'lunch')

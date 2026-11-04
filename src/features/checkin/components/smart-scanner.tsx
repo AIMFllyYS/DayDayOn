@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { Badge, IconTile } from '@/components/ui/badge'
+import { IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Icon, type IconName } from '@/components/ui/icon'
 import { toast } from '@/components/ui/toast'
@@ -30,7 +30,6 @@ import {
  * 1. SmartScannerLens：
  *    - 顶栏：左侧扫描状态指示 + 右侧操作按钮（智能上传模式显示「重新上传」，智能拍照模式显示「重新拍摄」）；
  *    - 视窗：四角取景框 + 真实上下往返移动的扫描光束（animate-scan-sweep）；
- *    - 历史回看：只存图片相对路径、不存真实图片；回看无原图时展示相对路径与温馨小提示；
  *    - 底部 1、2、3 步骤栏：始终显示 1、2、3 序号图标，当前进行到哪一步，哪一步前面就转圈圈（loader 动画）。
  * 2. SmartModuleDetector：一行识别方向胶囊条（5 大板块同行排开，AI 自动高亮并带魔法扫光，点选秒切）。
  * 3. CheckinModeTabs：全板块统一的「手动填写 | 智能拍照 | 智能上传」三态 Tab 栏。
@@ -151,8 +150,6 @@ export interface SmartScannerLensProps {
   goalId?: string
   /** 视觉主题色 */
   tone?: ModuleTone
-  /** 回看历史记录时传入（展示相对路径与未保存原图提示） */
-  historyRecord?: SmartHistoryRecord | null
   /** 开始扫描时的回调（通知父级展示「正在搜索哪个分区」懒加载动画） */
   onScanStart?: (mode: SmartInputMode) => void
   /** 识别成功后的回调 */
@@ -168,7 +165,6 @@ export function SmartScannerLens({
   hintModule,
   goalId,
   tone = 'exercise',
-  historyRecord = null,
   onScanStart,
   onRecognized,
   onScanError,
@@ -178,7 +174,7 @@ export function SmartScannerLens({
   const captureInputRef = useRef<HTMLInputElement>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
 
-  const [activeMode, setActiveMode] = useState<SmartInputMode>(historyRecord?.mode ?? mode)
+  const [activeMode, setActiveMode] = useState<SmartInputMode>(mode)
   const [preview, setPreview] = useState<{
     kind: 'image' | 'text'
     imageUrl?: string
@@ -353,27 +349,18 @@ export function SmartScannerLens({
     if (file) void processFile(file, 'smart-upload')
   }
 
-  const effectiveMode: SmartInputMode = preview
-    ? activeMode
-    : historyRecord
-      ? historyRecord.mode
-      : activeMode
-
   function triggerPicker() {
-    if (effectiveMode === 'smart-capture') {
+    if (activeMode === 'smart-capture') {
       captureInputRef.current?.click()
     } else {
       uploadInputRef.current?.click()
     }
   }
 
-  const effectiveDraft = draft ?? historyRecord?.result.draft ?? null
-  const isViewingHistoryWithoutLivePreview = Boolean(historyRecord && !preview && !isScanning)
-
-  const steps: [string, string, string] = effectiveDraft?.scanSteps ?? [
+  const steps: [string, string, string] = draft?.scanSteps ?? [
     preview
       ? '正在扫描上传的内容特征与关键数值…'
-      : effectiveMode === 'smart-capture'
+      : activeMode === 'smart-capture'
         ? '点击立即拍照开始智能扫描'
         : '点击上传图片或 TXT / HTML 文本附件',
     hintModule
@@ -382,16 +369,16 @@ export function SmartScannerLens({
     '流式魔法填充至下方表单，确认核对后入库',
   ]
 
-  const hasContent = Boolean(preview || effectiveDraft || errorText || historyRecord)
+  const hasContent = Boolean(preview || draft || errorText)
 
   // 严格区分右上角按钮文案：
   // - 智能上传模式（smart-upload）：识别完或失败后显示「重新上传」
   // - 智能拍照模式（smart-capture）：识别完或失败后显示「重新拍摄」
   const actionButtonLabel = !hasContent
-    ? effectiveMode === 'smart-upload'
+    ? activeMode === 'smart-upload'
       ? '上传文件'
       : '立即拍照'
-    : effectiveMode === 'smart-upload'
+    : activeMode === 'smart-upload'
       ? '重新上传'
       : '重新拍摄'
 
@@ -431,22 +418,20 @@ export function SmartScannerLens({
             <span
               className={cn(
                 'size-2 shrink-0 rounded-full',
-                effectiveDraft ? 'bg-success' : errorText ? 'bg-warning' : 'bg-primary/60',
+                draft ? 'bg-success' : errorText ? 'bg-warning' : 'bg-primary/60',
               )}
             />
           )}
           <span className="text-caption truncate font-bold">
             {isScanning
               ? '团团扫描镜识别中…'
-              : isViewingHistoryWithoutLivePreview
-                ? '历史识别记录回看'
-                : effectiveDraft
-                  ? '扫描识别完成'
-                  : errorText
-                    ? '未能识别出有效打卡数据'
-                    : effectiveMode === 'smart-capture'
-                      ? '团团智能拍照扫描镜'
-                      : '团团智能上传扫描镜'}
+              : draft
+                ? '扫描识别完成'
+                : errorText
+                  ? '未能识别出有效打卡数据'
+                  : activeMode === 'smart-capture'
+                    ? '团团智能拍照扫描镜'
+                    : '团团智能上传扫描镜'}
           </span>
         </div>
         <button
@@ -455,7 +440,7 @@ export function SmartScannerLens({
           onClick={triggerPicker}
           className="text-primary-ink hover:bg-primary-soft/60 text-tiny inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 font-semibold transition-colors active:scale-95 disabled:opacity-50"
         >
-          <Icon name={effectiveMode === 'smart-capture' ? 'camera' : 'sparkles'} size={13} />
+          <Icon name={activeMode === 'smart-capture' ? 'camera' : 'sparkles'} size={13} />
           <span>{actionButtonLabel}</span>
         </button>
       </div>
@@ -499,57 +484,16 @@ export function SmartScannerLens({
               {preview.textSnippet}
             </p>
           </div>
-        ) : isViewingHistoryWithoutLivePreview && historyRecord ? (
-          <div className="flex min-w-0 flex-col items-center justify-center gap-2 py-2.5 text-center">
-            <IconTile
-              icon={
-                historyRecord.mode === 'smart-capture'
-                  ? 'camera'
-                  : moduleMeta[historyRecord.result.draft.detectedModule].icon
-              }
-              tone={historyRecord.result.draft.detectedModule}
-              size="sm"
-            />
-            <div className="max-w-full min-w-0 space-y-1">
-              <p className="text-caption font-bold">
-                {historyRecord.mode === 'smart-capture' ? '历史拍摄记录' : '历史上传记录'}
-              </p>
-              <div className="bg-surface border-border mx-auto inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1">
-                <Icon
-                  name={historyRecord.mode === 'smart-capture' ? 'camera' : 'sparkles'}
-                  size={12}
-                  className="text-primary shrink-0"
-                />
-                <span className="text-tiny text-foreground truncate font-mono">
-                  {historyRecord.relativeImagePath ?? `captures/${historyRecord.fileName}`}
-                </span>
-              </div>
-              {historyRecord.textSnippet ? (
-                <p className="text-tiny text-muted line-clamp-2 pt-1 font-mono break-words">
-                  {historyRecord.textSnippet}
-                </p>
-              ) : (
-                <p className="text-tiny text-muted">
-                  小提示：为保护隐私仅存储图片的相对路径，未真实保存原图文件
-                </p>
-              )}
-            </div>
-            <Badge tone={historyRecord.confirmed ? 'success' : 'warning'}>
-              {historyRecord.confirmed
-                ? `已确认入库${historyRecord.confirmedGoalTitle ? ` · ${historyRecord.confirmedGoalTitle}` : ''}`
-                : '待确认入库'}
-            </Badge>
-          </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-2.5 py-3 text-center">
             <IconTile
-              icon={effectiveMode === 'smart-capture' ? 'camera' : moduleMeta[tone].icon}
+              icon={activeMode === 'smart-capture' ? 'camera' : moduleMeta[tone].icon}
               tone={tone}
               size="md"
             />
             <div className="space-y-0.5">
               <p className="text-caption font-bold">
-                {effectiveMode === 'smart-capture'
+                {activeMode === 'smart-capture'
                   ? '拍下餐盘、运动记录或睡眠截图'
                   : '上传图片或 TXT / HTML 学习与打卡记录'}
               </p>
@@ -587,10 +531,10 @@ export function SmartScannerLens({
             <Button
               size="sm"
               variant="soft"
-              icon={effectiveMode === 'smart-capture' ? 'camera' : 'sparkles'}
+              icon={activeMode === 'smart-capture' ? 'camera' : 'sparkles'}
               onClick={triggerPicker}
             >
-              {effectiveMode === 'smart-upload' ? '重新上传' : '重新拍摄'}
+              {activeMode === 'smart-upload' ? '重新上传' : '重新拍摄'}
             </Button>
             {onManualFallback && (
               <Button size="sm" variant="secondary" icon="edit" onClick={onManualFallback}>
@@ -604,11 +548,10 @@ export function SmartScannerLens({
       {/* 下方实时 1、2、3 步骤轨迹：始终展示 1、2、3 序号图标，进行到哪一步哪一步前面就转圈圈 */}
       <ol className="bg-surface-sunken/60 flex min-w-0 flex-col gap-1.5 rounded-xl px-3 py-2">
         {steps.map((step, idx) => {
-          const doneStep = Boolean(effectiveDraft) || (isScanning && idx < activeStepIdx)
+          const doneStep = Boolean(draft) || (isScanning && idx < activeStepIdx)
           const activeStep = isScanning && idx === activeStepIdx
           return (
             <li key={`${idx}-${step}`} className="flex min-w-0 items-center gap-2">
-              {/* 进行到哪一步，哪一步前面就转圈圈；已完成显示勾 */}
               {activeStep ? (
                 <Icon
                   name="loader"
@@ -622,7 +565,6 @@ export function SmartScannerLens({
                 <span className="size-3.5 shrink-0" aria-hidden />
               )}
 
-              {/* 1、2、3 步骤图标徽章 */}
               <span
                 className={cn(
                   'font-display text-tiny flex size-5 shrink-0 items-center justify-center rounded-full font-bold transition-colors',

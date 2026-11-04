@@ -15,7 +15,7 @@ import { moduleMeta } from '@/components/ui/tone'
 import { cn } from '@/lib/cn'
 import { addDays, formatLocalDateLabel } from '@/lib/time'
 import { progressText, targetText } from '../format'
-import type { Checkin, CreateCheckinInput, DietMethod, GoalProgress } from '../schemas'
+import type { CreateCheckinInput, DietMethod, GoalProgress } from '../schemas'
 import { markSmartHistoryConfirmed, setUnconfirmedSmartRecord } from '../smart-handoff'
 import { DietForm } from './diet-form'
 import type { CheckinClock, CheckinGoal, ModuleFormProps, SmartFillContext } from './form-types'
@@ -54,8 +54,6 @@ export interface CheckinScreenProps {
   onSubmit: (input: CreateCheckinInput) => Promise<CheckinSubmitResult>
   /** 把错误转成表单错误（有 fields 时）；返回 undefined 表示已经弹了提示 */
   toFormErrors: (error: unknown) => FormErrors | undefined
-  /** AI 识别确认后，取最新进度 */
-  onAiConfirmed: (checkin: Checkin) => Promise<CheckinSubmitResult>
 }
 
 export function CheckinScreen(props: CheckinScreenProps) {
@@ -105,14 +103,6 @@ export function CheckinScreen(props: CheckinScreenProps) {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  async function aiConfirmed(c: Checkin) {
-    if (smartContext) {
-      markSmartHistoryConfirmed(smartContext.aiRunId, goal.title)
-    }
-    setUnconfirmedSmartRecord(false)
-    setDone(await props.onAiConfirmed(c))
   }
 
   if (done) {
@@ -279,13 +269,7 @@ export function CheckinScreen(props: CheckinScreenProps) {
           )}
         >
           {goal.module === 'exercise' && <ExerciseForm {...formProps} />}
-          {goal.module === 'diet' && (
-            <DietForm
-              {...formProps}
-              initialMethod={props.initialMethod}
-              onConfirmed={(c) => void aiConfirmed(c)}
-            />
-          )}
+          {goal.module === 'diet' && <DietForm {...formProps} />}
           {goal.module === 'sleep' && <SleepForm {...formProps} />}
           {goal.module === 'study' && <StudyForm {...formProps} />}
           {goal.module === 'custom' && <CustomForm {...formProps} />}
