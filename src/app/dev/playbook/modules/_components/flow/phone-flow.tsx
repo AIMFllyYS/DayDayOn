@@ -46,6 +46,8 @@ interface PhoneFlowProps {
   report: ReportSpec
   /** 切换记录方式时通知板块：手动 → 清空；智能 → 载入当前场景的识别结果 */
   onModeChange: (mode: FlowMode) => void
+  /** 盖在整个手机屏幕上的板块专属浮层（设置页、加餐时间卡等） */
+  overlay?: ReactNode
 }
 
 /**
@@ -67,6 +69,7 @@ export function PhoneFlow({
   canSubmit,
   report,
   onModeChange,
+  overlay,
 }: PhoneFlowProps) {
   const [stack, setStack] = useState<Page[]>(['fill'])
   const [mode, setMode] = useState<FlowMode>('smart-capture')
@@ -361,6 +364,8 @@ export function PhoneFlow({
           </div>
         </div>
       )}
+
+      {overlay}
     </div>
   )
 }
@@ -401,7 +406,7 @@ const DEFAULT_AGENT_STEPS = [
 
 /** 每个板块 Agent 会调用的工具（名字取自 features/agent/tool-meta.ts，图标和文案由 ActivityTrail 自动渲染） */
 const AGENT_TOOLS: Record<ModuleTone, string[]> = {
-  diet: ['estimateFoodNutrition', 'webSearch'],
+  diet: ['webSearch', 'estimateFoodNutrition'],
   exercise: ['lookupMet', 'calcExerciseKcal'],
   sleep: ['getDaySummary', 'listCheckins'],
   study: ['listCheckins', 'webSearch'],

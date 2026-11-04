@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { Badge, IconTile } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
 import type { ModuleTone } from '@/components/ui/tone'
@@ -26,6 +26,13 @@ export function FillSection({
   ai: boolean
   onToggle: () => void
 }) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fired = useRef(false)
+  const hold = spec.onLongPress
+  function clear() {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = null
+  }
   return (
     <div
       data-ann={`playbook.modules.flow.section.${spec.id}`}
@@ -37,7 +44,36 @@ export function FillSection({
       <button
         type="button"
         aria-expanded={open}
-        onClick={onToggle}
+        onClick={() => {
+          if (fired.current) {
+            fired.current = false
+            return
+          }
+          onToggle()
+        }}
+        onContextMenu={
+          hold
+            ? (e) => {
+                e.preventDefault()
+                hold()
+              }
+            : undefined
+        }
+        onPointerDown={
+          hold
+            ? (e) => {
+                if (e.pointerType === 'mouse') return
+                fired.current = false
+                timer.current = setTimeout(() => {
+                  fired.current = true
+                  hold()
+                }, 550)
+              }
+            : undefined
+        }
+        onPointerUp={clear}
+        onPointerLeave={clear}
+        onPointerCancel={clear}
         className="flex min-h-14 w-full items-center gap-3 px-3.5 py-2 text-left"
       >
         <IconTile icon={spec.icon} tone={tone} size="sm" />

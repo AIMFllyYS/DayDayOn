@@ -78,6 +78,8 @@ export interface FillSectionSpec {
   summary: string
   filled: boolean
   content: ReactNode
+  /** 长按（手机）或右键（电脑）分区标题时触发，比如打开「自定义常用」设置 */
+  onLongPress?: () => void
 }
 
 export interface FlowScenario {

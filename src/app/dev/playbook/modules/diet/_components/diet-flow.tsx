@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Input } from '@/components/ui/field'
+import { Button } from '@/components/ui/button'
+import { Icon } from '@/components/ui/icon'
 import { cn } from '@/lib/cn'
 import { FlowStage } from '../../_components/flow/flow-stage'
 import type {
@@ -38,6 +40,8 @@ interface Dish {
   sodium: number
   /** 一票否决 */
   junk?: boolean
+  /** 不在常见库里，由 Agent 联网检索估算 */
+  web?: boolean
 }
 
 const DISHES: Dish[] = [
@@ -142,12 +146,48 @@ const DISHES: Dish[] = [
 ]
 
 interface Data {
-  dishIds: string[]
+  /** 输入框里的文字，用顿号分隔；Agent 按它解析 */
+  text: string
   meal: Meal
+  snackTime: string
   note: string
 }
 
-const EMPTY: Data = { dishIds: [], meal: 'lunch', note: '' }
+const SNACK_TIMES = ['10:00', '15:30', '21:00']
+const DEFAULT_FAVS = ['糙米杂粮饭', '清蒸鲈鱼', '蒜蓉西兰花', '番茄炒蛋', '小冰淇淋', '红油牛肉面']
+
+function splitNames(text: string): string[] {
+  return text
+    .split(/[、,，;；+＋\n]+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+}
+
+/** 输入文字 → 菜品：常见库里有就用，没有就当作「联网检索估算」 */
+function parseDishes(text: string): Dish[] {
+  const seen = new Set<string>()
+  const out: Dish[] = []
+  for (const n of splitNames(text)) {
+    const hit = DISHES.find((d) => d.name === n || d.name.includes(n) || n.includes(d.name))
+    const dish: Dish = hit ?? {
+      id: `web-${n}`,
+      name: n,
+      portion: '1 份',
+      kcal: 220,
+      gi: 50,
+      protein: 8,
+      carb: 28,
+      fat: 8,
+      fiber: 2,
+      sodium: 400,
+      web: true,
+    }
+    if (seen.has(dish.id)) continue
+    seen.add(dish.id)
+    out.push(dish)
+  }
+  return out
+}
 
 const SCENARIOS: (FlowScenario & { data: Data })[] = [
   {
@@ -156,7 +196,7 @@ const SCENARIOS: (FlowScenario & { data: Data })[] = [
     title: '清洁午餐',
     description: '糙米饭 + 清蒸鲈鱼 + 蒜蓉西兰花：蛋白、纤维都够，综合 GI 低。',
     passed: true,
-    data: { dishIds: ['rice', 'fish', 'broccoli'], meal: 'lunch', note: '' },
+    data: { text: '糙米杂粮饭、清蒸鲈鱼、蒜蓉西兰花', meal: 'lunch', snackTime: '15:30', note: '' },
   },
   {
     id: 'b',
@@ -164,7 +204,7 @@ const SCENARIOS: (FlowScenario & { data: Data })[] = [
     title: '炸鸡配可乐',
     description: '触发一票否决，本餐 0 分，只记热量不盖章。',
     passed: false,
-    data: { dishIds: ['chicken', 'cola'], meal: 'dinner', note: '' },
+    data: { text: '炸鸡腿、冰镇含糖可乐', meal: 'dinner', snackTime: '15:30', note: '' },
   },
   {
     id: 'c',
@@ -172,7 +212,7 @@ const SCENARIOS: (FlowScenario & { data: Data })[] = [
     title: '饭后小冰淇淋',
     description: '正餐不错，加了一个冰淇淋，擦线及格。',
     passed: true,
-    data: { dishIds: ['rice', 'egg', 'icecream'], meal: 'lunch', note: '' },
+    data: { text: '糙米杂粮饭、番茄炒蛋、小冰淇淋', meal: 'lunch', snackTime: '15:30', note: '' },
   },
   {
     id: 'd',
@@ -180,13 +220,9 @@ const SCENARIOS: (FlowScenario & { data: Data })[] = [
     title: '红油牛肉面',
     description: '钠和碳水偏高，晚餐高 GI 再扣分，不及格。',
     passed: false,
-    data: { dishIds: ['noodle'], meal: 'dinner', note: '' },
+    data: { text: '红油牛肉面、藤椒鸡胗', meal: 'dinner', snackTime: '15:30', note: '' },
   },
 ]
-
-function dishesOf(ids: string[]): Dish[] {
-  return DISHES.filter((d) => ids.includes(d.id))
-}
 
 function totals(ds: Dish[]) {
   const sum = (k: 'kcal' | 'protein' | 'carb' | 'fat' | 'fiber' | 'sodium') =>
@@ -261,6 +297,12 @@ const CONFIG: PhoneFlowConfig = {
   tone: 'diet',
   title: '科学饮食打卡',
   progress: { done: 12, total: 30 },
+  agentSteps: [
+    '解析你输入的每一道菜',
+    '联网搜索每道菜的热量、升糖指数和营养成分',
+    '估算份量并核对烹饪方式',
+    '生成分析结果与评分',
+  ],
   rulesDoc: {
     title: '达标规则',
     sections: [
@@ -394,7 +436,7 @@ function buildReport(ds: Dish[], meal: Meal): ReportSpec {
           { label: '膳食纤维', value: `${d.fiber} g` },
           { label: '钠', value: `${d.sodium} mg` },
         ],
-        note: q.note,
+        note: d.web ? `联网检索估算，仅供参考；${q.note}` : q.note,
       }
     }),
     note: '点开每道菜看质量与各项指标；综合 GI 按各菜碳水克数加权。',
@@ -454,8 +496,12 @@ export function DietFlowSandbox() {
   const [scenarioId, setScenarioId] = useState('a')
   const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0]!
   const [data, setData] = useState<Data>(SCENARIOS[0]!.data)
+  const [favs, setFavs] = useState<string[]>(DEFAULT_FAVS)
+  const [sheet, setSheet] = useState<null | 'favs' | 'snack'>(null)
+  const [prevMeal, setPrevMeal] = useState<Meal>('lunch')
+  const [draftFav, setDraftFav] = useState('')
 
-  const ds = dishesOf(data.dishIds)
+  const ds = parseDishes(data.text)
   const sc = score(ds, data.meal)
   const hasJunk = ds.some((d) => d.junk)
   const verdict: Verdict = {
@@ -470,44 +516,76 @@ export function DietFlowSandbox() {
           : `本餐 ${sc.toFixed(1)} 分，未达 3.0 分有效线`,
   }
 
-  function toggle(id: string) {
-    setData((d) => ({
-      ...d,
-      dishIds: d.dishIds.includes(id) ? d.dishIds.filter((x) => x !== id) : [...d.dishIds, id],
-    }))
+  function toggleTag(name: string) {
+    setData((d) => {
+      const names = splitNames(d.text)
+      const next = names.includes(name) ? names.filter((x) => x !== name) : [...names, name]
+      return { ...d, text: next.join('、') }
+    })
   }
 
+  const names = splitNames(data.text)
   const sections: FillSectionSpec[] = [
     {
       id: 'dishes',
       label: '吃了什么',
       icon: 'diet',
       filled: ds.length > 0,
-      summary: ds.length ? `${ds.length} 道 · ${totals(ds).kcal} kcal` : '点选你吃的菜',
+      summary: ds.length ? `${ds.length} 道 · ${totals(ds).kcal} kcal` : '输入或点选你吃的东西',
+      onLongPress: () => setSheet('favs'),
       content: (
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="菜品">
-          {DISHES.map((d) => {
-            const on = data.dishIds.includes(d.id)
-            return (
-              <button
-                key={d.id}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggle(d.id)}
-                className={cn(
-                  'text-tiny min-h-9 rounded-full border px-3 font-semibold transition-colors',
-                  on
-                    ? 'border-diet bg-diet-soft text-diet-ink'
-                    : 'border-border bg-surface-sunken text-muted hover:text-foreground',
-                )}
-              >
-                {d.name}
-              </button>
-            )
-          })}
-        </div>
+        <>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="常吃的食物">
+            {favs.map((name) => {
+              const on = names.includes(name)
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggleTag(name)}
+                  className={cn(
+                    'text-tiny min-h-7 rounded-full border px-2.5 font-semibold transition-colors',
+                    on
+                      ? 'border-diet bg-diet-soft text-diet-ink'
+                      : 'border-border bg-surface-sunken text-muted hover:text-foreground',
+                  )}
+                >
+                  {name}
+                </button>
+              )
+            })}
+          </div>
+          <Input
+            aria-label="吃了什么"
+            value={data.text}
+            placeholder="例如：糙米饭、清蒸鲈鱼"
+            onChange={(e) => setData((d) => ({ ...d, text: e.target.value }))}
+          />
+          <p className="text-tiny text-subtle">
+            用顿号分隔；没见过的菜，Agent
+            会联网搜索它的各项指标。长按或右键「吃了什么」可自定义上面的常吃清单。
+          </p>
+        </>
       ),
     },
+    ...(data.meal === 'snack'
+      ? [
+          {
+            id: 'snack-time',
+            label: '加餐时间',
+            icon: 'clock' as const,
+            filled: true,
+            summary: data.snackTime,
+            content: (
+              <TimeChips
+                value={data.snackTime}
+                onChange={(snackTime) => setData((d) => ({ ...d, snackTime }))}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       id: 'note',
       label: '备注',
@@ -525,13 +603,22 @@ export function DietFlowSandbox() {
     },
   ]
 
-  function onModeChange(mode: FlowMode) {
-    setData(mode === 'manual' ? EMPTY : scenario.data)
+  // 手动填写：输入框里默认就有字（假数据），提交时 Agent 直接解析它
+  function onModeChange(_mode: FlowMode) {
+    setData(scenario.data)
   }
 
   function selectScenario(id: string) {
     setScenarioId(id)
-    setData(SCENARIOS.find((s) => s.id === id)?.data ?? EMPTY)
+    setData(SCENARIOS.find((s) => s.id === id)?.data ?? SCENARIOS[0]!.data)
+  }
+
+  function pickMeal(meal: Meal) {
+    if (meal === 'snack') {
+      setPrevMeal(data.meal)
+      setSheet('snack')
+    }
+    setData((d) => ({ ...d, meal }))
   }
 
   const selector = (
@@ -539,7 +626,7 @@ export function DietFlowSandbox() {
       size="sm"
       label="餐次"
       value={data.meal}
-      onValueChange={(meal) => setData((d) => ({ ...d, meal }))}
+      onValueChange={pickMeal}
       options={[
         { value: 'breakfast', label: '早餐' },
         { value: 'lunch', label: '午餐' },
@@ -548,6 +635,102 @@ export function DietFlowSandbox() {
       ]}
     />
   )
+
+  const overlay =
+    sheet === 'snack' ? (
+      <div
+        className="bg-foreground/30 absolute inset-0 z-30 flex items-center justify-center px-6"
+        role="dialog"
+        aria-label="加餐时间"
+      >
+        <div className="bg-surface animate-fade-up flex w-full flex-col gap-3 rounded-xl p-4">
+          <div className="flex items-center gap-2">
+            <Icon name="clock" size={16} className="text-diet-ink" />
+            <span className="text-subhead font-bold">加餐时间</span>
+          </div>
+          <TimeChips
+            value={data.snackTime}
+            onChange={(snackTime) => setData((d) => ({ ...d, snackTime }))}
+          />
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              className="flex-1"
+              onClick={() => {
+                setData((d) => ({ ...d, meal: prevMeal }))
+                setSheet(null)
+              }}
+            >
+              取消
+            </Button>
+            <Button className="flex-1" onClick={() => setSheet(null)}>
+              确定
+            </Button>
+          </div>
+        </div>
+      </div>
+    ) : sheet === 'favs' ? (
+      <div
+        className="bg-foreground/30 absolute inset-0 z-30 flex items-end"
+        role="dialog"
+        aria-label="自定义常吃的食物"
+      >
+        <div className="bg-surface animate-fade-up flex w-full flex-col gap-3 rounded-t-xl px-4 pt-4 pb-5">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-subhead font-bold">我常吃的食物</span>
+            <span className="text-tiny text-muted">
+              这些会作为快捷标签出现在「吃了什么」上方，不再用系统预设。
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {favs.map((name) => (
+              <span
+                key={name}
+                className="text-tiny bg-diet-soft text-diet-ink inline-flex min-h-7 items-center gap-1 rounded-full pr-1.5 pl-2.5 font-semibold"
+              >
+                {name}
+                <button
+                  type="button"
+                  aria-label={`移除${name}`}
+                  onClick={() => setFavs((f) => f.filter((x) => x !== name))}
+                  className="grid size-4 place-items-center rounded-full hover:bg-black/10"
+                >
+                  <Icon name="x" size={10} />
+                </button>
+              </span>
+            ))}
+            {favs.length === 0 && <span className="text-tiny text-subtle">还没有，添加一个吧</span>}
+          </div>
+          <div className="flex gap-2">
+            <Input
+              aria-label="添加常吃的食物"
+              value={draftFav}
+              placeholder="添加，如：燕麦粥"
+              onChange={(e) => setDraftFav(e.target.value)}
+            />
+            <Button
+              variant="soft"
+              icon="plus"
+              disabled={!draftFav.trim() || favs.includes(draftFav.trim())}
+              onClick={() => {
+                setFavs((f) => [...f, draftFav.trim()])
+                setDraftFav('')
+              }}
+            >
+              添加
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setFavs(DEFAULT_FAVS)}>
+              恢复系统推荐
+            </Button>
+            <Button className="flex-1" onClick={() => setSheet(null)}>
+              完成
+            </Button>
+          </div>
+        </div>
+      </div>
+    ) : null
 
   return (
     <FlowStage
@@ -562,13 +745,37 @@ export function DietFlowSandbox() {
           config={CONFIG}
           selector={selector}
           sections={sections}
-          aiSummary={`${MEAL_LABEL[data.meal]} · ${ds.length} 道菜`}
+          aiSummary={`${MEAL_LABEL[data.meal]}${data.meal === 'snack' ? ` ${data.snackTime}` : ''} · ${ds.length} 道菜`}
           verdict={verdict}
           canSubmit={ds.length > 0}
           report={buildReport(ds, data.meal)}
           onModeChange={onModeChange}
+          overlay={overlay}
         />
       }
     />
+  )
+}
+
+function TimeChips({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label="加餐时间">
+      {SNACK_TIMES.map((t) => (
+        <button
+          key={t}
+          type="button"
+          aria-pressed={value === t}
+          onClick={() => onChange(t)}
+          className={cn(
+            'text-tiny min-h-9 rounded-full border px-4 font-semibold tabular-nums transition-colors',
+            value === t
+              ? 'border-diet bg-diet-soft text-diet-ink'
+              : 'border-border bg-surface-sunken text-muted hover:text-foreground',
+          )}
+        >
+          {t}
+        </button>
+      ))}
+    </div>
   )
 }

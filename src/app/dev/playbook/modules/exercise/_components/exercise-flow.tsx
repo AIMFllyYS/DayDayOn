@@ -241,10 +241,23 @@ export function ExerciseFlowSandbox() {
       icon: 'exercise',
       filled: ready,
       summary: ready
-        ? `${KIND_LABEL[data.kind]} · ${data.minutes} 分钟${data.kind === 'strength' ? ` · ${(data.sets ?? 0) * (data.reps ?? 0)} 次` : data.km ? ` · ${data.km} 公里` : ''}`
-        : '类型、时长、距离',
+        ? `${KIND_LABEL[data.kind]} · ${EFFORT_LABEL[data.effort]} · ${data.minutes} 分钟${data.kind === 'strength' ? ` · ${(data.sets ?? 0) * (data.reps ?? 0)} 次` : data.km ? ` · ${data.km} 公里` : ''}`
+        : '类型、时长、强度',
       content: (
         <>
+          <FieldRow label="运动类型">
+            <SegmentedControl
+              size="sm"
+              label="运动类型"
+              value={data.kind}
+              onValueChange={(kind) => set({ kind })}
+              options={[
+                { value: 'walk', label: '快走' },
+                { value: 'run', label: '跑步' },
+                { value: 'strength', label: '力量' },
+              ]}
+            />
+          </FieldRow>
           <FieldRow label="时长">
             <NumberField
               size="sm"
@@ -299,27 +312,20 @@ export function ExerciseFlowSandbox() {
               />
             </FieldRow>
           )}
+          <FieldRow label="强度">
+            <SegmentedControl
+              size="sm"
+              label="强度"
+              value={data.effort}
+              onValueChange={(effort) => set({ effort })}
+              options={[
+                { value: 'easy', label: '轻松' },
+                { value: 'mid', label: '适中' },
+                { value: 'hard', label: '吃力' },
+              ]}
+            />
+          </FieldRow>
         </>
-      ),
-    },
-    {
-      id: 'effort',
-      label: '强度',
-      icon: 'bolt',
-      filled: true,
-      summary: EFFORT_LABEL[data.effort],
-      content: (
-        <SegmentedControl
-          size="sm"
-          label="强度"
-          value={data.effort}
-          onValueChange={(effort) => set({ effort })}
-          options={[
-            { value: 'easy', label: '轻松' },
-            { value: 'mid', label: '适中' },
-            { value: 'hard', label: '吃力' },
-          ]}
-        />
       ),
     },
     {
@@ -339,20 +345,6 @@ export function ExerciseFlowSandbox() {
     },
   ]
 
-  const selector = (
-    <SegmentedControl
-      size="sm"
-      label="运动类型"
-      value={data.kind}
-      onValueChange={(kind) => set({ kind })}
-      options={[
-        { value: 'walk', label: '快走' },
-        { value: 'run', label: '跑步' },
-        { value: 'strength', label: '力量' },
-      ]}
-    />
-  )
-
   return (
     <FlowStage
       ann="playbook.modules.exercise.sandbox"
@@ -367,7 +359,6 @@ export function ExerciseFlowSandbox() {
         <PhoneFlow
           key={scenarioId}
           config={CONFIG}
-          selector={selector}
           sections={sections}
           aiSummary={`${KIND_LABEL[data.kind]} · ${data.minutes ?? 0} 分钟`}
           verdict={verdict}
