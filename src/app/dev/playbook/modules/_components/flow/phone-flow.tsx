@@ -234,12 +234,13 @@ export function PhoneFlow({
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col">
             {agent !== 'none' && (
               <AgentDrawer
-                turn={buildAgentTurn(config.tone, steps, stepIdx, agent === 'done', verdict.detail)}
+                turn={buildAgentTurn(config.tone, steps, stepIdx, agent === 'done')}
                 done={agent === 'done'}
                 open={agentOpen}
                 onToggle={() => setAgentOpen((v) => !v)}
                 folders={report.folders}
                 recognized={smart ? aiSummary : undefined}
+                verdict={verdict}
               />
             )}
             <div className="border-border/60 bg-background/55 pointer-events-auto rounded-t-lg border-t px-3.5 pt-2.5 pb-4 backdrop-blur-md">
@@ -399,13 +400,12 @@ const AGENT_TOOLS: Record<ModuleTone, string[]> = {
   custom: ['listGoals', 'draftCheckin'],
 }
 
-/** 把流程里的分析进度，翻译成路由里 Agent 原子组件吃的 AgentTurnView */
+/** 把流程里的分析进度，翻译成路由里 Agent 原子组件吃的 AgentTurnView（结论不走文字气泡，由 VerdictCard 单独呈现） */
 function buildAgentTurn(
   tone: ModuleTone,
   steps: string[],
   stepIdx: number,
   done: boolean,
-  answer: string,
 ): AgentTurnView {
   const parts: AgentPart[] = [
     { type: 'step-start' },
@@ -428,7 +428,6 @@ function buildAgentTurn(
       durationMs: finished ? 400 + i * 300 : undefined,
     })
   })
-  if (done) parts.push({ type: 'text', id: 'a1', text: answer, state: 'done' })
   return {
     id: 'agent-flow',
     status: done ? 'done' : 'streaming',
@@ -438,8 +437,9 @@ function buildAgentTurn(
 }
 
 /**
- * Agent 分析抽屉：贴在底部操作条上方，圆角小；胶囊右侧的按钮可折叠 / 展开。
- * 思考与工具调用直接复用路由里的 <AgentTurn>（团团头像 + 活动条 + 回答），完成后在下面追加各项分析结果。
+ * Agent 分析抽屉：贴在底部操作条上方，圆角小；胶囊右侧：状态小徽章 + 折叠 / 展开按钮。
+ * 思考与工具调用复用路由里的 <AgentTurn>（整体 zoom 缩小一档以适配手机内宽度），
+ * 完成后依次是：评分结论卡（绿 / 红）→ 各项分析结果。
  */
 function AgentDrawer({
   turn,
@@ -448,6 +448,7 @@ function AgentDrawer({
   onToggle,
   folders,
   recognized,
+  verdict,
 }: {
   turn: AgentTurnView
   done: boolean
@@ -455,6 +456,7 @@ function AgentDrawer({
   onToggle: () => void
   folders: FolderSpec[]
   recognized?: string
+  verdict: Verdict
 }) {
   return (
     <div className="pointer-events-auto px-3 pb-2" data-ann="playbook.modules.flow.agent">
@@ -463,12 +465,12 @@ function AgentDrawer({
           type="button"
           aria-expanded={open}
           onClick={onToggle}
-          className="flex min-h-11 w-full items-center gap-2.5 px-3.5 text-left"
+          className="flex min-h-12 w-full items-center gap-2 px-3.5 py-2.5 text-left"
         >
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="text-caption font-bold">Agent 分析</span>
-            <span className="text-tiny text-muted">{done ? '分析完成' : '正在解析…'}</span>
-          </span>
+          <span className="text-caption min-w-0 flex-1 truncate font-bold">Agent 分析</span>
+          <Badge tone={done ? 'success' : 'primary'} icon={done ? 'check' : 'loader'}>
+            {done ? '已完成' : '解析中'}
+          </Badge>
           <span className="bg-surface-sunken text-muted grid size-7 shrink-0 place-items-center rounded-full">
             <Icon
               name="chevron-down"
@@ -478,20 +480,61 @@ function AgentDrawer({
           </span>
         </button>
         <Collapse open={open}>
-          <div className="max-h-64 overflow-y-auto px-3.5 pb-3.5">
-            <AgentTurn turn={turn}>
+          <div className="max-h-64 overflow-y-auto px-3.5 pb-3">
+            <div className="flex [zoom:0.88] flex-col gap-2.5">
+              <AgentTurn turn={turn} />
               {done && (
-                <div className="border-border flex flex-col gap-2 border-t border-dashed pt-3">
-                  {recognized && <ResultRow label="识别内容" value={recognized} />}
-                  {folders.map((f) => (
-                    <ResultRow key={f.id} label={f.title} value={f.headline} />
-                  ))}
-                </div>
+                <>
+                  <VerdictCard verdict={verdict} />
+                  <div className="flex flex-col gap-1.5">
+                    {recognized && <ResultRow label="识别内容" value={recognized} />}
+                    {folders.map((f) => (
+                      <ResultRow key={f.id} label={f.title} value={f.headline} />
+                    ))}
+                  </div>
+                </>
               )}
-            </AgentTurn>
+            </div>
           </div>
         </Collapse>
       </div>
+    </div>
+  )
+}
+
+/** 评分结论卡：达标 = 绿，未达标 = 红；有分数时右侧放大显示 */
+function VerdictCard({ verdict }: { verdict: Verdict }) {
+  return (
+    <div
+      role="status"
+      data-ann="playbook.modules.flow.verdict"
+      className={cn(
+        'flex items-center gap-3 rounded-xl border px-3 py-2.5',
+        verdict.passed
+          ? 'border-success/40 bg-success-soft text-success-ink'
+          : 'border-danger/40 bg-danger-soft text-danger-ink',
+      )}
+    >
+      <span
+        className={cn(
+          'grid size-8 shrink-0 place-items-center rounded-full',
+          verdict.passed ? 'bg-success text-on-primary' : 'bg-danger text-on-primary',
+        )}
+      >
+        <Icon name={verdict.passed ? 'check' : 'x'} size={16} lineOnly strokeWidth={2.6} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-caption font-bold">{verdict.passed ? '达标' : '未达标'}</span>
+        <span className="text-tiny leading-snug opacity-90">{verdict.detail}</span>
+      </span>
+      {verdict.score && (
+        <span className="font-display flex shrink-0 flex-col items-end leading-none font-bold">
+          <span className="text-heading tabular-nums">{verdict.score}</span>
+          {verdict.scoreHint && (
+            <span className="text-tiny mt-1 font-semibold opacity-80">{verdict.scoreHint}</span>
+          )}
+        </span>
+      )}
     </div>
   )
 }

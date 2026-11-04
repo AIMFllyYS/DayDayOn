@@ -418,6 +418,8 @@ export function DietFlowSandbox() {
   const hasJunk = ds.some((d) => d.junk)
   const verdict: Verdict = {
     passed: sc > 3,
+    score: sc.toFixed(1),
+    scoreHint: '/ 5.0 · 线 3.0',
     detail:
       sc > 3
         ? `本餐 ${sc.toFixed(1)} 分，超过 3.0 分有效线`

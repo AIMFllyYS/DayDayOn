@@ -26,6 +26,10 @@ export interface Verdict {
   passed: boolean
   /** 底部一行说明：「本餐 4.8 分，超过 3.0 分有效线」 */
   detail: string
+  /** 评分结论卡右侧的大数字，例如「4.8」；没有分数的板块不传 */
+  score?: string
+  /** 分数下方的小字，例如「/ 5.0」 */
+  scoreHint?: string
 }
 
 export interface FolderRow {
