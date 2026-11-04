@@ -535,7 +535,11 @@ export function DietFlowSandbox() {
       onLongPress: () => setSheet('favs'),
       content: (
         <>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="常吃的食物">
+          <div
+            className="flex [scrollbar-width:none] gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+            role="group"
+            aria-label="常吃的食物"
+          >
             {favs.map((name) => {
               const on = names.includes(name)
               return (
@@ -545,7 +549,7 @@ export function DietFlowSandbox() {
                   aria-pressed={on}
                   onClick={() => toggleTag(name)}
                   className={cn(
-                    'text-tiny min-h-7 rounded-full border px-2.5 font-semibold transition-colors',
+                    'text-tiny min-h-7 shrink-0 rounded-full border px-2.5 font-semibold whitespace-nowrap transition-colors',
                     on
                       ? 'border-diet bg-diet-soft text-diet-ink'
                       : 'border-border bg-surface-sunken text-muted hover:text-foreground',
@@ -562,10 +566,6 @@ export function DietFlowSandbox() {
             placeholder="例如：糙米饭、清蒸鲈鱼"
             onChange={(e) => setData((d) => ({ ...d, text: e.target.value }))}
           />
-          <p className="text-tiny text-subtle">
-            用顿号分隔；没见过的菜，Agent
-            会联网搜索它的各项指标。长按或右键「吃了什么」可自定义上面的常吃清单。
-          </p>
         </>
       ),
     },
