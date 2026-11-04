@@ -66,6 +66,11 @@ import {
  *    - 点进去可查看之前拍摄/上传识别出的完整内容，仅存图片相对路径，无原图时展示温馨提示。
  */
 
+export function SmartTopBarTitle() {
+  const viewMode = useSmartPageViewMode()
+  return <>{viewMode === 'history' ? '历史识别记录' : '智能识别'}</>
+}
+
 export function SmartTopBarActions() {
   const viewMode = useSmartPageViewMode()
   const isHistory = viewMode === 'history'
@@ -504,9 +509,9 @@ export function SmartCheckinPage({
 }
 
 /**
- * 历史智能拍摄 / 上传记录全屏一级列表视图：
- * 复用 Agent 历史对话列表结构（ConversationHistoryPopover + AgentFullscreen 独立滚动容器），
- * 点击任意记录可查看之前拍摄/上传识别出的完整详情与图片相对路径。
+ * 历史智能拍摄 / 上传记录单页视图：
+ * - 顶部：完整展示标题说明与「智能拍照 / 智能上传」双栏快捷入口卡片（上下分层，杜绝文字挤压截断）；
+ * - 下方：类表格结构的历史记录容器，通过抵消 AppShell 主区域的底栏预留留白，直接延伸贴合至页面最底部，彻底消除底部悬空断层。
  */
 function SmartHistoryListView({
   records,
@@ -526,6 +531,8 @@ function SmartHistoryListView({
   const captureInputRef = useRef<HTMLInputElement>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
 
+  const pendingCount = records.filter((r) => !r.confirmed).length
+
   function handleCaptureChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -539,7 +546,7 @@ function SmartHistoryListView({
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-8.5rem)] w-full max-w-lg min-w-0 flex-col gap-2.5 overflow-hidden pt-1.5 pb-2 md:h-[calc(100dvh-6rem)]">
+    <div className="mx-auto -mb-[calc(var(--safe-bottom)+6.5rem)] flex min-h-[calc(100dvh-3.5rem)] w-full max-w-lg min-w-0 flex-1 flex-col gap-3 pt-1.5 md:-mb-8 md:min-h-[calc(100dvh-4.5rem)]">
       <input
         ref={captureInputRef}
         type="file"
@@ -560,23 +567,30 @@ function SmartHistoryListView({
         onChange={handleUploadChange}
       />
 
-      {/* 顶部标题说明与快捷拍照/上传栏 */}
-      <div className="border-border bg-surface shadow-soft flex shrink-0 items-center justify-between gap-2 rounded-2xl border px-3.5 py-2.5">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <Icon name="clock" size={15} className="text-primary shrink-0" />
-            <h2 className="text-caption truncate font-bold">历史智能拍摄与上传记录</h2>
+      {/* 顶部概要与快捷操作卡片（上下分层，标题与副标题完整显示不截断） */}
+      <Card className="flex shrink-0 flex-col gap-3 p-3.5">
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <IconTile icon="clock" tone="primary" size="sm" />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-caption font-bold">识别与打卡历史记录</h2>
+              <p className="text-tiny text-muted truncate">
+                仅保存图片相对路径 · 点选记录可回看或补确认入库
+              </p>
+            </div>
           </div>
-          <p className="text-tiny text-muted truncate">
-            共 {records.length} 条记录 · 仅保存图片相对路径，点选查看识别详情
-          </p>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Badge tone="neutral">共 {records.length} 条</Badge>
+            {pendingCount > 0 && <Badge tone="warning">{pendingCount} 待确认</Badge>}
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+
+        <div className="grid grid-cols-2 gap-2">
           <Button
             size="sm"
             variant="soft"
             icon="camera"
-            className="h-8 px-2.5"
+            className="h-9 w-full"
             onClick={() => captureInputRef.current?.click()}
           >
             智能拍照
@@ -585,85 +599,98 @@ function SmartHistoryListView({
             size="sm"
             variant="secondary"
             icon="sparkles"
-            className="h-8 px-2.5"
+            className="h-9 w-full"
             onClick={() => uploadInputRef.current?.click()}
           >
             智能上传
           </Button>
         </div>
-      </div>
+      </Card>
 
-      {/* 全屏独立滚动一级菜单列表（复用 Agent 对话历史列表项结构与配色） */}
-      <div
-        role="list"
-        aria-label="历史智能拍摄与上传记录列表"
-        className="border-border bg-surface shadow-soft flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border p-2.5"
-      >
-        {records.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center py-8">
-            <EmptyState
-              size="compact"
-              title="还没有历史拍摄或上传记录"
-              description="使用智能拍照或智能上传后，识别出的记录会自动保存在这里"
-            />
-          </div>
-        ) : (
-          records.map((record) => {
-            const mod = record.result.draft.detectedModule
-            const isSelected = record.id === activeRecordId
-            const relPath = record.relativeImagePath ?? `captures/${record.fileName}`
-            return (
-              <div
-                key={record.id}
-                role="listitem"
-                className={cn(
-                  'group flex w-full min-w-0 items-center gap-1 rounded-xl pr-1 transition-colors',
-                  isSelected
-                    ? 'bg-primary-soft text-foreground'
-                    : 'bg-surface-sunken/55 text-muted hover:bg-surface-sunken hover:text-foreground',
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => onSelectRecord(record)}
-                  className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 pl-2.5 text-left"
-                >
-                  <IconTile icon={moduleMeta[mod].icon} tone={mod} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <span className="text-caption text-foreground min-w-0 flex-1 truncate font-semibold">
-                        {record.result.draft.summary}
-                      </span>
-                      <Badge tone={record.confirmed ? 'success' : 'warning'} className="shrink-0">
-                        {record.confirmed ? '已确认' : '待确认'}
-                      </Badge>
-                    </div>
-                    <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-                      <span className="text-tiny text-subtle shrink-0">
-                        {record.mode === 'smart-capture' ? '智能拍照' : '智能上传'}
-                      </span>
-                      <span className="text-tiny text-subtle">·</span>
-                      <span className="text-tiny text-muted min-w-0 flex-1 truncate font-mono">
-                        {relPath}
-                      </span>
-                      <span className="text-tiny text-subtle shrink-0">
-                        {formatMonthDay(calendarDateOf(record.createdAt, timeZone))}
-                      </span>
-                    </div>
+      {/* 下方类表格历史记录区：延伸贴合至页面最底部，消除底部悬空断层 */}
+      <div className="border-border bg-surface shadow-soft flex min-h-0 flex-1 flex-col overflow-hidden rounded-t-3xl border-x border-t pb-[calc(var(--safe-bottom,0px)+0.5rem)] md:rounded-t-3xl">
+        {/* 表头栏 */}
+        <div className="bg-surface-sunken/75 border-border text-muted text-tiny flex shrink-0 items-center justify-between border-b px-4 py-2.5 font-semibold">
+          <span>识别记录 / 图片相对路径</span>
+          <span>状态 · 日期 · 操作</span>
+        </div>
+
+        {/* 表格内容行 */}
+        <div
+          role="list"
+          aria-label="历史智能拍摄与上传记录列表"
+          className="divide-border flex min-h-0 flex-1 flex-col divide-y overflow-x-hidden overflow-y-auto overscroll-contain"
+        >
+          {records.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center px-4 py-12">
+              <EmptyState
+                size="compact"
+                title="还没有历史拍摄或上传记录"
+                description="点击上方「智能拍照」或「智能上传」，识别出的记录会自动保存在这里"
+              />
+            </div>
+          ) : (
+            <>
+              {records.map((record) => {
+                const mod = record.result.draft.detectedModule
+                const isSelected = record.id === activeRecordId
+                const relPath = record.relativeImagePath ?? `captures/${record.fileName}`
+                return (
+                  <div
+                    key={record.id}
+                    role="listitem"
+                    className={cn(
+                      'group flex w-full min-w-0 items-center gap-1 pr-2 transition-colors',
+                      isSelected
+                        ? 'bg-primary-soft/65 text-foreground'
+                        : 'text-muted hover:bg-surface-sunken/60 hover:text-foreground',
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onSelectRecord(record)}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 py-3 pl-3.5 text-left"
+                    >
+                      <IconTile icon={moduleMeta[mod].icon} tone={mod} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-caption text-foreground truncate font-semibold">
+                          {record.result.draft.summary}
+                        </p>
+                        <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                          <span className="bg-surface-sunken text-subtle text-tiny shrink-0 rounded-md px-1.5 py-0.5 font-medium">
+                            {record.mode === 'smart-capture' ? '智能拍照' : '智能上传'}
+                          </span>
+                          <span className="text-tiny text-muted min-w-0 flex-1 truncate font-mono">
+                            {relPath}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1 pl-1">
+                        <Badge tone={record.confirmed ? 'success' : 'warning'} className="shrink-0">
+                          {record.confirmed ? '已确认' : '待确认'}
+                        </Badge>
+                        <span className="text-tiny text-subtle tabular-nums">
+                          {formatMonthDay(calendarDateOf(record.createdAt, timeZone))}
+                        </span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`删除记录 ${record.result.draft.summary}`}
+                      onClick={() => onDeleteRecord(record.id)}
+                      className="text-subtle hover:text-danger-ink hover:bg-danger-soft/40 flex size-8 shrink-0 items-center justify-center rounded-full opacity-75 transition-colors hover:opacity-100"
+                    >
+                      <Icon name="trash" size={14} lineOnly />
+                    </button>
                   </div>
-                </button>
-                <button
-                  type="button"
-                  aria-label={`删除记录 ${record.result.draft.summary}`}
-                  onClick={() => onDeleteRecord(record.id)}
-                  className="text-subtle hover:text-danger-ink flex size-8 shrink-0 items-center justify-center rounded-full opacity-75 transition-opacity hover:opacity-100"
-                >
-                  <Icon name="trash" size={14} lineOnly />
-                </button>
+                )
+              })}
+              <div className="border-border text-subtle text-tiny border-t px-4 py-3 text-center">
+                已展示全部 {records.length} 条识别记录 · 仅保留图片相对路径
               </div>
-            )
-          })
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
