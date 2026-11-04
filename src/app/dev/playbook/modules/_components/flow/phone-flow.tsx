@@ -146,8 +146,7 @@ export function PhoneFlow({
             {selector}
           </div>
 
-          <SectionDivider />
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3.5 pb-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3.5 pt-3 pb-3">
             {smart && <AiBar scanning={scanning} summary={aiSummary} mode={mode} />}
             {sections.map((s) => (
               <FillSection
