@@ -99,7 +99,7 @@ export function PhoneFlow({
 
           <div className="shrink-0 px-3.5 pt-1">
             <Card
-              className="flex items-center gap-3 px-3 py-2.5"
+              className="flex items-center gap-3 px-3 py-1.5"
               data-ann="playbook.modules.flow.header"
             >
               <IconTile icon={moduleMeta[config.tone].icon} tone={config.tone} size="lg" />
@@ -120,9 +120,7 @@ export function PhoneFlow({
                 className="shrink-0"
               >
                 <span className="flex flex-col items-center gap-0.5">
-                  <span className="bg-success-soft text-success-ink inline-flex h-3.5 items-center rounded-full px-1.5 text-[0.5625rem] leading-none font-bold">
-                    Day
-                  </span>
+                  <span className="text-tiny font-display leading-none font-bold">DAY</span>
                   <span className="text-tiny font-display leading-none font-bold whitespace-nowrap tabular-nums">
                     {config.progress.done + bonus}/{config.progress.total}
                   </span>
