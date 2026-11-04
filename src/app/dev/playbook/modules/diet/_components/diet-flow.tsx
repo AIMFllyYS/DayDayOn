@@ -569,29 +569,6 @@ export function DietFlowSandbox() {
         </>
       ),
     },
-    ...(data.meal === 'snack'
-      ? [
-          {
-            id: 'snack-time',
-            label: '加餐时间',
-            icon: 'clock' as const,
-            filled: true,
-            summary: data.snackTime,
-            content: (
-              <TimePicker
-                value={data.snackTime}
-                pinned={pinnedTimes}
-                onChange={(snackTime) => setData((d) => ({ ...d, snackTime }))}
-                onTogglePin={(t) =>
-                  setPinnedTimes((p) =>
-                    p.includes(t) ? p.filter((x) => x !== t) : [...p, t].sort(),
-                  )
-                }
-              />
-            ),
-          },
-        ]
-      : []),
     {
       id: 'note',
       label: '备注',
@@ -608,6 +585,27 @@ export function DietFlowSandbox() {
       ),
     },
   ]
+
+  const leadSection: FillSectionSpec | null =
+    data.meal === 'snack'
+      ? {
+          id: 'snack-time',
+          label: '加餐时间',
+          icon: 'clock',
+          filled: true,
+          summary: data.snackTime,
+          content: (
+            <TimePicker
+              value={data.snackTime}
+              pinned={pinnedTimes}
+              onChange={(snackTime) => setData((d) => ({ ...d, snackTime }))}
+              onTogglePin={(t) =>
+                setPinnedTimes((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t].sort()))
+              }
+            />
+          ),
+        }
+      : null
 
   // 手动填写：输入框里默认就有字（假数据），提交时 Agent 直接解析它
   function onModeChange(_mode: FlowMode) {
@@ -717,6 +715,7 @@ export function DietFlowSandbox() {
           report={buildReport(ds, data.meal)}
           onModeChange={onModeChange}
           overlay={overlay}
+          leadSection={leadSection}
         />
       }
     />

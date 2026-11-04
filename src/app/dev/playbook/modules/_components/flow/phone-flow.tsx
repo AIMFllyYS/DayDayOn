@@ -48,6 +48,8 @@ interface PhoneFlowProps {
   onModeChange: (mode: FlowMode) => void
   /** 盖在整个手机屏幕上的板块专属浮层（设置页、加餐时间卡等） */
   overlay?: ReactNode
+  /** 排在最前面的分区，手动 / 智能模式都显示（饮食的「加餐时间」），出现时带动画 */
+  leadSection?: FillSectionSpec | null
 }
 
 /**
@@ -70,6 +72,7 @@ export function PhoneFlow({
   report,
   onModeChange,
   overlay,
+  leadSection,
 }: PhoneFlowProps) {
   const [stack, setStack] = useState<Page[]>(['fill'])
   const [mode, setMode] = useState<FlowMode>('smart-capture')
@@ -208,6 +211,20 @@ export function PhoneFlow({
               agent !== 'none' && agentOpen ? 'pb-96' : 'pb-28',
             )}
           >
+            {leadSection && (
+              <div key={leadSection.id} className="animate-fade-up">
+                <FillSection
+                  spec={leadSection}
+                  tone={config.tone}
+                  open={openId === leadSection.id}
+                  ai={false}
+                  onToggle={() => {
+                    if (openId !== leadSection.id && agent !== 'none') setAgent('none')
+                    setOpenId((c) => (c === leadSection.id ? null : leadSection.id))
+                  }}
+                />
+              </div>
+            )}
             {smart ? (
               <SmartScannerLens
                 preset={SMART_PRESETS[config.tone]}
