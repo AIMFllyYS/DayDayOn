@@ -110,24 +110,24 @@ export function PhoneFlow({
                   <TagChip icon="bulb" label="评判依据" onClick={() => push('basis')} />
                 </div>
               </div>
-              <div className="flex shrink-0 flex-col items-center gap-1.5">
-                <ProgressRing
-                  value={config.progress.done + bonus}
-                  max={config.progress.total}
-                  tone={config.tone}
-                  size={56}
-                  thickness={6}
-                  label={`打卡周期 ${config.progress.done + bonus}/${config.progress.total} 天`}
-                >
+              <ProgressRing
+                value={config.progress.done + bonus}
+                max={config.progress.total}
+                tone={config.tone}
+                size={56}
+                thickness={6}
+                label={`打卡周期 ${config.progress.done + bonus}/${config.progress.total} 天`}
+                className="shrink-0"
+              >
+                <span className="flex flex-col items-center gap-0.5">
+                  <span className="bg-success-soft text-success-ink inline-flex h-3.5 items-center rounded-full px-1.5 text-[0.5625rem] leading-none font-bold">
+                    Day
+                  </span>
                   <span className="text-tiny font-display leading-none font-bold whitespace-nowrap tabular-nums">
                     {config.progress.done + bonus}/{config.progress.total}
                   </span>
-                </ProgressRing>
-                <span className="bg-success-soft text-success-ink text-tiny inline-flex h-5 items-center gap-1 rounded-full px-2 leading-none font-bold">
-                  <span className="bg-success size-1.5 rounded-full" />
-                  Day
                 </span>
-              </div>
+              </ProgressRing>
             </Card>
           </div>
 
@@ -267,9 +267,9 @@ function TagChip({ icon, label, onClick }: { icon: IconName; label: string; onCl
     <button
       type="button"
       onClick={onClick}
-      className="bg-surface-sunken text-muted hover:text-foreground text-tiny inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full px-2 font-semibold whitespace-nowrap transition-colors active:scale-95"
+      className="bg-surface-sunken text-muted hover:text-foreground inline-flex h-4 shrink-0 items-center gap-0.5 rounded-full px-1.5 text-[0.625rem] leading-none font-semibold whitespace-nowrap transition-colors active:scale-95"
     >
-      <Icon name={icon} size={10} />
+      <Icon name={icon} size={9} />
       {label}
     </button>
   )
