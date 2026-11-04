@@ -17,6 +17,7 @@ import {
   SwitchDemo,
 } from '../_components/component-demos'
 import { PageHeader, Rules, Section, Specimen } from '../_components/section'
+import { SmartActionBarShowcase } from '../_components/smart-action-bar'
 
 export const metadata: Metadata = { title: '原子组件' }
 
@@ -216,14 +217,21 @@ export default function ComponentsPage() {
         <MenuDemo />
       </Section>
 
-      <Section ann="playbook.components.sheet" title="弹层">
-        <Specimen
-          ann="playbook.components.sheet.demo"
-          label="Sheet"
-          note="手机和桌面都从底部向上拉出（桌面收窄、离底 16px），像菜单列表；Esc、点遮罩、关闭按钮都带退场动画"
-        >
-          <SheetDemo />
-        </Specimen>
+      <Section
+        ann="playbook.components.sheet"
+        title="弹层与打卡底栏双按钮（智能拍照 + 智能上传）"
+        description="原打卡弹层底部的单按钮「拍照记一餐」升级为左右并列的原子组件 <SmartActionBar />（左：智能拍照，右：智能上传）。摒弃深色实底，采用 90%+ 明度的手账浅色系。上方切换配色方案后，点下方「打开打卡弹层」即可在真实抽屉底栏查看效果。"
+      >
+        <div className="flex flex-col gap-4">
+          <SmartActionBarShowcase />
+          <Specimen
+            ann="playbook.components.sheet.demo"
+            label="Sheet · 打卡入口弹层（含底部双按钮）"
+            note="手机和桌面都从底部向上拉出；底部已替换为左「智能拍照」+ 右「智能上传」双栏浅色胶囊"
+          >
+            <SheetDemo />
+          </Specimen>
+        </div>
       </Section>
 
       <Section ann="playbook.components.identity" title="头像、印章、吉祥物">

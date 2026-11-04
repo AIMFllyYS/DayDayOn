@@ -40,10 +40,10 @@ export function WelcomeModules() {
       title="想坚持的事，都能记"
       description="每个目标设好时间和量，打卡时只填关键的几项。"
     >
-      <div className="grid gap-4 @2xl:grid-cols-[1fr_220px] @2xl:items-center">
-        <ul className="grid gap-2 @md:grid-cols-2 @2xl:grid-cols-1 @4xl:grid-cols-2">
+      <div className="grid gap-3 @2xl:grid-cols-[1fr_220px] @2xl:items-center @2xl:gap-4">
+        <ul className="grid grid-cols-2 gap-2 @2xl:grid-cols-1 @4xl:grid-cols-2">
           {moduleTones.map((m) => (
-            <li key={m}>
+            <li key={m} className={cn(m === 'custom' && 'col-span-2 @2xl:col-span-1')}>
               <button
                 type="button"
                 aria-pressed={active === m}
@@ -52,32 +52,43 @@ export function WelcomeModules() {
                   if (e.pointerType === 'mouse') setActive(m)
                 }}
                 className={cn(
-                  'bg-surface shadow-soft ease-spring flex min-h-16 w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition-[transform,box-shadow,background-color] duration-(--dur-base) active:scale-[0.98]',
+                  'bg-surface shadow-soft ease-spring flex min-h-16 w-full items-center gap-2.5 rounded-2xl px-3.5 py-2.5 text-left transition-[transform,box-shadow,background-color] duration-(--dur-base) active:scale-[0.98] @2xl:gap-3 @2xl:px-4 @2xl:py-3',
                   active === m && cn('ring-2', selectedClass[m]),
                 )}
               >
                 <IconTile icon={moduleMeta[m].icon} tone={m} />
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{moduleMeta[m].label}</span>
-                  <span className="text-tiny text-muted block">{modules[m].example}</span>
+                  <span className="text-tiny text-muted block truncate @2xl:whitespace-normal">
+                    {modules[m].example}
+                  </span>
                 </span>
               </button>
             </li>
           ))}
         </ul>
-        <div className="flex flex-col items-center gap-2" aria-live="polite">
-          <span
-            key={active}
-            className="animate-pop-in bg-surface text-caption shadow-card rounded-2xl px-3 py-1.5 font-semibold"
-          >
-            {current.say}
-          </span>
+        <div
+          className="bg-surface/80 border-border shadow-soft order-first flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 @2xl:order-none @2xl:flex-col @2xl:justify-center @2xl:border-none @2xl:bg-transparent @2xl:p-0 @2xl:shadow-none"
+          aria-live="polite"
+        >
+          <div className="flex flex-col items-start gap-1 @2xl:items-center">
+            <span className="text-tiny text-muted @2xl:hidden">
+              当前预览：{moduleMeta[active].label}
+            </span>
+            <span
+              key={active}
+              className="animate-pop-in bg-surface text-caption shadow-card rounded-2xl px-3 py-1.5 font-semibold"
+            >
+              {current.say}
+            </span>
+            <span className="text-tiny text-muted mt-0.5 @2xl:hidden">{current.example}</span>
+          </div>
           <Mascot
             key={`${active}-m`}
             mood={current.mood}
-            size={140}
+            size={108}
             character={character}
-            className="animate-fade-in"
+            className="animate-fade-in shrink-0 @2xl:scale-110"
           />
         </div>
       </div>

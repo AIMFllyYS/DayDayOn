@@ -17,8 +17,9 @@ import { formatLocalDateLabel } from '@/lib/time'
 import { checkinSummary } from '../format'
 import type { Checkin } from '../schemas'
 
-const ConfirmDialog = dynamic(() =>
-  import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+const ConfirmDialog = dynamic(
+  () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+  { loading: () => null },
 )
 
 export interface GoalCheckinHistoryProps {
@@ -45,6 +46,8 @@ export function GoalCheckinHistory({ goalId }: GoalCheckinHistoryProps) {
   const goal = useQuery(checkinGoalQuery(goalId))
   const remove = useDeleteCheckin(goalId)
   const [pending, setPending] = useState<Checkin | null>(null)
+  const [confirmLoaded, setConfirmLoaded] = useState(false)
+  if (pending !== null && !confirmLoaded) setConfirmLoaded(true)
 
   const versions = new Map<number, FieldDef[]>(
     (goal.data?.fieldVersions ?? []).map((v) => [v.version, v.fields]),
@@ -123,9 +126,9 @@ export function GoalCheckinHistory({ goalId }: GoalCheckinHistoryProps) {
     <Card>
       <CardHeader title="打卡记录" description="记错了就删掉重记" />
       {body}
-      {pending && (
+      {confirmLoaded && (
         <ConfirmDialog
-          open
+          open={pending !== null}
           onOpenChange={(open) => {
             if (!open) setPending(null)
           }}
@@ -133,15 +136,16 @@ export function GoalCheckinHistory({ goalId }: GoalCheckinHistoryProps) {
           description="删除后今天的进度会重新计算。"
           tone="danger"
           confirmLabel="删除"
-          onConfirm={() =>
-            remove.mutateAsync(pending.id).then(
+          onConfirm={() => {
+            if (!pending) return
+            return remove.mutateAsync(pending.id).then(
               () => toast.success('删掉了'),
               (e: unknown) => {
                 toast.error(isApiError(e) ? errorMessage(e) : '出了点小状况，稍后再试试')
                 throw e
               },
             )
-          }
+          }}
         />
       )}
     </Card>

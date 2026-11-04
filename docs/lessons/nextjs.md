@@ -35,3 +35,9 @@
 - 根因：`'use client'` 组件仍会在服务端执行首帧 SSR；在 `useState(() => ...)` 初始化器中按 `typeof window === 'undefined'` 分支或直接读 `localStorage` / `window.innerWidth` 会导致服务端与客户端首帧渲染结果不同。
 - 规则：依赖浏览器视口或 `localStorage` 的初始状态，首帧（SSR 与客户端 Hydration）必须使用同一份确定性初值（并可用 `ready=false` + `opacity-0` 防止位置跳变闪烁），在 `useEffect` + `requestAnimationFrame` 中完成客户端测量后再更新状态与 `ready=true`。
 - 元：next@16.4.3、react@19.3.0 | 2026-11-02 | 候选毕业方向：已沉淀到 `src/features/agent/use-pet-drag.ts`
+
+### next/dynamic 不传 loading 且未设 ssr:false 时不生成 Suspense 边界导致整页闪屏
+- 症状：点击底部导航栏“＋”打卡或页面内按钮首次打开 `next/dynamic` 懒加载的 `Sheet` / `ConfirmDialog` 时，整个页面瞬间被隐藏或闪回全屏骨架屏（`<PageSkeleton />`），加载完后才弹出抽屉。
+- 根因：Next.js `loadable.js` 中 `const hasSuspenseBoundary = !opts.ssr || !!opts.loading`，裸调 `dynamic(loader)` 只包 `React.Fragment`；首次挂载时 `React.lazy` 抛出的 Promise 向上冒泡击穿页面级或根布局的 `<Suspense>`。
+- 规则：所有用 `next/dynamic` 按需加载的弹层或局部组件，必须显式传入 `{ loading: () => null }`（或局部骨架占位），将挂起边界锁死在组件自身内部。
+- 元：next@16.4.3 | 2026-11-03 | 候选毕业方向：规范（`ui-primitives.md` 第 3 节）

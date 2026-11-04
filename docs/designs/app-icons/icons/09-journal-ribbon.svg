@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 手账真皮封底渐变（经典奶茶焦糖的高级升华） -->
+    <linearGradient id="leatherGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A6734D" />
+      <stop offset="50%" stop-color="#93603F" />
+      <stop offset="100%" stop-color="#784524" />
+    </linearGradient>
+
+    <!-- 奶油内页折角渐变 -->
+    <linearGradient id="pageFoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFDF9" />
+      <stop offset="70%" stop-color="#FAF0E3" />
+      <stop offset="100%" stop-color="#E9D2BA" />
+    </linearGradient>
+
+    <!-- 折角阴影 -->
+    <linearGradient id="foldShadowGrad" x1="100%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#4A2810" stop-opacity="0.45" />
+      <stop offset="60%" stop-color="#4A2810" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#4A2810" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- 书签丝带（樱花粉柔滑缎面） -->
+    <linearGradient id="ribbonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F7AEC3" />
+      <stop offset="50%" stop-color="#F28EAA" />
+      <stop offset="100%" stop-color="#DC6A89" />
+    </linearGradient>
+
+    <!-- 烫金小吊坠渐变 -->
+    <linearGradient id="goldCharm" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF5CB" />
+      <stop offset="50%" stop-color="#FFD15C" />
+      <stop offset="100%" stop-color="#D99A1C" />
+    </linearGradient>
+
+    <filter id="ribbonShadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="3" dy="12" stdDeviation="10" flood-color="#4D1F08" flood-opacity="0.3" />
+    </filter>
+
+    <filter id="charmGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#C2820B" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- 图标底板：皮质手账外壳 -->
+  <rect width="512" height="512" rx="116" fill="url(#leatherGrad)" />
+  <rect width="504" height="504" x="4" y="4" rx="112" fill="none" stroke="#C59672" stroke-width="3" stroke-opacity="0.6" />
+
+  <!-- 手账边缘精密双缝线（Saddle Stitching，体现做工考究与仪式感） -->
+  <rect width="472" height="472" x="20" y="20" rx="100" fill="none" stroke="#DAB496" stroke-width="2.5" stroke-dasharray="10 8" stroke-linecap="round" opacity="0.6" />
+
+  <!-- 左侧书脊压痕线 -->
+  <line x1="86" y1="20" x2="86" y2="492" stroke="#68391A" stroke-width="4" />
+  <line x1="90" y1="20" x2="90" y2="492" stroke="#B5845E" stroke-width="2" opacity="0.6" />
+
+  <!-- 封面烫金 Logo 压印：精致的太阳与对勾符号 -->
+  <g transform="translate(256, 210) scale(1.1)">
+    <!-- 烫金小太阳外圈 -->
+    <circle cx="0" cy="0" r="54" fill="none" stroke="url(#goldCharm)" stroke-width="6" stroke-linecap="round" stroke-dasharray="24 8" opacity="0.8" />
+    <!-- 烫金核心 D & Check -->
+    <path d="M -16 -24 L -16 24 C 6 24, 24 16, 24 0 C 24 -16, 6 -24, -16 -24 Z" fill="none" stroke="url(#goldCharm)" stroke-width="7" />
+    <path d="M -6 2 L 6 14 L 20 -4" fill="none" stroke="#FFF7D6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+
+  <!-- 封面右下角的翻开内页与折角（翻开手账，开启今天的一页） -->
+  <g>
+    <!-- 折角下的深色暗影面 -->
+    <polygon points="340,512 512,340 512,512" fill="url(#foldShadowGrad)" />
+
+    <!-- 露出的奶油纸内页（带手账点阵） -->
+    <polygon points="360,512 512,360 512,512" fill="#FFFDF9" />
+    <!-- 内页点阵 -->
+    <circle cx="430" cy="450" r="3" fill="#A8754E" opacity="0.25" />
+    <circle cx="465" cy="450" r="3" fill="#A8754E" opacity="0.25" />
+    <circle cx="465" cy="415" r="3" fill="#A8754E" opacity="0.25" />
+
+    <!-- 翻折上来的封皮三角形三角面 -->
+    <polygon points="360,512 512,360 360,360" fill="url(#pageFoldGrad)" stroke="#DFBE9F" stroke-width="2" />
+    <!-- 折线阴影 -->
+    <line x1="360" y1="512" x2="512" y2="360" stroke="#7A4523" stroke-width="4" opacity="0.4" />
+  </g>
+
+  <!-- 悬垂的书签丝带（从书脊上方蜿蜒垂落到中心） -->
+  <g filter="url(#ribbonShadow)">
+    <path d="M 160 0 
+             L 194 0 
+             C 194 130, 200 280, 194 360 
+             L 177 344 
+             L 160 360 
+             C 154 280, 160 130, 160 0 Z" 
+          fill="url(#ribbonGrad)" />
+    <!-- 丝带微光反光中轴 -->
+    <path d="M 177 0 L 177 344" stroke="#FFF0F4" stroke-width="3" opacity="0.5" />
+  </g>
+
+  <!-- 书签末端悬挂的金色小吊牌（DayDayOn 首字母 D 徽章） -->
+  <g transform="translate(177, 366)" filter="url(#charmGlow)">
+    <line x1="0" y1="-12" x2="0" y2="0" stroke="url(#goldCharm)" stroke-width="3" />
+    <circle cx="0" cy="18" r="22" fill="url(#goldCharm)" stroke="#FFFFFF" stroke-width="2" />
+    <!-- 吊牌上的刻字 D -->
+    <text x="0" y="25" font-family="system-ui, sans-serif" font-size="20" font-weight="bold" fill="#754704" text-anchor="middle">D</text>
+  </g>
+</svg>

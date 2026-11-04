@@ -1,6 +1,7 @@
 import type { FormErrors } from '@/components/ui/form'
 import type { GoalDetail } from '@/features/goal/schemas'
 import type { CreateCheckinInput } from '../schemas'
+import type { SmartRecognitionDraft } from '../smart-schemas'
 
 /** 打卡表单需要的目标信息（GoalDetail 的子集，Playbook 可以直接造） */
 export type CheckinGoal = Pick<
@@ -14,6 +15,12 @@ export interface CheckinClock {
   dayStartHour: number
 }
 
+/** AI 智能识别上下文：存在时预填表单并在提交时附带 source: 'ai' 与 aiRunId */
+export interface SmartFillContext {
+  draft: SmartRecognitionDraft
+  aiRunId: string
+}
+
 /** 各板块表单的共同 props：表单只组装请求体，提交和校验由 CheckinForm 负责 */
 export interface ModuleFormProps {
   goal: CheckinGoal
@@ -23,6 +30,7 @@ export interface ModuleFormProps {
   clock: CheckinClock
   submitting: boolean
   errors?: FormErrors
+  smartContext?: SmartFillContext | null
   onSubmit: (input: CreateCheckinInput) => void
 }
 

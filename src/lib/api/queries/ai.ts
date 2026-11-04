@@ -1,13 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { CreateCheckinInput, CreateCheckinResult, MealType } from '@/features/checkin/schemas'
+import type { SmartRecognitionResult } from '@/features/checkin/smart-schemas'
 import type { DietRecognitionResult } from '@/features/diet/schemas'
+import type { Module } from '@/features/shared/schemas'
 import { apiFetch } from '../fetcher'
 import { afterCheckinChange, keys } from '../keys'
 
 /*
- * AI 识别的写操作（PRD 2.6、7.3）。D6。
+ * AI 识别的写操作（PRD 2.6、7.3 + 全板块智能识别）。
  * 识别结果是草稿，不进查询缓存；确认时调普通创建打卡接口（source: 'ai'、aiRunId）。
- * D3 的 queries/checkins.ts 在 2659b27 还不存在，确认打卡先在这里经 apiFetch 调用；集成后可改用 D3 的 mutation。
  */
 
 export interface RecognizeDietVariables {
@@ -34,6 +35,46 @@ export function useRecognizeDiet() {
       })
     },
     // 成功、失败（422 已扣费）都可能改变额度
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.me.all }),
+  })
+}
+
+export interface RecognizeSmartVariables {
+  /** 浏览器压缩后的 JPEG（上传图片时传） */
+  image?: Blob
+  /** 纯文本或 HTML 提纯后的文本内容（上传文本附件时传） */
+  textContent?: string
+  /** 已知打卡板块（在单板块打卡页内使用智能拍照/上传时传） */
+  hintModule?: Module
+  /** 已知目标 ID */
+  goalId?: string
+  note?: string
+  idempotencyKey: string
+}
+
+export function useRecognizeSmart() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      image,
+      textContent,
+      hintModule,
+      goalId,
+      note,
+      idempotencyKey,
+    }: RecognizeSmartVariables) => {
+      const form = new FormData()
+      if (image) form.append('image', image, 'smart.jpg')
+      if (textContent) form.append('textContent', textContent)
+      if (hintModule) form.append('hintModule', hintModule)
+      if (goalId) form.append('goalId', goalId)
+      if (note) form.append('note', note)
+      return apiFetch<SmartRecognitionResult>('/ai/smart-recognitions', {
+        method: 'POST',
+        form,
+        idempotencyKey,
+      })
+    },
     onSettled: () => queryClient.invalidateQueries({ queryKey: keys.me.all }),
   })
 }

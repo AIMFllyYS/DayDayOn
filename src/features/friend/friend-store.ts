@@ -18,9 +18,18 @@ export interface MeteorFlight {
   friendAvatar: string | null
 }
 
+export interface UnfriendTarget {
+  userId: string
+  nickname: string
+  avatar?: string | null
+}
+
 export interface FriendStoreState {
   viewingFriendId: string | null
+  viewingFriendNickname: string | null
+  viewingFriendAvatar: string | null
   addSheetOpen: boolean
+  unfriendTarget: UnfriendTarget | null
   meteorFlight: MeteorFlight | null
   avatarPopping: boolean
   hintBubbleOpen: boolean
@@ -28,7 +37,10 @@ export interface FriendStoreState {
 
 const INITIAL_STATE: FriendStoreState = {
   viewingFriendId: null,
+  viewingFriendNickname: null,
+  viewingFriendAvatar: null,
   addSheetOpen: false,
+  unfriendTarget: null,
   meteorFlight: null,
   avatarPopping: false,
   hintBubbleOpen: false,
@@ -52,18 +64,32 @@ function subscribe(listener: () => void) {
 }
 
 export const friendActions = {
-  selectFriend: (friendUserId: string | null) => {
+  selectFriend: (
+    friendUserId: string | null,
+    meta?: { nickname?: string | null; avatar?: string | null },
+  ) => {
     if (hintTimer) {
       clearTimeout(hintTimer)
       hintTimer = null
     }
-    setState({ viewingFriendId: friendUserId, hintBubbleOpen: false })
+    setState({
+      viewingFriendId: friendUserId,
+      viewingFriendNickname: friendUserId ? (meta?.nickname ?? null) : null,
+      viewingFriendAvatar: friendUserId ? (meta?.avatar ?? null) : null,
+      hintBubbleOpen: false,
+    })
   },
   openAddSheet: () => {
     setState({ addSheetOpen: true })
   },
   closeAddSheet: () => {
     setState({ addSheetOpen: false })
+  },
+  requestUnfriend: (friend: UnfriendTarget) => {
+    setState({ unfriendTarget: friend, hintBubbleOpen: false })
+  },
+  cancelUnfriend: () => {
+    setState({ unfriendTarget: null })
   },
   launchAcceptMeteor: (friend: { userId: string; nickname: string; avatar: string | null }) => {
     setState({
@@ -104,22 +130,46 @@ export const friendActions = {
    * 若当前主页仪表盘正处于被解除好友的视角，立即重置回 null（"我"）
    */
   handleUnfriend: (friendUserId: string) => {
-    if (state.viewingFriendId === friendUserId) {
+    const isViewing = state.viewingFriendId === friendUserId
+    const isTarget = state.unfriendTarget?.userId === friendUserId
+    if (isViewing) {
       if (hintTimer) {
         clearTimeout(hintTimer)
         hintTimer = null
       }
-      setState({ viewingFriendId: null, hintBubbleOpen: false })
     }
+    setState({
+      ...(isViewing
+        ? {
+            viewingFriendId: null,
+            viewingFriendNickname: null,
+            viewingFriendAvatar: null,
+            hintBubbleOpen: false,
+          }
+        : {}),
+      ...(isTarget ? { unfriendTarget: null } : {}),
+    })
   },
   onFriendRemoved: (friendUserId: string) => {
-    if (state.viewingFriendId === friendUserId) {
+    const isViewing = state.viewingFriendId === friendUserId
+    const isTarget = state.unfriendTarget?.userId === friendUserId
+    if (isViewing) {
       if (hintTimer) {
         clearTimeout(hintTimer)
         hintTimer = null
       }
-      setState({ viewingFriendId: null, hintBubbleOpen: false })
     }
+    setState({
+      ...(isViewing
+        ? {
+            viewingFriendId: null,
+            viewingFriendNickname: null,
+            viewingFriendAvatar: null,
+            hintBubbleOpen: false,
+          }
+        : {}),
+      ...(isTarget ? { unfriendTarget: null } : {}),
+    })
   },
 }
 

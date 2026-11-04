@@ -136,7 +136,12 @@ export function AppShell({
       >
         {children}
       </AppShellFrame>
-      <CheckinSheet open={sheetOpen} onOpenChange={setSheetOpen} />
+      <CheckinSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onSmartAction={() => onNavigate?.('/checkin/smart')}
+        onGoalNavigate={() => onNavigate?.('/goals/demo/checkin')}
+      />
     </>
   )
 }

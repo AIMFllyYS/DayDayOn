@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 背景：温柔治愈的蜜桃奶茶微渐变 -->
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFDF9" />
+      <stop offset="60%" stop-color="#FBF0E4" />
+      <stop offset="100%" stop-color="#F5DFCB" />
+    </linearGradient>
+
+    <!-- 团子玉糯质感渐变 -->
+    <linearGradient id="mochiDun" x1="20%" y1="10%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="70%" stop-color="#FFF5E8" />
+      <stop offset="100%" stop-color="#F0DCB8" />
+    </linearGradient>
+
+    <linearGradient id="mochiTuan" x1="20%" y1="10%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="70%" stop-color="#FFF6EB" />
+      <stop offset="100%" stop-color="#F2DEC0" />
+    </linearGradient>
+
+    <!-- 墩墩帽子渐变（雾霾蓝） -->
+    <linearGradient id="capGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#94C5EC" />
+      <stop offset="60%" stop-color="#6AA2D1" />
+      <stop offset="100%" stop-color="#4B81B0" />
+    </linearGradient>
+
+    <!-- 爱心柔光渐变 -->
+    <radialGradient id="heartGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FF94B4" />
+      <stop offset="100%" stop-color="#F25B88" />
+    </radialGradient>
+
+    <filter id="shadowDun" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="-4" dy="16" stdDeviation="16" flood-color="#804C28" flood-opacity="0.22" />
+    </filter>
+
+    <filter id="shadowTuan" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="6" dy="16" stdDeviation="16" flood-color="#804C28" flood-opacity="0.22" />
+    </filter>
+
+    <filter id="heartShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#E03C6B" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- 图标底板 -->
+  <rect width="512" height="512" rx="116" fill="url(#bgGrad2)" />
+  <rect width="504" height="504" x="4" y="4" rx="112" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.9" />
+  <rect width="512" height="512" rx="116" fill="none" stroke="#E6C8B0" stroke-width="2" stroke-opacity="0.5" />
+
+  <!-- 底部微暖坐垫托影 -->
+  <ellipse cx="256" cy="405" rx="180" ry="24" fill="#A86A42" opacity="0.14" />
+
+  <!-- 左侧：墩墩 (Dun) -->
+  <g filter="url(#shadowDun)">
+    <!-- 墩墩身体：饱满Q弹的微椭圆体 -->
+    <path d="M110 325 C100 240 145 180 205 180 C265 180 285 240 275 325 C270 380 230 405 190 405 C145 405 115 375 110 325 Z" fill="url(#mochiDun)" />
+    <!-- 墩墩身体柔和高光 -->
+    <ellipse cx="160" cy="225" rx="35" ry="18" fill="#FFFFFF" opacity="0.65" transform="rotate(-25 160 225)" />
+    
+    <!-- 墩墩腮红 -->
+    <ellipse cx="140" cy="315" rx="15" ry="9" fill="#FFA592" opacity="0.8" />
+    <ellipse cx="232" cy="315" rx="15" ry="9" fill="#FFA592" opacity="0.8" />
+
+    <!-- 墩墩眯眯眼（笑得安心） -->
+    <path d="M152 290 Q 165 278 178 290" fill="none" stroke="#4A3F35" stroke-width="4.5" stroke-linecap="round" />
+    <path d="M200 290 Q 213 278 226 290" fill="none" stroke="#4A3F35" stroke-width="4.5" stroke-linecap="round" />
+    <!-- 满足的小嘴巴 -->
+    <path d="M182 312 Q 189 319 196 312" fill="none" stroke="#4A3F35" stroke-width="3.5" stroke-linecap="round" />
+
+    <!-- 墩墩小鸭舌帽（向左前斜戴，灵动调皮） -->
+    <!-- 帽顶 -->
+    <path d="M142 195 C145 142 220 140 235 192 C205 180 165 182 142 195 Z" fill="url(#capGrad)" />
+    <!-- 帽檐 -->
+    <path d="M130 198 C120 200 102 208 92 220 C118 225 152 215 165 198 Z" fill="#4B81B0" />
+    <!-- 帽子上的小黄星 -->
+    <polygon points="186,160 189,168 198,168 191,173 194,181 186,176 179,181 182,173 175,168 183,168" fill="#F5C95E" />
+  </g>
+
+  <!-- 右侧：团团 (Tuan) -->
+  <g filter="url(#shadowTuan)">
+    <!-- 团团身体：更加圆糯饱满 -->
+    <path d="M236 325 C226 240 268 180 326 180 C388 180 415 240 405 325 C398 380 360 405 320 405 C275 405 242 375 236 325 Z" fill="url(#mochiTuan)" />
+    <!-- 团团高光 -->
+    <ellipse cx="350" cy="225" rx="35" ry="18" fill="#FFFFFF" opacity="0.65" transform="rotate(-15 350 225)" />
+
+    <!-- 团团腮红 -->
+    <ellipse cx="278" cy="315" rx="15" ry="9" fill="#FFA592" opacity="0.8" />
+    <ellipse cx="370" cy="315" rx="15" ry="9" fill="#FFA592" opacity="0.8" />
+
+    <!-- 团团圆圆大眼睛（灵动明亮） -->
+    <circle cx="295" cy="285" r="9" fill="#4A3F35" />
+    <circle cx="298" cy="282" r="3.2" fill="#FFFFFF" />
+    <circle cx="352" cy="285" r="9" fill="#4A3F35" />
+    <circle cx="355" cy="282" r="3.2" fill="#FFFFFF" />
+    <!-- 甜甜的笑嘴 -->
+    <path d="M316 308 Q 323 318 331 308" fill="none" stroke="#4A3F35" stroke-width="3.5" stroke-linecap="round" />
+
+    <!-- 团团头顶小嫩芽 -->
+    <path d="M326 182 C324 165 325 150 328 138" fill="none" stroke="#2B7A58" stroke-width="4.5" stroke-linecap="round" />
+    <path d="M328 140 C312 136 302 148 308 160 C316 162 326 152 328 140 Z" fill="#7CC9A6" />
+    <path d="M328 140 C344 132 355 142 350 156 C342 160 330 152 328 140 Z" fill="#6AD8A3" />
+
+    <!-- 团团蝴蝶结（小巧精致粉色） -->
+    <path d="M356 168 C346 156 342 166 352 176 Z" fill="#F2A0B8" />
+    <path d="M366 168 C376 156 380 166 370 176 Z" fill="#F2A0B8" />
+    <circle cx="361" cy="172" r="4" fill="#E883A2" />
+  </g>
+
+  <!-- 两只中间升起的高光爱心（连接彼此） -->
+  <g filter="url(#heartShadow)">
+    <path d="M256 142 C256 142 225 110 225 85 C225 65 240 50 256 68 C272 50 287 65 287 85 C287 110 256 142 256 142 Z" fill="url(#heartGlow)" stroke="#FFFFFF" stroke-width="3.5" />
+    <ellipse cx="246" cy="74" rx="5" ry="3" fill="#FFFFFF" opacity="0.6" transform="rotate(-30 246 74)" />
+  </g>
+
+  <!-- 闪烁的友情微光小碎星 -->
+  <polygon points="120,110 123,117 130,120 123,123 120,130 117,123 110,120 117,117" fill="#F5C95E" opacity="0.85" />
+  <polygon points="395,115 397,121 403,123 397,125 395,131 393,125 387,123 393,121" fill="#F5C95E" opacity="0.75" />
+</svg>

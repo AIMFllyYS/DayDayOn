@@ -178,8 +178,8 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 | `SegmentedControl` | `segmented-control.tsx` | Base UI Tabs 驱动的页面内视图切换，方向键可切换 |
 | `Rating` | `rating.tsx` | 满意度 1–5，选中项用板块色；选中时有情绪反馈（第 5 节），`feedback={false}` 关闭 |
 | `MenuList` / `MenuItem` | `menu-list.tsx` | 设置列表；`danger` 用于退出登录、注销 |
-| `Sheet` | `sheet.tsx` | Base UI Drawer（`<768px` 底部抽屉，支持下滑关闭）+ Dialog（`≥768px` 居中对话框），打开时锁住背景滚动 |
-| `ConfirmDialog` | `confirm-dialog.tsx` | Base UI AlertDialog：高危或丢数据操作二次确认（点遮罩不关闭），支持异步 `onConfirm` |
+| `Sheet` | `sheet.tsx` | Base UI Drawer（`<768px` 底部抽屉，支持下滑关闭）+ Dialog（`≥768px` 居中对话框），`z-40`，打开时锁住背景滚动；内置 `useAnimatedOpen` 保障按需首次挂载时的 `360ms` 底部上拉过渡 |
+| `ConfirmDialog` | `confirm-dialog.tsx` | Base UI AlertDialog（`z-50`）：高危或丢数据操作二次确认（点遮罩不关闭），支持异步 `onConfirm` 与按需挂载进场过渡 |
 | `Popover` / `Tooltip` / `Menu` / `Collapsible` | `popover.tsx`、`tooltip.tsx`、`menu.tsx`、`collapsible.tsx` | Base UI 浮层、行内操作菜单与折叠面板，统一 `z-50` 与 `data-starting-style` / `data-ending-style` 过渡 |
 | `ToastViewport` / `toast` | `toast.tsx` | Base UI Toast：`toast.success / error / info`，手机在底栏上方、桌面在右下角 |
 | `Calendar` | `calendar.tsx` | `react-day-picker` 唯一封装入口：周一起始、中文月份、板块色调选中态，支持补卡日期范围限制 |
@@ -363,6 +363,6 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 | 图标库 | 不引入。2026-10-31 决定所有图标手绘（第 6 节） | — |
 | clsx + tailwind-merge | 已定不引入：`cn()` 只做拼接（tailwind-merge 会吞掉语义字号，见 libraries.md） | — |
 | 动效库 | 已定不引入（ADR-0005） | — |
-| 团团形象、logo | 团团已细化（第 9 节）；logo 已定（ADR-0022）：唯一源 `src/components/layout/logo-svg.ts`，App 图标是团团和墩墩肩并肩，标签页图标与 `BrandMark` 是团团大头，底色固定奶茶焦糖，不随主题变 | 设计评审后定稿；CSS 动画不够用时走 libraries.md 的变更规则（Rive、Lottie 目前在禁令里） |
+| 团团形象、logo | 团团已细化（第 9 节）；logo 已升级定稿（ADR-0022、2026-11-03 评审决议）：唯一源 `src/components/layout/logo-svg.ts`，采用【05 连击热力·五彩织锦】方案，底色统一为晨曦奶油纸底 `#fff8f0`。App 图标为四色板块积木环抱连击火种，标签页图标与 `BrandMark` 聚焦核心连击色块，保留 08 纸飞机为备用社交资产 | 已完成定稿并在 `/dev/playbook/foundations` 接入演示 |
 | 深色模式 | 未做；token 已分层 | 浅色定稿后 |
 | Prettier 类名排序 | `prettier-plugin-tailwindcss` 没有配置 `tailwindStylesheet`，自定义 token 类会被排到最前 | 在 `.prettierrc.json` 加 `"tailwindStylesheet": "./src/app/globals.css"` |

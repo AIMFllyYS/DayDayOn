@@ -26,8 +26,9 @@ import { MeView } from './me-view'
  * 主题改动成功后 setTheme()；导出、注销、退出登录。
  */
 
-const ConfirmDialog = dynamic(() =>
-  import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+const ConfirmDialog = dynamic(
+  () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+  { loading: () => null },
 )
 
 function failToast(e: unknown) {
@@ -47,9 +48,13 @@ export function MeScreen() {
   const update = useUpdatePreferences()
   const remove = useDeleteAccount()
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteLoaded, setDeleteLoaded] = useState(false)
   const [signOutOpen, setSignOutOpen] = useState(false)
+  const [signOutLoaded, setSignOutLoaded] = useState(false)
   const [confirmText, setConfirmText] = useState('')
   const [remindDraft, setRemindDraft] = useState<string | null>(null)
+  if (deleteOpen && !deleteLoaded) setDeleteLoaded(true)
+  if (signOutOpen && !signOutLoaded) setSignOutLoaded(true)
 
   if (isPending) return <MeSkeleton />
   if (isError || !me) {
@@ -107,46 +112,50 @@ export function MeScreen() {
         onSignOut={() => setSignOutOpen(true)}
       />
 
-      <ConfirmDialog
-        open={signOutOpen}
-        onOpenChange={setSignOutOpen}
-        title="退出登录？"
-        description="下次用邮箱验证码就能回来"
-        confirmLabel="退出登录"
-        onConfirm={() => signOutAndLeave(() => queryClient.clear())}
-      />
+      {signOutLoaded && (
+        <ConfirmDialog
+          open={signOutOpen}
+          onOpenChange={setSignOutOpen}
+          title="退出登录？"
+          description="下次用邮箱验证码就能回来"
+          confirmLabel="退出登录"
+          onConfirm={() => signOutAndLeave(() => queryClient.clear())}
+        />
+      )}
 
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        tone="danger"
-        title="注销账号？"
-        confirmLabel="注销"
-        description="目标、打卡、体重、心情和待办会全部删除，没法恢复。需要的话先导出数据。"
-        onConfirm={async () => {
-          if (confirmText.trim() !== '注销') {
-            toast.error('请输入"注销"两个字')
-            throw new Error('confirm mismatch')
-          }
-          try {
-            await remove.mutateAsync('注销')
-          } catch (e) {
-            failToast(e)
-            throw e
-          }
-          toast.success('账号已注销，谢谢你陪团团走过这一段')
-          await signOutAndLeave(() => queryClient.clear())
-        }}
-      >
-        <Field label='输入"注销"确认' htmlFor="me-delete-confirm">
-          <Input
-            id="me-delete-confirm"
-            value={confirmText}
-            autoComplete="off"
-            onChange={(e) => setConfirmText(e.target.value)}
-          />
-        </Field>
-      </ConfirmDialog>
+      {deleteLoaded && (
+        <ConfirmDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          tone="danger"
+          title="注销账号？"
+          confirmLabel="注销"
+          description="目标、打卡、体重、心情和待办会全部删除，没法恢复。需要的话先导出数据。"
+          onConfirm={async () => {
+            if (confirmText.trim() !== '注销') {
+              toast.error('请输入"注销"两个字')
+              throw new Error('confirm mismatch')
+            }
+            try {
+              await remove.mutateAsync('注销')
+            } catch (e) {
+              failToast(e)
+              throw e
+            }
+            toast.success('账号已注销，谢谢你陪团团走过这一段')
+            await signOutAndLeave(() => queryClient.clear())
+          }}
+        >
+          <Field label='输入"注销"确认' htmlFor="me-delete-confirm">
+            <Input
+              id="me-delete-confirm"
+              value={confirmText}
+              autoComplete="off"
+              onChange={(e) => setConfirmText(e.target.value)}
+            />
+          </Field>
+        </ConfirmDialog>
+      )}
     </>
   )
 }

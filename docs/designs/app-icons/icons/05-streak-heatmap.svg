@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 背景：温润奶油纸底 -->
+    <linearGradient id="bgGrad5" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFDF9" />
+      <stop offset="60%" stop-color="#FBF2E7" />
+      <stop offset="100%" stop-color="#F4E3D0" />
+    </linearGradient>
+
+    <!-- 板块色 1：运动薄荷 -->
+    <linearGradient id="tileExercise" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9DE8C5" />
+      <stop offset="100%" stop-color="#56B88B" />
+    </linearGradient>
+
+    <!-- 板块色 2：饮食黄油 -->
+    <linearGradient id="tileDiet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE483" />
+      <stop offset="100%" stop-color="#F5B938" />
+    </linearGradient>
+
+    <!-- 板块色 3：学习晴空 -->
+    <linearGradient id="tileStudy" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A8D6FA" />
+      <stop offset="100%" stop-color="#64A8E0" />
+    </linearGradient>
+
+    <!-- 板块色 4：睡眠薰衣草 -->
+    <linearGradient id="tileSleep" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C5BCF8" />
+      <stop offset="100%" stop-color="#8F80DD" />
+    </linearGradient>
+
+    <!-- 中心火焰/暖阳渐变 -->
+    <radialGradient id="centerFire" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="40%" stop-color="#FFD15C" />
+      <stop offset="85%" stop-color="#FF7832" />
+      <stop offset="100%" stop-color="#E24A16" />
+    </radialGradient>
+
+    <!-- 模块贴纸投影 -->
+    <filter id="tileShadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#885A3C" flood-opacity="0.2" />
+    </filter>
+
+    <filter id="centerGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#E05018" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- 图标底板 -->
+  <rect width="512" height="512" rx="116" fill="url(#bgGrad5)" />
+  <rect width="504" height="504" x="4" y="4" rx="112" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.9" />
+  <rect width="512" height="512" rx="116" fill="none" stroke="#E3C7AE" stroke-width="2" stroke-opacity="0.6" />
+
+  <!-- 整体 45度 旋转的菱形拼贴花瓣感 -->
+  <g transform="rotate(-6 256 256)" filter="url(#tileShadow)">
+
+    <!-- 左上块：运动（薄荷绿，带跑动/小叶弧形印） -->
+    <g transform="translate(110, 110)">
+      <rect width="130" height="130" rx="36" fill="url(#tileExercise)" />
+      <rect width="126" height="126" x="2" y="2" rx="34" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-opacity="0.5" />
+      <!-- 内部象形印：运动小跑鞋轻痕 -->
+      <path d="M 42 75 C 50 55, 75 55, 88 75 C 75 82, 50 82, 42 75 Z" fill="#FFFFFF" opacity="0.65" />
+    </g>
+
+    <!-- 右上块：饮食（黄油金，带热气/美味小勺痕） -->
+    <g transform="translate(272, 110)">
+      <rect width="130" height="130" rx="36" fill="url(#tileDiet)" />
+      <rect width="126" height="126" x="2" y="2" rx="34" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-opacity="0.5" />
+      <!-- 内部象形印：元气小饱腹微笑 -->
+      <path d="M 50 68 Q 65 82 80 68" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="0.75" />
+    </g>
+
+    <!-- 左下块：学习（天空蓝，带书本对开弧线） -->
+    <g transform="translate(110, 272)">
+      <rect width="130" height="130" rx="36" fill="url(#tileStudy)" />
+      <rect width="126" height="126" x="2" y="2" rx="34" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-opacity="0.5" />
+      <!-- 内部象形印：展翅书页 -->
+      <path d="M 44 72 Q 65 62 65 78 Q 65 62 86 72" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.75" />
+    </g>
+
+    <!-- 右下块：睡眠（薰衣草紫，带温润弯月） -->
+    <g transform="translate(272, 272)">
+      <rect width="130" height="130" rx="36" fill="url(#tileSleep)" />
+      <rect width="126" height="126" x="2" y="2" rx="34" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-opacity="0.5" />
+      <!-- 内部象形印：安睡小月牙 -->
+      <path d="M 58 54 A 18 18 0 1 0 76 76 A 14 14 0 0 1 58 54 Z" fill="#FFFFFF" opacity="0.75" />
+    </g>
+
+    <!-- 中心圆盘：点亮所有板块的连击火种（Streak Flame / Core Gem） -->
+    <circle cx="256" cy="256" r="62" fill="#FFFDF9" stroke="#E6C8B0" stroke-width="3" />
+    <g filter="url(#centerGlow)">
+      <circle cx="256" cy="256" r="48" fill="url(#centerFire)" />
+      <!-- 发光核心白光点 -->
+      <polygon points="256,224 263,246 286,256 263,266 256,288 249,266 226,256 249,246" fill="#FFFFFF" />
+      <circle cx="256" cy="256" r="6" fill="#FFEDB8" />
+    </g>
+  </g>
+
+  <!-- 散落的治愈手账小圆贴纸微点 -->
+  <circle cx="92" cy="74" r="5" fill="#7CC9A6" opacity="0.7" />
+  <circle cx="430" cy="86" r="7" fill="#F5C95E" opacity="0.8" />
+  <circle cx="436" cy="420" r="5.5" fill="#A99DE6" opacity="0.7" />
+  <circle cx="82" cy="426" r="6" fill="#86BDE8" opacity="0.7" />
+</svg>

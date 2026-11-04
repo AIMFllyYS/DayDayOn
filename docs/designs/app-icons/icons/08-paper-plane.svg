@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 背景：开阔澄澈的晨曦天蓝与奶油白过渡 -->
+    <linearGradient id="bgGrad8" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#E8F4FD" />
+      <stop offset="60%" stop-color="#F2F8FD" />
+      <stop offset="100%" stop-color="#FFFDF9" />
+    </linearGradient>
+
+    <!-- 纸飞机各受光面折痕渐变 -->
+    <linearGradient id="wingLeftTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E8F2FA" />
+    </linearGradient>
+
+    <linearGradient id="wingRightTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF6EC" />
+      <stop offset="100%" stop-color="#FCE1C6" />
+    </linearGradient>
+
+    <linearGradient id="planeUnderbody" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#B8D7EF" />
+      <stop offset="100%" stop-color="#8BBDE3" />
+    </linearGradient>
+
+    <filter id="planeShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="-10" dy="24" stdDeviation="20" flood-color="#4F799E" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- 图标底板 -->
+  <rect width="512" height="512" rx="116" fill="url(#bgGrad8)" />
+  <rect width="504" height="504" x="4" y="4" rx="112" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.9" />
+  <rect width="512" height="512" rx="116" fill="none" stroke="#BCD7EB" stroke-width="2" stroke-opacity="0.6" />
+
+  <!-- 朋友之间的连结航线（彩虹渐变虚线轨迹） -->
+  <path d="M 80 430 Q 150 400 210 320 T 320 190" fill="none" stroke="#7CC9A6" stroke-width="6" stroke-linecap="round" stroke-dasharray="10 14" opacity="0.8" />
+  <path d="M 95 440 Q 165 410 225 330 T 335 200" fill="none" stroke="#F5C95E" stroke-width="4" stroke-linecap="round" stroke-dasharray="8 12" opacity="0.8" />
+  <path d="M 110 450 Q 180 420 240 340 T 350 210" fill="none" stroke="#F2A0B8" stroke-width="4" stroke-linecap="round" stroke-dasharray="8 12" opacity="0.7" />
+
+  <!-- 主体手折纸飞机（仰角45度，朝向右上天空奋力翱翔） -->
+  <g filter="url(#planeShadow)">
+    <!-- 纸飞机底部折槽（阴影面） -->
+    <polygon points="390,110 140,320 220,335" fill="url(#planeUnderbody)" />
+
+    <!-- 纸飞机左主翼（透亮白光） -->
+    <polygon points="390,110 205,320 120,270" fill="url(#wingLeftTop)" />
+    <!-- 左翼骨架反光线 -->
+    <line x1="390" y1="110" x2="205" y2="320" stroke="#FFFFFF" stroke-width="3" />
+
+    <!-- 纸飞机右主翼（温暖晨阳映照面） -->
+    <polygon points="390,110 350,300 240,330" fill="url(#wingRightTop)" />
+    <!-- 右翼骨架 -->
+    <line x1="390" y1="110" x2="240" y2="330" stroke="#FCD3AA" stroke-width="2.5" />
+
+    <!-- 纸飞机折痕中缝（立体深凹） -->
+    <polygon points="390,110 240,330 215,325" fill="#7FAECD" />
+
+    <!-- 机翼上的一枚小治愈印记（团团的绿色嫩芽小徽章） -->
+    <g transform="translate(230, 245) rotate(40) scale(0.8)">
+      <path d="M 0 0 C -8 -16 -24 -14 -26 -2 C -18 3 -4 2 0 0 Z" fill="#7CC9A6" />
+      <path d="M 0 0 C 10 -18 26 -14 28 -2 C 20 4 6 2 0 0 Z" fill="#56BA8B" />
+      <circle cx="0" cy="0" r="3" fill="#3D8A65" />
+    </g>
+  </g>
+
+  <!-- 机头冲破的金色晨星 -->
+  <g transform="translate(416, 90)">
+    <polygon points="0,-18 5,-5 18,0 5,5 0,18 -5,5 -18,0 -5,-5" fill="#FFA534" />
+    <circle cx="0" cy="0" r="4.5" fill="#FFFFFF" />
+  </g>
+
+  <!-- 晴空飞鸟/共鸣小符号 -->
+  <path d="M 380 180 Q 392 172 404 180 Q 416 172 428 180" fill="none" stroke="#689ECA" stroke-width="3.5" stroke-linecap="round" opacity="0.6" />
+  <circle cx="150" cy="140" r="4" fill="#FFA534" opacity="0.6" />
+  <circle cx="120" cy="165" r="2.5" fill="#FFA534" opacity="0.4" />
+</svg>

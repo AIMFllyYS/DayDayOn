@@ -5,6 +5,7 @@ import { moduleMeta, moduleTones } from '@/components/ui/tone'
 import { PageHeader, Rules, Section, Specimen } from '../_components/section'
 import { TokenValue } from '../_components/token-value'
 import { PaletteRationale, ThemeGallery } from '../_components/theme-demos'
+import { AppIconDemos } from '../_components/app-icon-demos'
 
 export const metadata: Metadata = { title: '色彩与字体' }
 
@@ -294,6 +295,14 @@ export default function FoundationsPage() {
             </li>
           ))}
         </ul>
+      </Section>
+
+      <Section
+        ann="playbook.foundations.app-icon"
+        title="应用图标 · 品牌主印记"
+        description="全站唯一的官方图标源（src/components/layout/logo-svg.ts）。以【05 连击热力·五彩织锦】为正式全站图标（标签页、PWA、APK），并保留【08 纸飞机】为备用社交视觉资产。"
+      >
+        <AppIconDemos />
       </Section>
 
       <Section
