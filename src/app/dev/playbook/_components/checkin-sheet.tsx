@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { Button, IconButton } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { toast } from '@/components/ui/toast'
 import { CheckinSheetList } from '@/features/checkin/components/checkin-sheet-list'
@@ -105,9 +105,20 @@ export function CheckinSheet({
       }}
       title="记录点什么？"
       description={`今天完成了 ${demo.completion.done} / ${demo.completion.planned} 个目标`}
+      headerActions={
+        <IconButton
+          icon="clock"
+          label="历史拍摄记录"
+          onClick={() => {
+            onOpenChange(false)
+            toast.info('已打开「历史拍摄记录」全屏列表（/checkin/smart?view=history）')
+          }}
+        />
+      }
       footer={
         view === 'list' ? (
           <SmartActionBar
+            enableFileInputs
             onCapture={() => handleSmart('capture')}
             onUpload={() => handleSmart('upload')}
           />

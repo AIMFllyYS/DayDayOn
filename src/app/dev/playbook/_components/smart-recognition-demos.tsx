@@ -300,7 +300,7 @@ export function SmartScannerLens({
       : '立即拍照'
     : effectiveMode === 'smart-upload'
       ? '重新上传'
-      : '重新扫描'
+      : '重新拍摄'
 
   return (
     <div className="border-border bg-surface shadow-soft flex min-w-0 flex-col gap-2.5 overflow-hidden rounded-2xl border p-3.5">
@@ -1037,6 +1037,7 @@ export function GlobalSmartRecognitionDemo({
               sticky={false}
               title="智能识别"
               leading={<IconButton icon="chevron-left" label="返回" className="-ml-2" />}
+              actions={<IconButton icon="clock" label="历史拍摄记录" />}
               className="shrink-0 pt-10"
             />
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3.5 pt-2 pb-6">
