@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Icon, type IconName } from '@/components/ui/icon'
 import { ProgressRing } from '@/components/ui/progress'
 import { Stamp } from '@/components/ui/stamp'
-import { moduleMeta } from '@/components/ui/tone'
+import { moduleMeta, softToneClass, type Tone } from '@/components/ui/tone'
 import { cn } from '@/lib/cn'
 import { CheckinModeTabs } from '../../../_components/smart-recognition-demos'
 import { FillSection } from './fill-section'
@@ -99,23 +99,33 @@ export function PhoneFlow({
 
           <div className="shrink-0 px-3.5 pt-1">
             <Card
-              className="flex items-center gap-3 px-3 py-1.5"
+              className="flex items-center gap-3 px-3 py-0.5"
               data-ann="playbook.modules.flow.header"
             >
               <IconTile icon={moduleMeta[config.tone].icon} tone={config.tone} size="lg" />
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <span className="text-caption truncate font-bold">{config.title}</span>
                 <div className="flex items-center gap-1.5">
-                  <TagChip icon="shield" label="达标规则" onClick={() => push('rules')} />
-                  <TagChip icon="bulb" label="评判依据" onClick={() => push('basis')} />
+                  <TagChip
+                    tone="success"
+                    icon="shield"
+                    label="达标规则"
+                    onClick={() => push('rules')}
+                  />
+                  <TagChip
+                    tone="primary"
+                    icon="bulb"
+                    label="评判依据"
+                    onClick={() => push('basis')}
+                  />
                 </div>
               </div>
               <ProgressRing
                 value={config.progress.done + bonus}
                 max={config.progress.total}
                 tone={config.tone}
-                size={56}
-                thickness={6}
+                size={52}
+                thickness={5}
                 label={`打卡周期 ${config.progress.done + bonus}/${config.progress.total} 天`}
                 className="shrink-0"
               >
@@ -260,12 +270,25 @@ export function PhoneFlow({
 }
 
 /** 标题行右侧的小标签：点开进二级文档页 */
-function TagChip({ icon, label, onClick }: { icon: IconName; label: string; onClick: () => void }) {
+function TagChip({
+  icon,
+  label,
+  tone,
+  onClick,
+}: {
+  icon: IconName
+  label: string
+  tone: Tone
+  onClick: () => void
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="bg-surface-sunken text-muted hover:text-foreground inline-flex h-4 shrink-0 items-center gap-0.5 rounded-full px-1.5 text-[0.625rem] leading-none font-semibold whitespace-nowrap transition-colors active:scale-95"
+      className={cn(
+        'inline-flex h-4 shrink-0 items-center gap-0.5 rounded-full px-1.5 text-[0.625rem] leading-none font-semibold whitespace-nowrap transition-all hover:brightness-95 active:scale-95',
+        softToneClass[tone],
+      )}
     >
       <Icon name={icon} size={9} />
       {label}
