@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Icon, type IconName } from '@/components/ui/icon'
 import { ProgressRing } from '@/components/ui/progress'
 import { Stamp } from '@/components/ui/stamp'
-import { moduleMeta, softToneClass } from '@/components/ui/tone'
+import { moduleMeta } from '@/components/ui/tone'
 import { cn } from '@/lib/cn'
 import { CheckinModeTabs } from '../../../_components/smart-recognition-demos'
 import { FillSection } from './fill-section'
@@ -26,8 +26,6 @@ type Page = 'fill' | 'rules' | 'basis' | 'report'
 
 interface PhoneFlowProps {
   config: PhoneFlowConfig
-  /** 头部图标右上角的一个字，表示这次打卡的内容：午、跑…不传则取板块名首字 */
-  contentMark?: string
   /** Tab 栏下面常驻的主选择器：饮食的餐次、运动的类型。没有就不传 */
   selector?: ReactNode
   sections: FillSectionSpec[]
@@ -53,7 +51,6 @@ interface PhoneFlowProps {
  */
 export function PhoneFlow({
   config,
-  contentMark,
   selector,
   sections,
   aiSummary,
@@ -104,17 +101,7 @@ export function PhoneFlow({
             <Card className="flex items-center gap-3 p-3" data-ann="playbook.modules.flow.header">
               <div className="flex min-w-0 flex-1 flex-col gap-2">
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <span className="relative shrink-0">
-                    <IconTile icon={moduleMeta[config.tone].icon} tone={config.tone} size="sm" />
-                    <span
-                      className={cn(
-                        'text-tiny ring-surface absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full font-bold ring-2',
-                        softToneClass[config.tone],
-                      )}
-                    >
-                      {contentMark ?? moduleMeta[config.tone].label.slice(0, 1)}
-                    </span>
-                  </span>
+                  <IconTile icon={moduleMeta[config.tone].icon} tone={config.tone} size="sm" />
                   <span className="text-caption truncate font-bold">{config.title}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -122,21 +109,21 @@ export function PhoneFlow({
                   <TagChip icon="bulb" label="评判依据" onClick={() => push('basis')} />
                 </div>
               </div>
-              <ProgressRing
-                value={config.progress.done + bonus}
-                max={config.progress.total}
-                tone={config.tone}
-                size={56}
-                thickness={6}
-                label={`打卡周期 ${config.progress.done + bonus}/${config.progress.total} 天`}
-              >
-                <span className="text-tiny font-display text-center leading-none font-bold tabular-nums">
-                  {config.progress.done + bonus}
-                  <span className="text-subtle block text-[0.625rem] font-semibold">
-                    /{config.progress.total}天
+              <div className="flex shrink-0 flex-col items-center gap-0.5">
+                <ProgressRing
+                  value={config.progress.done + bonus}
+                  max={config.progress.total}
+                  tone={config.tone}
+                  size={56}
+                  thickness={6}
+                  label={`打卡周期 ${config.progress.done + bonus}/${config.progress.total} 天`}
+                >
+                  <span className="text-tiny font-display leading-none font-bold whitespace-nowrap tabular-nums">
+                    {config.progress.done + bonus}/{config.progress.total}
                   </span>
-                </span>
-              </ProgressRing>
+                </ProgressRing>
+                <span className="text-tiny text-subtle leading-none font-semibold">day</span>
+              </div>
             </Card>
           </div>
 
@@ -350,7 +337,7 @@ function DocBody({ doc }: { doc: DocPageSpec }) {
   )
 }
 
-/** 模块之间的短横线 */
+/** 模块之间的分隔线：整行宽、很浅，中间略粗、两端渐细 */
 function ShortDivider() {
   return <div aria-hidden className="bg-border-strong mx-auto h-0.5 w-10 shrink-0 rounded-full" />
 }
