@@ -204,6 +204,38 @@ function totals(ds: Dish[]) {
   }
 }
 
+/** 单道菜的质量评价与一句分析 */
+function dishQuality(d: Dish): {
+  text: string
+  tone: 'success' | 'warning' | 'danger'
+  note: string
+} {
+  if (d.junk) {
+    return {
+      text: '不推荐',
+      tone: 'danger',
+      note: '一票否决项：油炸或含糖饮料，会让整餐直接 0 分。',
+    }
+  }
+  if (d.sodium > 1500) {
+    return {
+      text: '偏咸',
+      tone: 'warning',
+      note: `钠含量很高（约 ${d.sodium} mg），建议少喝汤、少放红油。`,
+    }
+  }
+  if (d.gi >= 70) {
+    return { text: '升糖快', tone: 'warning', note: '升糖较快，晚间尤其要控制份量。' }
+  }
+  if (d.protein >= 20) {
+    return { text: '优质', tone: 'success', note: '优质蛋白来源，有利于饱腹和肌肉维持。' }
+  }
+  if (d.fiber >= 4) {
+    return { text: '优质', tone: 'success', note: '膳食纤维丰富，有助于延缓升糖。' }
+  }
+  return { text: '良好', tone: 'success', note: '营养均衡，适量即可。' }
+}
+
 function giLabel(gi: number): { text: string; tone: 'success' | 'warning' | 'danger' } {
   if (gi <= 55) return { text: '低 GI', tone: 'success' }
   if (gi < 70) return { text: '中 GI', tone: 'warning' }
@@ -331,31 +363,40 @@ function buildReport(ds: Dish[], meal: Meal): ReportSpec {
       },
     ],
   }
-  const glycemic: FolderSpec = {
-    id: 'gi',
-    title: '每道菜升糖指数',
-    icon: 'chart',
+  const dishFolder: FolderSpec = {
+    id: 'dishes',
+    title: '逐菜分析',
+    icon: 'diet',
     tone: 'study',
-    headline: `综合 GI ${t.gi}`,
+    headline: `${ds.length} 道菜 · 综合 GI ${t.gi}`,
     badge: { text: gl.text, tone: gl.tone },
     children: ds.map((d) => {
       const l = giLabel(d.gi)
+      const q = dishQuality(d)
       return {
         id: `dish-${d.id}`,
         title: d.name,
-        icon: 'diet',
+        icon: 'diet' as const,
         headline: `${d.portion} · GI ${d.gi} · ${d.kcal} kcal`,
-        badge: { text: l.text, tone: l.tone },
+        badge: { text: q.text, tone: q.tone },
         rows: [
+          { label: '升糖指数', value: `GI ${d.gi} · ${l.text}`, ratio: d.gi / 100, tone: l.tone },
+          {
+            label: '热量',
+            value: `${d.kcal} kcal`,
+            ratio: d.kcal / 700,
+            tone: 'exercise' as const,
+          },
           { label: '蛋白质', value: `${d.protein} g` },
           { label: '碳水', value: `${d.carb} g` },
           { label: '脂肪', value: `${d.fat} g` },
           { label: '膳食纤维', value: `${d.fiber} g` },
           { label: '钠', value: `${d.sodium} mg` },
         ],
+        note: q.note,
       }
     }),
-    note: '综合 GI 按各菜碳水克数加权。',
+    note: '默认折叠，点开每道菜看质量与各项指标；综合 GI 按各菜碳水克数加权。',
   }
   const energy: FolderSpec = {
     id: 'energy',
@@ -404,7 +445,7 @@ function buildReport(ds: Dish[], meal: Meal): ReportSpec {
   checks.badge = { text: sc > 3 ? '达标' : '未达标', tone: sc > 3 ? 'success' : 'warning' }
   return {
     title: `${MEAL_LABEL[meal]}分析 · ${sc.toFixed(1)} 分`,
-    folders: [nutrition, glycemic, energy, checks],
+    folders: [nutrition, energy, dishFolder, checks],
   }
 }
 
