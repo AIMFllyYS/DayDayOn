@@ -99,6 +99,9 @@ async function exportCheckins(db: DbOrTx, userId: string): Promise<Checkin[]> {
     payload: c.payload,
     fieldVersion: c.fieldVersion,
     aiRunId: c.aiRunId,
+    score: c.score,
+    isValid: c.isValid,
+    verdict: c.verdict,
     createdAt: iso(c.createdAt),
   }))
 }

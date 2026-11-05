@@ -12,6 +12,7 @@ import {
 } from 'drizzle-orm/pg-core'
 // 只引入类型：drizzle-kit 加载 schema 时类型导入会被擦除，不依赖 `@/` 别名
 import type { FieldDef } from '../../../features/goal/schemas'
+import type { RefereeRules } from '../../../features/referee/schemas'
 import type { Module } from '../../../features/shared/schemas'
 import { user } from './auth'
 import { id, timestamps } from './columns'
@@ -45,6 +46,10 @@ export const goals = pgTable(
     sortOrder: integer().notNull().default(0),
     // 可空：只有自定义目标有字段定义版本
     fieldVersion: integer(),
+    // 可空：为空时用该板块的默认裁判规则（features/referee/defaults.ts）
+    refereeRules: jsonb().$type<RefereeRules>(),
+    // 可空：不设截止日期的目标为空
+    deadlineDate: date({ mode: 'string' }),
     ...timestamps,
   },
   (t) => [

@@ -19,6 +19,8 @@ export interface StatCheckin {
   mealType: string | null
   /** 统计排序用（排行并列时按最后一次打卡时间） */
   occurredAt: string
+  /** false = 未达标仅存档：不计进度、完成度、连续天数与排行（checkin-modules.md 第 3.4 节） */
+  isValid: boolean
 }
 
 export interface GoalWithProgress {
@@ -69,17 +71,16 @@ export function isPlannedOn(target: TargetOnDay, localDate: LocalDate): boolean 
  * 某个目标某天的进度（PRD 3「频次」、7.2）：
  * duration 累加 durationSeconds；睡眠取当天那条的时长；
  * 饮食 count = 当天不同餐次数；其余 count 类按记录数。
- * checkinsOfDay 只含该目标该打卡日的记录。补卡计入进度。
+ * checkinsOfDay 只含该目标该打卡日的记录。补卡计入进度；未达标（isValid = false）不计。
  */
 export function goalDayProgress(
   target: TargetOnDay,
   module: Module,
   checkinsOfDay: readonly StatCheckin[],
 ): GoalProgress {
+  const valid = checkinsOfDay.filter((c) => c.isValid)
   const value =
-    target.kind === 'duration'
-      ? durationValue(module, checkinsOfDay)
-      : countValue(module, checkinsOfDay)
+    target.kind === 'duration' ? durationValue(module, valid) : countValue(module, valid)
   return { value, target: target.value, done: value >= target.value }
 }
 
@@ -116,8 +117,9 @@ export function dayCompletion(goalsWithProgress: readonly GoalWithProgress[]): {
 }
 
 /**
- * 连续天数（PRD 3）：从 today（今天还没打卡就从昨天）往回数，连续有任意打卡（含补卡）的打卡日数。
- * checkinDates 可重复、无序；晚于 today 的日期忽略。
+ * 连续天数（PRD 3）：从 today（今天还没打卡就从昨天）往回数，连续有任意有效打卡（含补卡）的打卡日数。
+ * checkinDates 可重复、无序；晚于 today 的日期忽略。调用方只传 isValid = true 的记录的日期
+ * （用 validDates() 过滤）。
  */
 export function computeStreak(checkinDates: readonly LocalDate[], today: LocalDate): number {
   const dates = new Set(checkinDates)
@@ -130,11 +132,18 @@ export function computeStreak(checkinDates: readonly LocalDate[], today: LocalDa
   return streak
 }
 
-/** 排行计分（PRD 2.9、3）：排除补卡、同日去重后的打卡日数。rows 已按范围过滤 */
+/** 连续天数的输入：只取有效打卡的日期 */
+export function validDates(
+  rows: readonly Pick<StatCheckin, 'localDate' | 'isValid'>[],
+): LocalDate[] {
+  return rows.filter((r) => r.isValid).map((r) => r.localDate)
+}
+
+/** 排行计分（PRD 2.9、3）：排除补卡与未达标、同日去重后的打卡日数。rows 已按范围过滤 */
 export function countRankDays(
-  rows: readonly Pick<StatCheckin, 'localDate' | 'isMakeup'>[],
+  rows: readonly Pick<StatCheckin, 'localDate' | 'isMakeup' | 'isValid'>[],
 ): number {
-  return new Set(rows.filter((r) => !r.isMakeup).map((r) => r.localDate)).size
+  return new Set(rows.filter((r) => !r.isMakeup && r.isValid).map((r) => r.localDate)).size
 }
 
 /**

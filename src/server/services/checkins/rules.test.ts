@@ -103,6 +103,7 @@ describe('日历聚合', () => {
     count: 1,
     mealType: null,
     occurredAt: '2026-11-01T00:00:00.000Z',
+    isValid: true,
   })
 
   it('按日聚合、升序，区分达成与只有补卡的日子', () => {
@@ -112,8 +113,8 @@ describe('日历聚合', () => {
       () => ({ kind: 'duration', value: 1800, weekdays: [1, 2, 3, 4, 5, 6, 7] }),
     )
     expect(days).toEqual([
-      { localDate: '2026-11-01', count: 1, done: true, makeupOnly: true },
-      { localDate: '2026-11-03', count: 2, done: true, makeupOnly: false },
+      { localDate: '2026-11-01', count: 1, done: true, makeupOnly: true, archivedOnly: false },
+      { localDate: '2026-11-03', count: 2, done: true, makeupOnly: false, archivedOnly: false },
     ])
   })
 

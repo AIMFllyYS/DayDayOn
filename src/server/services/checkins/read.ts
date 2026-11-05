@@ -42,6 +42,7 @@ const statColumns = {
   count: checkins.count,
   payload: checkins.payload,
   occurredAt: checkins.occurredAt,
+  isValid: checkins.isValid,
 }
 
 /** GET /goals/{goalId}/checkins：按打卡日、id 倒序的游标分页 */

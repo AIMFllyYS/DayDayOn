@@ -1,5 +1,5 @@
 import 'server-only'
-import { and, gte, inArray, lte } from 'drizzle-orm'
+import { and, eq, gte, inArray, lte } from 'drizzle-orm'
 import type { LocalDate } from '@/features/shared/schemas'
 import { addDays, compareLocalDate, daysBetween } from '@/lib/time'
 import type { DbOrTx } from '@/server/db/client'
@@ -67,6 +67,8 @@ export async function loadStreaks(
           ),
           gte(checkins.localDate, from),
           lte(checkins.localDate, latestToday),
+          // 未达标（仅存档）的记录不计入连续天数（checkin-modules.md 第 3.4 节）
+          eq(checkins.isValid, true),
         ),
       )
       // 每人每天最多一行：人数 × (窗口天数 + 时区差)

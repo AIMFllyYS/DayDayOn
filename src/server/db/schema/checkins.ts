@@ -5,6 +5,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   smallint,
   text,
@@ -12,6 +13,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 import type { CheckinPayload } from '../../../features/checkin/schemas'
+import type { Verdict } from '../../../features/referee/schemas'
 import type { Module, RatingScope } from '../../../features/shared/schemas'
 import { aiRuns } from './ai'
 import { user } from './auth'
@@ -53,6 +55,12 @@ export const checkins = pgTable(
     fieldVersion: integer(),
     // 可空：只有 AI 识别的打卡关联 ai_runs；注销后 ai_runs 保留，打卡随用户删除
     aiRunId: uuid().references(() => aiRuns.id, { onDelete: 'set null' }),
+    // 可空：只有评分制板块（饮食）有分数，0.0–5.0（checkin-modules.md 第 3.4 节）
+    score: numeric({ precision: 3, scale: 1, mode: 'number' }),
+    /** 是否通过有效打卡门槛；false = 未达标仅存档，不计进度、连续天数与排行 */
+    isValid: boolean().notNull().default(true),
+    // 可空：老数据和没有裁判结论的打卡为空
+    verdict: jsonb().$type<Verdict>(),
     ...timestamps,
   },
   (t) => [
