@@ -29,6 +29,21 @@ function toolSummary(toolName: string, input: unknown): string | undefined {
       return typeof o.weightKg === 'number' ? `${o.weightKg} kg` : undefined
     case 'getFriendStatus':
       return typeof o.friendIdOrNickname === 'string' ? o.friendIdOrNickname : undefined
+    case 'lookupFoodNutrition':
+      return Array.isArray(o.names)
+        ? o.names.filter((n) => typeof n === 'string').join('、')
+        : undefined
+    case 'lookupMet':
+      return Array.isArray(o.activities)
+        ? o.activities
+            .map((a) =>
+              typeof a === 'object' && a !== null ? (a as { name?: unknown }).name : null,
+            )
+            .filter((n): n is string => typeof n === 'string')
+            .join('、')
+        : undefined
+    case 'calcExerciseKcal':
+      return typeof o.minutes === 'number' ? `${o.minutes} 分钟` : undefined
     case 'listCheckins': {
       const from = typeof o.from === 'string' ? o.from : ''
       const to = typeof o.to === 'string' ? o.to : ''

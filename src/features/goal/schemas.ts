@@ -296,6 +296,8 @@ export type GoalFieldVersion = z.infer<typeof GoalFieldVersionSchema>
 export const GoalDetailSchema = GoalSchema.extend({
   fieldVersions: z.array(GoalFieldVersionSchema),
   targetHistory: z.array(TargetOnDaySchema.extend({ effectiveFrom: LocalDateSchema })),
+  /** 有效打卡的天数（未达标存档不算），打卡页周期环用 */
+  validDays: z.number().int().min(0),
 }).meta({ id: 'GoalDetail' })
 export type GoalDetail = z.infer<typeof GoalDetailSchema>
 

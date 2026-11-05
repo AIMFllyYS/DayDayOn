@@ -55,6 +55,7 @@ function demoGoal(over: Partial<GoalDetail>): GoalDetail {
     fieldVersion: null,
     refereeRules: null,
     deadlineDate: null,
+    validDays: 0,
     fields: null,
     createdAt: NOW,
     updatedAt: NOW,
