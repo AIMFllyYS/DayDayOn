@@ -105,11 +105,11 @@ const CONFIG: PhoneFlowConfig = {
         items: ['番茄工作法的单个专注单元，用来拦住「翻书 3 分钟」糊弄连击'],
       },
       {
-        heading: '笔记提纯',
+        heading: '笔记整理',
         items: [
-          '上传 HTML 先在本地去掉 script、style 和冗余标签，只把正文发给 AI',
-          'AI 提炼知识点摘要，先成草稿，确认才入库',
-          '不展示 token 数字和内部提示词',
+          '上传的笔记会先整理出正文，再提炼要点',
+          '提炼出的知识点摘要，需要你确认后才保存',
+          '摘要需要和你填写的学习主题一致',
         ],
       },
     ],
@@ -165,7 +165,7 @@ function buildReport(d: Data): ReportSpec {
         checks: [
           { text: '专注时长 ≥ 25 分钟', ok: e.timeOk },
           { text: '要点摘录有实质内容', ok: e.contentOk },
-          { text: '摘要与学习主题一致', ok: true, source: 'AI 语义核对，先成草稿，确认后入库' },
+          { text: '摘要与学习主题一致', ok: true, source: '与你填写的学习主题核对一致' },
         ],
       },
     ],

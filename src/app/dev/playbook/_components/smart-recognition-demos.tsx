@@ -152,11 +152,11 @@ export const SMART_PRESETS: Record<ModuleTone, SmartSamplePreset> = {
     visualLines: [
       '专注时长：45 分钟（LeetCode 3 题）',
       '核心收获：队列层长快照，复杂度 O(n)',
-      '已过滤 HTML 标签，提纯有效正文',
+      '已整理出笔记正文',
     ],
-    summaryText: '从上传的 HTML 笔记中提炼学习主题 **二叉树层序遍历**，专注时长 **45 分钟**。',
+    summaryText: '从上传的笔记中提炼学习主题 **二叉树层序遍历**，专注时长 **45 分钟**。',
     scanSteps: [
-      '正在读取纯文本 / HTML 附件并提纯正文…',
+      '正在读取笔记附件并整理正文…',
       '提炼学习主题「二叉树层序遍历」及专注 45 分钟',
       '流式魔法填入「学一点」学习打卡表单',
     ],
@@ -177,7 +177,7 @@ export const SMART_PRESETS: Record<ModuleTone, SmartSamplePreset> = {
       '16:30 温水 250ml · 19:00 温水 300ml（累计 7 杯）',
       '状态备注：下午没有点奶茶，状态很好',
     ],
-    summaryText: '从上传的 TXT 文本中提取今日饮水记录 **共 7 杯**，已匹配自定义目标字段。',
+    summaryText: '从上传的文本中提取今日饮水记录 **共 7 杯**，已匹配自定义目标字段。',
     scanSteps: [
       '正在解析文本记录与自定义目标字段定义…',
       '匹配字段：今日饮水杯数 = 7 杯 · 心得备注已提取',

@@ -98,7 +98,7 @@ const CONFIG: PhoneFlowConfig = {
       },
       {
         heading: '裁判怎么判',
-        items: ['按你设定的条件逐项打勾，全部满足才算有效', '识别结果先成草稿，确认才入库'],
+        items: ['按你设定的条件逐项打勾，全部满足才算有效', '识别结果会先让你确认，确认后才保存'],
       },
     ],
   },
@@ -158,7 +158,7 @@ function buildReport(d: Data): ReportSpec {
         checks: [
           { text: '温水 ≥ 6 杯', ok: e.waterOk },
           { text: '含糖饮料 = 0 杯', ok: e.sugarOk },
-          { text: '识别数据与手填一致', ok: true, source: '水杯照片草稿，确认后入库' },
+          { text: '识别数据与手填一致', ok: true, source: '水杯照片' },
         ],
       },
     ],

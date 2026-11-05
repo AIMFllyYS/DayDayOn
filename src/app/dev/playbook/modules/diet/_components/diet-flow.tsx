@@ -350,9 +350,9 @@ const CONFIG: PhoneFlowConfig = {
       {
         heading: '联网核验',
         items: [
-          'DeepSeek 联网检索权威资料，核对食物成分与烹饪方式',
-          '识别结果先以草稿呈现，确认后才入库',
-          '照片只在内存压缩，不落盘',
+          '联网检索权威资料，核对食物成分与烹饪方式',
+          '识别结果会先让你确认，确认后才保存',
+          '你的照片只用于识别，不会被保存',
         ],
       },
     ],
@@ -461,7 +461,7 @@ function buildReport(ds: Dish[], meal: Meal): ReportSpec {
         value: `${Math.round((t.kcal / 1800) * 100)}%`,
         ratio: t.kcal / 1800,
         tone: 'exercise',
-        sub: '按身高体重动态 BMR 估算，约 1800 kcal',
+        sub: '按身高体重估算，约 1800 kcal',
       },
     ],
   }
@@ -478,7 +478,7 @@ function buildReport(ds: Dish[], meal: Meal): ReportSpec {
       { text: '膳食纤维 ≥ 5g', ok: t.fiber >= 5 },
       { text: '钠 ≤ 1500mg', ok: t.sodium <= 1500 },
       {
-        text: 'DeepSeek 联网核验食物成分',
+        text: '联网核验食物成分',
         ok: true,
         source: '《中国居民膳食指南（2022）》· 中国食物成分表',
       },

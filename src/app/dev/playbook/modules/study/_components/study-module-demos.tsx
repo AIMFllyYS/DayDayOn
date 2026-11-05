@@ -175,39 +175,32 @@ export function StudyDualMechanismDemo() {
               <IconTile icon="study" tone="study" size="md" />
               <div className="min-w-0">
                 <h3 className="text-subhead truncate font-bold">
-                  机制 02 · 笔记提纯与实质内容核验
+                  机制 02 · 笔记整理与实质内容核验
                 </h3>
-                <p className="text-tiny text-muted truncate">
-                  支持上传 HTML / TXT / Markdown 笔记或刷题截图
-                </p>
+                <p className="text-tiny text-muted truncate">支持上传导出的笔记或刷题截图</p>
               </div>
             </div>
             <Badge tone="primary" icon="sparkles">
-              AI 提纯核验
+              AI 核验
             </Badge>
           </div>
 
           {/* 原始 HTML 附件 -> 提纯核心要点对比 */}
           <div className="bg-surface-sunken flex flex-col gap-2.5 rounded-2xl p-3.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-tiny text-muted font-semibold">
-                输入：导出笔记（HTML / TXT）或题库截图
-              </span>
-              <span className="text-tiny text-subtle font-mono">前端去噪 → deepseek-flash</span>
+              <span className="text-tiny text-muted font-semibold">你上传的笔记：</span>
             </div>
 
             <div className="bg-surface border-border rounded-xl border p-2.5">
-              <p className="text-tiny text-subtle font-mono">
-                &lt;article class=&quot;note&quot;&gt;&lt;h2&gt;Day 12
-                二叉树层序遍历&lt;/h2&gt;&lt;p&gt;利用队列记录每层 size 快照，时间复杂度
-                O(n)...&lt;/p&gt;&lt;/article&gt;
+              <p className="text-tiny text-muted leading-relaxed">
+                Day 12 二叉树层序遍历：利用队列记录每层 size 快照，时间复杂度 O(n)……
               </p>
             </div>
 
             <div className="flex items-center gap-1.5 px-1">
               <Icon name="sparkles" size={14} className="text-study-ink shrink-0" />
               <span className="text-tiny text-study-ink font-semibold">
-                Agent 自动剥离标签并核验知识实质度：
+                Agent 自动整理出要点，并核验是否真的学到了东西：
               </span>
             </div>
 
@@ -219,15 +212,15 @@ export function StudyDualMechanismDemo() {
                 <Badge tone="study">实质度通过</Badge>
               </div>
               <ul className="text-tiny text-foreground space-y-1">
-                <li>• 核心方法：使用队列并在每层外循环记录 `levelSize = queue.length` 快照</li>
-                <li>• 复杂度分析：每个节点入队出队各一次，时间 `O(n)`、空间 `O(n)`</li>
+                <li>• 核心方法：用队列逐层遍历，每层开始前先记下这一层的节点数</li>
+                <li>• 复杂度分析：每个节点入队出队各一次，时间和空间都是 O(n)</li>
               </ul>
             </div>
           </div>
 
           <p className="text-tiny text-muted leading-relaxed">
-            无论是 Notion / 语雀导出的 HTML 笔记、纯文本读书摘抄，还是平板手写题库截图，Agent
-            都会自动提取今日掌握的知识点填入「要点摘录」，省去手打长文的繁琐。
+            无论是 Notion / 语雀导出的笔记、纯文本读书摘抄，还是平板手写题库截图，Agent
+            都会自动整理今日掌握的知识点填入「要点摘录」，省去手打长文的繁琐。
           </p>
         </div>
       </Card>
@@ -253,7 +246,7 @@ export function StudyRefereeComparisonMatrix() {
               <IconTile icon="study" tone="study" size="sm" />
               <div className="min-w-0">
                 <p className="text-caption truncate font-bold">
-                  场景 A · 上传二叉树笔记 HTML · 专注 45 分钟
+                  场景 A · 上传二叉树笔记 · 专注 45 分钟
                 </p>
                 <p className="text-tiny text-muted truncate">
                   Agent 提炼核心知识点摘要 + 验证专注时长达标
@@ -284,7 +277,7 @@ export function StudyRefereeComparisonMatrix() {
                 <span className="bg-success-soft text-success-ink text-tiny flex size-5 shrink-0 items-center justify-center rounded-full font-bold">
                   ✓
                 </span>
-                <span className="text-caption font-semibold">实质内容核验（HTML 笔记提纯）</span>
+                <span className="text-caption font-semibold">实质内容核验（笔记整理）</span>
               </div>
               <span className="text-study-ink text-tiny font-bold">已提炼 3 条算法要点</span>
             </div>
@@ -383,7 +376,7 @@ export function StudyRefereeComparisonMatrix() {
           {/* 输入内容回显 */}
           <div className="border-warning/35 bg-background rounded-xl border p-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-tiny text-muted font-semibold">当前填写的草稿</span>
+              <span className="text-tiny text-muted font-semibold">当前填写的内容</span>
               <Badge tone="warning">待补足 20 分钟</Badge>
             </div>
             <p className="text-caption mt-1 font-bold">学了什么：背单词（5 分钟）</p>

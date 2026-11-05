@@ -197,7 +197,7 @@ export const DIET_REFEREE_SCENARIOS: Record<DietRefereeScenario['id'], DietRefer
       visualLines: [
         '糙米杂粮饭 130g · 清蒸鲈鱼 160g',
         '蒜蓉西兰花 180g · 紫菜蛋花汤',
-        'DeepSeek 联网核验：低 GI 清洁烹调（4.4 / 5.0 分）',
+        '联网核验：低 GI 清洁烹调（4.4 / 5.0 分）',
       ],
       scanSteps: [
         '正在识别餐盘分区与烹饪油光特征…',
@@ -300,7 +300,7 @@ export const DIET_REFEREE_SCENARIOS: Record<DietRefereeScenario['id'], DietRefer
       visualLines: [
         '脆皮炸鸡堡 590 kcal · 炸薯条 330 kcal',
         '含糖可乐 400ml（添加糖 42g）',
-        'DeepSeek 裁判：触发垃圾食品红线 -5.0 分（0.0 分熔断）',
+        '裁判结论：触发垃圾食品红线 -5.0 分（0.0 分熔断）',
       ],
       scanSteps: [
         '识别出裹粉油炸快餐与含糖碳酸饮料…',
@@ -411,7 +411,7 @@ export const DIET_REFEREE_SCENARIOS: Record<DietRefereeScenario['id'], DietRefer
       visualLines: [
         '番茄牛腩 + 上海青 + 白米饭（460 kcal）',
         '饭后甜点：香草小冰淇淋 1 球（220 kcal）',
-        'DeepSeek 裁判：午间解馋扣 -1.2 分 → 3.3 分擦线及格',
+        '裁判结论：午间解馋扣 -1.2 分 → 3.3 分擦线及格',
       ],
       scanSteps: [
         '识别正餐餐盘与饭后冰淇淋甜品…',
@@ -520,7 +520,7 @@ export const DIET_REFEREE_SCENARIOS: Record<DietRefereeScenario['id'], DietRefer
       visualLines: [
         '精制白面条 300g · 红油浓汤底 350ml',
         '卤牛肉 45g · 青菜仅 2 片',
-        'DeepSeek 裁判：晚间高 GI 碳水+高钠爆表 → 2.4 分不及格',
+        '裁判结论：晚间高 GI 碳水+高钠爆表 → 2.4 分不及格',
       ],
       scanSteps: [
         '识别面碗容量、红油汤面浮油层与配菜比例…',
@@ -782,7 +782,7 @@ export function DietRefereeScoreCard({
           <div className="flex items-center gap-1.5">
             <Icon name="globe" size={14} className="text-primary-ink shrink-0" />
             <span className="text-tiny text-primary-ink font-bold">
-              DeepSeek 联网权威核验：{scenario.deepseekCitation.sourceTitle}
+              联网权威核验：{scenario.deepseekCitation.sourceTitle}
             </span>
           </div>
           <div className="flex items-center gap-1.5">

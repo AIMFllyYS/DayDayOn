@@ -266,7 +266,7 @@ function buildReport(d: Data): ReportSpec {
         checks: [
           { text: '入睡不晚于 23:30', ok: e.earlyOk },
           { text: '睡眠时长在 6.5–9.5 小时', ok: e.durOk },
-          { text: '识别时刻与表盘一致', ok: true, source: '手环 / 截图草稿，确认后入库' },
+          { text: '识别时刻与表盘一致', ok: true, source: '手环 / 截图' },
         ],
       },
     ],

@@ -266,15 +266,15 @@ const CONFIG: PhoneFlowConfig = {
         heading: '代谢当量（MET）',
         items: [
           '跑步 8.0，骑行 6.8，游泳 7.0，快走 3.8，力量 5.0，其余按 4.5 估算',
-          '消耗 ≈ MET × 体重 × 小时，演示按 60kg 估算；手表给了数据就直接用手表的',
+          '消耗 ≈ 代谢当量 × 体重 × 小时，按 60kg 体重估算；手表给了数据就直接用手表的',
         ],
       },
       {
         heading: '识别',
         items: [
           '运动类型用简单规则识别计量方式，识别不出按时间 + 距离兜底',
-          '华为等手机、手表的运动截图由 AI 识别后先成草稿，确认才入库',
-          '照片只在内存压缩，不落盘',
+          '华为等手机、手表的运动截图识别后，会先让你确认再保存',
+          '你的截图只用于识别，不会被保存',
         ],
       },
     ],
@@ -328,7 +328,7 @@ function buildReport(d: Data): ReportSpec {
           value: `${ev.kcal} kcal`,
           ratio: ev.kcal / 400,
           tone: 'diet' as const,
-          sub: ev.fromWatch ? '来自手表截图' : `MET ${ev.met.toFixed(1)} × 60kg 估算`,
+          sub: ev.fromWatch ? '来自手表截图' : `代谢当量 ${ev.met.toFixed(1)} × 60kg 估算`,
         },
         ...(item.advHr ? [{ label: '平均心率', value: `${item.advHr} bpm` }] : []),
         { label: '强度（备注）', value: item.effort.trim() || '未填写' },
@@ -380,7 +380,7 @@ function buildReport(d: Data): ReportSpec {
     ...e.list.flatMap(({ ev }) =>
       ev.checks.map((c) => ({ ...c, text: multi ? `${ev.name}：${c.text}` : c.text })),
     ),
-    { text: '识别数据与手填一致', ok: true, source: '手机 / 手表运动截图草稿，确认后入库' },
+    { text: '识别数据与手填一致', ok: true, source: '手机 / 手表运动截图' },
   ]
   const okCount = checks.filter((c) => c.ok).length
   const checkFolder: FolderSpec = {
