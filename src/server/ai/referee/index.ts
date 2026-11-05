@@ -1,5 +1,6 @@
 import 'server-only'
 import {
+  type UIMessage,
   createIdGenerator,
   createUIMessageStreamResponse,
   hasToolCall,
@@ -11,6 +12,12 @@ import type { JudgeInput } from '@/features/referee/rules'
 import type { Verdict } from '@/features/referee/schemas'
 import type { LocalDate, Module } from '@/features/shared/schemas'
 import type { DbOrTx } from '@/server/db/client'
+import {
+  ensureConversation,
+  loadMessages,
+  saveMessages,
+  touchConversation,
+} from '@/server/services/agent/conversations'
 import { getFlashModel, hashedUserId } from '../model'
 import { usageFromSdk, type TokenUsage } from '../pricing'
 import { reserveAgentRun, settleAgentRun } from '../run-agent'
@@ -20,12 +27,20 @@ import { buildRefereeTools, MAX_REFEREE_SEARCHES } from './tools'
 /*
  * 裁判 Agent 的流式运行（checkin-modules.md 第 4 节、ADR-0027）。
  * 预占（token 上限 + 联网 3 次）→ ToolLoopAgent 流式（最多 6 步，最后一步强制 submitVerdict）
- * → 后台按实际用量结算，失败释放。和 Agent 对话同一套账本，不落会话消息。
+ * → 后台按实际用量结算，失败释放。和 Agent 对话同一套账本。
+ * 带 conversation 时，这次分析就是一个 Agent 会话：用户那句话 + 分析回合在流结束时落库（全局只有一个 Agent）。
  */
 
 export const REFEREE_MAX_STEPS = 6
 export const REFEREE_MAX_OUTPUT_PER_STEP = 1500
 const ZERO_USAGE: TokenUsage = { inputMissTokens: 0, inputHitTokens: 0, outputTokens: 0 }
+
+/** 分析所在的 Agent 会话：id 由前端生成（新对话），text 是用户看到的那句话 */
+export interface RefereeConversation {
+  id: string
+  messageId: string
+  text: string
+}
 
 export interface StreamRefereeInput {
   db: DbOrTx
@@ -38,6 +53,9 @@ export interface StreamRefereeInput {
   timeZone: string
   weightKg: number | null
   judgeBase: Omit<JudgeInput, 'facts' | 'extras'>
+  conversation?: (RefereeConversation & { title: string }) | null
+  /** 用户选的形象名 */
+  petName?: string
   /** 给模型看的待裁判记录（user message，JSON） */
   brief: Record<string, unknown>
   now: Date
@@ -45,6 +63,17 @@ export interface StreamRefereeInput {
 
 export async function streamReferee(input: StreamRefereeInput): Promise<Response> {
   const userText = JSON.stringify(input.brief)
+  // 会话归属先校验（别人的会话 id 直接 404），放在预占前面，免得白占额度；消息在流结束时落库
+  const conv = input.conversation ?? null
+  const userMessage: UIMessage | null = conv
+    ? { id: conv.messageId, role: 'user', parts: [{ type: 'text', text: conv.text }] }
+    : null
+  if (conv) {
+    await loadMessages(input.db, input.userId, conv.id, { allowMissing: true })
+    await ensureConversation(input.db, input.userId, conv.id, conv.title, input.now)
+    await touchConversation(input.db, input.userId, conv.id, input.now)
+  }
+
   const reserved = await reserveAgentRun({
     userId: input.userId,
     ip: input.ip,
@@ -78,7 +107,7 @@ export async function streamReferee(input: StreamRefereeInput): Promise<Response
 
   const agent = new ToolLoopAgent({
     model: getFlashModel(),
-    instructions: refereeSystemPrompt(input.module),
+    instructions: refereeSystemPrompt(input.module, input.petName),
     tools,
     stopWhen: [hasToolCall('submitVerdict'), isStepCount(REFEREE_MAX_STEPS)],
     maxOutputTokens: REFEREE_MAX_OUTPUT_PER_STEP,
@@ -126,6 +155,28 @@ export async function streamReferee(input: StreamRefereeInput): Promise<Response
       stream: result.stream,
       tools,
       generateMessageId: createIdGenerator({ prefix: 'ref', size: 16 }),
+      ...(userMessage ? { originalMessages: [userMessage] } : {}),
+      onEnd: async ({ messages }) => {
+        if (!conv) return
+        try {
+          await saveMessages(
+            input.db,
+            input.userId,
+            conv.id,
+            messages.map((m, idx) => ({
+              messageId: m.id,
+              role: m.role === 'user' ? 'user' : 'assistant',
+              parts: m.parts as unknown[],
+              createdAt: new Date(input.now.getTime() + idx),
+            })),
+          )
+        } catch (error) {
+          console.error(
+            '[ai] 裁判会话持久化失败',
+            error instanceof Error ? error.message : String(error),
+          )
+        }
+      },
       onError: (error) => {
         console.error(
           '[ai] 裁判流式分片出错',

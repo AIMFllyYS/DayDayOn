@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/icon'
 import { cn } from '@/lib/cn'
 import { newIdempotencyKey } from '@/lib/api/fetcher'
 import { compressImage, ImageCompressError } from '@/lib/image/compress'
+import { usePetIdentity } from '../pet-binding'
 import { useAgentUi, useAgentUiState } from '../agent-store'
 import { useAgentChat } from '../chat-context'
 
@@ -45,6 +46,7 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
   const { send, stop, status } = useAgentChat()
   const { deepThink } = useAgentUiState()
   const ui = useAgentUi()
+  const pet = usePetIdentity()
   const [input, setInput] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [attachError, setAttachError] = useState<string | null>(null)
@@ -231,7 +233,9 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
           rows={1}
           style={{ height: '24px' }}
           placeholder={
-            variant === 'panel' ? '和团团说点什么…' : '和团团说点什么，比如「我今天跑了 3 公里」'
+            variant === 'panel'
+              ? `和${pet.name}说点什么…`
+              : `和${pet.name}说点什么，比如「我今天跑了 3 公里」`
           }
           className="text-body text-foreground placeholder:text-subtle max-h-[7.5rem] min-h-[1.5rem] w-full min-w-0 flex-1 resize-none bg-transparent px-1 py-0 leading-6 outline-none"
         />

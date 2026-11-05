@@ -35,6 +35,7 @@ import {
   titleFromFirstUserText,
   touchConversation,
 } from '@/server/services/agent/conversations'
+import { loadPetName } from '@/server/services/agent/pet-name'
 import { loadClock } from '@/server/services/checkins/clock'
 import type { AiRunStatus } from '@/features/quota/schemas'
 
@@ -200,7 +201,10 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
   )
   await touchConversation(db, input.userId, input.conversationId, now)
 
-  const clock = await loadClock(db, input.userId)
+  const [clock, petName] = await Promise.all([
+    loadClock(db, input.userId),
+    loadPetName(db, input.userId),
+  ])
   const agent = buildAgent({
     model: getFlashModel(),
     userId: input.userId,
@@ -209,6 +213,7 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
     search,
     now,
     clock,
+    petName,
   })
 
   const startedAt = Date.now()

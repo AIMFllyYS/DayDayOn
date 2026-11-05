@@ -43,6 +43,6 @@ export const REFEREE_SKILLS: Record<Module, string> = {
 - 需要对照历史时调用 listCheckins。`,
 }
 
-export function refereeSystemPrompt(module: Module): string {
-  return `${BASE}\n\n${REFEREE_SKILLS[module]}`
+export function refereeSystemPrompt(module: Module, petName = '团团'): string {
+  return `${BASE.replace('团团', petName)}\n\n${REFEREE_SKILLS[module]}`
 }

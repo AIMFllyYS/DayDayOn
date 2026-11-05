@@ -4,6 +4,7 @@ import { Icon } from '@/components/ui/icon'
 
 /*
  * 本周热力图（PRD 2.7 第 4 项）：周一到周日 × 板块，格子深浅表示完成度（0–1，heatmapCell 的结果）。
+ * 三种状态分开画：完成（实心，深浅表示多少）、打了没达标（虚线框 + 斜纹，archived）、没打（凹陷底）。
  * 数据形状与 features/dashboard 的 WeekHeatmapSchema 一致，但这里按结构声明，原子层不 import 领域代码。
  * 用真正的 <table> 渲染，读屏可以按行列读；每格另有文字说明，不只靠颜色。
  */
@@ -12,6 +13,8 @@ export interface WeekHeatmapRow {
   module: ModuleTone
   /** 与 days 一一对应，0–1 */
   cells: readonly number[]
+  /** 与 days 一一对应：打了卡但没达标（只存档） */
+  archived?: readonly boolean[]
 }
 
 interface WeekHeatmapProps {
@@ -60,10 +63,10 @@ function shortDate(localDate: string): string {
   return m && d ? `${Number(m)}/${Number(d)}` : localDate
 }
 
-function cellText(v: number, future: boolean): string {
+function cellText(v: number, future: boolean, archived = false): string {
   if (future) return '还没到'
   const level = heatLevel(v)
-  if (level === 0) return '没有打卡'
+  if (level === 0) return archived ? '打了卡但没达标' : '没有打卡'
   if (level === 3) return '全部完成'
   return `完成 ${Math.round(v * 100)}%`
 }
@@ -81,10 +84,18 @@ export function WeekHeatmap({
   const pastCells = rows.flatMap((r) => r.cells.filter((_, i) => !isFuture(days[i] ?? '')))
   const doneCount = pastCells.filter((v) => heatLevel(v) === 3).length
   const partialCount = pastCells.filter((v) => heatLevel(v) === 1 || heatLevel(v) === 2).length
+  const archivedCount = rows.reduce(
+    (n, r) =>
+      n +
+      r.cells.filter((v, i) => !isFuture(days[i] ?? '') && heatLevel(v) === 0 && r.archived?.[i])
+        .length,
+    0,
+  )
   const summary =
-    doneCount + partialCount === 0
+    doneCount + partialCount + archivedCount === 0
       ? '本周还没有打卡，今天开始也不晚'
-      : `本周 ${doneCount} 格全部完成，${partialCount} 格完成了一部分`
+      : `本周 ${doneCount} 格全部完成，${partialCount} 格完成了一部分` +
+        (archivedCount > 0 ? `，${archivedCount} 格打了没达标` : '')
 
   return (
     <figure className={cn('flex flex-col gap-3', className)}>
@@ -138,22 +149,25 @@ export function WeekHeatmap({
                   const v = r.cells[i] ?? 0
                   const future = isFuture(d)
                   const level = heatLevel(v)
+                  const archived = !future && level === 0 && (r.archived?.[i] ?? false)
                   return (
                     <td key={d} className="p-0">
                       <span
-                        title={`${meta.label} · 周${WEEKDAY[i] ?? ''}：${cellText(v, future)}`}
+                        title={`${meta.label} · 周${WEEKDAY[i] ?? ''}：${cellText(v, future, archived)}`}
                         className={cn(
                           'flex aspect-square w-full items-center justify-center rounded-md',
                           future
                             ? 'border-border border border-dashed'
-                            : level === 0
-                              ? 'bg-surface-sunken'
-                              : levelClass[r.module][level],
+                            : archived
+                              ? 'border-warning/70 bg-warning-soft border border-dashed bg-[repeating-linear-gradient(135deg,transparent_0_4px,color-mix(in_oklab,var(--color-warning)_35%,transparent)_4px_5px)]'
+                              : level === 0
+                                ? 'bg-surface-sunken'
+                                : levelClass[r.module][level],
                           d === today && 'ring-primary/50 ring-2',
                         )}
                       >
                         {level === 3 && !future && <Icon name="check" size={12} />}
-                        <span className="sr-only">{cellText(v, future)}</span>
+                        <span className="sr-only">{cellText(v, future, archived)}</span>
                       </span>
                     </td>
                   )
@@ -167,6 +181,9 @@ export function WeekHeatmap({
         <figcaption className="text-tiny text-muted flex flex-wrap items-center justify-between gap-2">
           <span>{summary}</span>
           <span aria-hidden className="flex items-center gap-1">
+            <span className="border-warning/70 bg-warning-soft size-3 rounded-sm border border-dashed" />
+            没达标
+            <span className="ml-1.5" />
             少
             <span className="bg-surface-sunken size-3 rounded-sm" />
             <span className="bg-primary-soft size-3 rounded-sm" />

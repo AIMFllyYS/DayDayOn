@@ -123,7 +123,6 @@ export function CheckinFlowPage({
       initialMode={initialMode}
       onConfirm={confirm}
       onBack={() => (window.history.length > 1 ? router.back() : router.push('/'))}
-      onDone={() => router.push('/')}
     />
   )
 }

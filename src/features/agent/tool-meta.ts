@@ -46,6 +46,7 @@ const toolMeta: Record<string, ToolMeta> = {
   listTodos: { label: '读取待办', verb: '正在看待办', icon: 'todo', tone: 'neutral' },
   listCheckins: { label: '读取打卡', verb: '正在看打卡', icon: 'calendar', tone: 'study' },
   getWeight: { label: '读取体重', verb: '正在看体重', icon: 'chart', tone: 'primary' },
+  showStats: { label: '整理近况图表', verb: '正在算各板块近况', icon: 'chart', tone: 'primary' },
   listFriends: { label: '读取好友列表', verb: '正在看好友列表', icon: 'user', tone: 'primary' },
   getFriendStatus: {
     label: '查看好友打卡',

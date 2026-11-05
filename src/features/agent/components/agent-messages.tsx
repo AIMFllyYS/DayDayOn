@@ -4,7 +4,11 @@ import { useRef, useEffect } from 'react'
 import type { ChatStatus, UIMessage } from 'ai'
 import { Mascot } from '@/components/mascot/mascot'
 import type { MascotCharacter } from '@/components/mascot/mascot-svg'
+import { InsightCard, InsightGrid } from '@/features/insights/components/insight-card'
+import { InsightsSchema, type Insights } from '@/features/insights/schemas'
+import { VerdictCard } from '@/features/referee/components/verdict-card'
 import { AgentDraftSchema, type AgentDraft } from '../schemas'
+import { findVerdict } from '../use-referee-run'
 import { formatChatError, toTurnView } from '../map-message'
 import { AgentTurn } from './agent-turn'
 import { DraftCard } from './draft-card'
@@ -41,6 +45,41 @@ function draftsOf(message: UIMessage): AgentDraft[] {
     if (parsed.success) out.push(parsed.data)
   }
   return out
+}
+
+// 返回近况数据的工具：输出画成和主页同一种近况卡（server/ai/agent-tools.ts 的 showStats）
+const STATS_TOOLS = new Set(['showStats'])
+
+function statsOf(message: UIMessage): Insights[] {
+  const out: Insights[] = []
+  for (const part of message.parts as Array<Record<string, unknown> & { type?: string }>) {
+    const type = part?.type
+    if (typeof type !== 'string' || !type.startsWith('tool-')) continue
+    if (!STATS_TOOLS.has(type.slice(5))) continue
+    if (part.state !== 'output-available') continue
+    const parsed = InsightsSchema.safeParse(part.output)
+    if (parsed.success) out.push(parsed.data)
+  }
+  return out
+}
+
+function StatsBlock({ data }: { data: Insights }) {
+  if (data.items.length === 0) return null
+  if (data.items.length === 1 && data.items[0]) {
+    return (
+      <InsightCard
+        insight={data.items[0]}
+        days={data.days}
+        size="full"
+        href={`/goals/${data.items[0].goalId}`}
+      />
+    )
+  }
+  return (
+    <div className="@container">
+      <InsightGrid items={data.items} days={data.days} />
+    </div>
+  )
 }
 
 function userText(message: UIMessage): string {
@@ -146,6 +185,9 @@ export function AgentMessages({
         }
         const isLast = i === messages.length - 1
         const drafts = draftsOf(m)
+        // 打卡页「让 Agent 分析」的那一轮：结论卡和打卡页同一种样子，确认入库回打卡页点
+        const verdict = findVerdict(m.parts)
+        const stats = statsOf(m)
         return (
           <AgentTurn
             key={m.id}
@@ -153,6 +195,10 @@ export function AgentMessages({
             turn={toTurnView(m, turnStatusFor(status, isLast), isLast ? errorText : undefined)}
             onRetry={isLast ? onRetry : undefined}
           >
+            {verdict && <VerdictCard verdict={verdict} />}
+            {stats.map((s, j) => (
+              <StatsBlock key={`${m.id}-stats-${j}`} data={s} />
+            ))}
             {drafts.map((d, j) => (
               <DraftCard key={`${m.id}-${j}`} draft={d} />
             ))}
