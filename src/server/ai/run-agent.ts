@@ -44,7 +44,7 @@ import type { AiRunStatus } from '@/features/quota/schemas'
  * 预占比单次调用大（多步循环），所以 maxOutputTokens 按 MAX_STEPS × 单步上限算。
  */
 
-const AGENT_PROMPT_VERSION = 1
+const AGENT_PROMPT_VERSION = 2
 
 const ZERO_USAGE: TokenUsage = { inputMissTokens: 0, inputHitTokens: 0, outputTokens: 0 }
 
