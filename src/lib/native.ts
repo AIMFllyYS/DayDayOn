@@ -11,6 +11,12 @@ export function isNativeShellUA(userAgent: string): boolean {
   return userAgent.includes(NATIVE_UA_TOKEN)
 }
 
+/** 壳 UA 里的版本号：'… DayDayOnApp/0.1.0' → '0.1.0'；不在壳里或格式不对返回 null（检查更新用） */
+export function nativeShellVersion(userAgent: string): string | null {
+  const m = /DayDayOnApp\/(\d+\.\d+\.\d+)/.exec(userAgent)
+  return m?.[1] ?? null
+}
+
 export type ClientPlatform = 'native' | 'standalone' | 'android' | 'ios' | 'desktop'
 
 /** 由 UA 和是否以独立窗口运行判断平台；APK 壳优先，其次是已安装的 PWA */
