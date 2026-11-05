@@ -373,7 +373,7 @@ export const GOAL_RULE_PRESETS: Record<ModuleTone, GoalRulePreset> = {
         id: 'st-output',
         label: '实质学习内容核验',
         threshold: '明确主题 + 要点摘录',
-        detail: '支持上传 HTML/TXT 笔记或拍照识别书页，AI 自动提纯核验知识点',
+        detail: '支持上传笔记或拍照识别书页，AI 自动整理并核验知识点',
       },
     ],
   },

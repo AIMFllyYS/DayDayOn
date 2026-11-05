@@ -6,7 +6,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import type { RatingValue } from '@/components/ui/rating'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
-import { errorMessage, isApiError, newIdempotencyKey, useQuery, useQueryClient } from '@/lib/api'
+import { errorMessage, isApiError, newIdempotencyKey, useQuery } from '@/lib/api'
 import {
   checkinGoalQuery,
   checkinMeQuery,
@@ -15,8 +15,7 @@ import {
 } from '@/lib/api/queries/checkins'
 import { usePutRating } from '@/lib/api/queries/metrics'
 import { GoalLinkButton } from '@/features/goal/components/goal-link-button'
-import { afterCheckinChange } from '@/lib/api'
-import type { CheckinToday, CreateCheckinInput, DietMethod, GoalProgress } from '../schemas'
+import type { CreateCheckinInput, DietMethod, GoalProgress } from '../schemas'
 import { CheckinScreen, type CheckinSubmitResult } from './checkin-screen'
 
 /*
@@ -31,7 +30,6 @@ export function CheckinPage({
   goalId: string
   initialMethod?: DietMethod
 }) {
-  const qc = useQueryClient()
   const goal = useQuery(checkinGoalQuery(goalId))
   const today = useQuery(checkinTodayQuery())
   const me = useQuery(checkinMeQuery())
@@ -72,7 +70,6 @@ export function CheckinPage({
   }
 
   const g = goal.data
-  const todayDate = today.data.localDate
   const row = today.data.goals.find((x) => x.goalId === goalId)
   // 不在今天计划里的目标弹层不列出，进度从 0 起，提交后以服务端返回为准
   const progress: GoalProgress = row?.progress ?? { value: 0, target: g.target.value, done: false }
@@ -90,13 +87,6 @@ export function CheckinPage({
     setKey(newIdempotencyKey())
     setLastBody(null)
     return { localDate: result.checkin.localDate, progress: result.progress }
-  }
-
-  async function aiConfirmed(): Promise<CheckinSubmitResult> {
-    for (const k of afterCheckinChange) await qc.invalidateQueries({ queryKey: k })
-    const fresh = qc.getQueryData<CheckinToday>(checkinTodayQuery().queryKey)
-    const p = fresh?.goals.find((x) => x.goalId === goalId)?.progress ?? progress
-    return { localDate: fresh?.localDate ?? todayDate, progress: p }
   }
 
   return (
@@ -121,9 +111,12 @@ export function CheckinPage({
         )
       }}
       onSubmit={submit}
-      onAiConfirmed={aiConfirmed}
       toFormErrors={(e) => {
-        if (isApiError(e) && e.fields) return e.fields
+        if (isApiError(e) && e.fields) {
+          const firstMsg = Object.values(e.fields).flat().find(Boolean)
+          toast.error(firstMsg ?? errorMessage(e))
+          return e.fields
+        }
         toast.error(isApiError(e) ? errorMessage(e) : '出了点小状况，稍后再试试')
         return undefined
       }}

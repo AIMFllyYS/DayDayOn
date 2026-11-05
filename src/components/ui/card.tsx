@@ -24,7 +24,7 @@ export function Card({ variant = 'plain', interactive = false, className, ...res
   return (
     <div
       className={cn(
-        'rounded-2xl p-4 md:p-5',
+        'min-w-0 rounded-2xl p-4 md:p-5',
         variantClass[variant],
         interactive &&
           'ease-spring hover:shadow-float cursor-pointer transition-[transform,box-shadow] duration-(--dur-base) hover:-translate-y-0.5 active:scale-[0.98]',

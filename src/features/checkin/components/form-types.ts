@@ -30,7 +30,14 @@ export interface ModuleFormProps {
   clock: CheckinClock
   submitting: boolean
   errors?: FormErrors
+  /** 最终完整的 AI 识别上下文（用于初始化表单状态） */
   smartContext?: SmartFillContext | null
+  /** 流式魔法填充期间实时切片的 AI 上下文 */
+  streamedContext?: SmartFillContext | null
+  /** 是否正处于流式魔法填充动画中 */
+  magicStreaming?: boolean
+  /** 当前正在流式写入的字段阶段（0: 摘要, 1: 主字段, 2: 数值/子项, 3: 备注, 4: 完成） */
+  magicStage?: 0 | 1 | 2 | 3 | 4
   onSubmit: (input: CreateCheckinInput) => void
 }
 

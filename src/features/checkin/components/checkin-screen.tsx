@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Mascot } from '@/components/mascot/mascot'
 import { Badge, IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,18 +12,25 @@ import { Rating, type RatingValue } from '@/components/ui/rating'
 import { Stamp } from '@/components/ui/stamp'
 import { Switch } from '@/components/ui/switch'
 import { moduleMeta } from '@/components/ui/tone'
+import { cn } from '@/lib/cn'
 import { addDays, formatLocalDateLabel } from '@/lib/time'
 import { progressText, targetText } from '../format'
-import type { Checkin, CreateCheckinInput, DietMethod, GoalProgress } from '../schemas'
+import type { CreateCheckinInput, DietMethod, GoalProgress } from '../schemas'
+import { markSmartHistoryConfirmed, setUnconfirmedSmartRecord } from '../smart-handoff'
 import { DietForm } from './diet-form'
 import type { CheckinClock, CheckinGoal, ModuleFormProps, SmartFillContext } from './form-types'
 import { CustomForm, ExerciseForm, SleepForm, StudyForm } from './module-forms'
+import {
+  SmartMagicTurnBanner,
+  SmartPartitionSearchLoader,
+  useMagicStreamFill,
+} from './smart-magic-stream'
 import { CheckinModeTabs, SmartScannerLens, type CheckinInputMode } from './smart-scanner'
 
 /*
  * 打卡页主体（原型 Playbook pages/_screens/checkin.tsx）：目标信息 + 今天进度 → 板块表单 →
  * "补昨天"开关 → "这一项今天满意吗" → 成功后盖章 + 团团欢呼 + 进度。
- * 纯界面：提交、评分由调用方（checkin-page.tsx 接接口，Playbook 用演示函数）传入。
+ * 在「智能拍照 / 智能上传」Tab 下，扫描未出结果前隐藏下方表单，展示搜索动画，识别完成后以流式魔法动画填入表单。
  */
 
 export interface CheckinSubmitResult {
@@ -47,8 +54,6 @@ export interface CheckinScreenProps {
   onSubmit: (input: CreateCheckinInput) => Promise<CheckinSubmitResult>
   /** 把错误转成表单错误（有 fields 时）；返回 undefined 表示已经弹了提示 */
   toFormErrors: (error: unknown) => FormErrors | undefined
-  /** AI 识别确认后，取最新进度 */
-  onAiConfirmed: (checkin: Checkin) => Promise<CheckinSubmitResult>
 }
 
 export function CheckinScreen(props: CheckinScreenProps) {
@@ -56,6 +61,7 @@ export function CheckinScreen(props: CheckinScreenProps) {
   const [inputMode, setInputMode] = useState<CheckinInputMode>(
     props.initialMethod === 'photo' ? 'smart-capture' : 'manual',
   )
+  const [smartPhase, setSmartPhase] = useState<'idle' | 'scanning' | 'done'>('idle')
   const [smartContext, setSmartContext] = useState<SmartFillContext | null>(null)
   const [isMakeup, setMakeup] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -64,25 +70,39 @@ export function CheckinScreen(props: CheckinScreenProps) {
   // 每次成功后重置表单
   const [formKey, setFormKey] = useState(0)
 
+  const magic = useMagicStreamFill(inputMode === 'manual' ? null : smartContext)
+
+  const isSmartMode = inputMode !== 'manual' && !isMakeup
+  const hasUnconfirmed = Boolean(isSmartMode && smartPhase === 'done' && smartContext && !done)
+
+  useEffect(() => {
+    setUnconfirmedSmartRecord(hasUnconfirmed)
+    return () => {
+      setUnconfirmedSmartRecord(false)
+    }
+  }, [hasUnconfirmed])
+
   const tone = goal.module
   const day = isMakeup ? addDays(today, -1) : today
   const shownProgress = done && done.localDate === today ? done.progress : progress
 
   async function submit(input: CreateCheckinInput) {
     if (submitting) return
+    magic.finishImmediately()
     setSubmitting(true)
     setErrors(undefined)
     try {
-      setDone(await props.onSubmit(input))
+      const res = await props.onSubmit(input)
+      if (smartContext) {
+        markSmartHistoryConfirmed(smartContext.aiRunId, goal.title)
+      }
+      setUnconfirmedSmartRecord(false)
+      setDone(res)
     } catch (e) {
       setErrors(props.toFormErrors(e))
     } finally {
       setSubmitting(false)
     }
-  }
-
-  async function aiConfirmed(c: Checkin) {
-    setDone(await props.onAiConfirmed(c))
   }
 
   if (done) {
@@ -119,6 +139,8 @@ export function CheckinScreen(props: CheckinScreenProps) {
             variant="soft"
             onClick={() => {
               setDone(null)
+              setSmartContext(null)
+              setSmartPhase('idle')
               setFormKey((k) => k + 1)
             }}
           >
@@ -143,20 +165,27 @@ export function CheckinScreen(props: CheckinScreenProps) {
     submitting,
     errors,
     smartContext: inputMode === 'manual' ? null : smartContext,
+    streamedContext: inputMode === 'manual' ? null : magic.streamedContext,
+    magicStreaming: inputMode === 'manual' ? false : magic.isMagicStreaming,
+    magicStage: inputMode === 'manual' ? 4 : magic.magicStage,
     onSubmit: (input) => void submit(input),
   }
 
+  const showFormCard = !isSmartMode || smartPhase === 'done'
+
   return (
-    <div className="mx-auto grid w-full max-w-xl gap-3 pt-2 pb-8">
-      <div className="flex items-center gap-2.5">
-        <IconTile icon={moduleMeta[tone].icon} tone={tone} />
+    <div className="mx-auto flex w-full max-w-lg min-w-0 flex-col gap-2.5 pt-1.5 pb-6">
+      <div className="flex min-w-0 items-center gap-2">
+        <IconTile icon={moduleMeta[tone].icon} tone={tone} size="sm" />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{goal.title}</p>
-          <p className="text-tiny text-muted">
+          <p className="text-caption truncate font-bold">{goal.title}</p>
+          <p className="text-tiny text-muted truncate">
             {targetText(goal.target)} · 今天 {progressText(goal.target.kind, shownProgress)}
           </p>
         </div>
-        <Badge tone={tone}>{moduleMeta[tone].label}</Badge>
+        <Badge tone={tone} className="shrink-0">
+          {moduleMeta[tone].label}
+        </Badge>
       </div>
       <ProgressBar
         value={shownProgress.value}
@@ -175,12 +204,15 @@ export function CheckinScreen(props: CheckinScreenProps) {
         }}
       />
 
-      <Card variant="outline" className="flex items-center gap-3 py-2 md:py-2">
+      <Card
+        variant="outline"
+        className="flex min-w-0 items-center gap-3 px-3.5 py-2 md:px-4 md:py-2"
+      >
         <div className="min-w-0 flex-1">
           <p id="makeup-label" className="text-caption font-semibold">
             补昨天
           </p>
-          <p className="text-tiny text-muted">
+          <p className="text-tiny text-muted truncate">
             {isMakeup ? `记到 ${formatLocalDateLabel(day)}` : '昨天忘了记？打开后记到昨天'}
           </p>
         </div>
@@ -188,35 +220,64 @@ export function CheckinScreen(props: CheckinScreenProps) {
       </Card>
 
       {/* 单板块打卡页已明确知道所属方向，切换至智能拍照/智能上传时直接挂载扫描镜（跳过板块判别器） */}
-      {inputMode !== 'manual' && !isMakeup && (
+      {isSmartMode && (
         <SmartScannerLens
           mode={inputMode}
           hintModule={goal.module}
           goalId={goal.id}
           tone={tone}
+          onScanStart={() => {
+            setSmartContext(null)
+            setSmartPhase('scanning')
+          }}
           onRecognized={(res) => {
             setSmartContext(res)
+            setSmartPhase('done')
             setErrors(undefined)
+          }}
+          onScanError={() => {
+            setSmartPhase('idle')
+          }}
+          onManualFallback={() => {
+            setInputMode('manual')
           }}
         />
       )}
 
-      <Card key={`${formKey}-${smartContext?.aiRunId ?? 'manual'}`}>
-        {goal.module === 'exercise' && <ExerciseForm {...formProps} />}
-        {goal.module === 'diet' && (
-          <DietForm
-            {...formProps}
-            initialMethod={props.initialMethod}
-            onConfirmed={(c) => void aiConfirmed(c)}
-          />
-        )}
-        {goal.module === 'sleep' && <SleepForm {...formProps} />}
-        {goal.module === 'study' && <StudyForm {...formProps} />}
-        {goal.module === 'custom' && <CustomForm {...formProps} />}
-      </Card>
+      {/* 扫描进行中：展示当前板块专属的提取加载动画，不提前暴露空白表单 */}
+      {isSmartMode && smartPhase === 'scanning' && (
+        <SmartPartitionSearchLoader knownModule={tone} />
+      )}
 
-      <Card>
-        <p className="text-caption mb-2 font-semibold">这一项今天满意吗？</p>
+      {/* 识别完成后：Agent 流式魔法摘要条 */}
+      {isSmartMode && smartPhase === 'done' && smartContext && (
+        <SmartMagicTurnBanner
+          tone={tone}
+          summary={magic.streamedSummary}
+          streaming={magic.isMagicStreaming}
+          magicStage={magic.magicStage}
+        />
+      )}
+
+      {showFormCard && (
+        <Card
+          key={`${formKey}-${smartContext?.aiRunId ?? 'manual'}`}
+          onPointerDown={() => magic.finishImmediately()}
+          className={cn(
+            'w-full min-w-0 overflow-hidden p-3.5 md:p-4',
+            isSmartMode && 'animate-fade-up',
+          )}
+        >
+          {goal.module === 'exercise' && <ExerciseForm {...formProps} />}
+          {goal.module === 'diet' && <DietForm {...formProps} />}
+          {goal.module === 'sleep' && <SleepForm {...formProps} />}
+          {goal.module === 'study' && <StudyForm {...formProps} />}
+          {goal.module === 'custom' && <CustomForm {...formProps} />}
+        </Card>
+      )}
+
+      <Card className="w-full min-w-0 p-3.5 md:p-4">
+        <p className="text-caption mb-1.5 font-semibold">这一项今天满意吗？</p>
         <Rating
           value={rating}
           onValueChange={onRate}

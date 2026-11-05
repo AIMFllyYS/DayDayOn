@@ -101,9 +101,9 @@ export function TimeRangeField({
 
   return (
     <fieldset className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <legend className="text-caption mb-1.5 font-semibold">{label}</legend>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
+      <legend className="text-caption mb-1 font-semibold">{label}</legend>
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="flex min-w-0 flex-col gap-1">
           <label htmlFor={startId} className="text-tiny text-muted font-semibold">
             {startLabel}
           </label>
@@ -114,10 +114,10 @@ export function TimeRangeField({
             onChange={(e) => onStartChange(e.target.value)}
             aria-invalid={invalid || undefined}
             aria-describedby={msgId}
-            className="tabular-nums"
+            className="text-caption h-10 px-3 tabular-nums"
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1">
           <label
             htmlFor={endId}
             className="text-tiny text-muted flex items-center gap-1.5 font-semibold"
@@ -136,7 +136,7 @@ export function TimeRangeField({
             onChange={(e) => onEndChange(e.target.value)}
             aria-invalid={invalid || undefined}
             aria-describedby={msgId}
-            className="tabular-nums"
+            className="text-caption h-10 px-3 tabular-nums"
           />
         </div>
       </div>
