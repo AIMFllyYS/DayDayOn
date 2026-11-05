@@ -4,7 +4,9 @@ import { useRef, useEffect } from 'react'
 import type { ChatStatus, UIMessage } from 'ai'
 import { Mascot } from '@/components/mascot/mascot'
 import type { MascotCharacter } from '@/components/mascot/mascot-svg'
+import { VerdictCard } from '@/features/referee/components/verdict-card'
 import { AgentDraftSchema, type AgentDraft } from '../schemas'
+import { findVerdict } from '../use-referee-run'
 import { formatChatError, toTurnView } from '../map-message'
 import { AgentTurn } from './agent-turn'
 import { DraftCard } from './draft-card'
@@ -146,6 +148,8 @@ export function AgentMessages({
         }
         const isLast = i === messages.length - 1
         const drafts = draftsOf(m)
+        // 打卡页「让 Agent 分析」的那一轮：结论卡和打卡页同一种样子，确认入库回打卡页点
+        const verdict = findVerdict(m.parts)
         return (
           <AgentTurn
             key={m.id}
@@ -153,6 +157,7 @@ export function AgentMessages({
             turn={toTurnView(m, turnStatusFor(status, isLast), isLast ? errorText : undefined)}
             onRetry={isLast ? onRetry : undefined}
           >
+            {verdict && <VerdictCard verdict={verdict} />}
             {drafts.map((d, j) => (
               <DraftCard key={`${m.id}-${j}`} draft={d} />
             ))}

@@ -1,5 +1,6 @@
 'use client'
 
+import { usePetIdentity } from '@/features/agent/pet-binding'
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -171,6 +172,7 @@ export function SmartScannerLens({
   onManualFallback,
 }: SmartScannerLensProps) {
   const recognize = useRecognizeSmart()
+  const pet = usePetIdentity()
   const captureInputRef = useRef<HTMLInputElement>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
 
@@ -424,14 +426,14 @@ export function SmartScannerLens({
           )}
           <span className="text-caption truncate font-bold">
             {isScanning
-              ? '团团扫描镜识别中…'
+              ? `${pet.name}扫描镜识别中…`
               : draft
                 ? '扫描识别完成'
                 : errorText
                   ? '未能识别出有效打卡数据'
                   : activeMode === 'smart-capture'
-                    ? '团团智能拍照扫描镜'
-                    : '团团智能上传扫描镜'}
+                    ? `${pet.name}智能拍照扫描镜`
+                    : `${pet.name}智能上传扫描镜`}
           </span>
         </div>
         <button
