@@ -196,6 +196,7 @@
               "ACCOUNT_BANNED",
               "USER_MUTED",
               "FRIEND_RELATION_FROZEN",
+              "CHECKIN_LOCKED",
               "TWO_FACTOR_REQUIRED",
               "ONBOARDING_REQUIRED",
               "NOT_FOUND",
@@ -637,6 +638,10 @@
             "type": "array",
             "items": {}
           },
+          "checkinRevisions": {
+            "type": "array",
+            "items": {}
+          },
           "weights": {
             "type": "array",
             "items": {}
@@ -655,6 +660,7 @@
           "me",
           "goals",
           "checkins",
+          "checkinRevisions",
           "weights",
           "ratings",
           "todos"
@@ -2501,6 +2507,9 @@
                 },
                 "maxItems": 3
               },
+              "origin": {
+                "$ref": "#/components/schemas/CheckinOrigin"
+              },
               "module": {
                 "type": "string",
                 "enum": [
@@ -2598,6 +2607,9 @@
                 },
                 "maxItems": 3
               },
+              "origin": {
+                "$ref": "#/components/schemas/CheckinOrigin"
+              },
               "module": {
                 "type": "string",
                 "enum": [
@@ -2692,6 +2704,9 @@
                 },
                 "maxItems": 3
               },
+              "origin": {
+                "$ref": "#/components/schemas/CheckinOrigin"
+              },
               "module": {
                 "type": "string",
                 "enum": [
@@ -2783,6 +2798,9 @@
                   "maxLength": 80
                 },
                 "maxItems": 3
+              },
+              "origin": {
+                "$ref": "#/components/schemas/CheckinOrigin"
               },
               "module": {
                 "type": "string",
@@ -2877,6 +2895,9 @@
                 },
                 "maxItems": 3
               },
+              "origin": {
+                "$ref": "#/components/schemas/CheckinOrigin"
+              },
               "module": {
                 "type": "string",
                 "enum": [
@@ -2917,6 +2938,14 @@
             ]
           }
         ]
+      },
+      "CheckinOrigin": {
+        "type": "string",
+        "enum": [
+          "manual",
+          "agent"
+        ],
+        "default": "manual"
       },
       "CheckinCalendar": {
         "type": "object",
@@ -3078,8 +3107,121 @@
               "null"
             ],
             "maxLength": 200
+          },
+          "replace": {
+            "$ref": "#/components/schemas/CreateCheckin"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/CheckinOrigin"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
           }
         }
+      },
+      "CheckinRevisionList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckinRevision"
+            },
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CheckinRevision": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "checkinId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "goalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "action": {
+            "$ref": "#/components/schemas/CheckinRevisionAction"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/CheckinOrigin"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "before": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Checkin"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "after": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Checkin"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "checkinId",
+          "goalId",
+          "module",
+          "localDate",
+          "action",
+          "origin",
+          "reason",
+          "before",
+          "after",
+          "createdAt"
+        ]
+      },
+      "CheckinRevisionAction": {
+        "type": "string",
+        "enum": [
+          "create",
+          "update",
+          "delete"
+        ]
       },
       "WeightEntry": {
         "type": "object",
@@ -6031,7 +6173,7 @@
         },
         "responses": {
           "200": {
-            "description": "已修改（只允许饮食条目与备注）",
+            "description": "已修改（裁判结论按新内容重算，写留痕）",
             "content": {
               "application/json": {
                 "schema": {
@@ -6039,6 +6181,92 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED | MAKEUP_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED | CHECKIN_LOCKED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "GOAL_NOT_FOUND | CHECKIN_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CHECKIN_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "checkinId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/CheckinOrigin"
+            },
+            "required": false,
+            "name": "origin",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "required": false,
+            "name": "reason",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已删除（留痕保留）"
           },
           "400": {
             "description": "VALIDATION_FAILED",
@@ -6061,7 +6289,7 @@
             }
           },
           "403": {
-            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED | CHECKIN_LOCKED",
             "content": {
               "application/json": {
                 "schema": {
@@ -6081,8 +6309,10 @@
             }
           }
         }
-      },
-      "delete": {
+      }
+    },
+    "/api/v1/checkins/{checkinId}/revisions": {
+      "get": {
         "parameters": [
           {
             "schema": {
@@ -6095,8 +6325,15 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "已删除"
+          "200": {
+            "description": "这条打卡的新增、修改、删除留痕",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckinRevisionList"
+                }
+              }
+            }
           },
           "400": {
             "description": "VALIDATION_FAILED",
