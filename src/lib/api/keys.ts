@@ -32,6 +32,8 @@ export const keys = {
   dashboard: {
     all: ['dashboard'] as const,
     today: () => ['dashboard', 'today'] as const,
+    insights: (days: number, goalId?: string) =>
+      ['dashboard', 'insights', { days, goalId }] as const,
   },
   friends: {
     all: ['friends'] as const,

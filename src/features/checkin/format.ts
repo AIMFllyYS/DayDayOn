@@ -1,6 +1,12 @@
-import type { Checkin, GoalProgress, Intensity, MealType } from '@/features/checkin/schemas'
+import type {
+  Checkin,
+  CreateCheckinInput,
+  GoalProgress,
+  Intensity,
+  MealType,
+} from '@/features/checkin/schemas'
 import type { FieldDef, Target } from '@/features/goal/schemas'
-import { formatDuration } from '@/lib/time'
+import { formatDuration, formatTime } from '@/lib/time'
 
 /*
  * 打卡的界面文案（单位换算只在界面层做：秒 → 分钟 / 小时，api-conventions.md 第 5 节）。纯函数，带单测。
@@ -89,6 +95,52 @@ export function checkinSummary(c: Checkin, fields?: readonly FieldDef[] | null):
       return parts.length === 0 ? '记了一笔' : parts.join(' · ')
     }
   }
+}
+
+const ANALYSIS_PROMPT_MAX = 500
+
+/** 还没入库的一条打卡 → 一句话（「让 Agent 分析」时作为对话里用户的那句话，存进对话历史） */
+export function inputBrief(input: CreateCheckinInput, timeZone: string): string {
+  switch (input.module) {
+    case 'exercise':
+      return input.items && input.items.length > 0
+        ? input.items
+            .map((i) => {
+              const amount =
+                i.calc === 'distance'
+                  ? i.km
+                    ? ` ${i.km} 公里`
+                    : ''
+                  : i.sets
+                    ? ` ${i.sets} 组`
+                    : ''
+              return `${i.name} ${Math.round(i.minutes)} 分钟${amount}`
+            })
+            .join('、')
+        : `${input.category} ${formatDuration(input.durationSeconds)}`
+    case 'diet':
+      return `${mealLabel[input.mealType]}：${input.items.map((i) => i.name).join('、')}`
+    case 'sleep':
+      return `${formatTime(input.bedAt, timeZone)} 入睡，${formatTime(input.wakeAt, timeZone)} 起床，质量 ${input.quality} 分`
+    case 'study': {
+      const minutes = input.durationSeconds ? ` · ${formatDuration(input.durationSeconds)}` : ''
+      const points =
+        input.points && input.points.length > 0 ? ` · ${input.points.length} 条要点` : ''
+      return `${input.what}${minutes}${points}`
+    }
+    case 'custom':
+      return `记了 ${Object.keys(input.values).length} 项`
+  }
+}
+
+export function analysisPrompt(
+  goalTitle: string,
+  input: CreateCheckinInput,
+  timeZone: string,
+): string {
+  const note = input.note ? `（备注：${input.note}）` : ''
+  const text = `帮我分析这条「${goalTitle}」打卡：${inputBrief(input, timeZone)}${note}`
+  return text.length > ANALYSIS_PROMPT_MAX ? `${text.slice(0, ANALYSIS_PROMPT_MAX - 1)}…` : text
 }
 
 /** 千克一位小数 ↔ 克 */

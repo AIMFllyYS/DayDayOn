@@ -11,13 +11,22 @@ import { rateLimit } from '../middleware/rate-limit'
 /*
  * Agent 裁判接口（checkin-modules.md 第 4 节）。
  *   POST /goals/{goalId}/referee   流式（UI message stream）：预占额度 → 裁判 Agent → 结算；不写业务表
- * 请求体：{ checkin: 创建打卡的请求体, idempotencyKey }。
+ * 请求体：{ checkin: 创建打卡的请求体, idempotencyKey, conversation? }。
+ * 带 conversation 时分析跑在那个 Agent 会话里（不存在就新建），用户消息与分析回合都落库，历史对话里能看到。
  * 和 Agent 对话一样不走幂等中间件（流式响应体无法缓存）；重复的 idempotencyKey 在额度层被拒绝。
  */
+
+/** 「让 Agent 分析」= 在一个新的 Agent 会话里分析：用户那句话和分析过程都存进对话历史 */
+const RefereeConversationSchema = z.object({
+  id: z.uuid(),
+  messageId: z.string().min(1).max(100),
+  text: z.string().trim().min(1).max(500),
+})
 
 const RefereeRequestSchema = z.object({
   checkin: CreateCheckinSchema,
   idempotencyKey: z.uuid(),
+  conversation: RefereeConversationSchema.optional(),
 })
 
 export const refereeRoutes = new Hono<AppEnv>().post(
@@ -47,6 +56,7 @@ export const refereeRoutes = new Hono<AppEnv>().post(
       idempotencyKey: parsed.data.idempotencyKey,
       goalId: params.data.goalId,
       checkin: parsed.data.checkin,
+      conversation: parsed.data.conversation ?? null,
     })
   },
 )

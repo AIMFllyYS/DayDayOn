@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { WeekHeatmap } from '@/components/charts/week-heatmap'
 import { Card, CardHeader } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { InsightGrid } from '@/features/insights/components/insight-card'
+import type { Insights } from '@/features/insights/schemas'
 import { FeedList } from '@/features/rank/components/feed-list'
 import type { DashboardToday } from '../schemas'
 import { LinkButton } from './link-button'
@@ -13,7 +15,8 @@ import { SummaryCard } from './summary-card'
 /*
  * 主页仪表盘的展示部分（PRD 2.8，原型 HomeScreen）：只接收数据和回调，不取数据。
  * 正式页面由 HomeView 传入 /dashboard/today（或好友仪表盘）的结果；Playbook 传演示数据。
- * 固定布局：左栏 总览 → 今日进度 → 本周热力图；右栏 体重 / 心情 → 榜单动态。
+ * 固定布局：左栏 总览 → 今日进度 → 各板块近况 → 本周热力图；右栏 体重 / 心情 → 榜单动态。
+ * 顺序按用户打开主页想知道的事：今天还差什么 → 每个板块最近怎么样、卡在哪 → 回顾 → 朋友。
  */
 
 export interface HomeDashboardProps {
@@ -28,6 +31,8 @@ export interface HomeDashboardProps {
   readOnly?: boolean
   /** 顶部好友视角提示条 */
   friendBanner?: ReactNode
+  /** 各板块近况（近 7 天）；好友视角不传 */
+  insights?: Insights
 }
 
 export function HomeDashboard({
@@ -38,6 +43,7 @@ export function HomeDashboard({
   onOpenMood,
   readOnly = false,
   friendBanner,
+  insights,
 }: HomeDashboardProps) {
   if (!data.hasGoals) {
     return (
@@ -82,6 +88,14 @@ export function HomeDashboard({
           feed={data.feed}
         />
         <ProgressCard goals={data.goals} readOnly={readOnly} />
+        {insights && insights.items.length > 0 && (
+          <section aria-labelledby="home-insights" className="flex flex-col gap-2">
+            <h2 id="home-insights" className="text-caption text-muted px-1 font-bold">
+              各板块近况 · 近 {insights.days} 天
+            </h2>
+            <InsightGrid items={insights.items} days={insights.days} />
+          </section>
+        )}
         <Card>
           <CardHeader title="本周热力图" description="格子越深，那天完成得越多" />
           <WeekHeatmap days={data.heatmap.days} rows={data.heatmap.rows} today={data.localDate} />
