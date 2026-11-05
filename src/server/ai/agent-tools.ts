@@ -4,6 +4,8 @@ import * as z from 'zod'
 import type { AgentDraft } from '@/features/agent/schemas'
 import type { Clock } from '@/server/services/checkins/rules'
 import * as read from '@/server/services/agent/read'
+import { db } from '@/server/db/client'
+import { getInsights } from '@/server/services/insights'
 import { buildCheckinTools } from './agent-checkin-tools'
 import { fetchWeb, searchWeb } from './web-search'
 
@@ -12,6 +14,7 @@ import { fetchWeb, searchWeb } from './web-search'
  * - 读工具：只查库，返回给模型看的精简 JSON。
  * - 草稿工具（draft*）：不写库，返回结构化草稿（AgentDraft），前端渲染成草稿卡，
  *   用户确认后用 confirmBody 调普通接口。打卡的新增、修改、删除、留痕在 agent-checkin-tools.ts。
+ * - 图表工具（showStats）：返回板块近况（features/insights），前端渲染成和主页同一种近况卡。
  * - 联网搜索 / 读网页：直接调 DeepSeek Search/Fetch，按次计费，计入额度。
  */
 
@@ -85,6 +88,29 @@ export function buildAgentTools(ctx: AgentToolContext) {
     description: '读取最近 30 天的体重记录和 7 天差值。',
     inputSchema: z.object({}),
     execute: async () => ({ weight: await read.getWeight(userId, now) }),
+  })
+
+  // 图表：返回的数据前端直接画成近况卡（agent-messages.tsx 的 STATS_TOOLS），数字由服务端算，模型不用复述
+  const showStatsTool = tool({
+    description:
+      '展示用户各板块最近 7 / 30 天的近况卡片（达标率、平均分 / 时长 / 入睡时刻、每天走势、最常没通过的规则、期限）。' +
+      '用户问「这周 / 最近怎么样」「哪个板块不行」「饮食分数走势」时调它；只看一个目标就传 goalId。' +
+      '卡片会直接显示给用户，你的文字只点评重点和给一两条建议，不要逐个复述卡片上的数字。',
+    inputSchema: z.object({
+      days: z
+        .union([z.literal(7), z.literal(30)])
+        .default(7)
+        .describe('统计最近多少天'),
+      goalId: z.uuid().optional().describe('只看一个目标时传（来自 listGoals）'),
+    }),
+    execute: async ({ days, goalId }) => {
+      try {
+        const insights = await getInsights(db, userId, now, { days, ...(goalId ? { goalId } : {}) })
+        return { kind: 'insights' as const, ...insights }
+      } catch {
+        return { error: '没找到这个目标，先用 listGoals 看看 goalId' }
+      }
+    },
   })
 
   const listFriendsTool = tool({
@@ -190,6 +216,7 @@ export function buildAgentTools(ctx: AgentToolContext) {
     listTodos: listTodosTool,
     listCheckins: listCheckinsTool,
     getWeight: weightTool,
+    showStats: showStatsTool,
     listFriends: listFriendsTool,
     getFriendStatus: getFriendStatusTool,
     webSearch: searchTool,
