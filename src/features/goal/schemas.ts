@@ -1,4 +1,5 @@
 import * as z from 'zod'
+import { RefereeRulesSchema } from '../referee/schemas'
 import {
   ALL_WEEKDAYS,
   IdSchema,
@@ -216,6 +217,10 @@ export const GoalSchema = z
     fieldVersion: z.number().int().nullable(),
     /** 只有自定义目标有；当前版本的字段定义 */
     fields: z.array(FieldDefSchema).nullable(),
+    /** 目标的裁判规则；null = 用该板块的默认规则（checkin-modules.md 第 3.1 节） */
+    refereeRules: RefereeRulesSchema.nullable(),
+    /** 目标截止日期；null = 不设期限 */
+    deadlineDate: LocalDateSchema.nullable(),
     createdAt: InstantSchema,
     updatedAt: InstantSchema,
   })
@@ -232,10 +237,17 @@ export const CreateGoalSchema = z
     plannedTime: LocalTimeSchema.nullable().optional(),
     /** 自定义目标必填，其余板块不能填 */
     fields: FieldDefsSchema.optional(),
+    /** 不传 = 用该板块默认规则；module 必须与目标一致 */
+    refereeRules: RefereeRulesSchema.nullable().optional(),
+    deadlineDate: LocalDateSchema.nullable().optional(),
   })
   .refine((g) => (g.module === 'custom') === (g.fields !== undefined), {
     error: '只有自定义目标需要字段定义',
     path: ['fields'],
+  })
+  .refine((g) => !g.refereeRules || g.refereeRules.module === g.module, {
+    error: '裁判规则的板块和目标不一致',
+    path: ['refereeRules'],
   })
   .superRefine((g, ctx) => {
     if (!isTargetKindAllowed(g.module, g.target.kind)) {
@@ -257,6 +269,9 @@ export const UpdateGoalSchema = z
     status: GoalStatusSchema,
     sortOrder: z.number().int().min(0),
     fields: FieldDefsSchema,
+    /** null = 恢复默认规则 */
+    refereeRules: RefereeRulesSchema.nullable(),
+    deadlineDate: LocalDateSchema.nullable(),
   })
   .partial()
   .refine((p) => Object.keys(p).length > 0, { error: '没有要修改的内容' })

@@ -1,4 +1,5 @@
 import type { MascotCharacter, UpdatePreferences, UpdateProfile } from '@/features/me/schemas'
+import type { RefereeTier } from '@/features/referee/schemas'
 
 /*
  * PATCH /me/profile、/me/preferences 的入参 → profiles 列（纯函数，带单测）。
@@ -20,6 +21,7 @@ export interface PreferenceColumns {
   leaderboardOptIn?: boolean
   dayStartHour?: number
   remindAt?: string | null
+  refereeTier?: RefereeTier
 }
 
 function pick<T extends object, K extends keyof T>(input: T, keys: readonly K[]): Partial<T> {
@@ -31,7 +33,14 @@ function pick<T extends object, K extends keyof T>(input: T, keys: readonly K[])
 }
 
 const PROFILE_KEYS = ['nickname', 'avatar', 'gender', 'birthYear', 'heightCm', 'timeZone'] as const
-const PREFERENCE_KEYS = ['theme', 'mascot', 'leaderboardOptIn', 'dayStartHour', 'remindAt'] as const
+const PREFERENCE_KEYS = [
+  'theme',
+  'mascot',
+  'leaderboardOptIn',
+  'dayStartHour',
+  'remindAt',
+  'refereeTier',
+] as const
 
 export function profileColumns(input: UpdateProfile): ProfileColumns {
   return pick(input, PROFILE_KEYS)

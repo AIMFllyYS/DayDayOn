@@ -70,6 +70,8 @@ async function exportGoals(db: DbOrTx, userId: string): Promise<Goal[]> {
     sortOrder: g.sortOrder,
     fieldVersion: g.fieldVersion,
     fields: g.fieldVersion === null ? null : (fieldsOf.get(`${g.id}:${g.fieldVersion}`) ?? null),
+    refereeRules: g.refereeRules ?? null,
+    deadlineDate: g.deadlineDate,
     createdAt: iso(g.createdAt),
     updatedAt: iso(g.updatedAt),
   }))

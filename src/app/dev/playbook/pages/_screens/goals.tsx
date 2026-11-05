@@ -53,6 +53,8 @@ function demoGoal(over: Partial<GoalDetail>): GoalDetail {
     status: 'active',
     sortOrder: 0,
     fieldVersion: null,
+    refereeRules: null,
+    deadlineDate: null,
     fields: null,
     createdAt: NOW,
     updatedAt: NOW,

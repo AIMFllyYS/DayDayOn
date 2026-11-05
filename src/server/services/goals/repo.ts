@@ -1,6 +1,7 @@
 import 'server-only'
 import { and, count, eq, ne, sql } from 'drizzle-orm'
 import type { FieldDef, Goal, GoalStatus, TargetKind } from '@/features/goal/schemas'
+import { RefereeRulesSchema, type RefereeRules } from '@/features/referee/schemas'
 import type { LocalDate, Module } from '@/features/shared/schemas'
 import { DEFAULT_DAY_START_HOUR, localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
@@ -101,6 +102,8 @@ export const goalColumns = {
   sortOrder: goals.sortOrder,
   fieldVersion: goals.fieldVersion,
   fields: goalFieldVersions.fields,
+  refereeRules: goals.refereeRules,
+  deadlineDate: goals.deadlineDate,
   createdAt: goals.createdAt,
   updatedAt: goals.updatedAt,
 }
@@ -118,6 +121,8 @@ export interface GoalRow {
   sortOrder: number
   fieldVersion: number | null
   fields: FieldDef[] | null
+  refereeRules: RefereeRules | null
+  deadlineDate: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -127,6 +132,13 @@ export const currentFieldsJoin = and(
   eq(goalFieldVersions.goalId, goals.id),
   eq(goalFieldVersions.version, goals.fieldVersion),
 )
+
+/** 库里存的规则（jsonb）→ DTO：解析失败或板块不符时当作「用默认规则」 */
+function validRules(module: Module, stored: unknown): RefereeRules | null {
+  if (stored === null || stored === undefined) return null
+  const parsed = RefereeRulesSchema.safeParse(stored)
+  return parsed.success && parsed.data.module === module ? parsed.data : null
+}
 
 export function toGoalDto(row: GoalRow): Goal {
   const custom = row.module === 'custom'
@@ -142,6 +154,8 @@ export function toGoalDto(row: GoalRow): Goal {
     sortOrder: row.sortOrder,
     fieldVersion: custom ? row.fieldVersion : null,
     fields: custom ? (row.fields ?? null) : null,
+    refereeRules: validRules(row.module, row.refereeRules),
+    deadlineDate: row.deadlineDate,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }

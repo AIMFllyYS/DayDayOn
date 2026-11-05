@@ -154,6 +154,15 @@ export async function updateGoal(
   if (input.plannedTime !== undefined) changes.plannedTime = input.plannedTime
   if (input.status !== undefined) changes.status = input.status
   if (input.sortOrder !== undefined) changes.sortOrder = input.sortOrder
+  if (input.deadlineDate !== undefined) changes.deadlineDate = input.deadlineDate
+  if (input.refereeRules !== undefined) {
+    if (input.refereeRules !== null && input.refereeRules.module !== current.module) {
+      throw new ApiError('VALIDATION_FAILED', '裁判规则的板块和目标不一致', {
+        fields: { refereeRules: ['裁判规则的板块和目标不一致'] },
+      })
+    }
+    changes.refereeRules = input.refereeRules
+  }
 
   const currentTarget = {
     kind: current.targetKind,

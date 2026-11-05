@@ -110,6 +110,7 @@ describe('MascotCharacterSchema 与偏好设置验证', () => {
         leaderboardOptIn: true,
         dayStartHour: 4,
         remindAt: '21:00',
+        refereeTier: 'balanced-glycemic',
       })
       expect(full.success).toBe(true)
 

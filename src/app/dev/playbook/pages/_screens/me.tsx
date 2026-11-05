@@ -27,6 +27,7 @@ const DEMO: Me = {
   preferences: {
     theme: 'caramel',
     mascot: 'tuan',
+    refereeTier: 'balanced-glycemic',
     leaderboardOptIn: true,
     dayStartHour: 4,
     remindAt: '21:00',

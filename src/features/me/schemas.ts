@@ -1,4 +1,5 @@
 import * as z from 'zod'
+import { RefereeTierSchema } from '@/features/referee/schemas'
 import {
   InstantSchema,
   LocalTimeSchema,
@@ -101,6 +102,8 @@ export const PreferencesSchema = z
     dayStartHour: z.number().int(),
     /** null 表示不提醒 */
     remindAt: LocalTimeSchema.nullable(),
+    /** 个人体质档位：饮食裁判按它调整（checkin-modules.md 第 3.1 节） */
+    refereeTier: RefereeTierSchema,
   })
   .meta({ id: 'Preferences' })
 export type Preferences = z.infer<typeof PreferencesSchema>
@@ -176,6 +179,7 @@ export const UpdatePreferencesSchema = z
     leaderboardOptIn: z.boolean(),
     dayStartHour: DayStartHourSchema,
     remindAt: LocalTimeSchema.nullable(),
+    refereeTier: RefereeTierSchema,
   })
   .partial()
   .refine((p) => Object.keys(p).length > 0, { error: '没有要修改的内容' })
