@@ -135,7 +135,25 @@ interface Verdict {
 - **底栏「＋」**：打卡弹层列出今天的目标；一个目标都没有时只显示一张虚线框卡片「建立你的第一个打卡」，样式与目标卡片同尺寸，点击跳 `/goals`。
 - **新人引导**：选板块后多一步「定个标准」：每个选中的板块一张折叠卡（饮食卡里先选人群），整步可跳过，跳过就用默认规则。引导和目标设置用同一组 `RulesEditor` 与 `TierPicker`，不各写一份。
 
-## 6. 禁止
+## 6. 修改、删除与留痕
+
+- **改法**：`PATCH /checkins/{checkinId}` 有两种请求体。一种只改饮食条目或备注（目标详情页的老入口）；另一种 `replace` 交一份完整的创建请求体，替换整条内容。两种都在内容变了时重算裁判结论，分数、是否有效、进度跟着变。打卡日、板块、补卡标记、来源（手动 / AI 识别）不能改：记错了日子就删掉重记。睡眠改了时刻以后必须还落在原来那天。
+- **来源**：创建、修改、删除都带 `origin`（`manual` 页面手动 / `agent` 对话草稿确认）。它只用于留痕和下面的改动窗口，不是权限。
+- **Agent 的改动窗口**：`origin = agent` 时只能改、删**今天和昨天**（按用户时区和日切换时间算的打卡日）的打卡，必须带 `reason`；越界返回 403 `CHECKIN_LOCKED`。判断只用 `features/checkin/edit-window.ts` 的 `isAgentEditable()`：草稿工具出草稿前拦一层，接口再拦一层。页面上的手动删除不受这个限制。
+- **留痕**：`checkin_revisions` 表，新增、修改、删除各写一行（`action`、`origin`、`reason`、改前 `before`、改后 `after` 两份 `Checkin` 快照），和打卡写入在同一个事务里。`checkin_id` / `goal_id` 不设外键，打卡或目标删掉后留痕还在；注销账号随用户删除；个人数据导出里有 `checkinRevisions`。查询：`GET /checkins/{checkinId}/revisions`（删除后仍可查）。留痕只增不改，不提供删除接口。
+- 暂不做单独的留痕页面；通过接口和 Agent 的 `getCheckinHistory` 查看。
+
+## 7. Agent 对话里的打卡
+
+对话 Agent（悬浮团团 / `/agent`）和打卡页的 Agent 裁判是同一套体系，不另立规则：
+
+- **内容形状**：对话里的一条打卡用 `features/agent/checkin-entry.ts` 的 `CheckinEntry`，字段与整页稿一致（运动多项、饮食加餐时间、睡眠高级指标、学习要点、自定义字段），由 `entryToCreateInput()` 换成普通创建请求体。改打卡时 `checkinToEntry()` 把已存的打卡还原成同一形状，模型改其中几项后整份交回。
+- **事实与结论**：模型用与裁判相同的内置查询（`server/ai/checkin-lookups.ts`：营养表、MET 表，加上按体重估消耗、近 7 晚睡眠、今日学习时长）查事实，填进草稿的 `facts`；各板块怎么查事实的提示词也复用 `REFEREE_SKILLS`。草稿预览（`services/checkins/preview.ts`）与写入走同一套校验和 `judge()`，草稿卡确认前就显示「达标 · 计入进度」或「未达标 · 只存档」；入库时服务端再算一次。用户在卡上改了饮食条目，前端去掉 `facts`，入库按新条目离线判定。
+- **工具**（`server/ai/agent-checkin-tools.ts`）：读 `listCheckins`（带 checkinId、分数、是否有效、`editable`）、`getCheckin`、`getCheckinHistory`；查询 `lookupFoodNutrition`、`lookupMet`、`calcExerciseKcal`、`getRecentSleep`、`getTodayStudy`；写 `draftCheckin`、`draftUpdateCheckin`、`draftDeleteCheckin`。写工具只出草稿，用户在草稿卡（`AiDraftCard` / `ChangeDraftCard`）上点确认才调普通接口。
+- **好友**：`listFriends`、`getFriendStatus` 只读，好友的打卡带是否有效但不带 checkinId 和 `editable`；不能改、删好友的打卡，也不能替好友打卡。
+- 新增返回草稿的工具时，同时登记到 `agent-messages.tsx` 的 `DRAFT_TOOLS`，否则卡片不显示。
+
+## 8. 禁止
 
 - 不要在页面、路由或 Hono handler 里写达标判据（分数线、分钟数、红线时刻）；只能出现在 `features/referee/rules/` 和 `defaults.ts`。
 - 不要信任前端传来的 `isValid` / `score`；schema 里不收这两个字段。
@@ -145,9 +163,13 @@ interface Verdict {
 - 不要再新增「设置目标」抽屉或第二个目标设置页面。
 - 不要把用户上传的图片、笔记原文写进 `verdict`；只存解析出的事实与摘要。
 
-## 7. 测试
+- 不要让 Agent 直接写库，也不要给 Agent 绕开 `isAgentEditable()` 的改删入口。
+- 不要删除或修改 `checkin_revisions` 的行。
+
+## 9. 测试
 
 - `features/referee/rules/*.test.ts`：每个板块至少覆盖 Playbook 判例里的 A–D 四个场景，加离线兜底一条。
 - `stats.test.ts`：`isValid = false` 不计进度、不计连续天数、不计排行。
 - 裁判接口：用 `MockLanguageModelV4` 测「调用 submitVerdict」「没调用 submitVerdict」两条路径，测试不调真实 DeepSeek。
 - 界面：ego-browser 在 390px 与 1280px 下各走一遍五个板块的「填写 → Agent 分析 → 确认 → 历史可见」，至少一条走真实 AI。
+- 对话打卡：`checkin-entry.test.ts`、`draft-view.test.ts`、`agent-checkin-tools.test.ts`（编排，mock 预览服务）、`edit-window.test.ts`；端测用真实 AI 走「记 → 改 → 查留痕 → 越界被拒 → 删 → 删后查留痕 → 查好友」和一次拍照记饮食。
