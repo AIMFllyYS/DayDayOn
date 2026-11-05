@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
 import { Input } from '@/components/ui/field'
@@ -397,6 +397,16 @@ function buildReport(d: Data): ReportSpec {
   }
 }
 
+/** 数字字段：标签在左、输入在右，一行搞定 */
+function InlineRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-tiny text-muted w-12 shrink-0 font-semibold">{label}</span>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  )
+}
+
 /** 运动卡片里的「高级选项」：默认折叠，点开才看到；不写没有影响 */
 function AdvancedBox({ item, onChange }: { item: Item; onChange: (p: Partial<Item>) => void }) {
   const [open, setOpen] = useState(false)
@@ -422,7 +432,7 @@ function AdvancedBox({ item, onChange }: { item: Item; onChange: (p: Partial<Ite
       </button>
       {open && (
         <div className="animate-fade-up flex flex-col gap-3">
-          <FieldRow label="消耗">
+          <InlineRow label="消耗">
             <NumberField
               size="sm"
               ariaLabel="消耗"
@@ -433,8 +443,8 @@ function AdvancedBox({ item, onChange }: { item: Item; onChange: (p: Partial<Ite
               value={item.advKcal}
               onValueChange={(advKcal) => onChange({ advKcal })}
             />
-          </FieldRow>
-          <FieldRow label="平均心率">
+          </InlineRow>
+          <InlineRow label="平均心率">
             <NumberField
               size="sm"
               ariaLabel="平均心率"
@@ -445,7 +455,7 @@ function AdvancedBox({ item, onChange }: { item: Item; onChange: (p: Partial<Ite
               value={item.advHr}
               onValueChange={(advHr) => onChange({ advHr })}
             />
-          </FieldRow>
+          </InlineRow>
           <FieldRow label="整体感受">
             <Input
               aria-label="整体感受"
@@ -575,7 +585,7 @@ export function ExerciseFlowSandbox() {
                     改为{item.calc === 'count' ? '按距离' : '按组数'}
                   </button>
                 </div>
-                <FieldRow label="时长">
+                <InlineRow label="时长">
                   <NumberField
                     size="sm"
                     ariaLabel="时长"
@@ -586,9 +596,9 @@ export function ExerciseFlowSandbox() {
                     value={item.minutes}
                     onValueChange={(minutes) => patchItem(item.id, { minutes })}
                   />
-                </FieldRow>
+                </InlineRow>
                 {item.calc === 'count' ? (
-                  <FieldRow label="组数">
+                  <InlineRow label="组数">
                     <NumberField
                       size="sm"
                       ariaLabel="组数"
@@ -599,9 +609,9 @@ export function ExerciseFlowSandbox() {
                       value={item.sets}
                       onValueChange={(sets) => patchItem(item.id, { sets })}
                     />
-                  </FieldRow>
+                  </InlineRow>
                 ) : (
-                  <FieldRow label="距离">
+                  <InlineRow label="距离">
                     <NumberField
                       size="sm"
                       ariaLabel="距离"
@@ -613,7 +623,7 @@ export function ExerciseFlowSandbox() {
                       value={item.km}
                       onValueChange={(km) => patchItem(item.id, { km })}
                     />
-                  </FieldRow>
+                  </InlineRow>
                 )}
                 <FieldRow label="强度（备注）">
                   <Input
