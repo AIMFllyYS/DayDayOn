@@ -7,7 +7,7 @@
 
 /** 第一个 APK Release 发布后改为 true：落地页才显示下载按钮（在那之前链接会 404） */
 export const APK_AVAILABLE = true
-export const APK_VERSION = 'v0.1.1'
+export const APK_VERSION = 'v0.1.2'
 
 export const GITHUB_REPO_URL = 'https://github.com/AIMFllyYS/DayDayOn'
 export const APK_FILE_NAME = 'DayDayOn.apk'
