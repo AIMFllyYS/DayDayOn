@@ -80,6 +80,8 @@ export interface FillSectionSpec {
   content: ReactNode
   /** 长按（手机）或右键（电脑）分区标题时触发，比如打开「自定义常用」设置 */
   onLongPress?: () => void
+  /** 独立分区：默认展开，和其他分区互不排斥（睡眠的「入睡与起床」「睡得怎么样」） */
+  independent?: boolean
 }
 
 export interface FlowScenario {

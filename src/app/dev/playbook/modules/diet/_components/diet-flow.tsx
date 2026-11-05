@@ -17,6 +17,7 @@ import type {
   Verdict,
 } from '../../_components/flow/flow-types'
 import { PhoneFlow } from '../../_components/flow/phone-flow'
+import { TimePicker } from '../../_components/flow/time-picker'
 
 type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 const MEAL_LABEL: Record<Meal, string> = {
@@ -602,6 +603,8 @@ export function DietFlowSandbox() {
           summary: snackAt,
           content: (
             <TimePicker
+              label="加餐时间"
+              tone="diet"
               value={snackAt}
               onChange={(snackTime) => setData((d) => ({ ...d, snackTime }))}
             />
@@ -721,48 +724,6 @@ export function DietFlowSandbox() {
         />
       }
     />
-  )
-}
-
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
-const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
-
-/** 加餐时间选择器：时、分两列滚动选择 */
-function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [h, m] = value.split(':') as [string, string]
-  const col = (items: string[], cur: string, pick: (v: string) => void, label: string) => (
-    <div
-      role="listbox"
-      aria-label={label}
-      className="flex h-28 flex-1 [scrollbar-width:none] flex-col gap-1 overflow-y-auto py-1 [&::-webkit-scrollbar]:hidden"
-    >
-      {items.map((it) => (
-        <button
-          key={it}
-          type="button"
-          role="option"
-          aria-selected={it === cur}
-          onClick={() => pick(it)}
-          className={cn(
-            'text-caption min-h-8 shrink-0 rounded-md font-semibold tabular-nums transition-colors',
-            it === cur ? 'bg-diet-soft text-diet-ink' : 'text-muted hover:text-foreground',
-          )}
-        >
-          {it}
-        </button>
-      ))}
-    </div>
-  )
-  return (
-    <div
-      className="bg-surface-sunken flex items-center gap-1 rounded-lg px-2"
-      role="group"
-      aria-label="加餐时间"
-    >
-      {col(HOURS, h, (v) => onChange(`${v}:${m}`), '时')}
-      <span className="text-subhead text-muted font-bold">:</span>
-      {col(MINUTES, m, (v) => onChange(`${h}:${v}`), '分')}
-    </div>
   )
 }
 

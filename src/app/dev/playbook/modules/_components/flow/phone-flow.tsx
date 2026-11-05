@@ -83,6 +83,8 @@ export function PhoneFlow({
   const [stack, setStack] = useState<Page[]>(['fill'])
   const [mode, setMode] = useState<FlowMode>('smart-capture')
   const [openId, setOpenId] = useState<string | null>(null)
+  // 独立分区（互不排斥、默认展开）的开合状态；没记录 = 展开
+  const [indOpen, setIndOpen] = useState<Record<string, boolean>>({})
   const [seenAutoOpen, setSeenAutoOpen] = useState(autoOpen)
   if (autoOpen !== seenAutoOpen) {
     setSeenAutoOpen(autoOpen)
@@ -122,6 +124,16 @@ export function PhoneFlow({
     return () => clearTimeout(t)
   }, [agent, stepIdx, steps.length])
 
+  const isOpen = (s: FillSectionSpec) => (s.independent ? (indOpen[s.id] ?? true) : openId === s.id)
+
+  function toggleSection(s: FillSectionSpec) {
+    const open = isOpen(s)
+    // 再次展开内容 = 要改内容，之前的分析作废
+    if (!open && agent !== 'none') setAgent('none')
+    if (s.independent) setIndOpen((m) => ({ ...m, [s.id]: !open }))
+    else setOpenId((cur) => (cur === s.id ? null : s.id))
+  }
+
   const push = (p: Page) => setStack((s) => [...s, p])
   const back = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
 
@@ -131,6 +143,7 @@ export function PhoneFlow({
     onModeChange(next)
     // 手动：先填内容，第一个分区直接展开；智能：先看上传 / 拍照区
     setOpenId(next === 'manual' ? (sections[0]?.id ?? null) : null)
+    setIndOpen({})
     setScanPhase('idle')
     setAgent('none')
     setStepIdx(0)
@@ -139,6 +152,7 @@ export function PhoneFlow({
   /** 手动：提交后内容区折叠，底部抽屉弹出 Agent 分析 */
   function startAnalyze() {
     setOpenId(null)
+    setIndOpen(Object.fromEntries(sections.filter((s) => s.independent).map((s) => [s.id, false])))
     setStepIdx(0)
     setAgentOpen(true)
     setAgent('analyzing')
@@ -250,13 +264,9 @@ export function PhoneFlow({
                   key={s.id}
                   spec={s}
                   tone={config.tone}
-                  open={openId === s.id}
+                  open={isOpen(s)}
                   ai={false}
-                  onToggle={() => {
-                    // 再次展开内容 = 要改内容，之前的分析作废
-                    if (openId !== s.id && agent !== 'none') setAgent('none')
-                    setOpenId((cur) => (cur === s.id ? null : s.id))
-                  }}
+                  onToggle={() => toggleSection(s)}
                 />
               ))
             )}
