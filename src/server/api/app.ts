@@ -14,6 +14,7 @@ import { chatRoutes } from './routes/chat'
 import { checkinRoutes } from './routes/checkins'
 import { dashboardRoutes } from './routes/dashboard'
 import { insightsRoutes } from './routes/insights'
+import { appRoutes } from './routes/app-update'
 import { friendRoutes } from './routes/friends'
 import { goalRoutes } from './routes/goals'
 import { meRoutes } from './routes/me'
@@ -96,6 +97,7 @@ export const app = base
   .route('/', metricRoutes)
   .route('/', dashboardRoutes)
   .route('/', insightsRoutes)
+  .route('/', appRoutes)
   .route('/', friendRoutes)
   .route('/', chatRoutes)
   .route('/', petInteractionRoutes)

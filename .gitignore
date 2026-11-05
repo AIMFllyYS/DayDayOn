@@ -143,3 +143,6 @@ desktop.ini
 *.webm
 *.zip
 *.7z
+
+# 安装包不进 Git：部署制品打包时按 download/manifest.json 从 GitHub Release 取（download/README.md）
+/download/apk/
