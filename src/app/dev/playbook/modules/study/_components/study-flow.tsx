@@ -237,7 +237,7 @@ function buildReport(d: Data): ReportSpec {
 }
 
 /** 数字字段：标签在左、输入在右，一行搞定 */
-function InlineRow({ label, children }: { label: string; children: ReactNode }) {
+export function InlineRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center gap-3">
       <span className="text-tiny text-muted w-14 shrink-0 font-semibold">{label}</span>
@@ -247,7 +247,13 @@ function InlineRow({ label, children }: { label: string; children: ReactNode }) 
 }
 
 /** 要点摘录：一次写一条，回车或点「添加」；每条可以单独移除 */
-function PointsEditor({ notes, onChange }: { notes: string; onChange: (v: string) => void }) {
+export function PointsEditor({
+  notes,
+  onChange,
+}: {
+  notes: string
+  onChange: (v: string) => void
+}) {
   const [draft, setDraft] = useState('')
   const points = notes
     .split('\n')

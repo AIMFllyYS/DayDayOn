@@ -32,7 +32,7 @@ import type {
   Verdict,
 } from './flow-types'
 
-type Page = 'fill' | 'rules' | 'basis' | 'report'
+type Page = 'fill' | 'rules' | 'basis' | 'report' | 'settings'
 
 interface PhoneFlowProps {
   config: PhoneFlowConfig
@@ -59,6 +59,8 @@ interface PhoneFlowProps {
   rulesPage?: ReactNode
   /** 「评判依据」二级页的内容：直接复用 Playbook 里「判例」面板（团团点评、标尺、板块）；不传就用 config.basisDoc */
   basisPage?: ReactNode
+  /** 打卡页右上角的「设置」子页（我的小目标）：传了才显示入口；参数是「关闭」 */
+  settingsPage?: (close: () => void) => ReactNode
 }
 
 /**
@@ -86,6 +88,7 @@ export function PhoneFlow({
   autoOpen,
   rulesPage,
   basisPage,
+  settingsPage,
 }: PhoneFlowProps) {
   const [stack, setStack] = useState<Page[]>(['fill'])
   const [mode, setMode] = useState<FlowMode>('smart-capture')
@@ -186,7 +189,22 @@ export function PhoneFlow({
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
       {page === 'fill' && (
         <>
-          <PageBar title={`${moduleMeta[config.tone].label}打卡`} onBack={() => undefined} />
+          <PageBar
+            title={`${moduleMeta[config.tone].label}打卡`}
+            onBack={() => undefined}
+            action={
+              settingsPage ? (
+                <button
+                  type="button"
+                  onClick={() => push('settings')}
+                  className="text-tiny bg-surface-sunken text-muted hover:text-foreground inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-3 font-semibold transition-colors"
+                >
+                  <Icon name="sliders" size={13} />
+                  设置
+                </button>
+              ) : undefined
+            }
+          />
 
           <div className="shrink-0 px-3.5 pt-1">
             <Card
@@ -349,6 +367,18 @@ export function PhoneFlow({
               kind={page}
             />
           )}
+        </>
+      )}
+
+      {page === 'settings' && settingsPage && (
+        <>
+          <PageBar title="目标设置" onBack={back} />
+          <div
+            data-ann="playbook.modules.flow.settings"
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3.5 pb-6"
+          >
+            {settingsPage(back)}
+          </div>
         </>
       )}
 
@@ -631,11 +661,20 @@ function VerdictCard({ verdict }: { verdict: Verdict }) {
 }
 
 /** 顶部返回栏：安卓规范的紧凑样式，返回箭头 + 小标题 */
-function PageBar({ title, onBack }: { title: string; onBack: () => void }) {
+function PageBar({
+  title,
+  onBack,
+  action,
+}: {
+  title: string
+  onBack: () => void
+  action?: ReactNode
+}) {
   return (
     <div className="flex shrink-0 items-center gap-1 px-2.5 pt-10 pb-2 max-sm:pt-4">
       <IconButton icon="chevron-left" label="返回" size="sm" onClick={onBack} />
       <h2 className="text-subhead min-w-0 flex-1 truncate font-bold">{title}</h2>
+      {action}
     </div>
   )
 }
