@@ -133,3 +133,26 @@ export function CheckinSheetList({
     </>
   )
 }
+
+/**
+ * 一个目标都没有时的占位卡：虚线框，尺寸和目标行一致；点击去全局唯一的目标设置页
+ * （checkin-modules.md 第 5 节）。
+ */
+export function FirstCheckinCard({ onNavigate }: { onNavigate: () => void }) {
+  return (
+    <Link
+      href="/goals"
+      onClick={onNavigate}
+      className="animate-fade-up border-border-strong text-muted hover:text-foreground hover:bg-surface flex min-h-15 w-full items-center gap-3 rounded-2xl border-2 border-dashed px-3.5 py-2.5 transition-colors duration-(--dur-fast)"
+    >
+      <span className="border-border-strong grid size-10 shrink-0 place-items-center rounded-xl border border-dashed">
+        <Icon name="plus" size={18} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="text-foreground block font-semibold">建立你的第一个打卡</span>
+        <span className="text-tiny block truncate">选板块、定人群和达标规则，一分钟搞定</span>
+      </span>
+      <Icon name="chevron-right" size={18} className="text-subtle" />
+    </Link>
+  )
+}

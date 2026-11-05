@@ -48,6 +48,12 @@ export interface ModuleDocs {
   basisDoc: DocPageSpec
 }
 
+export interface RulesEditorProps<M extends Module = Module> {
+  rules: RulesOf<M>
+  onChange: (next: RulesOf<M>) => void
+  goal: CheckinGoal
+}
+
 export interface CheckinModuleDef<M extends Module = Module> {
   module: M
   tone: ModuleTone
@@ -56,6 +62,8 @@ export interface CheckinModuleDef<M extends Module = Module> {
   /** Agent 抽屉在还没收到工具调用时显示的步骤 */
   agentSteps: string[]
   useForm: (props: ModuleFormProps) => ModuleFormApi
+  /** 目标设置页与新人引导共用的规则面板（checkin-modules.md 第 5 节） */
+  RulesEditor: (props: RulesEditorProps<M>) => ReactNode
   /** 规则 → 二级页文档（阈值随用户设置变化） */
   docs: (rules: RulesOf<M>, goal: CheckinGoal) => ModuleDocs
   /** 裁判结论 + 请求体 → 分析页的文件夹 */

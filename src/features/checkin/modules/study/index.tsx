@@ -9,6 +9,7 @@ import type { SmartRecognitionDraft } from '../../smart-schemas'
 import { InlineRow, PointsEditor } from '../../flow/fields/inputs'
 import { FavoritesSheet, TagRow, useFavorites } from '../../flow/fields/tags'
 import type { FillSectionSpec, FolderSpec, ReportSpec } from '../../flow/types'
+import { StudyRulesEditor } from '../rules-editors'
 import type { CheckinModuleDef, ModuleDocs, ModuleFormApi } from '../types'
 
 /*
@@ -242,6 +243,7 @@ export const studyModule: CheckinModuleDef<'study'> = {
   title: '专注学习打卡',
   agentSteps: ['读取主题、时长和要点', '累加今天的学习', '判断内容是否实质'],
   useForm: useStudyForm,
+  RulesEditor: StudyRulesEditor,
   docs: studyDocs,
   buildReport: buildStudyReport,
 }

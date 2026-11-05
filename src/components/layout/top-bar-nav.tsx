@@ -18,11 +18,8 @@ import { meQuery } from '@/lib/api/queries/me'
 import { useNotificationSummary } from '@/lib/api/queries/notifications'
 import { cn } from '@/lib/cn'
 
-// 顶栏操作弹层不进首屏（ui-primitives.md 第 3 节）：首次打开时才加载
-const GoalSettingSheet = dynamic(
-  () => import('@/features/goal/components/goal-setting-sheet').then((m) => m.GoalSettingSheet),
-  { loading: () => null },
-)
+// 顶栏操作弹层不进首屏（ui-primitives.md 第 3 节）：首次打开时才加载。
+// 「设置目标」不再弹抽屉，直接去全局唯一的目标设置页 /goals（checkin-modules.md 第 5 节）
 const AddFriendSheet = dynamic(
   () => import('@/features/friend/components/add-friend-sheet').then((m) => m.AddFriendSheet),
   { loading: () => null },
@@ -362,11 +359,8 @@ export function TopBarActions() {
     addSheetOpen,
     unfriendTarget,
   } = useFriendStore()
-  const [goalSheetOpen, setGoalSheetOpen] = useState(false)
-  const [goalSheetLoaded, setGoalSheetLoaded] = useState(false)
   const [friendSheetLoaded, setFriendSheetLoaded] = useState(false)
   const [unfriendDialogLoaded, setUnfriendDialogLoaded] = useState(false)
-  if (goalSheetOpen && !goalSheetLoaded) setGoalSheetLoaded(true)
   if (addSheetOpen && !friendSheetLoaded) setFriendSheetLoaded(true)
   if (unfriendTarget !== null && !unfriendDialogLoaded) setUnfriendDialogLoaded(true)
 
@@ -404,7 +398,7 @@ export function TopBarActions() {
     {
       icon: 'sliders',
       label: '设置目标',
-      onSelect: () => setGoalSheetOpen(true),
+      onSelect: () => router.push('/goals'),
     },
   ]
 
@@ -431,7 +425,6 @@ export function TopBarActions() {
           side="bottom"
         />
       </div>
-      {goalSheetLoaded && <GoalSettingSheet open={goalSheetOpen} onOpenChange={setGoalSheetOpen} />}
       {friendSheetLoaded && <AddFriendSheet />}
       {unfriendDialogLoaded && <UnfriendConfirmDialog />}
       <FriendMeteorOverlay />

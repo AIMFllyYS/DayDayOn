@@ -2,17 +2,26 @@
 
 import { useState } from 'react'
 import type { IconName } from '@/components/ui/icon'
-import { Input } from '@/components/ui/field'
+import { Field, Input } from '@/components/ui/field'
+import { NumberField } from '@/components/ui/number-field'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Switch } from '@/components/ui/switch'
 import { buildSchema } from '@/features/goal/build-schema'
 import { FieldControl } from '@/features/goal/components/schema-form'
 import type { FieldDef, FieldValue, FieldValues } from '@/features/goal/schemas'
 import { conditionText } from '@/features/referee/rules/custom'
-import type { RulesOf, Verdict } from '@/features/referee/schemas'
+import type { CustomCondition, CustomOp, RulesOf, Verdict } from '@/features/referee/schemas'
 import type { CheckinGoal } from '../../components/form-types'
 import type { CreateCheckinInput } from '../../schemas'
 import type { SmartRecognitionDraft } from '../../smart-schemas'
 import type { FillSectionSpec, ReportSpec } from '../../flow/types'
-import type { CheckinModuleDef, ModuleDocs, ModuleFormApi, ModuleFormProps } from '../types'
+import type {
+  CheckinModuleDef,
+  ModuleDocs,
+  ModuleFormApi,
+  ModuleFormProps,
+  RulesEditorProps,
+} from '../types'
 
 /*
  * 我的小目标（Playbook custom-flow）：用户在目标设置里拼好的字段，每个字段一个分区；
@@ -218,6 +227,101 @@ export const customModule: CheckinModuleDef<'custom'> = {
   title: '我的小目标',
   agentSteps: ['读取你填的内容', '对照你定的条件', '按判卷标准核对'],
   useForm: useCustomForm,
+  RulesEditor: CustomRulesEditor,
   docs: customDocs,
   buildReport: buildCustomReport,
+}
+
+const OP_OPTIONS: Record<string, { value: CustomOp; label: string }[]> = {
+  numeric: [
+    { value: 'gte', label: '≥' },
+    { value: 'lte', label: '≤' },
+    { value: 'eq', label: '=' },
+  ],
+  other: [{ value: 'filled', label: '已填写' }],
+}
+
+function isNumeric(f: FieldDef): boolean {
+  return f.type === 'number' || f.type === 'duration' || f.type === 'rating'
+}
+
+/** 每个字段一行：是否作为达标条件 + 比较方式 + 目标值；最后一行是给 Agent 的判卷标准 */
+function CustomRulesEditor({ rules, onChange, goal }: RulesEditorProps<'custom'>) {
+  const fields = goal.fields ?? []
+  const condOf = (key: string) => rules.conditions.find((c) => c.key === key)
+  function setCond(key: string, next: CustomCondition | null) {
+    const rest = rules.conditions.filter((c) => c.key !== key)
+    onChange({ ...rules, conditions: next ? [...rest, next] : rest })
+  }
+  return (
+    <div className="flex flex-col gap-2.5">
+      {fields.length === 0 && <p className="text-tiny text-subtle">这个目标还没有字段</p>}
+      {fields.map((f) => {
+        const c = condOf(f.key)
+        const numeric = isNumeric(f)
+        return (
+          <div key={f.key} className="bg-surface-sunken flex flex-col gap-2 rounded-lg p-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-caption min-w-0 flex-1 truncate font-semibold">{f.label}</span>
+              <Switch
+                label={`${f.label}作为达标条件`}
+                checked={c !== undefined}
+                onCheckedChange={(on) =>
+                  setCond(
+                    f.key,
+                    on
+                      ? numeric
+                        ? { key: f.key, op: 'gte', value: 1 }
+                        : { key: f.key, op: 'filled' }
+                      : null,
+                  )
+                }
+              />
+            </div>
+            {c && numeric && (
+              <div className="flex items-center gap-2">
+                <SegmentedControl
+                  size="sm"
+                  label="比较方式"
+                  value={c.op === 'filled' ? 'gte' : c.op}
+                  options={OP_OPTIONS.numeric!}
+                  onValueChange={(op) => setCond(f.key, { ...c, op })}
+                  className="w-36 shrink-0"
+                />
+                <NumberField
+                  size="sm"
+                  ariaLabel={`${f.label}目标值`}
+                  unit={
+                    f.type === 'duration'
+                      ? '分钟'
+                      : f.type === 'rating'
+                        ? '星'
+                        : f.type === 'number'
+                          ? f.unit
+                          : undefined
+                  }
+                  min={0}
+                  max={f.type === 'rating' ? 5 : 100_000}
+                  value={typeof c.value === 'number' ? c.value : null}
+                  onValueChange={(v) => setCond(f.key, { ...c, value: v ?? 0 })}
+                />
+              </div>
+            )}
+            {c && !numeric && <p className="text-tiny text-muted">填了就算满足</p>}
+          </div>
+        )
+      })}
+      <Field label="判卷标准（可选）" htmlFor={`ai-${goal.id}`} aside="交给 Agent 判断">
+        <Input
+          id={`ai-${goal.id}`}
+          value={rules.aiCriteria ?? ''}
+          maxLength={120}
+          placeholder="例如：要写清练了哪首曲子的哪几个小节"
+          onChange={(e) =>
+            onChange({ ...rules, aiCriteria: e.target.value.trim() ? e.target.value : undefined })
+          }
+        />
+      </Field>
+    </div>
+  )
 }

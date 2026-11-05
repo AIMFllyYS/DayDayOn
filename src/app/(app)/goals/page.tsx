@@ -2,24 +2,26 @@ import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { AppPage } from '@/components/layout/app-page'
 import { PageSkeleton } from '@/components/layout/page-skeleton'
+import { GoalSettingsView } from '@/features/checkin/components/goal-settings-view'
 import { GoalListView } from '@/features/goal/components/goal-list-view'
-import { GoalStatusSchema } from '@/features/goal/schemas'
 
-export const metadata: Metadata = { title: '我的目标' }
+export const metadata: Metadata = { title: '目标设置' }
 
-/** /goals?status=active|archived：非法值回落到 active（routing.md 第 4 节） */
+/**
+ * /goals：「我的 → 目标设置」，全局唯一的目标设置入口（checkin-modules.md 第 5 节）。
+ * ?status=archived 显示已归档的目标；其余值都是设置页（routing.md 第 4 节）。
+ */
 export default function Page({ searchParams }: PageProps<'/goals'>) {
   return (
-    <AppPage title="我的目标" backHref="/me">
+    <AppPage title="目标设置" backHref="/me">
       <Suspense fallback={<PageSkeleton />}>
-        <GoalList searchParams={searchParams} />
+        <Goals searchParams={searchParams} />
       </Suspense>
     </AppPage>
   )
 }
 
-async function GoalList({ searchParams }: Pick<PageProps<'/goals'>, 'searchParams'>) {
+async function Goals({ searchParams }: Pick<PageProps<'/goals'>, 'searchParams'>) {
   const { status } = await searchParams
-  const parsed = GoalStatusSchema.safeParse(status)
-  return <GoalListView status={parsed.success ? parsed.data : 'active'} />
+  return status === 'archived' ? <GoalListView status="archived" /> : <GoalSettingsView />
 }

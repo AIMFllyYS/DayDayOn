@@ -1,3 +1,4 @@
+import { DietRulesEditor } from '../rules-editors'
 import type { CheckinModuleDef } from '../types'
 import { dietDocs } from './docs'
 import { useDietForm } from './form'
@@ -9,6 +10,7 @@ export const dietModule: CheckinModuleDef<'diet'> = {
   title: '科学饮食打卡',
   agentSteps: ['解析每一道菜', '查营养表与联网核对', '估算份量与烹饪方式', '按达标规则评分'],
   useForm: useDietForm,
+  RulesEditor: DietRulesEditor,
   docs: dietDocs,
   buildReport: buildDietReport,
 }

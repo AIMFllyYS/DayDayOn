@@ -175,7 +175,13 @@ export function MeView({
               description="昵称、头像、身高、时区"
               href="/me/profile"
             />
-            <MenuItem icon="custom" tone="custom" label="我的目标" href="/goals" />
+            <MenuItem
+              icon="custom"
+              tone="custom"
+              label="目标设置"
+              description="打卡板块、人群档位与达标规则"
+              href="/goals"
+            />
           </MenuList>
 
           <MenuList title="账号">

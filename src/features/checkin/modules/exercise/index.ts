@@ -1,6 +1,7 @@
 import type { RulesOf, Verdict } from '@/features/referee/schemas'
 import type { CreateCheckinInput } from '../../schemas'
 import type { FolderSpec, ReportSpec } from '../../flow/types'
+import { ExerciseRulesEditor } from '../rules-editors'
 import type { CheckinModuleDef, ModuleDocs } from '../types'
 import { useExerciseForm } from './form'
 
@@ -127,6 +128,7 @@ export const exerciseModule: CheckinModuleDef<'exercise'> = {
   title: '科学运动打卡',
   agentSteps: ['读取每一项运动', '查代谢当量', '估算消耗', '按门槛判定'],
   useForm: useExerciseForm,
+  RulesEditor: ExerciseRulesEditor,
   docs: exerciseDocs,
   buildReport: buildExerciseReport,
 }

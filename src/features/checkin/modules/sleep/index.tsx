@@ -11,6 +11,7 @@ import type { SmartRecognitionDraft } from '../../smart-schemas'
 import { InlineRow } from '../../flow/fields/inputs'
 import { TimePicker } from '../../flow/time-picker'
 import type { FillSectionSpec, FolderRow, ReportSpec } from '../../flow/types'
+import { SleepRulesEditor } from '../rules-editors'
 import type { CheckinModuleDef, ModuleDocs, ModuleFormApi, ModuleFormProps } from '../types'
 
 /*
@@ -291,6 +292,7 @@ export const sleepModule: CheckinModuleDef<'sleep'> = {
   title: '早睡打卡',
   agentSteps: ['读取入睡与起床时刻', '看最近几晚的作息', '核对红线与时长'],
   useForm: useSleepForm,
+  RulesEditor: SleepRulesEditor,
   docs: sleepDocs,
   buildReport: buildSleepReport,
 }
