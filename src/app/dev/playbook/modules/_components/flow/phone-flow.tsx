@@ -55,6 +55,10 @@ interface PhoneFlowProps {
   afterSections?: ReactNode
   /** 外部要求展开某个分区：值变了就展开它（比如刚添加的那一项） */
   autoOpen?: string | null
+  /** 「达标规则」二级页的内容：直接复用 Playbook 里「规则」面板的原理对照；不传就用 config.rulesDoc */
+  rulesPage?: ReactNode
+  /** 「评判依据」二级页的内容：直接复用 Playbook 里「判例」面板（团团点评、标尺、板块）；不传就用 config.basisDoc */
+  basisPage?: ReactNode
 }
 
 /**
@@ -80,6 +84,8 @@ export function PhoneFlow({
   leadSection,
   afterSections,
   autoOpen,
+  rulesPage,
+  basisPage,
 }: PhoneFlowProps) {
   const [stack, setStack] = useState<Page[]>(['fill'])
   const [mode, setMode] = useState<FlowMode>('smart-capture')
@@ -334,11 +340,15 @@ export function PhoneFlow({
             title={(page === 'rules' ? config.rulesDoc : config.basisDoc).title}
             onBack={back}
           />
-          <DocBody
-            doc={page === 'rules' ? config.rulesDoc : config.basisDoc}
-            tone={config.tone}
-            kind={page}
-          />
+          {(page === 'rules' ? rulesPage : basisPage) ? (
+            <EmbeddedPage>{page === 'rules' ? rulesPage : basisPage}</EmbeddedPage>
+          ) : (
+            <DocBody
+              doc={page === 'rules' ? config.rulesDoc : config.basisDoc}
+              tone={config.tone}
+              kind={page}
+            />
+          )}
         </>
       )}
 
@@ -626,6 +636,27 @@ function PageBar({ title, onBack }: { title: string; onBack: () => void }) {
     <div className="flex shrink-0 items-center gap-1 px-2.5 pt-10 pb-2 max-sm:pt-4">
       <IconButton icon="chevron-left" label="返回" size="sm" onClick={onBack} />
       <h2 className="text-subhead min-w-0 flex-1 truncate font-bold">{title}</h2>
+    </div>
+  )
+}
+
+/**
+ * 把 Playbook 里「规则 / 判例」面板原样嵌进手机二级页。
+ * 那些面板在页面上是横滑轮播（deckClass）、宽屏下两列；手机里统一改成竖向一列，卡片撑满宽度。
+ * 用的是 Playbook 现成的组件，这里只调排版，不重画。
+ */
+function EmbeddedPage({ children }: { children: ReactNode }) {
+  return (
+    <div
+      data-ann="playbook.modules.flow.doc"
+      className={cn(
+        'flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3.5 pb-6',
+        '[&_.snap-x]:grid! [&_.snap-x]:grid-cols-1! [&_.snap-x]:overflow-visible! [&_.snap-x]:pb-0!',
+        '[&_.snap-x]:mx-0! [&_.snap-x]:px-0! [&_.snap-x>*]:w-full!',
+        '[&_.sm\\:grid-cols-2]:grid-cols-1! [&_.sm\\:grid-cols-3]:grid-cols-1!',
+      )}
+    >
+      {children}
     </div>
   )
 }

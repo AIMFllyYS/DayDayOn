@@ -17,6 +17,7 @@ import type {
   Verdict,
 } from '../../_components/flow/flow-types'
 import { PhoneFlow } from '../../_components/flow/phone-flow'
+import { DietRefereeScenariosMatrix, DietConstitutionAndRuleSection } from './diet-demos'
 import { TimePicker } from '../../_components/flow/time-picker'
 
 type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack'
@@ -712,6 +713,8 @@ export function DietFlowSandbox() {
         <PhoneFlow
           key={scenarioId}
           config={CONFIG}
+          rulesPage={<DietConstitutionAndRuleSection />}
+          basisPage={<DietRefereeScenariosMatrix />}
           selector={selector}
           sections={sections}
           aiSummary={`${MEAL_LABEL[data.meal]}${data.meal === 'snack' ? ` ${snackAt}` : ''} · ${ds.length} 道菜`}

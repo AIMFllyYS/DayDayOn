@@ -14,6 +14,7 @@ import type {
   Verdict,
 } from '../../_components/flow/flow-types'
 import { PhoneFlow } from '../../_components/flow/phone-flow'
+import { StudyRefereeComparisonMatrix, StudyDualMechanismDemo } from './study-module-demos'
 
 interface Data {
   topic: string
@@ -252,6 +253,8 @@ export function StudyFlowSandbox() {
         <PhoneFlow
           key={scenarioId}
           config={CONFIG}
+          rulesPage={<StudyDualMechanismDemo />}
+          basisPage={<StudyRefereeComparisonMatrix />}
           sections={sections}
           aiSummary={`${data.topic} · ${e.m} 分钟 · ${e.points.length} 条要点`}
           verdict={verdict}

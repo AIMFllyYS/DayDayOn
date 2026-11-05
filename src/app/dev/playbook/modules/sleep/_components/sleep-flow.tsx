@@ -19,6 +19,7 @@ import type {
   Verdict,
 } from '../../_components/flow/flow-types'
 import { PhoneFlow } from '../../_components/flow/phone-flow'
+import { SleepRefereeComparisonMatrix, SleepDualThresholdRulesDemo } from './sleep-module-demos'
 import { TimePicker } from '../../_components/flow/time-picker'
 
 /** 高级选项：不强制填写；智能拍照 / 上传手环截图时一般自带，会自动整理进来 */
@@ -508,6 +509,8 @@ export function SleepFlowSandbox() {
         <PhoneFlow
           key={scenarioId}
           config={CONFIG}
+          rulesPage={<SleepDualThresholdRulesDemo />}
+          basisPage={<SleepRefereeComparisonMatrix />}
           sections={sections}
           aiSummary={`${data.start} 入睡 · ${data.end} 起床`}
           verdict={verdict}

@@ -19,6 +19,7 @@ import type {
   Verdict,
 } from '../../_components/flow/flow-types'
 import { PhoneFlow } from '../../_components/flow/phone-flow'
+import { ExerciseVerdictComparisonMatrix, ExerciseThresholdMatrix } from './exercise-demos'
 
 /**
  * 运动打卡：运动类型由用户自己写，不再限定快走 / 跑步 / 力量；一次打卡可以有多项运动（+ 添加）。
@@ -776,6 +777,8 @@ export function ExerciseFlowSandbox() {
         <PhoneFlow
           key={scenarioId}
           config={CONFIG}
+          rulesPage={<ExerciseThresholdMatrix />}
+          basisPage={<ExerciseVerdictComparisonMatrix />}
           sections={sections}
           afterSections={addButton}
           autoOpen={focusId}

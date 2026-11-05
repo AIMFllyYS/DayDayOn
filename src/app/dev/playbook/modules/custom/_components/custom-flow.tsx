@@ -14,6 +14,7 @@ import type {
   Verdict,
 } from '../../_components/flow/flow-types'
 import { PhoneFlow } from '../../_components/flow/phone-flow'
+import { CustomRefereeComparisonMatrix, CustomGoalRuleDesignerDemo } from './custom-module-demos'
 
 interface Data {
   water: number | null
@@ -248,6 +249,8 @@ export function CustomFlowSandbox() {
         <PhoneFlow
           key={scenarioId}
           config={CONFIG}
+          rulesPage={<CustomGoalRuleDesignerDemo />}
+          basisPage={<CustomRefereeComparisonMatrix />}
           sections={sections}
           aiSummary={`温水 ${e.water} 杯 · 含糖 ${e.sugar} 杯`}
           verdict={verdict}
