@@ -1,5 +1,5 @@
 import * as z from 'zod'
-import { RefereeTierSchema } from '@/features/referee/schemas'
+import { RefereeRulesSchema, RefereeTierSchema } from '@/features/referee/schemas'
 import {
   InstantSchema,
   LocalTimeSchema,
@@ -146,6 +146,10 @@ export const OnboardingSchema = z
       .max(5)
       .refine((m) => new Set(m).size === m.length, { error: '板块不能重复' }),
     leaderboardOptIn: z.boolean().default(false),
+    /** 饮食的人群档位；跳过就是默认档（checkin-modules.md 第 5 节「新人引导」） */
+    refereeTier: RefereeTierSchema.default('balanced-glycemic'),
+    /** 每个板块的达标规则；没给的板块用默认规则 */
+    goalRules: z.array(RefereeRulesSchema).max(5).default([]),
     /** 必须为 true：不同意健康数据处理就不能完成引导 */
     healthConsent: z.literal(true, { error: '需要同意健康数据处理才能继续' }),
   })
