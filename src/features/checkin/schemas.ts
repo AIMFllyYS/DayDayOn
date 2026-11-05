@@ -52,6 +52,10 @@ export type DietMethod = z.infer<typeof DietMethodSchema>
 export const CheckinSourceSchema = z.enum(['manual', 'ai']).meta({ id: 'CheckinSource' })
 export type CheckinSource = z.infer<typeof CheckinSourceSchema>
 
+/** 从哪发起的写操作：页面手动（manual）或 Agent 对话草稿确认（agent）。只用于留痕与 Agent 的改动窗口 */
+export const CheckinOriginSchema = z.enum(['manual', 'agent']).meta({ id: 'CheckinOrigin' })
+export type CheckinOrigin = z.infer<typeof CheckinOriginSchema>
+
 /** 运动时长 1–600 分钟 */
 const ExerciseDurationSchema = z
   .number()
@@ -213,6 +217,8 @@ const CreateBase = {
   citations: z.array(CitationSchema).max(10).optional(),
   /** 裁判给的改进建议 */
   advice: z.array(z.string().trim().min(1).max(80)).max(3).optional(),
+  /** 留痕用：页面手动或 Agent 对话确认 */
+  origin: CheckinOriginSchema.default('manual'),
 }
 
 const refineAiSource = <T extends { source: CheckinSource; aiRunId?: string }>(v: T) =>
@@ -294,16 +300,54 @@ export const CreateCheckinSchema = z
 export type CreateCheckin = z.infer<typeof CreateCheckinSchema>
 export type CreateCheckinInput = z.input<typeof CreateCheckinSchema>
 
-/** PATCH /checkins/{checkinId}：只允许改饮食条目和备注（PRD 7.2），保留 parsedText */
+/** 修改原因：Agent 发起的修改、删除必填，写进留痕 */
+export const ChangeReasonSchema = z
+  .string()
+  .trim()
+  .min(1, { error: '写一下为什么改' })
+  .max(80, { error: '原因最多 80 个字' })
+
+/**
+ * PATCH /checkins/{checkinId}。两种改法：
+ * - 只改饮食条目 / 备注（目标详情页的老入口，PRD 7.2）
+ * - replace：用一份完整的创建请求体替换内容（Agent 对话改打卡）。打卡日、补卡标记、来源不变，
+ *   裁判结论按新内容重算。
+ * origin = agent 时只能改今天和昨天的打卡，且必须写原因。
+ */
 export const UpdateCheckinSchema = z
   .object({
-    items: DietItemsSchema,
+    items: DietItemsSchema.optional(),
     note: CreateBase.note,
+    replace: CreateCheckinSchema.optional(),
+    origin: CheckinOriginSchema.default('manual'),
+    reason: ChangeReasonSchema.optional(),
   })
-  .partial()
-  .refine((p) => Object.keys(p).length > 0, { error: '没有要修改的内容' })
+  .refine((p) => p.items !== undefined || p.note !== undefined || p.replace !== undefined, {
+    error: '没有要修改的内容',
+  })
+  .refine((p) => !(p.items !== undefined && p.replace !== undefined), {
+    error: 'items 和 replace 只能二选一',
+    path: ['replace'],
+  })
+  .refine((p) => p.origin !== 'agent' || p.reason !== undefined, {
+    error: 'Agent 修改需要写原因',
+    path: ['reason'],
+  })
   .meta({ id: 'UpdateCheckin' })
 export type UpdateCheckin = z.infer<typeof UpdateCheckinSchema>
+export type UpdateCheckinInput = z.input<typeof UpdateCheckinSchema>
+
+/** DELETE /checkins/{checkinId}?origin=agent&reason=… */
+export const DeleteCheckinQuerySchema = z
+  .object({
+    origin: CheckinOriginSchema.default('manual'),
+    reason: ChangeReasonSchema.optional(),
+  })
+  .refine((p) => p.origin !== 'agent' || p.reason !== undefined, {
+    error: 'Agent 删除需要写原因',
+    path: ['reason'],
+  })
+export type DeleteCheckinQuery = z.infer<typeof DeleteCheckinQuerySchema>
 
 // ---------------------------------------------------------------------------
 // 读取
@@ -430,3 +474,35 @@ export const CheckinTodaySchema = z
 export type CheckinToday = z.infer<typeof CheckinTodaySchema>
 
 export const CheckinIdParamSchema = z.object({ checkinId: IdSchema })
+
+// ---------------------------------------------------------------------------
+// 留痕：GET /checkins/{checkinId}/revisions（删除后仍可查）
+// ---------------------------------------------------------------------------
+
+export const CheckinRevisionActionSchema = z
+  .enum(['create', 'update', 'delete'])
+  .meta({ id: 'CheckinRevisionAction' })
+
+export const CheckinRevisionSchema = z
+  .object({
+    id: IdSchema,
+    checkinId: IdSchema,
+    goalId: IdSchema,
+    module: ModuleSchema,
+    localDate: LocalDateSchema,
+    action: CheckinRevisionActionSchema,
+    origin: CheckinOriginSchema,
+    reason: z.string().nullable(),
+    /** 改前快照；新增为 null */
+    before: CheckinSchema.nullable(),
+    /** 改后快照；删除为 null */
+    after: CheckinSchema.nullable(),
+    createdAt: InstantSchema,
+  })
+  .meta({ id: 'CheckinRevision' })
+export type CheckinRevision = z.infer<typeof CheckinRevisionSchema>
+
+export const CheckinRevisionListSchema = z
+  .object({ items: z.array(CheckinRevisionSchema).max(200) })
+  .meta({ id: 'CheckinRevisionList' })
+export type CheckinRevisionList = z.infer<typeof CheckinRevisionListSchema>

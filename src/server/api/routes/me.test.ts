@@ -94,6 +94,7 @@ beforeEach(() => {
       me: ME,
       goals: [],
       checkins: [],
+      checkinRevisions: [],
       weights: [],
       ratings: [],
       todos: [],

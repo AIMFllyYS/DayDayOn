@@ -203,6 +203,8 @@ export const ExportSchema = z
     me: MeSchema,
     goals: z.array(z.unknown()),
     checkins: z.array(z.unknown()),
+    /** 打卡的新增、修改、删除留痕（删除的打卡也在这里） */
+    checkinRevisions: z.array(z.unknown()),
     weights: z.array(z.unknown()),
     ratings: z.array(z.unknown()),
     todos: z.array(z.unknown()),

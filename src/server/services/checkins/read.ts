@@ -1,13 +1,11 @@
 import 'server-only'
 import { and, desc, eq, gte, inArray, lt, lte, or } from 'drizzle-orm'
 import type {
-  Checkin,
   CheckinCalendar,
   CheckinHistory,
   CheckinHistoryQuery,
   CheckinToday,
   TodayGoal,
-  UpdateCheckin,
 } from '@/features/checkin/schemas'
 import type { RatingValueSchema } from '@/features/shared/schemas'
 import { localDateOf } from '@/lib/time'
@@ -25,14 +23,7 @@ import {
   targetFor,
   toCheckinDto,
 } from './goal'
-import {
-  calendarDays,
-  decodeCursor,
-  encodeCursor,
-  intakeKcalOf,
-  monthBounds,
-  toStatCheckin,
-} from './rules'
+import { calendarDays, decodeCursor, encodeCursor, monthBounds, toStatCheckin } from './rules'
 
 const statColumns = {
   goalId: checkins.goalId,
@@ -85,48 +76,6 @@ export async function listCheckins(
         ? encodeCursor({ localDate: last.localDate, id: last.id })
         : null,
   }
-}
-
-/** DELETE /checkins/{checkinId}：不存在或不属于当前用户 404 */
-export async function deleteCheckin(db: DbOrTx, userId: string, checkinId: string): Promise<void> {
-  const deleted = await db
-    .delete(checkins)
-    .where(and(eq(checkins.id, checkinId), eq(checkins.userId, userId)))
-    .returning({ id: checkins.id })
-  if (deleted.length === 0) throw new ApiError('CHECKIN_NOT_FOUND', '打卡不存在')
-}
-
-/** PATCH /checkins/{checkinId}：只能改饮食条目和备注（PRD 7.2），保留 parsedText */
-export async function updateCheckin(
-  db: DbOrTx,
-  userId: string,
-  checkinId: string,
-  input: UpdateCheckin,
-): Promise<Checkin> {
-  const [current] = await db
-    .select({ payload: checkins.payload })
-    .from(checkins)
-    .where(and(eq(checkins.id, checkinId), eq(checkins.userId, userId)))
-    .limit(1)
-  if (!current) throw new ApiError('CHECKIN_NOT_FOUND', '打卡不存在')
-  const set: Partial<typeof checkins.$inferInsert> = {}
-  if (input.items !== undefined) {
-    if (current.payload.module !== 'diet') {
-      throw new ApiError('VALIDATION_FAILED', '只有饮食打卡能改条目', {
-        fields: { items: ['只有饮食打卡能改条目'] },
-      })
-    }
-    set.payload = { ...current.payload, items: input.items }
-    set.intakeKcal = intakeKcalOf(input.items)
-  }
-  if (input.note !== undefined) set.note = input.note
-  const [row] = await db
-    .update(checkins)
-    .set(set)
-    .where(and(eq(checkins.id, checkinId), eq(checkins.userId, userId)))
-    .returning(checkinColumns)
-  if (!row) throw new ApiError('CHECKIN_NOT_FOUND', '打卡不存在')
-  return toCheckinDto(row)
 }
 
 /** GET /goals/{goalId}/calendar?month=YYYY-MM */

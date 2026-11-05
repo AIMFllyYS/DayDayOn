@@ -21,6 +21,7 @@ vi.mock('@/server/services/checkins', () => {
     checkinToday: touch,
     updateCheckin: touch,
     deleteCheckin: touch,
+    listRevisions: touch,
   }
 })
 vi.mock('@/server/services/metrics', () => {
@@ -50,6 +51,8 @@ describe('没登录：打卡接口一律 401，不调用 service', () => {
     ['GET', '/checkins/today'],
     ['PATCH', `/checkins/${checkinId}`, jsonInit('PATCH', { note: '好吃' })],
     ['DELETE', `/checkins/${checkinId}`, { method: 'DELETE' }],
+    ['DELETE', `/checkins/${checkinId}?origin=agent&reason=x`, { method: 'DELETE' }],
+    ['GET', `/checkins/${checkinId}/revisions`],
   ]
   for (const [method, path, init] of cases) {
     it(`${method} ${path}`, async () => {

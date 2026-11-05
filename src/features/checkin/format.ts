@@ -56,6 +56,16 @@ export function checkinSummary(c: Checkin, fields?: readonly FieldDef[] | null):
   switch (p.module) {
     case 'exercise': {
       const kcal = c.burnKcal === null ? '' : ` · 约 ${c.burnKcal} 千卡`
+      if (p.items && p.items.length > 0) {
+        const items = p.items
+          .map((i) => {
+            const amount =
+              i.calc === 'distance' ? (i.km ? ` ${i.km} 公里` : '') : i.sets ? ` ${i.sets} 组` : ''
+            return `${i.name} ${Math.round(i.minutes)} 分钟${amount}`
+          })
+          .join('、')
+        return `${items}${kcal}`
+      }
       return `${p.category} ${formatDuration(c.durationSeconds ?? 0)} · ${intensityLabel[p.intensity]}${kcal}`
     }
     case 'diet': {
@@ -65,10 +75,11 @@ export function checkinSummary(c: Checkin, fields?: readonly FieldDef[] | null):
     }
     case 'sleep':
       return `睡了 ${formatDuration(c.durationSeconds ?? 0)} · 质量 ${p.quality} 分`
-    case 'study':
-      return c.durationSeconds === null
-        ? p.what
-        : `${p.what} · ${formatDuration(c.durationSeconds)}`
+    case 'study': {
+      const base =
+        c.durationSeconds === null ? p.what : `${p.what} · ${formatDuration(c.durationSeconds)}`
+      return p.points && p.points.length > 0 ? `${base} · ${p.points.length} 条要点` : base
+    }
     case 'custom': {
       const byKey = new Map((fields ?? []).map((f) => [f.key, f]))
       const parts = Object.entries(p.values).map(([key, v]) => {

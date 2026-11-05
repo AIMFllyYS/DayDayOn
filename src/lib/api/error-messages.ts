@@ -41,6 +41,7 @@ export const errorMessages: Record<ErrorCode, Message> = {
       ? `发言过于频繁或多次触发违规，已暂时静音，${minutesText(e.retryAfterSeconds)}后再试`
       : '发言过于频繁或多次触发违规，已暂时静音，请稍后再试',
   FRIEND_RELATION_FROZEN: '双方已不是好友，无法发送新私聊消息',
+  CHECKIN_LOCKED: '团团只能改、删今天和昨天的打卡，更早的请到目标详情页处理',
   TWO_FACTOR_REQUIRED: '先开启两步验证，才能使用后台',
   ONBOARDING_REQUIRED: '先完成新人引导吧',
 
