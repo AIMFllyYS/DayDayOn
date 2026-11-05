@@ -2,6 +2,7 @@ import type {
   SmartRecognitionDraft,
   SmartRecognitionFields,
 } from '@/features/checkin/smart-schemas'
+import { sanitizeCustomValues } from '@/features/goal/build-schema'
 import type { FieldDef } from '@/features/goal/schemas'
 import type { Module } from '@/features/shared/schemas'
 
@@ -143,14 +144,20 @@ export function normalizeSmartDraft(
         }
       : null)
 
+  const matchedGoal = moduleGoals.find((g) => g.id === matchedGoalId) ?? null
+  const customFields = matchedGoal?.fields ?? null
+
   const custom =
-    draft.custom ??
-    (detectedModule === 'custom'
+    draft.custom || detectedModule === 'custom'
       ? {
-          values: {},
-          note: null,
+          values: customFields
+            ? sanitizeCustomValues(customFields, draft.custom?.values, {
+                fillRequiredDefaults: true,
+              })
+            : (draft.custom?.values ?? {}),
+          note: draft.custom?.note ?? (detectedModule === 'custom' ? draft.summary.trim() : null),
         }
-      : null)
+      : null
 
   const scanSteps: [string, string, string] = [
     draft.scanSteps[0].trim() || '已完成上传内容扫描',

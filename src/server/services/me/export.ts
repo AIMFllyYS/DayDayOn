@@ -1,12 +1,13 @@
 import 'server-only'
 import { asc, eq, inArray } from 'drizzle-orm'
-import type { Checkin } from '@/features/checkin/schemas'
+import type { Checkin, CheckinRevision } from '@/features/checkin/schemas'
 import type { FieldDef, Goal } from '@/features/goal/schemas'
 import type { Rating, WeightEntry } from '@/features/metric/schemas'
 import type { Todo } from '@/features/todo/schemas'
 import type { DbOrTx } from '@/server/db/client'
 import {
   bodyMetrics,
+  checkinRevisions,
   checkins,
   dailyRatings,
   goalFieldVersions,
@@ -28,6 +29,7 @@ const MAX_TODOS = 20_000
 export interface ExportRest {
   goals: Goal[]
   checkins: Checkin[]
+  checkinRevisions: CheckinRevision[]
   weights: WeightEntry[]
   ratings: Rating[]
   todos: Todo[]
@@ -70,6 +72,8 @@ async function exportGoals(db: DbOrTx, userId: string): Promise<Goal[]> {
     sortOrder: g.sortOrder,
     fieldVersion: g.fieldVersion,
     fields: g.fieldVersion === null ? null : (fieldsOf.get(`${g.id}:${g.fieldVersion}`) ?? null),
+    refereeRules: g.refereeRules ?? null,
+    deadlineDate: g.deadlineDate,
     createdAt: iso(g.createdAt),
     updatedAt: iso(g.updatedAt),
   }))
@@ -99,7 +103,32 @@ async function exportCheckins(db: DbOrTx, userId: string): Promise<Checkin[]> {
     payload: c.payload,
     fieldVersion: c.fieldVersion,
     aiRunId: c.aiRunId,
+    score: c.score,
+    isValid: c.isValid,
+    verdict: c.verdict,
     createdAt: iso(c.createdAt),
+  }))
+}
+
+async function exportRevisions(db: DbOrTx, userId: string): Promise<CheckinRevision[]> {
+  const rows = await db
+    .select()
+    .from(checkinRevisions)
+    .where(eq(checkinRevisions.userId, userId))
+    .orderBy(asc(checkinRevisions.createdAt))
+    .limit(MAX_CHECKINS)
+  return rows.map((r) => ({
+    id: r.id,
+    checkinId: r.checkinId,
+    goalId: r.goalId,
+    module: r.module,
+    localDate: r.localDate,
+    action: r.action,
+    origin: r.origin,
+    reason: r.reason,
+    before: r.before,
+    after: r.after,
+    createdAt: iso(r.createdAt),
   }))
 }
 
@@ -152,8 +181,16 @@ export async function collectExport(db: DbOrTx, userId: string): Promise<ExportR
   // 同一个连接上顺序执行：传进来的可能是事务句柄，事务里不能并发查询
   const goalList = await exportGoals(db, userId)
   const checkinList = await exportCheckins(db, userId)
+  const revisions = await exportRevisions(db, userId)
   const weights = await exportWeights(db, userId)
   const ratings = await exportRatings(db, userId)
   const todoList = await exportTodos(db, userId)
-  return { goals: goalList, checkins: checkinList, weights, ratings, todos: todoList }
+  return {
+    goals: goalList,
+    checkins: checkinList,
+    checkinRevisions: revisions,
+    weights,
+    ratings,
+    todos: todoList,
+  }
 }

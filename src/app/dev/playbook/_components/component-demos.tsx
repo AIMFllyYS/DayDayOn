@@ -165,15 +165,34 @@ export function MenuDemo() {
   )
 }
 
-/** 打卡入口弹层：从底部拉出的菜单列表，手机和桌面一致 */
+/** 打卡入口弹层：从底部拉出的菜单列表，手机和桌面一致；第二个按钮演示一个目标都没有时的虚线卡 */
 export function SheetDemo() {
   const [open, setOpen] = useState(false)
+  const [empty, setEmpty] = useState(false)
   return (
     <>
-      <Button icon="plus" onClick={() => setOpen(true)}>
-        打开打卡弹层
-      </Button>
-      <CheckinSheet open={open} onOpenChange={setOpen} />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          icon="plus"
+          onClick={() => {
+            setEmpty(false)
+            setOpen(true)
+          }}
+        >
+          打开打卡弹层
+        </Button>
+        <Button
+          variant="soft"
+          icon="plus"
+          onClick={() => {
+            setEmpty(true)
+            setOpen(true)
+          }}
+        >
+          空状态（还没有目标）
+        </Button>
+      </div>
+      <CheckinSheet open={open} onOpenChange={setOpen} empty={empty} />
     </>
   )
 }

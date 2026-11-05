@@ -11,14 +11,15 @@ import { isApiError, newIdempotencyKey } from '@/lib/api/fetcher'
 import { useConfirmDraft } from '@/lib/api/queries/agent'
 import { useMe } from '@/lib/api/queries/me'
 import { cn } from '@/lib/cn'
-import { BUSINESS_TIME_ZONE, formatDateTime } from '@/lib/time'
+import { BUSINESS_TIME_ZONE, formatDateTime, formatLocalDateLabel } from '@/lib/time'
 import type { DraftItem, DraftItemErrors } from '../draft'
 import type { AgentDraft, DraftField } from '../schemas'
 import { AiDraftCard } from './ai-draft-card'
+import { ChangeDraftCard } from './change-draft-card'
 
 /*
  * Agent 草稿卡的入口：按草稿 kind 分发到对应展示与确认。
- * 确认走普通创建接口（打卡 / 待办 / 体重），草稿本身不写库。
+ * 确认走普通接口（打卡新增 / 修改 / 删除、待办、体重），草稿本身不写库。
  */
 
 function validateDietItems(items: readonly DraftItem[]): {
@@ -50,6 +51,7 @@ export function DraftCard({ draft }: { draft: AgentDraft }) {
   )
   const [itemErrors, setItemErrors] = useState<Record<string, DraftItemErrors>>({})
   const [confirmed, setConfirmed] = useState(false)
+  const [itemsEdited, setItemsEdited] = useState(false)
   const idempotencyKeyRef = useRef<string>(newIdempotencyKey())
 
   const errorText = confirm.isError
@@ -68,11 +70,15 @@ export function DraftCard({ draft }: { draft: AgentDraft }) {
         return
       }
       setItemErrors({})
+      // 条目改过后，模型查的逐菜事实对不上了：去掉事实，入库时按新条目重新判定
+      const body = Object.fromEntries(
+        Object.entries(draft.confirmBody).filter(([key]) => key !== 'facts'),
+      )
       nextDraft = {
         ...draft,
         items,
         confirmBody: {
-          ...draft.confirmBody,
+          ...(itemsEdited ? body : draft.confirmBody),
           items: items.map((it) => ({
             name: it.name.trim(),
             portion: it.portion.trim(),
@@ -86,7 +92,13 @@ export function DraftCard({ draft }: { draft: AgentDraft }) {
       {
         onSuccess: () => {
           setConfirmed(true)
-          toast.success('已记录')
+          toast.success(
+            draft.kind === 'checkin-delete'
+              ? '删掉了'
+              : draft.kind === 'checkin-update'
+                ? '改好了'
+                : '已记录',
+          )
         },
         onError: (err) => {
           // 校验或冲突类错误允许用户重试时换新幂等键
@@ -108,11 +120,34 @@ export function DraftCard({ draft }: { draft: AgentDraft }) {
         itemErrors={itemErrors}
         onItemsChange={(next) => {
           setItems(next)
+          setItemsEdited(true)
           setItemErrors({})
           idempotencyKeyRef.current = newIdempotencyKey()
         }}
+        verdict={draft.verdict}
+        verdictStale={itemsEdited}
         confidence={draft.confidence}
         estimate={draft.estimate}
+        confirming={confirm.isPending}
+        confirmed={confirmed}
+        errorText={errorText}
+        onConfirm={handleConfirm}
+      />
+    )
+  }
+
+  if (draft.kind === 'checkin-update' || draft.kind === 'checkin-delete') {
+    return (
+      <ChangeDraftCard
+        mode={draft.kind === 'checkin-delete' ? 'delete' : 'update'}
+        module={draft.module}
+        title={draft.title}
+        dateLabel={formatLocalDateLabel(draft.localDate)}
+        reason={draft.reason}
+        before={draft.before}
+        after={draft.kind === 'checkin-update' ? draft.after : undefined}
+        fields={draft.kind === 'checkin-update' ? draft.fields : undefined}
+        verdict={draft.kind === 'checkin-update' ? draft.verdict : undefined}
         confirming={confirm.isPending}
         confirmed={confirmed}
         errorText={errorText}

@@ -11,6 +11,7 @@ import {
   type StatCheckin,
   targetOnDay,
   type TargetVersion,
+  validDates,
 } from './stats'
 
 const EVERY_DAY = [1, 2, 3, 4, 5, 6, 7]
@@ -23,6 +24,7 @@ function checkin(overrides: Partial<StatCheckin> = {}): StatCheckin {
     count: 1,
     mealType: null,
     occurredAt: '2026-10-31T04:00:00Z',
+    isValid: true,
     ...overrides,
   }
 }
@@ -143,7 +145,9 @@ describe('goalDayProgress', () => {
 
   it('补卡计入进度', () => {
     const target: TargetOnDay = { kind: 'count', value: 1, weekdays: EVERY_DAY }
-    expect(goalDayProgress(target, 'study', [checkin({ isMakeup: true })]).done).toBe(true)
+    expect(
+      goalDayProgress(target, 'study', [checkin({ isMakeup: true, isValid: true })]).done,
+    ).toBe(true)
   })
 })
 
@@ -199,10 +203,10 @@ describe('countRankDays', () => {
   it('排除补卡、同日去重', () => {
     expect(
       countRankDays([
-        { localDate: '2026-10-26', isMakeup: false },
-        { localDate: '2026-10-26', isMakeup: false },
-        { localDate: '2026-10-27', isMakeup: true },
-        { localDate: '2026-10-28', isMakeup: false },
+        { localDate: '2026-10-26', isMakeup: false, isValid: true },
+        { localDate: '2026-10-26', isMakeup: false, isValid: true },
+        { localDate: '2026-10-27', isMakeup: true, isValid: true },
+        { localDate: '2026-10-28', isMakeup: false, isValid: true },
       ]),
     ).toBe(2)
   })
@@ -210,15 +214,45 @@ describe('countRankDays', () => {
   it('同一天既有补卡又有正常打卡算一天', () => {
     expect(
       countRankDays([
-        { localDate: '2026-10-27', isMakeup: true },
-        { localDate: '2026-10-27', isMakeup: false },
+        { localDate: '2026-10-27', isMakeup: true, isValid: true },
+        { localDate: '2026-10-27', isMakeup: false, isValid: true },
       ]),
     ).toBe(1)
   })
 
   it('全是补卡为 0', () => {
-    expect(countRankDays([{ localDate: '2026-10-27', isMakeup: true }])).toBe(0)
+    expect(countRankDays([{ localDate: '2026-10-27', isMakeup: true, isValid: true }])).toBe(0)
     expect(countRankDays([])).toBe(0)
+  })
+
+  describe('未达标记录不计入有效统计', () => {
+    it('countRankDays 跳过未达标', () => {
+      expect(
+        countRankDays([
+          { localDate: '2026-10-27', isMakeup: false, isValid: false },
+          { localDate: '2026-10-28', isMakeup: false, isValid: true },
+        ]),
+      ).toBe(1)
+    })
+
+    it('goalDayProgress 跳过 isValid = false', () => {
+      const target: TargetOnDay = { kind: 'duration', value: 1800, weekdays: EVERY_DAY }
+      const p = goalDayProgress(target, 'exercise', [
+        checkin({ durationSeconds: 600, isValid: false }),
+        checkin({ durationSeconds: 1200 }),
+      ])
+      expect(p.value).toBe(1200)
+      expect(p.done).toBe(false)
+    })
+
+    it('validDates 只留有效打卡的日期，连续天数随之断开', () => {
+      const dates = validDates([
+        checkin({ localDate: '2026-10-31' }),
+        checkin({ localDate: '2026-10-30', isValid: false }),
+        checkin({ localDate: '2026-10-29' }),
+      ])
+      expect(computeStreak(dates, '2026-10-31')).toBe(1)
+    })
   })
 })
 

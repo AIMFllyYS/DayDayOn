@@ -1,27 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { TopBar } from '@/components/layout/top-bar'
 import { Mascot } from '@/components/mascot/mascot'
-import { Badge, IconTile } from '@/components/ui/badge'
-import { Button, IconButton } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { ProgressBar, ProgressRing } from '@/components/ui/progress'
-import { SegmentedControl } from '@/components/ui/segmented-control'
-import { Stamp } from '@/components/ui/stamp'
-import { toast } from '@/components/ui/toast'
 import { softToneClass, solidToneClass, type Tone } from '@/components/ui/tone'
 import type { MealType } from '@/features/checkin/schemas'
 import { cn } from '@/lib/cn'
-import { PhoneFrame } from '../../../_components/device-frame'
-import {
-  CheckinModeTabs,
-  SmartScannerLens,
-  type CheckinInputMode,
-  type ScanPhase,
-  type SmartSamplePreset,
-} from '../../../_components/smart-recognition-demos'
+import { deckClass } from '../../_components/deck'
+import { type SmartSamplePreset } from '../../../_components/smart-recognition-demos'
 import {
   CONSTITUTION_TIERS,
   GoalVerificationRuleCard,
@@ -208,7 +197,7 @@ export const DIET_REFEREE_SCENARIOS: Record<DietRefereeScenario['id'], DietRefer
       visualLines: [
         '糙米杂粮饭 130g · 清蒸鲈鱼 160g',
         '蒜蓉西兰花 180g · 紫菜蛋花汤',
-        'DeepSeek 联网核验：低 GI 清洁烹调（4.4 / 5.0 分）',
+        '联网核验：低 GI 清洁烹调（4.4 / 5.0 分）',
       ],
       scanSteps: [
         '正在识别餐盘分区与烹饪油光特征…',
@@ -311,7 +300,7 @@ export const DIET_REFEREE_SCENARIOS: Record<DietRefereeScenario['id'], DietRefer
       visualLines: [
         '脆皮炸鸡堡 590 kcal · 炸薯条 330 kcal',
         '含糖可乐 400ml（添加糖 42g）',
-        'DeepSeek 裁判：触发垃圾食品红线 -5.0 分（0.0 分熔断）',
+        '裁判结论：触发垃圾食品红线 -5.0 分（0.0 分熔断）',
       ],
       scanSteps: [
         '识别出裹粉油炸快餐与含糖碳酸饮料…',
@@ -422,7 +411,7 @@ export const DIET_REFEREE_SCENARIOS: Record<DietRefereeScenario['id'], DietRefer
       visualLines: [
         '番茄牛腩 + 上海青 + 白米饭（460 kcal）',
         '饭后甜点：香草小冰淇淋 1 球（220 kcal）',
-        'DeepSeek 裁判：午间解馋扣 -1.2 分 → 3.3 分擦线及格',
+        '裁判结论：午间解馋扣 -1.2 分 → 3.3 分擦线及格',
       ],
       scanSteps: [
         '识别正餐餐盘与饭后冰淇淋甜品…',
@@ -531,7 +520,7 @@ export const DIET_REFEREE_SCENARIOS: Record<DietRefereeScenario['id'], DietRefer
       visualLines: [
         '精制白面条 300g · 红油浓汤底 350ml',
         '卤牛肉 45g · 青菜仅 2 片',
-        'DeepSeek 裁判：晚间高 GI 碳水+高钠爆表 → 2.4 分不及格',
+        '裁判结论：晚间高 GI 碳水+高钠爆表 → 2.4 分不及格',
       ],
       scanSteps: [
         '识别面碗容量、红油汤面浮油层与配菜比例…',
@@ -550,7 +539,7 @@ export function DietConstitutionAndRuleSection() {
   const [tier, setTier] = useState<ConstitutionTierId>('strict-fat-loss')
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className={deckClass}>
       <PersonalConstitutionTierPicker
         value={tier}
         onValueChange={setTier}
@@ -793,7 +782,7 @@ export function DietRefereeScoreCard({
           <div className="flex items-center gap-1.5">
             <Icon name="globe" size={14} className="text-primary-ink shrink-0" />
             <span className="text-tiny text-primary-ink font-bold">
-              DeepSeek 联网权威核验：{scenario.deepseekCitation.sourceTitle}
+              联网权威核验：{scenario.deepseekCitation.sourceTitle}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -846,7 +835,7 @@ export function DietRefereeScenariosMatrix() {
       </div>
 
       {/* 严格 md:grid-cols-2 每行 2 卡 */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={deckClass}>
         <DietRefereeScoreCard
           scenario={DIET_REFEREE_SCENARIOS['clean-lunch']}
           constitutionTier={tier}
@@ -867,322 +856,6 @@ export function DietRefereeScenariosMatrix() {
           constitutionTier={tier}
           ann="playbook.modules.diet.scenario-d"
         />
-      </div>
-    </div>
-  )
-}
-
-// ============================================================================
-// Section 03：饮食板块完整页面沙盒（<PhoneFrame> 手机端完整页 + 右侧场景切换器）
-// ============================================================================
-
-export function DietFullPageSandbox() {
-  const [scenarioId, setScenarioId] = useState<DietRefereeScenario['id']>('clean-lunch')
-  const [inputMode, setInputMode] = useState<CheckinInputMode>('smart-capture')
-  const [scanPhase, setScanPhase] = useState<ScanPhase>('done')
-  const [tier, setTier] = useState<ConstitutionTierId>('strict-fat-loss')
-  const [mealOverride, setMealOverride] = useState<MealType | null>(null)
-  const [stamped, setStamped] = useState(false)
-
-  const scenario = DIET_REFEREE_SCENARIOS[scenarioId]
-  const activeMeal = mealOverride ?? scenario.meal
-  const passed = scenario.score > 3.0
-
-  function selectScenario(nextId: DietRefereeScenario['id']) {
-    setScenarioId(nextId)
-    setMealOverride(null)
-    setStamped(false)
-  }
-
-  return (
-    <div
-      data-ann="playbook.modules.diet.sandbox"
-      className="grid items-start gap-6 lg:grid-cols-[auto_minmax(0,1fr)]"
-    >
-      {/* 左侧：360px 手机外框完整「好好吃饭」打卡页 */}
-      <div className="flex justify-center">
-        <PhoneFrame label="手机 · /goals/diet/checkin（好好吃饭完整打卡页）" className="h-[780px]">
-          <div className="flex h-full flex-col overflow-hidden">
-            <TopBar
-              sticky={false}
-              title="好好吃饭"
-              leading={<IconButton icon="chevron-left" label="返回" className="-ml-2" />}
-              actions={<Badge tone="diet">饮食裁判</Badge>}
-              className="shrink-0 pt-10"
-            />
-
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3.5 pt-2 pb-6">
-              {/* 顶部目标检验提示 + 全板块统一三态 Tab */}
-              <Card className="flex flex-col gap-2.5 p-3.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <IconTile icon="diet" tone="diet" size="sm" />
-                    <div className="min-w-0">
-                      <p className="text-caption truncate font-bold">30 天干净饮食控糖冲刺</p>
-                      <p className="text-tiny text-muted truncate">
-                        达标规则：AI 评分 &gt; 3.0 分 · 零炸鸡可乐
-                      </p>
-                    </div>
-                  </div>
-                  <Badge tone="diet">12/30天</Badge>
-                </div>
-                <CheckinModeTabs
-                  value={inputMode}
-                  onValueChange={(next) => {
-                    setInputMode(next)
-                    setStamped(false)
-                  }}
-                />
-              </Card>
-
-              {/* 餐次选择（早/中/晚/加餐） */}
-              <Card className="flex flex-col gap-2.5 p-3.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-caption font-bold">当前餐次与碳水节律</span>
-                  <span className="text-tiny text-diet-ink font-semibold">
-                    {activeMeal === 'breakfast'
-                      ? '☀️ 早：控高GI'
-                      : activeMeal === 'lunch'
-                        ? '🌤️ 中：适量复合碳水'
-                        : activeMeal === 'dinner'
-                          ? '🌙 晚：严控精制碳水'
-                          : '🍵 加餐：控游离糖'}
-                  </span>
-                </div>
-                <SegmentedControl
-                  size="sm"
-                  label="餐次选择"
-                  value={activeMeal}
-                  onValueChange={setMealOverride}
-                  options={[
-                    { value: 'breakfast', label: '早餐' },
-                    { value: 'lunch', label: '午餐' },
-                    { value: 'dinner', label: '晚餐' },
-                    { value: 'snack', label: '加餐' },
-                  ]}
-                />
-              </Card>
-
-              {/* 智能拍照 / 上传模式下显示极简扫描镜（单板块内已知是饮食，跳过一行识别方向条） */}
-              {inputMode !== 'manual' && (
-                <SmartScannerLens
-                  preset={scenario.scannerPreset}
-                  phase={scanPhase}
-                  tone="diet"
-                  onRescan={() =>
-                    setScanPhase((prev) => (prev === 'scanning' ? 'done' : 'scanning'))
-                  }
-                />
-              )}
-
-              {/* 食物清单编辑区（单列垂直排布，0 横向溢出） */}
-              <Card className="flex flex-col gap-2.5 p-3.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-caption font-bold">识别食物清单（可微调份量）</span>
-                  <span className="font-display text-tiny text-muted tabular-nums">
-                    共 {scenario.totalKcal} kcal
-                  </span>
-                </div>
-                <div className="bg-surface-sunken divide-border divide-y rounded-2xl px-3 py-1">
-                  {scenario.items.map((item) => (
-                    <div
-                      key={item.name}
-                      className="flex min-w-0 items-center justify-between gap-2 py-2"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-caption truncate font-bold">{item.name}</p>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                          <span className="text-tiny text-muted">{item.portion}</span>
-                          <Badge tone={item.tagTone}>{item.tag}</Badge>
-                        </div>
-                      </div>
-                      <span className="font-display text-diet-ink bg-diet-soft text-tiny shrink-0 rounded-full px-2.5 py-0.5 font-semibold tabular-nums">
-                        {item.kcal} kcal
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-
-              {/* 5 分制 AI 裁判成绩单（手机内紧凑视图） */}
-              <DietRefereeScoreCard
-                scenario={scenario}
-                constitutionTier={tier}
-                compact
-                ann="playbook.modules.diet.sandbox.scorecard"
-              />
-
-              {/* 底部主操作区：根据 > 3.0 分或 ≤ 3.0 分自动切换按钮状态与盖章反馈 */}
-              <Card className="flex flex-col gap-2.5 p-3.5">
-                {stamped ? (
-                  <div className="flex flex-col items-center gap-2 py-3 text-center">
-                    <div className="relative">
-                      <Mascot mood="cheer" size={76} />
-                      <Stamp
-                        caption="有效打卡"
-                        tone="diet"
-                        animate
-                        size={56}
-                        className="absolute -top-2 -right-9"
-                      />
-                    </div>
-                    <p className="text-caption font-bold">
-                      已盖章！{scenario.score.toFixed(1)} 分计入今日「好好吃饭」有效打卡
-                    </p>
-                    <Button size="sm" variant="soft" onClick={() => setStamped(false)}>
-                      返回继续体验
-                    </Button>
-                  </div>
-                ) : passed ? (
-                  <>
-                    <Button
-                      variant="primary"
-                      icon="check"
-                      className="w-full"
-                      onClick={() => {
-                        setStamped(true)
-                        toast.success(
-                          `有效打卡成功！得分 ${scenario.score.toFixed(1)} / 5.0 分，已计入连击`,
-                        )
-                      }}
-                    >
-                      确认有效打卡（{scenario.score.toFixed(1)}分）
-                    </Button>
-                    <p className="text-tiny text-muted text-center">
-                      已超过 3.0 分有效线，点击后立即盖章并同步给打卡搭子
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="secondary"
-                      icon="alert"
-                      className="w-full"
-                      onClick={() =>
-                        toast.info(
-                          `当前得分 ${scenario.score.toFixed(1)} 分（未满 3.0 分），已仅作为日常饮食记录存档，不计入有效打卡`,
-                        )
-                      }
-                    >
-                      分数未满 3.0 · 仅保存记录（不计有效打卡）
-                    </Button>
-                    <p className="text-tiny text-danger-ink text-center font-semibold">
-                      团团拦截：本餐未达 3.0 分有效线，仅记入饮食热量账本，不触发今日通关印章
-                    </p>
-                  </>
-                )}
-              </Card>
-            </div>
-          </div>
-        </PhoneFrame>
-      </div>
-
-      {/* 右侧：沙盒场景切换与设计说明控制台 */}
-      <div className="flex min-w-0 flex-col gap-4">
-        <Card className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-subhead font-bold">
-              切换 4 大典型饮食裁判场景（实时联动手机）
-            </span>
-            <Badge tone="diet" icon="sparkles">
-              5 分制 AI 裁判沙盒
-            </Badge>
-          </div>
-          <p className="text-caption text-muted">
-            点击下方 4 个场景按钮，观察左侧手机框内的食物清单、5.0 分仪表环、3.0
-            分有效线标尺、四大餐盘红绿灯以及**底部主按钮文案与状态**如何实时切换：
-          </p>
-
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {(Object.values(DIET_REFEREE_SCENARIOS) as DietRefereeScenario[]).map((item) => {
-              const active = item.id === scenarioId
-              const isPass = item.score > 3.0
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => selectScenario(item.id)}
-                  className={cn(
-                    'flex flex-col items-start gap-1 rounded-2xl border p-3 text-left transition-all active:scale-[0.98]',
-                    active
-                      ? 'border-primary bg-primary-soft/45 shadow-soft'
-                      : 'border-border bg-surface-sunken/60 hover:bg-surface-sunken',
-                  )}
-                >
-                  <div className="flex w-full items-center justify-between gap-2">
-                    <span className="text-caption font-bold">
-                      场景 {item.code} · {item.score.toFixed(1)} 分
-                    </span>
-                    <Badge tone={item.score === 0 ? 'danger' : isPass ? 'success' : 'warning'}>
-                      {isPass ? '有效打卡' : '拦截不打卡'}
-                    </Badge>
-                  </div>
-                  <p className="text-tiny text-muted line-clamp-2">{item.subtitle}</p>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* 快捷切换体质档位与顶部 Tab */}
-          <div className="border-border bg-surface-sunken/70 flex flex-col gap-2.5 rounded-2xl border p-3.5">
-            <span className="text-tiny text-muted font-bold">
-              1. 切换个人体质档位（影响晚间碳水与油盐扣分权重）：
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {CONSTITUTION_TIERS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTier(t.id)}
-                  className={cn(
-                    'text-tiny rounded-full px-3 py-1 font-semibold transition-all',
-                    tier === t.id
-                      ? cn(softToneClass[t.tone], 'shadow-soft font-bold')
-                      : 'bg-surface text-muted hover:text-foreground',
-                  )}
-                >
-                  {t.name}
-                </button>
-              ))}
-            </div>
-
-            <span className="text-tiny text-muted mt-1 font-bold">
-              2. 切换打卡页顶部记录方式 Tab：
-            </span>
-            <CheckinModeTabs value={inputMode} onValueChange={setInputMode} />
-          </div>
-        </Card>
-
-        <Card variant="sunken" className="flex flex-col gap-2.5">
-          <h4 className="text-caption font-bold">为什么饮食打卡采用「5 分制 + 3.0 分有效线」？</h4>
-          <ul className="text-tiny text-muted space-y-1.5 leading-relaxed">
-            <li className="flex items-start gap-2">
-              <Icon name="check" size={14} className="text-success mt-0.5 shrink-0" />
-              <span>
-                <strong className="text-foreground">拒绝拍炸鸡可乐混连击</strong>
-                ：传统打卡应用只要传张照片就算完成，用户拍顿夜宵炸鸡也能拿连击徽章。引入 5 分制 AI
-                裁判后，垃圾食品触发 `-5.0` 分一票否决（0 分熔断），彻底杜绝虚假健康打卡。
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <Icon name="check" size={14} className="text-success mt-0.5 shrink-0" />
-              <span>
-                <strong className="text-foreground">未满 3.0 分温柔分流「仅作记录」</strong>：得分为
-                0.0 或 2.4
-                分时不粗暴报错丢弃数据，而是将主按钮切换为「仅保存记录（不计有效打卡）」，既诚实记录热量账本，又守护有效打卡印章的含金量。
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <Icon name="check" size={14} className="text-success mt-0.5 shrink-0" />
-              <span>
-                <strong className="text-foreground">早中晚碳水 GI 节律科学引导</strong>
-                ：早上防高糖空腹飙升胰岛素、中午允许适量复合碳水供能、晚上严控高 GI
-                精制面食与甜品，配合 DeepSeek 联网检索《中国居民膳食指南
-                2022》给出有据可查的改良建议。
-              </span>
-            </li>
-          </ul>
-        </Card>
       </div>
     </div>
   )

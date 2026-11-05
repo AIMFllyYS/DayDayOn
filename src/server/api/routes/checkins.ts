@@ -6,10 +6,12 @@ import {
   CheckinHistoryQuerySchema,
   CheckinHistorySchema,
   CheckinIdParamSchema,
+  CheckinRevisionListSchema,
   CheckinSchema,
   CheckinTodaySchema,
   CreateCheckinResultSchema,
   CreateCheckinSchema,
+  DeleteCheckinQuerySchema,
   UpdateCheckinSchema,
 } from '@/features/checkin/schemas'
 import { GoalIdParamSchema } from '@/features/goal/schemas'
@@ -91,8 +93,16 @@ const updateRoute = createRoute({
     body: { content: json(UpdateCheckinSchema), required: true },
   },
   responses: {
-    200: { content: json(CheckinSchema), description: '已修改（只允许饮食条目与备注）' },
-    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED', 'CHECKIN_NOT_FOUND'),
+    200: { content: json(CheckinSchema), description: '已修改（裁判结论按新内容重算，写留痕）' },
+    ...errorResponses(
+      ...AUTH_ERRORS,
+      'VALIDATION_FAILED',
+      'MAKEUP_NOT_ALLOWED',
+      'GOAL_NOT_FOUND',
+      'CHECKIN_NOT_FOUND',
+      'CHECKIN_LOCKED',
+      'CHECKIN_EXISTS',
+    ),
   },
 })
 
@@ -100,9 +110,23 @@ const deleteRoute = createRoute({
   method: 'delete',
   path: '/checkins/{checkinId}',
   middleware: [requireUser, requireOnboarded] as const,
+  request: { params: CheckinIdParamSchema, query: DeleteCheckinQuerySchema },
+  responses: {
+    204: { description: '已删除（留痕保留）' },
+    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED', 'CHECKIN_NOT_FOUND', 'CHECKIN_LOCKED'),
+  },
+})
+
+const revisionsRoute = createRoute({
+  method: 'get',
+  path: '/checkins/{checkinId}/revisions',
+  middleware: [requireUser, requireOnboarded] as const,
   request: { params: CheckinIdParamSchema },
   responses: {
-    204: { description: '已删除' },
+    200: {
+      content: json(CheckinRevisionListSchema),
+      description: '这条打卡的新增、修改、删除留痕',
+    },
     ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED', 'CHECKIN_NOT_FOUND'),
   },
 })
@@ -139,11 +163,16 @@ export const checkinRoutes = new OpenAPIHono<AppEnv>()
       c.get('user').id,
       checkinId,
       c.req.valid('json'),
+      new Date(),
     )
     return c.json(checkin, 200)
   })
   .openapi(deleteRoute, async (c) => {
     const { checkinId } = c.req.valid('param')
-    await checkins.deleteCheckin(db, c.get('user').id, checkinId)
+    await checkins.deleteCheckin(db, c.get('user').id, checkinId, c.req.valid('query'), new Date())
     return c.body(null, 204)
+  })
+  .openapi(revisionsRoute, async (c) => {
+    const { checkinId } = c.req.valid('param')
+    return c.json(await checkins.listRevisions(db, c.get('user').id, checkinId), 200)
   })

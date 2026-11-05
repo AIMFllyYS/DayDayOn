@@ -5,13 +5,15 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   smallint,
   text,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
-import type { CheckinPayload } from '../../../features/checkin/schemas'
+import type { Checkin, CheckinPayload } from '../../../features/checkin/schemas'
+import type { Verdict } from '../../../features/referee/schemas'
 import type { Module, RatingScope } from '../../../features/shared/schemas'
 import { aiRuns } from './ai'
 import { user } from './auth'
@@ -53,6 +55,12 @@ export const checkins = pgTable(
     fieldVersion: integer(),
     // 可空：只有 AI 识别的打卡关联 ai_runs；注销后 ai_runs 保留，打卡随用户删除
     aiRunId: uuid().references(() => aiRuns.id, { onDelete: 'set null' }),
+    // 可空：只有评分制板块（饮食）有分数，0.0–5.0（checkin-modules.md 第 3.4 节）
+    score: numeric({ precision: 3, scale: 1, mode: 'number' }),
+    /** 是否通过有效打卡门槛；false = 未达标仅存档，不计进度、连续天数与排行 */
+    isValid: boolean().notNull().default(true),
+    // 可空：老数据和没有裁判结论的打卡为空
+    verdict: jsonb().$type<Verdict>(),
     ...timestamps,
   },
   (t) => [
@@ -66,6 +74,42 @@ export const checkins = pgTable(
     uniqueIndex('checkins_ai_run_id_key')
       .on(t.aiRunId)
       .where(sql`${t.aiRunId} IS NOT NULL`),
+  ],
+)
+
+export type CheckinRevisionAction = 'create' | 'update' | 'delete'
+export type CheckinOrigin = 'manual' | 'agent'
+
+/**
+ * 打卡留痕（checkin-modules.md 第 7 节）：每次新增、修改、删除写一行，改前改后各存一份 Checkin 快照。
+ * checkinId / goalId 不设外键：打卡或目标删掉后留痕还在；注销账号时随用户删除。
+ */
+export const checkinRevisions = pgTable(
+  'checkin_revisions',
+  {
+    ...id,
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    checkinId: uuid().notNull(),
+    goalId: uuid().notNull(),
+    module: text().$type<Module>().notNull(),
+    /** 被改动的那条打卡的打卡日 */
+    localDate: date({ mode: 'string' }).notNull(),
+    action: text().$type<CheckinRevisionAction>().notNull(),
+    /** 从哪改的：打卡页 / 目标详情（manual）或 Agent 对话草稿确认（agent） */
+    origin: text().$type<CheckinOrigin>().notNull().default('manual'),
+    // 可空：只有 Agent 发起的修改、删除带原因
+    reason: text(),
+    // 可空：新增没有改前快照
+    before: jsonb().$type<Checkin>(),
+    // 可空：删除没有改后快照
+    after: jsonb().$type<Checkin>(),
+    ...timestamps,
+  },
+  (t) => [
+    index('checkin_revisions_checkin_id_idx').on(t.checkinId, t.createdAt),
+    index('checkin_revisions_user_id_created_at_idx').on(t.userId, t.createdAt),
   ],
 )
 

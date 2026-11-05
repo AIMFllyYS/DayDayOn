@@ -1,6 +1,7 @@
 import { DEFAULT_GOALS } from '@/features/goal/defaults'
 import type { CreateGoal } from '@/features/goal/schemas'
 import type { Onboarding } from '@/features/me/schemas'
+import type { RefereeRules, RefereeTier } from '@/features/referee/schemas'
 import { MODULES } from '@/features/shared/schemas'
 
 /*
@@ -16,6 +17,7 @@ export interface OnboardingPlan {
     heightCm: number | null
     timeZone: string
     leaderboardOptIn: boolean
+    refereeTier: RefereeTier
     healthConsentAt: Date
     onboardedAt: Date
   }
@@ -25,9 +27,11 @@ export interface OnboardingPlan {
   weightGrams: number | null
 }
 
-/** 默认目标的深拷贝：DEFAULT_GOALS 是共享常量，不让下游改到它 */
-function defaultGoal(module: (typeof MODULES)[number]): CreateGoal {
-  return structuredClone(DEFAULT_GOALS[module])
+/** 默认目标的深拷贝：DEFAULT_GOALS 是共享常量，不让下游改到它；引导里定了规则就带上 */
+function defaultGoal(module: (typeof MODULES)[number], rules: readonly RefereeRules[]): CreateGoal {
+  const goal = structuredClone(DEFAULT_GOALS[module])
+  const r = rules.find((x) => x.module === module)
+  return r ? { ...goal, refereeRules: structuredClone(r) } : goal
 }
 
 export function planOnboarding(input: Onboarding, now: Date): OnboardingPlan {
@@ -41,10 +45,11 @@ export function planOnboarding(input: Onboarding, now: Date): OnboardingPlan {
       heightCm: input.heightCm,
       timeZone: input.timeZone,
       leaderboardOptIn: input.leaderboardOptIn,
+      refereeTier: input.refereeTier,
       healthConsentAt: now,
       onboardedAt: now,
     },
-    goals: MODULES.filter((m) => chosen.has(m)).map(defaultGoal),
+    goals: MODULES.filter((m) => chosen.has(m)).map((m) => defaultGoal(m, input.goalRules)),
     weightGrams: input.weightGrams,
   }
 }

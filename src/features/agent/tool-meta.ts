@@ -54,8 +54,42 @@ const toolMeta: Record<string, ToolMeta> = {
     tone: 'primary',
   },
   draftCheckin: { label: '整理打卡草稿', verb: '正在整理打卡', icon: 'check', tone: 'primary' },
+  draftUpdateCheckin: {
+    label: '整理改打卡草稿',
+    verb: '正在整理要改的打卡',
+    icon: 'edit',
+    tone: 'primary',
+  },
+  draftDeleteCheckin: {
+    label: '整理删打卡草稿',
+    verb: '正在整理要删的打卡',
+    icon: 'trash',
+    tone: 'danger',
+  },
+  getCheckin: { label: '读取一条打卡', verb: '正在看这条打卡', icon: 'calendar', tone: 'study' },
+  getCheckinHistory: {
+    label: '查看打卡留痕',
+    verb: '正在翻改动记录',
+    icon: 'clock',
+    tone: 'neutral',
+  },
   draftTodo: { label: '整理待办草稿', verb: '正在整理待办', icon: 'todo', tone: 'neutral' },
   draftWeight: { label: '整理体重草稿', verb: '正在整理体重', icon: 'chart', tone: 'primary' },
+  // 打卡裁判（server/ai/referee/tools.ts）
+  lookupFoodNutrition: {
+    label: '查食物营养表',
+    verb: '正在查每道菜的营养',
+    icon: 'diet',
+    tone: 'diet',
+  },
+  getRecentSleep: { label: '读近期睡眠', verb: '正在看最近几晚', icon: 'sleep', tone: 'sleep' },
+  getTodayStudy: { label: '读今日学习', verb: '正在累加今天的学习', icon: 'study', tone: 'study' },
+  submitVerdict: {
+    label: '提交裁判事实',
+    verb: '正在按规则出结论',
+    icon: 'shield',
+    tone: 'success',
+  },
 }
 
 const fallback: ToolMeta = {

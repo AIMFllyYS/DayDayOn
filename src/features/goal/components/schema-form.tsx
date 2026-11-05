@@ -32,7 +32,7 @@ export function SchemaForm({ fields, value, onChange, errors, idPrefix = 'sf' }:
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-2.5">
       {fields.map((field) => {
         const id = `${idPrefix}-${field.key}`
         const error = errors?.[field.key]?.[0]
@@ -44,6 +44,7 @@ export function SchemaForm({ fields, value, onChange, errors, idPrefix = 'sf' }:
             name={field.key}
             error={error}
             aside={field.required ? undefined : '可选'}
+            className="min-w-0 gap-1"
           >
             <FieldControl
               id={id}
@@ -74,7 +75,7 @@ const BOOL_OPTIONS = [
 
 /**
  * 平铺的单选：和 SegmentedControl 不同，允许"还没选"（SegmentedControl 总会高亮一项，
- * 会让没回答的必填字段看起来已经选了）。radiogroup 语义，44px 触控区。
+ * 会让没回答的必填字段看起来已经选了）。radiogroup 语义，紧凑胶囊尺寸。
  */
 function ChoiceChips<V extends string>({
   id,
@@ -104,7 +105,7 @@ function ChoiceChips<V extends string>({
             aria-checked={on}
             onClick={() => onValueChange(o.value)}
             className={cn(
-              'text-caption ease-spring h-11 min-w-16 rounded-full px-4 font-semibold',
+              'text-caption ease-spring h-9 min-w-14 rounded-full px-3.5 font-semibold',
               'transition-[transform,background-color,color] duration-(--dur-fast) active:scale-[0.96]',
               on
                 ? 'bg-custom-soft text-custom-ink ring-custom ring-2'
@@ -120,12 +121,14 @@ function ChoiceChips<V extends string>({
   )
 }
 
-function FieldControl({ id, field, value, invalid, onChange }: ControlProps) {
+/** 单个字段的输入控件：打卡页「我的小目标」每个字段一个分区时直接用它 */
+export function FieldControl({ id, field, value, invalid, onChange }: ControlProps) {
   switch (field.type) {
     case 'number':
       return (
         <NumberField
           id={id}
+          size="sm"
           value={typeof value === 'number' ? value : null}
           onValueChange={(n) => onChange(n ?? undefined)}
           min={field.min}
@@ -146,7 +149,11 @@ function FieldControl({ id, field, value, invalid, onChange }: ControlProps) {
         onChange: (e: { target: { value: string } }) =>
           onChange(e.target.value === '' ? undefined : e.target.value),
       }
-      return long ? <Textarea {...props} /> : <Input {...props} />
+      return long ? (
+        <Textarea {...props} rows={2} className="text-caption min-h-16 px-3 py-2" />
+      ) : (
+        <Input {...props} className="text-caption h-10 px-3" />
+      )
     }
     case 'single-select':
       // 选项少时平铺，多时用下拉
@@ -202,6 +209,7 @@ function FieldControl({ id, field, value, invalid, onChange }: ControlProps) {
       return (
         <NumberField
           id={id}
+          size="sm"
           value={typeof value === 'number' ? secondsToMinutes(value) : null}
           onValueChange={(m) => onChange(m === null ? undefined : minutesToSeconds(m))}
           min={0}

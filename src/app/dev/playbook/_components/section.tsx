@@ -33,7 +33,7 @@ export function Section({ ann, title, description, children, className }: Sectio
     <section data-ann={ann} className={cn('mb-12 scroll-mt-8', className)}>
       <div className="border-border-strong mb-4 flex items-baseline gap-3 border-b border-dashed pb-2">
         <h2 className="text-heading font-bold">{title}</h2>
-        <span className="text-tiny text-subtle font-mono">{ann}</span>
+        <span className="text-tiny text-subtle font-mono max-md:hidden">{ann}</span>
       </div>
       {description && <p className="text-caption text-muted -mt-1 mb-4 max-w-2xl">{description}</p>}
       {children}

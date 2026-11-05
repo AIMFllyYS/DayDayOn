@@ -137,6 +137,9 @@
               "null"
             ],
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "refereeTier": {
+            "$ref": "#/components/schemas/RefereeTier"
           }
         },
         "required": [
@@ -144,7 +147,8 @@
           "mascot",
           "leaderboardOptIn",
           "dayStartHour",
-          "remindAt"
+          "remindAt",
+          "refereeTier"
         ]
       },
       "Theme": {
@@ -166,6 +170,14 @@
           "you"
         ]
       },
+      "RefereeTier": {
+        "type": "string",
+        "enum": [
+          "strict-fat-loss",
+          "balanced-glycemic",
+          "gentle-gain"
+        ]
+      },
       "Error": {
         "type": "object",
         "properties": {
@@ -184,6 +196,7 @@
               "ACCOUNT_BANNED",
               "USER_MUTED",
               "FRIEND_RELATION_FROZEN",
+              "CHECKIN_LOCKED",
               "TWO_FACTOR_REQUIRED",
               "ONBOARDING_REQUIRED",
               "NOT_FOUND",
@@ -324,6 +337,17 @@
             "type": "boolean",
             "default": false
           },
+          "refereeTier": {
+            "$ref": "#/components/schemas/RefereeTier"
+          },
+          "goalRules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RefereeRules"
+            },
+            "maxItems": 5,
+            "default": []
+          },
           "healthConsent": {
             "type": "boolean",
             "enum": [
@@ -353,6 +377,182 @@
           "sleep",
           "study",
           "custom"
+        ]
+      },
+      "RefereeRules": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": [
+                  "diet"
+                ]
+              },
+              "passScore": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 4.5,
+                "default": 3
+              }
+            },
+            "required": [
+              "module"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": [
+                  "exercise"
+                ]
+              },
+              "distanceMinMinutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 300,
+                "default": 20
+              },
+              "distanceMinKm": {
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 100,
+                "default": 2
+              },
+              "countMinMinutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 300,
+                "default": 15
+              },
+              "countMinSets": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50,
+                "default": 4
+              }
+            },
+            "required": [
+              "module"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": [
+                  "sleep"
+                ]
+              },
+              "bedtimeBy": {
+                "type": "string",
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                "default": "23:30"
+              },
+              "minHours": {
+                "type": "number",
+                "minimum": 3,
+                "maximum": 12,
+                "default": 6.5
+              },
+              "maxHours": {
+                "type": "number",
+                "minimum": 4,
+                "maximum": 14,
+                "default": 9.5
+              }
+            },
+            "required": [
+              "module"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": [
+                  "study"
+                ]
+              },
+              "minFocusMinutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 240,
+                "default": 25
+              },
+              "minNoteChars": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 200,
+                "default": 10
+              }
+            },
+            "required": [
+              "module"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": [
+                  "custom"
+                ]
+              },
+              "conditions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 32
+                    },
+                    "op": {
+                      "type": "string",
+                      "enum": [
+                        "gte",
+                        "lte",
+                        "eq",
+                        "filled"
+                      ]
+                    },
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "op"
+                  ]
+                },
+                "maxItems": 10,
+                "default": []
+              },
+              "aiCriteria": {
+                "type": "string",
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "module"
+            ]
+          }
         ]
       },
       "UpdateProfile": {
@@ -414,6 +614,9 @@
               "null"
             ],
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "refereeTier": {
+            "$ref": "#/components/schemas/RefereeTier"
           }
         }
       },
@@ -435,6 +638,10 @@
             "type": "array",
             "items": {}
           },
+          "checkinRevisions": {
+            "type": "array",
+            "items": {}
+          },
           "weights": {
             "type": "array",
             "items": {}
@@ -453,6 +660,7 @@
           "me",
           "goals",
           "checkins",
+          "checkinRevisions",
           "weights",
           "ratings",
           "todos"
@@ -560,7 +768,8 @@
         "enum": [
           "diet-recognition",
           "smart-recognition",
-          "agent-chat"
+          "agent-chat",
+          "referee"
         ]
       },
       "AiRunStatus": {
@@ -647,6 +856,16 @@
               "$ref": "#/components/schemas/FieldDef"
             }
           },
+          "refereeRules": {
+            "$ref": "#/components/schemas/RefereeRules"
+          },
+          "deadlineDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -668,6 +887,8 @@
           "sortOrder",
           "fieldVersion",
           "fields",
+          "refereeRules",
+          "deadlineDate",
           "createdAt",
           "updatedAt"
         ]
@@ -1007,6 +1228,16 @@
           },
           "fields": {
             "$ref": "#/components/schemas/FieldDefs"
+          },
+          "refereeRules": {
+            "$ref": "#/components/schemas/RefereeRules"
+          },
+          "deadlineDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
           }
         },
         "required": [
@@ -1083,6 +1314,16 @@
               "$ref": "#/components/schemas/FieldDef"
             }
           },
+          "refereeRules": {
+            "$ref": "#/components/schemas/RefereeRules"
+          },
+          "deadlineDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -1131,6 +1372,10 @@
                 "effectiveFrom"
               ]
             }
+          },
+          "validDays": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "required": [
@@ -1145,10 +1390,13 @@
           "sortOrder",
           "fieldVersion",
           "fields",
+          "refereeRules",
+          "deadlineDate",
           "createdAt",
           "updatedAt",
           "fieldVersions",
-          "targetHistory"
+          "targetHistory",
+          "validDays"
         ]
       },
       "GoalFieldVersion": {
@@ -1218,6 +1466,16 @@
           },
           "fields": {
             "$ref": "#/components/schemas/FieldDefs"
+          },
+          "refereeRules": {
+            "$ref": "#/components/schemas/RefereeRules"
+          },
+          "deadlineDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
           }
         }
       },
@@ -1319,6 +1577,18 @@
             ],
             "format": "uuid"
           },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "isValid": {
+            "type": "boolean"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/Verdict"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -1341,6 +1611,9 @@
           "payload",
           "fieldVersion",
           "aiRunId",
+          "score",
+          "isValid",
+          "verdict",
           "createdAt"
         ]
       },
@@ -1369,6 +1642,13 @@
               },
               "intensity": {
                 "$ref": "#/components/schemas/Intensity"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExerciseItem"
+                },
+                "maxItems": 10
               }
             },
             "required": [
@@ -1399,6 +1679,10 @@
                 },
                 "minItems": 1,
                 "maxItems": 20
+              },
+              "snackTime": {
+                "type": "string",
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
               }
             },
             "required": [
@@ -1429,6 +1713,9 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 5
+              },
+              "advanced": {
+                "$ref": "#/components/schemas/SleepAdvanced"
               }
             },
             "required": [
@@ -1451,6 +1738,15 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 60
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 10
               }
             },
             "required": [
@@ -1505,6 +1801,79 @@
           "hard"
         ]
       },
+      "ExerciseItem": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20
+          },
+          "calc": {
+            "type": "string",
+            "enum": [
+              "distance",
+              "count"
+            ]
+          },
+          "minutes": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "km": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 300,
+            "default": null
+          },
+          "sets": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 200,
+            "default": null
+          },
+          "effort": {
+            "type": "string",
+            "maxLength": 40,
+            "default": ""
+          },
+          "kcal": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 5000,
+            "default": null
+          },
+          "heartRate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 30,
+            "maximum": 240,
+            "default": null
+          },
+          "feel": {
+            "type": "string",
+            "maxLength": 40,
+            "default": ""
+          }
+        },
+        "required": [
+          "name",
+          "calc",
+          "minutes"
+        ]
+      },
       "DietMethod": {
         "type": "string",
         "enum": [
@@ -1546,6 +1915,498 @@
         "required": [
           "name",
           "kcal"
+        ]
+      },
+      "SleepAdvanced": {
+        "type": "object",
+        "properties": {
+          "deepMin": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 720
+          },
+          "lightMin": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1200
+          },
+          "remPct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "continuityPct": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          },
+          "hrvMs": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 300
+          },
+          "respRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 60
+          }
+        }
+      },
+      "Verdict": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "version": {
+            "type": "number",
+            "enum": [
+              1
+            ]
+          },
+          "isValid": {
+            "type": "boolean"
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 5
+          },
+          "scoreMax": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "ok": {
+                  "type": "boolean"
+                },
+                "source": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "text",
+                "ok"
+              ]
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "facts": {
+            "$ref": "#/components/schemas/RefereeFacts"
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 2048
+                }
+              },
+              "required": [
+                "title",
+                "url"
+              ]
+            },
+            "maxItems": 10
+          },
+          "advice": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3
+          },
+          "refereeRunId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "offline": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "version",
+          "isValid",
+          "score",
+          "scoreMax",
+          "detail",
+          "checks",
+          "metrics",
+          "facts",
+          "citations",
+          "advice",
+          "refereeRunId",
+          "offline"
+        ]
+      },
+      "RefereeFacts": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": [
+                  "diet"
+                ]
+              },
+              "dishes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 30
+                    },
+                    "portion": {
+                      "type": "string",
+                      "maxLength": 30,
+                      "default": ""
+                    },
+                    "kcal": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 5000
+                    },
+                    "proteinG": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 500
+                    },
+                    "carbG": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1000
+                    },
+                    "fatG": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 500
+                    },
+                    "fiberG": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 200
+                    },
+                    "sodiumMg": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 20000
+                    },
+                    "gi": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 120
+                    },
+                    "junk": {
+                      "type": "boolean"
+                    },
+                    "sweet": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "cooking": {
+                      "type": "string",
+                      "enum": [
+                        "steamed",
+                        "boiled",
+                        "stir-fried",
+                        "braised",
+                        "fried",
+                        "grilled",
+                        "raw",
+                        "other"
+                      ],
+                      "default": "other"
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "table",
+                        "web",
+                        "estimate"
+                      ],
+                      "default": "estimate"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "kcal",
+                    "proteinG",
+                    "carbG",
+                    "fatG",
+                    "fiberG",
+                    "sodiumMg",
+                    "gi",
+                    "junk"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 20
+              }
+            },
+            "required": [
+              "module",
+              "dishes"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": [
+                  "exercise"
+                ]
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 20
+                    },
+                    "calc": {
+                      "type": "string",
+                      "enum": [
+                        "distance",
+                        "count"
+                      ]
+                    },
+                    "minutes": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 600
+                    },
+                    "km": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "minimum": 0,
+                      "maximum": 300
+                    },
+                    "sets": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0,
+                      "maximum": 200
+                    },
+                    "met": {
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 20
+                    },
+                    "kcal": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 5000
+                    },
+                    "fromDevice": {
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "calc",
+                    "minutes",
+                    "km",
+                    "sets",
+                    "met",
+                    "kcal"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 10
+              },
+              "weightKg": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 20,
+                "maximum": 300
+              }
+            },
+            "required": [
+              "module",
+              "items",
+              "weightKg"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": [
+                  "sleep"
+                ]
+              },
+              "regularityMinutes": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 720
+              },
+              "recentNights": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 14
+              }
+            },
+            "required": [
+              "module",
+              "regularityMinutes",
+              "recentNights"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": [
+                  "study"
+                ]
+              },
+              "substantive": {
+                "type": "boolean"
+              },
+              "subject": {
+                "type": "string",
+                "maxLength": 30
+              },
+              "summary": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "keyPoints": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                },
+                "maxItems": 5,
+                "default": []
+              },
+              "todayMinutesBefore": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1440,
+                "default": 0
+              }
+            },
+            "required": [
+              "module",
+              "substantive",
+              "subject",
+              "summary"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "module": {
+                "type": "string",
+                "enum": [
+                  "custom"
+                ]
+              },
+              "aiPass": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "aiComment": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "module",
+              "aiPass",
+              "aiComment"
+            ]
+          },
+          {
+            "type": "null"
+          }
         ]
       },
       "CreateCheckinResult": {
@@ -1609,6 +2470,46 @@
                 "type": "string",
                 "maxLength": 500
               },
+              "facts": {
+                "$ref": "#/components/schemas/RefereeFacts"
+              },
+              "refereeRunId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "maxLength": 120
+                    },
+                    "url": {
+                      "type": "string",
+                      "maxLength": 2048
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "url"
+                  ]
+                },
+                "maxItems": 10
+              },
+              "advice": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 3
+              },
+              "origin": {
+                "$ref": "#/components/schemas/CheckinOrigin"
+              },
               "module": {
                 "type": "string",
                 "enum": [
@@ -1627,6 +2528,14 @@
                 "type": "integer",
                 "minimum": 60,
                 "maximum": 36000
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExerciseItem"
+                },
+                "minItems": 1,
+                "maxItems": 10
               }
             },
             "required": [
@@ -1661,6 +2570,46 @@
                 "type": "string",
                 "maxLength": 500
               },
+              "facts": {
+                "$ref": "#/components/schemas/RefereeFacts"
+              },
+              "refereeRunId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "maxLength": 120
+                    },
+                    "url": {
+                      "type": "string",
+                      "maxLength": 2048
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "url"
+                  ]
+                },
+                "maxItems": 10
+              },
+              "advice": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 3
+              },
+              "origin": {
+                "$ref": "#/components/schemas/CheckinOrigin"
+              },
               "module": {
                 "type": "string",
                 "enum": [
@@ -1680,6 +2629,10 @@
                 },
                 "minItems": 1,
                 "maxItems": 20
+              },
+              "snackTime": {
+                "type": "string",
+                "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
               }
             },
             "required": [
@@ -1714,6 +2667,46 @@
                 "type": "string",
                 "maxLength": 500
               },
+              "facts": {
+                "$ref": "#/components/schemas/RefereeFacts"
+              },
+              "refereeRunId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "maxLength": 120
+                    },
+                    "url": {
+                      "type": "string",
+                      "maxLength": 2048
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "url"
+                  ]
+                },
+                "maxItems": 10
+              },
+              "advice": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 3
+              },
+              "origin": {
+                "$ref": "#/components/schemas/CheckinOrigin"
+              },
               "module": {
                 "type": "string",
                 "enum": [
@@ -1732,6 +2725,9 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 5
+              },
+              "advanced": {
+                "$ref": "#/components/schemas/SleepAdvanced"
               }
             },
             "required": [
@@ -1766,6 +2762,46 @@
                 "type": "string",
                 "maxLength": 500
               },
+              "facts": {
+                "$ref": "#/components/schemas/RefereeFacts"
+              },
+              "refereeRunId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "maxLength": 120
+                    },
+                    "url": {
+                      "type": "string",
+                      "maxLength": 2048
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "url"
+                  ]
+                },
+                "maxItems": 10
+              },
+              "advice": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 3
+              },
+              "origin": {
+                "$ref": "#/components/schemas/CheckinOrigin"
+              },
               "module": {
                 "type": "string",
                 "enum": [
@@ -1781,6 +2817,15 @@
                 "type": "integer",
                 "minimum": 60,
                 "maximum": 86400
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 10
               }
             },
             "required": [
@@ -1812,6 +2857,46 @@
               "parsedText": {
                 "type": "string",
                 "maxLength": 500
+              },
+              "facts": {
+                "$ref": "#/components/schemas/RefereeFacts"
+              },
+              "refereeRunId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "title": {
+                      "type": "string",
+                      "maxLength": 120
+                    },
+                    "url": {
+                      "type": "string",
+                      "maxLength": 2048
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "url"
+                  ]
+                },
+                "maxItems": 10
+              },
+              "advice": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "maxItems": 3
+              },
+              "origin": {
+                "$ref": "#/components/schemas/CheckinOrigin"
               },
               "module": {
                 "type": "string",
@@ -1854,6 +2939,14 @@
           }
         ]
       },
+      "CheckinOrigin": {
+        "type": "string",
+        "enum": [
+          "manual",
+          "agent"
+        ],
+        "default": "manual"
+      },
       "CheckinCalendar": {
         "type": "object",
         "properties": {
@@ -1889,13 +2982,17 @@
           },
           "makeupOnly": {
             "type": "boolean"
+          },
+          "archivedOnly": {
+            "type": "boolean"
           }
         },
         "required": [
           "localDate",
           "count",
           "done",
-          "makeupOnly"
+          "makeupOnly",
+          "archivedOnly"
         ]
       },
       "CheckinToday": {
@@ -2010,8 +3107,121 @@
               "null"
             ],
             "maxLength": 200
+          },
+          "replace": {
+            "$ref": "#/components/schemas/CreateCheckin"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/CheckinOrigin"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
           }
         }
+      },
+      "CheckinRevisionList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckinRevision"
+            },
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CheckinRevision": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "checkinId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "goalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "action": {
+            "$ref": "#/components/schemas/CheckinRevisionAction"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/CheckinOrigin"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "before": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Checkin"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "after": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Checkin"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "checkinId",
+          "goalId",
+          "module",
+          "localDate",
+          "action",
+          "origin",
+          "reason",
+          "before",
+          "after",
+          "createdAt"
+        ]
+      },
+      "CheckinRevisionAction": {
+        "type": "string",
+        "enum": [
+          "create",
+          "update",
+          "delete"
+        ]
       },
       "WeightEntry": {
         "type": "object",
@@ -4963,7 +6173,7 @@
         },
         "responses": {
           "200": {
-            "description": "已修改（只允许饮食条目与备注）",
+            "description": "已修改（裁判结论按新内容重算，写留痕）",
             "content": {
               "application/json": {
                 "schema": {
@@ -4971,6 +6181,92 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED | MAKEUP_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED | CHECKIN_LOCKED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "GOAL_NOT_FOUND | CHECKIN_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CHECKIN_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "checkinId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/CheckinOrigin"
+            },
+            "required": false,
+            "name": "origin",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "required": false,
+            "name": "reason",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已删除（留痕保留）"
           },
           "400": {
             "description": "VALIDATION_FAILED",
@@ -4993,7 +6289,7 @@
             }
           },
           "403": {
-            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED | CHECKIN_LOCKED",
             "content": {
               "application/json": {
                 "schema": {
@@ -5013,8 +6309,10 @@
             }
           }
         }
-      },
-      "delete": {
+      }
+    },
+    "/api/v1/checkins/{checkinId}/revisions": {
+      "get": {
         "parameters": [
           {
             "schema": {
@@ -5027,8 +6325,15 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "已删除"
+          "200": {
+            "description": "这条打卡的新增、修改、删除留痕",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckinRevisionList"
+                }
+              }
+            }
           },
           "400": {
             "description": "VALIDATION_FAILED",

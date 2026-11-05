@@ -40,6 +40,7 @@ async function loadMeRow(db: DbOrTx, userId: string): Promise<MeRow | null> {
       theme: profiles.theme,
       mascot: profiles.mascot,
       remindAt: profiles.remindAt,
+      refereeTier: profiles.refereeTier,
     })
     .from(user)
     .leftJoin(profiles, eq(profiles.userId, user.id))
@@ -54,6 +55,7 @@ async function loadMeRow(db: DbOrTx, userId: string): Promise<MeRow | null> {
     leaderboardOptIn: row.leaderboardOptIn ?? false,
     theme: row.theme ?? 'caramel',
     mascot: row.mascot ?? 'tuan',
+    refereeTier: row.refereeTier ?? 'balanced-glycemic',
   }
 }
 

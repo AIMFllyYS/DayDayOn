@@ -15,6 +15,26 @@ function input(over: Record<string, unknown> = {}) {
 }
 
 describe('planOnboarding', () => {
+  it('引导里定的人群和规则写进资料与对应目标；跳过的板块用默认规则', () => {
+    const plan = planOnboarding(
+      input({
+        modules: ['sleep', 'study'],
+        refereeTier: 'strict-fat-loss',
+        goalRules: [{ module: 'sleep', bedtimeBy: '23:00', minHours: 7 }],
+      }),
+      NOW,
+    )
+    expect(plan.profile.refereeTier).toBe('strict-fat-loss')
+    expect(plan.goals.find((g) => g.module === 'sleep')?.refereeRules).toMatchObject({
+      bedtimeBy: '23:00',
+      minHours: 7,
+    })
+    expect(plan.goals.find((g) => g.module === 'study')?.refereeRules).toBeUndefined()
+  })
+
+  it('不传人群时用默认档', () => {
+    expect(planOnboarding(input(), NOW).profile.refereeTier).toBe('balanced-glycemic')
+  })
   it('昵称去首尾空白，同意时间与完成时间都是 now', () => {
     const plan = planOnboarding(input(), NOW)
     expect(plan.profile.nickname).toBe('小满')

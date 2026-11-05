@@ -1,13 +1,16 @@
 'use client'
 
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useRef, type ChangeEvent } from 'react'
 import { Icon } from '@/components/ui/icon'
 import { cn } from '@/lib/cn'
+import { setPendingSmartCapture } from '../smart-handoff'
+import { SMART_UPLOAD_ACCEPT } from './smart-scanner'
 
 /*
  * 打卡弹层底部双栏智能入口（正式业务组件 · 采用定稿方案 C「soft-outline 奶油描边」）：
- *   - 左按钮：智能拍照（bg-primary-soft + text-primary-ink，跳往 /checkin/smart?action=capture）
- *   - 右按钮：智能上传（bg-surface + text-primary-ink + border-border-strong + shadow-soft，跳往 /checkin/smart?action=upload）
+ *   - 左按钮：智能拍照（同步直接拉起系统摄像机 capture="environment"，拍完后存入内存交接槽并跳往 /checkin/smart?action=capture&sid=... 直接进入扫描识别态）
+ *   - 右按钮：智能上传（同步直接拉起系统文件资源管理器 / 文件选择器，选好图片或 TXT/HTML 文本后存入内存交接槽并跳往 /checkin/smart?action=upload&sid=... 直接进入扫描识别态）
  */
 
 const pillBaseClass =
@@ -32,20 +35,71 @@ export function SmartActionBar({
   onNavigate,
   className,
 }: SmartActionBarProps) {
+  const router = useRouter()
+  const captureInputRef = useRef<HTMLInputElement>(null)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
+
+  function handleCaptureFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const payload = setPendingSmartCapture({ file, mode: 'smart-capture' })
+    onNavigate?.()
+    const sep = captureHref.includes('?') ? '&' : '?'
+    router.push(`${captureHref}${sep}sid=${payload.id}`)
+  }
+
+  function handleUploadFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const payload = setPendingSmartCapture({ file, mode: 'smart-upload' })
+    onNavigate?.()
+    const sep = uploadHref.includes('?') ? '&' : '?'
+    router.push(`${uploadHref}${sep}sid=${payload.id}`)
+  }
+
   return (
     <div
       className={cn('grid w-full grid-cols-2 gap-2.5', className)}
       role="group"
       aria-label="智能打卡快捷操作"
     >
-      <Link href={captureHref} onClick={onNavigate} className={cn(pillBaseClass, leftStyle)}>
+      <input
+        ref={captureInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={handleCaptureFileChange}
+      />
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept={SMART_UPLOAD_ACCEPT}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={handleUploadFileChange}
+      />
+      <button
+        type="button"
+        onClick={() => captureInputRef.current?.click()}
+        className={cn(pillBaseClass, leftStyle)}
+      >
         <Icon name="camera" size={20} className="shrink-0" />
         <span className="truncate">智能拍照</span>
-      </Link>
-      <Link href={uploadHref} onClick={onNavigate} className={cn(pillBaseClass, rightStyle)}>
+      </button>
+      <button
+        type="button"
+        onClick={() => uploadInputRef.current?.click()}
+        className={cn(pillBaseClass, rightStyle)}
+      >
         <Icon name="sparkles" size={20} className="text-primary-ink shrink-0" />
         <span className="truncate">智能上传</span>
-      </Link>
+      </button>
     </div>
   )
 }

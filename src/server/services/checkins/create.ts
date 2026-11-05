@@ -8,14 +8,20 @@ import type {
   GoalProgress,
 } from '@/features/checkin/schemas'
 import { buildSchema } from '@/features/goal/build-schema'
+import { judge } from '@/features/referee/rules'
+import { estimateKcal, metOf } from '@/features/referee/rules/exercise'
+import type { Verdict } from '@/features/referee/schemas'
+import { judgeInputOf } from '@/features/referee/subject'
 import type { LocalDate } from '@/features/shared/schemas'
 import { localDateOf, secondsBetween } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import type { db as Database, DbOrTx } from '@/server/db/client'
 import { aiRuns, checkins } from '@/server/db/schema'
+import { loadRefereeTier } from '@/server/services/referee/context'
 import { goalDayProgress } from '@/server/services/stats'
 import { latestWeightGrams } from '../metrics/weight'
 import { loadClock } from './clock'
+import { recordRevision } from './revisions'
 import {
   checkinColumns,
   loadFields,
@@ -53,8 +59,79 @@ function invalid(field: string, message: string): ApiError {
   return new ApiError('VALIDATION_FAILED', message, { fields: { [field]: [message] } })
 }
 
-/** 按板块组装要写入的列；需要查库的校验（自定义字段、AI 记录、体重）也在这里 */
-async function buildDraft(
+/**
+ * 运动消耗：有多项明细时按每项 MET 估算（手表给了就用手表的）；没有体重记录、也没有手表数据时不估算。
+ * 没有明细的老请求走原来的「品类 × 强度」MET 表。
+ */
+function exerciseBurnKcal(
+  input: Extract<CreateCheckin, { module: 'exercise' }>,
+  weightGrams: number | null,
+): number | null {
+  if (!input.items || input.items.length === 0) {
+    return estimateBurnKcal(input.category, input.intensity, input.durationSeconds, weightGrams)
+  }
+  const kg = weightGrams !== null && weightGrams > 0 ? weightGrams / 1000 : null
+  let total = 0
+  let known = false
+  for (const it of input.items) {
+    if (it.kcal !== null) {
+      total += it.kcal
+      known = true
+    } else if (kg !== null) {
+      total += estimateKcal(metOf(it.name, it.calc).met, it.minutes, kg)
+      known = true
+    }
+  }
+  return known ? total : null
+}
+
+/**
+ * 裁判结论（checkin-modules.md 第 3.4 节）：用目标规则、个人体质和请求带来的事实重算，
+ * 前端算好的结论一律不用。refereeRunId 必须是自己的裁判记录。
+ */
+export async function judgeCheckin(
+  db: DbOrTx,
+  userId: string,
+  goal: GoalRow,
+  input: CreateCheckin,
+  clock: Clock,
+): Promise<Verdict> {
+  if (input.refereeRunId !== undefined) {
+    const [run] = await db
+      .select({ id: aiRuns.id })
+      .from(aiRuns)
+      .where(
+        and(
+          eq(aiRuns.id, input.refereeRunId),
+          eq(aiRuns.userId, userId),
+          eq(aiRuns.purpose, 'referee'),
+        ),
+      )
+      .limit(1)
+    if (!run) throw invalid('refereeRunId', '找不到这次裁判记录')
+  }
+  const fields =
+    input.module === 'custom' && goal.fieldVersion !== null
+      ? await loadFields(db, goal.id, goal.fieldVersion)
+      : null
+  return judge(
+    judgeInputOf(input, {
+      timeZone: clock.timeZone,
+      fields,
+      storedRules: goal.refereeRules,
+      facts: input.facts ?? null,
+      tier: await loadRefereeTier(db, userId),
+      extras: {
+        refereeRunId: input.refereeRunId ?? null,
+        citations: input.citations ?? [],
+        advice: input.advice ?? [],
+      },
+    }),
+  )
+}
+
+/** 按板块组装要写入的列；需要查库的校验（自定义字段、AI 记录、体重）也在这里。修改打卡复用它 */
+export async function buildDraft(
   db: DbOrTx,
   userId: string,
   goal: GoalRow,
@@ -88,8 +165,13 @@ async function buildDraft(
         ...base,
         module: 'exercise',
         durationSeconds: input.durationSeconds,
-        burnKcal: estimateBurnKcal(input.category, input.intensity, input.durationSeconds, weight),
-        payload: { module: 'exercise', category: input.category, intensity: input.intensity },
+        burnKcal: exerciseBurnKcal(input, weight),
+        payload: {
+          module: 'exercise',
+          category: input.category,
+          intensity: input.intensity,
+          ...(input.items ? { items: input.items } : {}),
+        },
       }
     }
     case 'diet': {
@@ -102,6 +184,7 @@ async function buildDraft(
           method: input.method,
           mealType: input.mealType,
           items: input.items,
+          ...(input.snackTime ? { snackTime: input.snackTime } : {}),
         },
       }
     }
@@ -120,6 +203,7 @@ async function buildDraft(
           bedAt: bedAt.toISOString(),
           wakeAt: wakeAt.toISOString(),
           quality: input.quality,
+          ...(input.advanced ? { advanced: input.advanced } : {}),
         },
       }
     }
@@ -128,7 +212,11 @@ async function buildDraft(
         ...base,
         module: 'study',
         durationSeconds: input.durationSeconds ?? null,
-        payload: { module: 'study', what: input.what },
+        payload: {
+          module: 'study',
+          what: input.what,
+          ...(input.points && input.points.length > 0 ? { points: input.points } : {}),
+        },
       }
     case 'custom': {
       if (goal.fieldVersion === null || input.fieldVersion !== goal.fieldVersion) {
@@ -174,6 +262,7 @@ export async function goalProgressOn(
         count: checkins.count,
         payload: checkins.payload,
         occurredAt: checkins.occurredAt,
+        isValid: checkins.isValid,
       })
       .from(checkins)
       .where(
@@ -212,6 +301,7 @@ export async function createCheckin(
       if (goal.module !== input.module) throw invalid('module', '板块和目标不一致')
       const clock = await loadClock(tx, userId)
       const draft = await buildDraft(tx, userId, goal, input, clock, now)
+      const verdict = await judgeCheckin(tx, userId, goal, input, clock)
       const localDate = localDateOf(draft.occurredAt, clock.timeZone, clock.dayStartHour)
       const [row] = await tx
         .insert(checkins)
@@ -223,11 +313,22 @@ export async function createCheckin(
           isMakeup: input.isMakeup,
           count: 1,
           note: input.note ?? null,
+          score: verdict.score,
+          isValid: verdict.isValid,
+          verdict,
         })
         .returning(checkinColumns)
       if (!row) throw new Error('createCheckin：写入没有返回行')
+      const checkin = toCheckinDto(row)
+      await recordRevision(tx, {
+        userId,
+        action: 'create',
+        origin: input.origin,
+        before: null,
+        after: checkin,
+      })
       const progress = await goalProgressOn(tx, userId, goal, localDate)
-      return { checkin: toCheckinDto(row), progress }
+      return { checkin, progress }
     })
   } catch (error) {
     if (isUniqueViolation(error)) {

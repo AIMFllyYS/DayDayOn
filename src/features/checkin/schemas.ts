@@ -1,10 +1,12 @@
 import * as z from 'zod'
 import { FieldValueSchema, TargetSchema } from '@/features/goal/schemas'
+import { CitationSchema, FactsSchema, VerdictSchema } from '@/features/referee/schemas'
 import {
   cursorPage,
   IdSchema,
   InstantSchema,
   LocalDateSchema,
+  LocalTimeSchema,
   ModuleSchema,
   MonthSchema,
   RatingValueSchema,
@@ -50,6 +52,10 @@ export type DietMethod = z.infer<typeof DietMethodSchema>
 export const CheckinSourceSchema = z.enum(['manual', 'ai']).meta({ id: 'CheckinSource' })
 export type CheckinSource = z.infer<typeof CheckinSourceSchema>
 
+/** 从哪发起的写操作：页面手动（manual）或 Agent 对话草稿确认（agent）。只用于留痕与 Agent 的改动窗口 */
+export const CheckinOriginSchema = z.enum(['manual', 'agent']).meta({ id: 'CheckinOrigin' })
+export type CheckinOrigin = z.infer<typeof CheckinOriginSchema>
+
 /** 运动时长 1–600 分钟 */
 const ExerciseDurationSchema = z
   .number()
@@ -81,6 +87,48 @@ export const DietItemsSchema = z
   .min(1, { error: '至少记一样食物' })
   .max(20, { error: '最多 20 条' })
 
+/** 一项运动（整页稿：运动类型自填，一次打卡可以有多项） */
+export const ExerciseItemSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, { error: '写一下做了什么运动' })
+      .max(20, { error: '最多 20 个字' }),
+    /** 怎么计量：distance = 时间 + 距离；count = 时间 + 组数 */
+    calc: z.enum(['distance', 'count']),
+    minutes: z.number().min(1, { error: '时长至少 1 分钟' }).max(600, { error: '最多 600 分钟' }),
+    km: z.number().min(0).max(300).nullable().default(null),
+    sets: z.number().int().min(0).max(200).nullable().default(null),
+    /** 强度备注，不参与判定 */
+    effort: z.string().trim().max(40).default(''),
+    /** 高级选项：手表 / App 给的消耗与心率、主观感受 */
+    kcal: z.number().int().min(0).max(5000).nullable().default(null),
+    heartRate: z.number().int().min(30).max(240).nullable().default(null),
+    feel: z.string().trim().max(40).default(''),
+  })
+  .meta({ id: 'ExerciseItem' })
+export type ExerciseItem = z.infer<typeof ExerciseItemSchema>
+export type ExerciseItemInput = z.input<typeof ExerciseItemSchema>
+
+/** 睡眠高级指标（手环截图自带时整理进来，不强制填写） */
+export const SleepAdvancedSchema = z
+  .object({
+    deepMin: z.number().int().min(0).max(720).nullable(),
+    lightMin: z.number().int().min(0).max(1200).nullable(),
+    remPct: z.number().min(0).max(100).nullable(),
+    continuityPct: z.number().min(0).max(100).nullable(),
+    hrvMs: z.number().min(0).max(300).nullable(),
+    respRate: z.number().min(0).max(60).nullable(),
+  })
+  .partial()
+  .meta({ id: 'SleepAdvanced' })
+
+/** 学习要点：逐条添加 */
+export const StudyPointsSchema = z
+  .array(z.string().trim().min(1).max(80, { error: '每条要点最多 80 个字' }))
+  .max(10, { error: '最多 10 条要点' })
+
 // ---------------------------------------------------------------------------
 // payload：存进 checkins.payload 的板块数据（jsonb）
 // ---------------------------------------------------------------------------
@@ -94,6 +142,8 @@ export const ExercisePayloadSchema = z.object({
     .min(1, { error: '请选择品类' })
     .max(10, { error: '品类最多 10 个字' }),
   intensity: IntensitySchema,
+  /** 多项运动明细；老数据没有 */
+  items: z.array(ExerciseItemSchema).max(10).optional(),
 })
 
 export const DietPayloadSchema = z.object({
@@ -101,6 +151,8 @@ export const DietPayloadSchema = z.object({
   method: DietMethodSchema,
   mealType: MealTypeSchema,
   items: DietItemsSchema,
+  /** 加餐时间 HH:mm；只有加餐有 */
+  snackTime: LocalTimeSchema.optional(),
 })
 
 export const SleepPayloadSchema = z.object({
@@ -108,11 +160,13 @@ export const SleepPayloadSchema = z.object({
   bedAt: InstantSchema,
   wakeAt: InstantSchema,
   quality: RatingValueSchema,
+  advanced: SleepAdvancedSchema.optional(),
 })
 
 export const StudyPayloadSchema = z.object({
   module: z.literal('study'),
   what: z.string().trim().min(1, { error: '写一下学了什么' }).max(60, { error: '最多 60 个字' }),
+  points: StudyPointsSchema.optional(),
 })
 
 export const CustomPayloadSchema = z.object({
@@ -152,6 +206,19 @@ const CreateBase = {
   aiRunId: IdSchema.optional(),
   /** AI 草稿的 summary，入库为 parsedText */
   parsedText: z.string().max(500).optional(),
+  /**
+   * Agent 裁判提交的事实（checkin-modules.md 第 3.2 节）。服务端用它和目标规则重算结论，
+   * 不接收前端算好的 isValid / score。离线打卡不传。
+   */
+  facts: FactsSchema.optional(),
+  /** 裁判那次 ai_runs.id（POST /goals/{goalId}/referee 返回） */
+  refereeRunId: IdSchema.optional(),
+  /** 裁判联网核验的来源 */
+  citations: z.array(CitationSchema).max(10).optional(),
+  /** 裁判给的改进建议 */
+  advice: z.array(z.string().trim().min(1).max(80)).max(3).optional(),
+  /** 留痕用：页面手动或 Agent 对话确认 */
+  origin: CheckinOriginSchema.default('manual'),
 }
 
 const refineAiSource = <T extends { source: CheckinSource; aiRunId?: string }>(v: T) =>
@@ -165,6 +232,8 @@ export const CreateExerciseCheckinSchema = z
     category: ExercisePayloadSchema.shape.category,
     intensity: IntensitySchema,
     durationSeconds: ExerciseDurationSchema,
+    /** 多项运动明细；传了时 durationSeconds 应为各项分钟之和 */
+    items: z.array(ExerciseItemSchema).min(1).max(10, { error: '一次最多 10 项运动' }).optional(),
   })
   .refine(refineAiSource, aiSourceError)
 
@@ -175,6 +244,7 @@ export const CreateDietCheckinSchema = z
     method: DietMethodSchema,
     mealType: MealTypeSchema,
     items: DietItemsSchema,
+    snackTime: LocalTimeSchema.optional(),
   })
   .refine(refineAiSource, aiSourceError)
 
@@ -186,6 +256,7 @@ export const CreateSleepCheckinSchema = z
     bedAt: InstantSchema,
     wakeAt: InstantSchema,
     quality: RatingValueSchema,
+    advanced: SleepAdvancedSchema.optional(),
   })
   .refine(
     (v) => {
@@ -203,6 +274,7 @@ export const CreateStudyCheckinSchema = z
     what: StudyPayloadSchema.shape.what,
     /** 可选 */
     durationSeconds: z.number().int().min(60).max(86_400).optional(),
+    points: StudyPointsSchema.optional(),
   })
   .refine(refineAiSource, aiSourceError)
 
@@ -228,16 +300,54 @@ export const CreateCheckinSchema = z
 export type CreateCheckin = z.infer<typeof CreateCheckinSchema>
 export type CreateCheckinInput = z.input<typeof CreateCheckinSchema>
 
-/** PATCH /checkins/{checkinId}：只允许改饮食条目和备注（PRD 7.2），保留 parsedText */
+/** 修改原因：Agent 发起的修改、删除必填，写进留痕 */
+export const ChangeReasonSchema = z
+  .string()
+  .trim()
+  .min(1, { error: '写一下为什么改' })
+  .max(80, { error: '原因最多 80 个字' })
+
+/**
+ * PATCH /checkins/{checkinId}。两种改法：
+ * - 只改饮食条目 / 备注（目标详情页的老入口，PRD 7.2）
+ * - replace：用一份完整的创建请求体替换内容（Agent 对话改打卡）。打卡日、补卡标记、来源不变，
+ *   裁判结论按新内容重算。
+ * origin = agent 时只能改今天和昨天的打卡，且必须写原因。
+ */
 export const UpdateCheckinSchema = z
   .object({
-    items: DietItemsSchema,
+    items: DietItemsSchema.optional(),
     note: CreateBase.note,
+    replace: CreateCheckinSchema.optional(),
+    origin: CheckinOriginSchema.default('manual'),
+    reason: ChangeReasonSchema.optional(),
   })
-  .partial()
-  .refine((p) => Object.keys(p).length > 0, { error: '没有要修改的内容' })
+  .refine((p) => p.items !== undefined || p.note !== undefined || p.replace !== undefined, {
+    error: '没有要修改的内容',
+  })
+  .refine((p) => !(p.items !== undefined && p.replace !== undefined), {
+    error: 'items 和 replace 只能二选一',
+    path: ['replace'],
+  })
+  .refine((p) => p.origin !== 'agent' || p.reason !== undefined, {
+    error: 'Agent 修改需要写原因',
+    path: ['reason'],
+  })
   .meta({ id: 'UpdateCheckin' })
 export type UpdateCheckin = z.infer<typeof UpdateCheckinSchema>
+export type UpdateCheckinInput = z.input<typeof UpdateCheckinSchema>
+
+/** DELETE /checkins/{checkinId}?origin=agent&reason=… */
+export const DeleteCheckinQuerySchema = z
+  .object({
+    origin: CheckinOriginSchema.default('manual'),
+    reason: ChangeReasonSchema.optional(),
+  })
+  .refine((p) => p.origin !== 'agent' || p.reason !== undefined, {
+    error: 'Agent 删除需要写原因',
+    path: ['reason'],
+  })
+export type DeleteCheckinQuery = z.infer<typeof DeleteCheckinQuerySchema>
 
 // ---------------------------------------------------------------------------
 // 读取
@@ -263,6 +373,12 @@ export const CheckinSchema = z
     payload: CheckinPayloadSchema,
     fieldVersion: z.number().int().nullable(),
     aiRunId: IdSchema.nullable(),
+    /** 评分制板块（饮食）的分数 0.0–5.0；其余为 null */
+    score: z.number().nullable(),
+    /** false = 未达标仅存档，不计进度、连续天数与排行 */
+    isValid: z.boolean(),
+    /** 裁判结论；老数据为 null */
+    verdict: VerdictSchema.nullable(),
     createdAt: InstantSchema,
   })
   .meta({ id: 'Checkin' })
@@ -309,6 +425,8 @@ export const CalendarDaySchema = z
     done: z.boolean(),
     /** 当天是否全部是补卡（日历用描边样式） */
     makeupOnly: z.boolean(),
+    /** 当天的记录全部未达标（只存档复盘） */
+    archivedOnly: z.boolean(),
   })
   .meta({ id: 'CalendarDay' })
 export type CalendarDay = z.infer<typeof CalendarDaySchema>
@@ -356,3 +474,35 @@ export const CheckinTodaySchema = z
 export type CheckinToday = z.infer<typeof CheckinTodaySchema>
 
 export const CheckinIdParamSchema = z.object({ checkinId: IdSchema })
+
+// ---------------------------------------------------------------------------
+// 留痕：GET /checkins/{checkinId}/revisions（删除后仍可查）
+// ---------------------------------------------------------------------------
+
+export const CheckinRevisionActionSchema = z
+  .enum(['create', 'update', 'delete'])
+  .meta({ id: 'CheckinRevisionAction' })
+
+export const CheckinRevisionSchema = z
+  .object({
+    id: IdSchema,
+    checkinId: IdSchema,
+    goalId: IdSchema,
+    module: ModuleSchema,
+    localDate: LocalDateSchema,
+    action: CheckinRevisionActionSchema,
+    origin: CheckinOriginSchema,
+    reason: z.string().nullable(),
+    /** 改前快照；新增为 null */
+    before: CheckinSchema.nullable(),
+    /** 改后快照；删除为 null */
+    after: CheckinSchema.nullable(),
+    createdAt: InstantSchema,
+  })
+  .meta({ id: 'CheckinRevision' })
+export type CheckinRevision = z.infer<typeof CheckinRevisionSchema>
+
+export const CheckinRevisionListSchema = z
+  .object({ items: z.array(CheckinRevisionSchema).max(200) })
+  .meta({ id: 'CheckinRevisionList' })
+export type CheckinRevisionList = z.infer<typeof CheckinRevisionListSchema>

@@ -25,6 +25,9 @@ const base: Omit<Checkin, 'payload'> = {
   parsedText: null,
   fieldVersion: null,
   aiRunId: null,
+  score: null,
+  isValid: true,
+  verdict: null,
   createdAt: '2026-11-01T00:00:00.000Z',
 }
 

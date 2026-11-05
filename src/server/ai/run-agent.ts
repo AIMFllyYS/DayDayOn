@@ -44,7 +44,7 @@ import type { AiRunStatus } from '@/features/quota/schemas'
  * 预占比单次调用大（多步循环），所以 maxOutputTokens 按 MAX_STEPS × 单步上限算。
  */
 
-const AGENT_PROMPT_VERSION = 1
+const AGENT_PROMPT_VERSION = 2
 
 const ZERO_USAGE: TokenUsage = { inputMissTokens: 0, inputHitTokens: 0, outputTokens: 0 }
 
@@ -70,20 +70,25 @@ export function estimateAgentInputTokens(messages: readonly UIMessage[]): number
   return Math.ceil(chars / 2) + MAX_STEPS * 2000
 }
 
-async function reserveAgentRun(input: {
+export async function reserveAgentRun(input: {
   userId: string
   ip: string
   idempotencyKey: string
   estimatedInputTokens: number
   now: Date
+  /** 默认 Agent 对话；裁判传 'referee' 和自己的上限 */
+  purpose?: 'agent-chat' | 'referee'
+  promptVersion?: number
+  maxOutputTokens?: number
+  maxSearches?: number
 }): Promise<ReservedAgentRun> {
   const dayKey = spendDayKey(input.now)
   const settings = await preflight(input.userId, input.now, dayKey)
   const tokenReserve = reserveMicros(
     input.estimatedInputTokens,
-    MAX_STEPS * MAX_OUTPUT_TOKENS_PER_STEP,
+    input.maxOutputTokens ?? MAX_STEPS * MAX_OUTPUT_TOKENS_PER_STEP,
   )
-  const searchReserve = MAX_SEARCHES_PER_TURN * SEARCH_FETCH_COST_MICROS
+  const searchReserve = (input.maxSearches ?? MAX_SEARCHES_PER_TURN) * SEARCH_FETCH_COST_MICROS
   const reservedAmount = tokenReserve + searchReserve
   const { aiRunId, reservation } = await db.transaction(async (tx) => {
     await getBalance(tx, input.userId, input.now)
@@ -95,8 +100,8 @@ async function reserveAgentRun(input: {
       .values({
         userId: input.userId,
         ip: input.ip,
-        purpose: 'agent-chat',
-        promptVersion: AGENT_PROMPT_VERSION,
+        purpose: input.purpose ?? 'agent-chat',
+        promptVersion: input.promptVersion ?? AGENT_PROMPT_VERSION,
         status: 'running',
         reservedMicros: reservedAmount,
         dayKey,
@@ -116,7 +121,7 @@ async function reserveAgentRun(input: {
   return { aiRunId, reservation, settings, dayKey }
 }
 
-async function settleAgentRun(input: {
+export async function settleAgentRun(input: {
   userId: string
   dayKey: string
   reservation: Reservation

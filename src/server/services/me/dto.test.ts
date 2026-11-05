@@ -21,6 +21,7 @@ const ROW: MeRow = {
   theme: 'caramel',
   mascot: 'tuan',
   remindAt: null,
+  refereeTier: 'balanced-glycemic',
 }
 
 describe('toMeDto', () => {

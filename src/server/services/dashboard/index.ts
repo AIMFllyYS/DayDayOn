@@ -108,6 +108,7 @@ async function loadWeekCheckins(
       count: checkins.count,
       payload: checkins.payload,
       occurredAt: checkins.occurredAt,
+      isValid: checkins.isValid,
     })
     .from(checkins)
     .where(
@@ -128,6 +129,7 @@ async function loadWeekCheckins(
     count: r.count,
     mealType: mealTypeOf(r.payload),
     occurredAt: r.occurredAt.toISOString(),
+    isValid: r.isValid,
   }))
 }
 

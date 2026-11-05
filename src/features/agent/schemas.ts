@@ -32,6 +32,21 @@ export const DraftItemSchema = z
   .meta({ id: 'DraftItem' })
 export type DraftItem = z.infer<typeof DraftItemSchema>
 
+/** 草稿上展示的裁判结论预览（确认入库时服务端会按同一套规则重算） */
+export const DraftVerdictSchema = z
+  .object({
+    isValid: z.boolean(),
+    score: z.number().nullable(),
+    scoreMax: z.number().nullable(),
+    detail: z.string(),
+    /** 没有事实、只按规则判定 */
+    offline: z.boolean(),
+    checks: z.array(z.object({ text: z.string(), ok: z.boolean() })).max(8),
+    advice: z.array(z.string()).max(3),
+  })
+  .meta({ id: 'DraftVerdict' })
+export type DraftVerdict = z.infer<typeof DraftVerdictSchema>
+
 export const CheckinDraftSchema = z
   .object({
     kind: z.literal('checkin'),
@@ -45,11 +60,61 @@ export const CheckinDraftSchema = z
     fields: z.array(DraftFieldSchema),
     /** 饮食草稿的可编辑条目 */
     items: z.array(DraftItemSchema).optional(),
+    /** 记到哪一天（补昨天时是昨天） */
+    localDate: z.string().optional(),
+    /** 裁判结论预览；老草稿没有 */
+    verdict: DraftVerdictSchema.optional(),
     /** 普通创建打卡接口的请求体，前端确认时原样提交 */
     confirmBody: z.record(z.string(), z.unknown()),
   })
   .meta({ id: 'CheckinDraft' })
 export type CheckinDraft = z.infer<typeof CheckinDraftSchema>
+
+/** 改前 / 改后的一句话快照 */
+export const DraftSnapshotSchema = z
+  .object({
+    summary: z.string(),
+    note: z.string().nullable(),
+    isValid: z.boolean(),
+    score: z.number().nullable(),
+  })
+  .meta({ id: 'DraftSnapshot' })
+export type DraftSnapshot = z.infer<typeof DraftSnapshotSchema>
+
+/** draftUpdateCheckin：改一条今天 / 昨天的打卡，确认后 PATCH /checkins/{checkinId} */
+export const CheckinUpdateDraftSchema = z
+  .object({
+    kind: z.literal('checkin-update'),
+    checkinId: z.string(),
+    goalId: z.string(),
+    module: ModuleSchema,
+    title: z.string(),
+    localDate: z.string(),
+    reason: z.string(),
+    before: DraftSnapshotSchema,
+    after: DraftSnapshotSchema,
+    /** 改后的内容（只读） */
+    fields: z.array(DraftFieldSchema).default([]),
+    verdict: DraftVerdictSchema.optional(),
+    confirmBody: z.record(z.string(), z.unknown()),
+  })
+  .meta({ id: 'CheckinUpdateDraft' })
+export type CheckinUpdateDraft = z.infer<typeof CheckinUpdateDraftSchema>
+
+/** draftDeleteCheckin：删一条今天 / 昨天的打卡，确认后 DELETE /checkins/{checkinId}（留痕保留） */
+export const CheckinDeleteDraftSchema = z
+  .object({
+    kind: z.literal('checkin-delete'),
+    checkinId: z.string(),
+    goalId: z.string(),
+    module: ModuleSchema,
+    title: z.string(),
+    localDate: z.string(),
+    reason: z.string(),
+    before: DraftSnapshotSchema,
+  })
+  .meta({ id: 'CheckinDeleteDraft' })
+export type CheckinDeleteDraft = z.infer<typeof CheckinDeleteDraftSchema>
 
 export const TodoDraftSchema = z
   .object({
@@ -72,7 +137,13 @@ export const WeightDraftSchema = z
 export type WeightDraft = z.infer<typeof WeightDraftSchema>
 
 export const AgentDraftSchema = z
-  .discriminatedUnion('kind', [CheckinDraftSchema, TodoDraftSchema, WeightDraftSchema])
+  .discriminatedUnion('kind', [
+    CheckinDraftSchema,
+    CheckinUpdateDraftSchema,
+    CheckinDeleteDraftSchema,
+    TodoDraftSchema,
+    WeightDraftSchema,
+  ])
   .meta({ id: 'AgentDraft' })
 export type AgentDraft = z.infer<typeof AgentDraftSchema>
 

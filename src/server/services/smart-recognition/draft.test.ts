@@ -69,4 +69,30 @@ describe('normalizeSmartDraft', () => {
     expect(out.diet).not.toBeNull()
     expect(out.diet?.items.length).toBeGreaterThan(0)
   })
+
+  it('自定义目标归一化时剔除未知键、支持 label 映射并补齐必填布尔字段默认值', () => {
+    const customGoals: readonly SmartGoalBrief[] = [
+      {
+        id: '0193f6b2-0000-7000-8000-000000000009',
+        module: 'custom',
+        title: '我的小目标',
+        fields: [{ key: 'done', label: '完成了吗', type: 'boolean', required: true }],
+      },
+    ]
+    const out = normalizeSmartDraft(
+      {
+        ...rawDraft,
+        detectedModule: 'custom',
+        matchedGoalId: null,
+        summary: '识别到一张 Cursor AI IDE 订阅支付账单 68.34 元',
+        custom: {
+          values: { amount: 68.34, 完成了吗: '是' },
+          note: 'Cursor AI IDE 订阅支付 68.34 元',
+        },
+      },
+      { goals: customGoals },
+    )
+    expect(out.matchedGoalId).toBe('0193f6b2-0000-7000-8000-000000000009')
+    expect(out.custom?.values).toEqual({ done: true })
+  })
 })

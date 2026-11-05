@@ -29,6 +29,9 @@ vi.mock('@/server/services/checkins/goal', () => ({
   loadFields: async () => mocks.customFields,
 }))
 
+vi.mock('./agent-checkin-tools', () => ({ buildCheckinTools: () => ({}) }))
+vi.mock('@/server/services/agent/read', () => ({}))
+
 vi.mock('./web-search', () => ({
   searchWeb: (...args: unknown[]) => mocks.searchWeb(...args),
   fetchWeb: (...args: unknown[]) => mocks.fetchWeb(...args),
@@ -75,143 +78,7 @@ describe('buildSystemPrompt', () => {
   })
 })
 
-describe('buildAgentTools: 草稿与联网工具', () => {
-  it('draftCheckin (sleep) 归一化为 UTC ISO 字符串并按用户时区格式化展示字段', async () => {
-    mocks.goalRow = {
-      id: 'g-sleep',
-      module: 'sleep',
-      title: '早睡早起',
-      status: 'active',
-      fieldVersion: null,
-    }
-    const tools = buildAgentTools({
-      userId: 'u1',
-      now: NOW,
-      search: { used: 0, costMicros: 0 },
-      clock: CLOCK,
-    })
-
-    // 模型传入带 +08:00 偏移的 ISO 时间
-    const draft = await tools.draftCheckin.execute!(
-      {
-        goalId: 'g-sleep',
-        confidence: 0.9,
-        isMakeup: false,
-        data: {
-          module: 'sleep',
-          bedAt: '2026-11-01T23:30:00+08:00',
-          wakeAt: '2026-11-02T07:30:00+08:00',
-          quality: 4,
-        },
-      },
-      toolExecCtx,
-    )
-
-    expect(draft).toMatchObject({
-      kind: 'checkin',
-      goalId: 'g-sleep',
-      module: 'sleep',
-      summary: '睡眠约 8.0 小时',
-      fields: [
-        { label: '入睡', value: '11月1日 23:30' },
-        { label: '起床', value: '11月2日 07:30' },
-        { label: '质量', value: '4/5' },
-      ],
-      confirmBody: {
-        module: 'sleep',
-        bedAt: '2026-11-01T15:30:00.000Z',
-        wakeAt: '2026-11-01T23:30:00.000Z',
-        quality: 4,
-        isMakeup: false,
-      },
-    })
-  })
-
-  it('draftCheckin (sleep) 起床时间在昨天打卡日时自动标记 isMakeup=true', async () => {
-    mocks.goalRow = {
-      id: 'g-sleep',
-      module: 'sleep',
-      title: '早睡早起',
-      status: 'active',
-      fieldVersion: null,
-    }
-    const tools = buildAgentTools({
-      userId: 'u1',
-      now: NOW,
-      search: { used: 0, costMicros: 0 },
-      clock: CLOCK,
-    })
-
-    const draft = await tools.draftCheckin.execute!(
-      {
-        goalId: 'g-sleep',
-        confidence: 0.85,
-        isMakeup: false,
-        data: {
-          module: 'sleep',
-          bedAt: '2026-10-31T23:00:00+08:00',
-          wakeAt: '2026-11-01T07:00:00+08:00',
-          quality: 5,
-        },
-      },
-      toolExecCtx,
-    )
-
-    expect(draft).toMatchObject({
-      kind: 'checkin',
-      confirmBody: {
-        module: 'sleep',
-        isMakeup: true,
-      },
-    })
-  })
-
-  it('draftCheckin (custom) 校验自定义目标字段并生成草稿', async () => {
-    mocks.goalRow = {
-      id: 'g-custom',
-      module: 'custom',
-      title: '每天喝水',
-      status: 'active',
-      fieldVersion: 2,
-    }
-    mocks.customFields = [
-      { key: 'cups', label: '杯数', type: 'number', required: true, min: 1, max: 20, unit: '杯' },
-    ]
-    const tools = buildAgentTools({
-      userId: 'u1',
-      now: NOW,
-      search: { used: 0, costMicros: 0 },
-      clock: CLOCK,
-    })
-
-    const draft = await tools.draftCheckin.execute!(
-      {
-        goalId: 'g-custom',
-        confidence: 0.95,
-        isMakeup: false,
-        data: {
-          module: 'custom',
-          values: { cups: 8 },
-        },
-      },
-      toolExecCtx,
-    )
-
-    expect(draft).toMatchObject({
-      kind: 'checkin',
-      goalId: 'g-custom',
-      module: 'custom',
-      summary: '杯数：8 杯',
-      fields: [{ label: '杯数', value: '8 杯' }],
-      confirmBody: {
-        module: 'custom',
-        fieldVersion: 2,
-        values: { cups: 8 },
-        isMakeup: false,
-      },
-    })
-  })
-
+describe('buildAgentTools: 待办 / 体重草稿与联网工具（打卡工具见 agent-checkin-tools.test.ts）', () => {
   it('draftTodo 归一化 dueAt 为 UTC ISO，draftWeight 默认开启 confirmLargeChange', async () => {
     const tools = buildAgentTools({
       userId: 'u1',

@@ -9,23 +9,33 @@ export function PhoneFrame({
   children,
   className,
   label = '手机 · 390',
+  fluid = false,
 }: {
   children: ReactNode
   className?: string
   label?: string
+  /** 真实手机宽度（< sm）下去掉假手机的刘海和粗边，铺满宽度、高度跟随视口 */
+  fluid?: boolean
 }) {
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className={cn('flex flex-col items-center gap-2', fluid && 'w-full sm:w-auto')}>
       <div
         className={cn(
           'border-foreground/85 bg-paper shadow-float relative h-[640px] w-[340px] overflow-hidden rounded-[40px] border-[6px] sm:w-[360px]',
+          fluid &&
+            'max-sm:h-[calc(100dvh-9rem)] max-sm:min-h-[540px] max-sm:w-full max-sm:rounded-3xl max-sm:border-2',
           className,
         )}
       >
-        <span className="bg-foreground/85 absolute top-2 left-1/2 z-30 h-5 w-24 -translate-x-1/2 rounded-full" />
+        <span
+          className={cn(
+            'bg-foreground/85 absolute top-2 left-1/2 z-30 h-5 w-24 -translate-x-1/2 rounded-full',
+            fluid && 'max-sm:hidden',
+          )}
+        />
         {children}
       </div>
-      <span className="text-tiny text-subtle font-mono">{label}</span>
+      <span className="text-tiny text-subtle max-w-full text-center font-mono">{label}</span>
     </div>
   )
 }
@@ -60,7 +70,7 @@ export function DesktopFrame({
           </div>
         </div>
       </div>
-      <span className="text-tiny text-subtle font-mono">{label}</span>
+      <span className="text-tiny text-subtle max-w-full text-center font-mono">{label}</span>
     </div>
   )
 }

@@ -14,6 +14,7 @@ import { kgToGrams } from '@/features/me/units'
 import type { Module } from '@/features/shared/schemas'
 import { errorMessage, isApiError, newIdempotencyKey } from '@/lib/api'
 import { useCompleteOnboarding } from '@/lib/api/queries/me'
+import { RulesStep, type RulesStepValue } from '@/features/checkin/components/onboarding-rules-step'
 import {
   ConsentStep,
   LeaderboardStep,
@@ -24,7 +25,8 @@ import {
 } from './onboarding-steps'
 
 /*
- * 新人引导（PRD 2.2、7.1）：六步，最后一次 POST /me/onboarding，成功后回主页。
+ * 新人引导（PRD 2.2、7.1）：七步，最后一次 POST /me/onboarding，成功后回主页。
+ * 「定个标准」一步复用目标设置页的规则面板（checkin-modules.md 第 5 节），整步可跳过。
  * 每步只校验自己的字段；最后提交前再用同一份 OnboardingSchema 整体校验。
  */
 
@@ -33,6 +35,7 @@ const STEPS: { title: string; note: string; mood: MascotMood }[] = [
   { title: '选个头像', note: '可以跳过，跳过就显示昵称首字', mood: 'love' },
   { title: '基础资料', note: '全部可选，之后在「我的」里也能改', mood: 'thinking' },
   { title: '想打卡什么', note: '每选一个，团团帮你建一个默认目标', mood: 'cheer' },
+  { title: '定个标准', note: '吃睡动学各有达标规则，可以跳过', mood: 'thinking' },
   { title: '要不要上榜', note: '和朋友比一比打卡天数', mood: 'shy' },
   { title: '最后一步', note: '健康数据的使用说明', mood: 'happy' },
 ]
@@ -55,8 +58,10 @@ const FIELD_STEP: Record<string, number> = {
   weightGrams: 2,
   timeZone: 2,
   modules: 3,
-  leaderboardOptIn: 4,
-  healthConsent: 5,
+  refereeTier: 4,
+  goalRules: 4,
+  leaderboardOptIn: 5,
+  healthConsent: 6,
 }
 
 export function OnboardingWizard({ thisYear }: { thisYear: number }) {
@@ -73,6 +78,10 @@ export function OnboardingWizard({ thisYear }: { thisYear: number }) {
     timeZone: 'Asia/Shanghai',
   })
   const [modules, setModules] = useState<Module[]>([])
+  const [rulesStep, setRulesStep] = useState<RulesStepValue>({
+    tier: 'balanced-glycemic',
+    rules: {},
+  })
   const [leaderboard, setLeaderboard] = useState(false)
   const [consent, setConsent] = useState(false)
   const [errors, setErrors] = useState<Errors>({})
@@ -111,6 +120,10 @@ export function OnboardingWizard({ thisYear }: { thisYear: number }) {
       weightGrams: kgToGrams(basic.weightKg),
       timeZone: basic.timeZone,
       modules,
+      refereeTier: rulesStep.tier,
+      goalRules: Object.entries(rulesStep.rules)
+        .filter(([m]) => modules.includes(m as Module))
+        .map(([, r]) => r),
       leaderboardOptIn: leaderboard,
       healthConsent: consent,
     })
@@ -171,8 +184,17 @@ export function OnboardingWizard({ thisYear }: { thisYear: number }) {
           <ProfileStep value={basic} onChange={setBasic} errors={errors} thisYear={thisYear} />
         )}
         {step === 3 && <ModulesStep value={modules} onChange={setModules} error={errors.modules} />}
-        {step === 4 && <LeaderboardStep value={leaderboard} onChange={setLeaderboard} />}
-        {step === 5 && (
+        {step === 4 && (
+          <RulesStep
+            modules={modules}
+            value={rulesStep}
+            onChange={setRulesStep}
+            heightCm={basic.heightCm}
+            weightKg={basic.weightKg}
+          />
+        )}
+        {step === 5 && <LeaderboardStep value={leaderboard} onChange={setLeaderboard} />}
+        {step === 6 && (
           <ConsentStep value={consent} onChange={setConsent} error={errors.healthConsent} />
         )}
       </div>
@@ -183,12 +205,14 @@ export function OnboardingWizard({ thisYear }: { thisYear: number }) {
             上一步
           </Button>
         )}
-        {step === 1 && (
+        {(step === 1 || step === 4) && (
           <Button
             variant="soft"
             onClick={() => {
-              setAvatar(null)
-              setStep(2)
+              if (step === 1) setAvatar(null)
+              // 跳过「定个标准」= 全部用默认规则与默认人群
+              else setRulesStep({ tier: 'balanced-glycemic', rules: {} })
+              setStep(step + 1)
             }}
           >
             跳过

@@ -1,4 +1,5 @@
 import * as z from 'zod'
+import { RefereeRulesSchema, RefereeTierSchema } from '@/features/referee/schemas'
 import {
   InstantSchema,
   LocalTimeSchema,
@@ -101,6 +102,8 @@ export const PreferencesSchema = z
     dayStartHour: z.number().int(),
     /** null 表示不提醒 */
     remindAt: LocalTimeSchema.nullable(),
+    /** 个人体质档位：饮食裁判按它调整（checkin-modules.md 第 3.1 节） */
+    refereeTier: RefereeTierSchema,
   })
   .meta({ id: 'Preferences' })
 export type Preferences = z.infer<typeof PreferencesSchema>
@@ -143,6 +146,10 @@ export const OnboardingSchema = z
       .max(5)
       .refine((m) => new Set(m).size === m.length, { error: '板块不能重复' }),
     leaderboardOptIn: z.boolean().default(false),
+    /** 饮食的人群档位；跳过就是默认档（checkin-modules.md 第 5 节「新人引导」） */
+    refereeTier: RefereeTierSchema.default('balanced-glycemic'),
+    /** 每个板块的达标规则；没给的板块用默认规则 */
+    goalRules: z.array(RefereeRulesSchema).max(5).default([]),
     /** 必须为 true：不同意健康数据处理就不能完成引导 */
     healthConsent: z.literal(true, { error: '需要同意健康数据处理才能继续' }),
   })
@@ -176,6 +183,7 @@ export const UpdatePreferencesSchema = z
     leaderboardOptIn: z.boolean(),
     dayStartHour: DayStartHourSchema,
     remindAt: LocalTimeSchema.nullable(),
+    refereeTier: RefereeTierSchema,
   })
   .partial()
   .refine((p) => Object.keys(p).length > 0, { error: '没有要修改的内容' })
@@ -195,6 +203,8 @@ export const ExportSchema = z
     me: MeSchema,
     goals: z.array(z.unknown()),
     checkins: z.array(z.unknown()),
+    /** 打卡的新增、修改、删除留痕（删除的打卡也在这里） */
+    checkinRevisions: z.array(z.unknown()),
     weights: z.array(z.unknown()),
     ratings: z.array(z.unknown()),
     todos: z.array(z.unknown()),

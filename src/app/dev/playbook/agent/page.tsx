@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { AgentTurn } from '@/features/agent/components/agent-turn'
 import { AiDraftCard } from '@/features/agent/components/ai-draft-card'
+import { ChangeDraftCard } from '@/features/agent/components/change-draft-card'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
 import { UserMessage } from '@/features/agent/components/user-message'
 import { AgentPlayback, ErrorTurnDemo } from '../_components/agent-demos'
@@ -175,6 +176,114 @@ export default function AgentPage() {
       </Section>
 
       <Section
+        ann="playbook.agent.draft-verdict"
+        title="草稿卡上的裁判结论"
+        description="对话里记打卡和打卡页走同一套裁判：草稿卡确认前就显示「达标 · 计入进度」或「未达标 · 只存档」，以及饮食分数和没过的检查项。没有事实时标「按规则估算」。用户改过饮食条目后，结论条换成提示，入库时按新条目重新判定。"
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <AiDraftCard
+            module="diet"
+            title="好好吃饭"
+            confidence={0.88}
+            estimate
+            fields={[
+              { label: '番茄炒蛋', value: '220 kcal', hint: '一盘' },
+              { label: '米饭', value: '230 kcal', hint: '一碗约 200 克' },
+              { label: '合计', value: '450 kcal' },
+            ]}
+            verdict={{
+              isValid: true,
+              score: 4.2,
+              scoreMax: 5,
+              detail: '蛋白和主食都有，蔬菜少了点',
+              offline: false,
+              checks: [
+                { text: '蛋白质 ≥ 20 克', ok: true },
+                { text: '有一份蔬菜', ok: false },
+              ],
+              advice: ['下一餐加一份绿叶菜'],
+            }}
+          />
+          <AiDraftCard
+            module="exercise"
+            title="动一动"
+            confidence={0.9}
+            estimate
+            fields={[
+              { label: '饭后散步', value: '10 分钟 · 0.6 公里' },
+              { label: '估算消耗', value: '约 32 千卡' },
+            ]}
+            verdict={{
+              isValid: false,
+              score: null,
+              scoreMax: null,
+              detail: '时长和距离都没到门槛，算日常活动',
+              offline: true,
+              checks: [
+                { text: '时长 ≥ 20 分钟', ok: false },
+                { text: '距离 ≥ 2 公里', ok: false },
+              ],
+              advice: [],
+            }}
+          />
+        </div>
+      </Section>
+
+      <Section
+        ann="playbook.agent.draft-change"
+        title="改打卡 / 删打卡草稿"
+        description="团团只能改、删今天和昨天的打卡。卡片写清哪天的哪条、为什么改、改前改后的内容和是否达标；删除用危险色按钮。确认后才调修改 / 删除接口，改动和删除都会留痕。"
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <ChangeDraftCard
+            mode="update"
+            module="diet"
+            title="好好吃饭"
+            dateLabel="今天 11月5日"
+            reason="米饭记多了，其实是半碗"
+            before={{
+              summary: '午餐：番茄炒蛋、米饭 · 450 千卡',
+              note: null,
+              isValid: true,
+              score: 3.6,
+            }}
+            after={{
+              summary: '午餐：番茄炒蛋、米饭 · 335 千卡',
+              note: null,
+              isValid: true,
+              score: 4.1,
+            }}
+            fields={[
+              { label: '番茄炒蛋', value: '220 kcal' },
+              { label: '米饭（半碗）', value: '115 kcal' },
+            ]}
+            verdict={{
+              isValid: true,
+              score: 4.1,
+              scoreMax: 5,
+              detail: '主食减半后热量更合适',
+              offline: false,
+              checks: [{ text: '热量在这一餐的建议范围', ok: true }],
+              advice: [],
+            }}
+          />
+          <ChangeDraftCard
+            mode="delete"
+            module="exercise"
+            title="动一动"
+            dateLabel="昨天 11月4日"
+            reason="重复记了一次"
+            before={{
+              summary: '慢跑 30 分钟 5 公里 · 约 310 千卡',
+              note: '和小林一起',
+              isValid: true,
+              score: null,
+            }}
+          />
+        </div>
+      </Section>
+
+      <Section
         ann="playbook.agent.smart-page"
         title="智能识别页面（扫描镜 + 组件 1 板块判别 + 组件 2 五板块子组件）"
         description="从打卡弹层底部点击「智能拍照」或「智能上传」进入。顶部扫描镜持续扫描上传的图片或纯文本（HTML / TXT / MD）并实时显示分析步骤；下方由【组件 1：板块智能判别器】判断归属板块，并动态挂载【组件 2：5 选 1 板块专属填充子组件】自动填入识别数值。"
@@ -261,7 +370,8 @@ export default function AgentPage() {
             '同一步的工具并行展示，失败的直接显示原因和降级方案',
             '工具中文名、进行时说法、图标在 tool-meta.ts 登记',
             '联网结果附上来源；热量、睡眠类结果标注“估算结果，非医疗建议”',
-            '写操作一律出草稿，用户确认后才调普通创建接口',
+            '写操作一律出草稿，用户确认后才调普通接口；改、删只限今天和昨天的打卡',
+            '对话里记的打卡和打卡页用同一套裁判，草稿卡上先显示结论',
           ]}
           donts={[
             '不要给每个工具一张大卡片',
