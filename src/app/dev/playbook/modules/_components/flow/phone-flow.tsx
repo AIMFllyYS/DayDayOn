@@ -20,8 +20,9 @@ import {
   SmartScannerLens,
   type ScanPhase,
 } from '../../../_components/smart-recognition-demos'
+import { MODULE_SPECS, type ModuleSpec } from '../../_data/module-specs'
 import { FillSection } from './fill-section'
-import { FolderCard } from './folder-card'
+import { Collapse, FolderCard } from './folder-card'
 import type {
   DocPageSpec,
   FillSectionSpec,
@@ -333,7 +334,11 @@ export function PhoneFlow({
             title={(page === 'rules' ? config.rulesDoc : config.basisDoc).title}
             onBack={back}
           />
-          <DocBody doc={page === 'rules' ? config.rulesDoc : config.basisDoc} />
+          <DocBody
+            doc={page === 'rules' ? config.rulesDoc : config.basisDoc}
+            tone={config.tone}
+            kind={page}
+          />
         </>
       )}
 
@@ -625,29 +630,132 @@ function PageBar({ title, onBack }: { title: string; onBack: () => void }) {
   )
 }
 
-function DocBody({ doc }: { doc: DocPageSpec }) {
+/**
+ * 二级文档页（达标规则 / 评判依据）：
+ *   顶部一张速览卡（和 Playbook 里的「裁判速览」同一套语言：门槛一句话 + 盖章 / 存档两行）
+ *   → 下面是编号分组，默认只展开第一组，其余收成一行，进来不用先啃一大片字。
+ */
+function DocBody({
+  doc,
+  tone,
+  kind,
+}: {
+  doc: DocPageSpec
+  tone: ModuleTone
+  kind: 'rules' | 'basis'
+}) {
+  const spec = MODULE_SPECS.find((m) => m.tone === tone)
   return (
     <div
-      className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3.5 pb-6"
+      className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3.5 pb-6"
       data-ann="playbook.modules.flow.doc"
     >
-      {doc.sections.map((s) => (
-        <section key={s.heading} className="border-border bg-surface rounded-2xl border p-3.5">
-          <h3 className="text-caption mb-2 font-bold">{s.heading}</h3>
-          <ul className="flex flex-col gap-1.5">
-            {s.items.map((it) => (
-              <li key={it} className="text-tiny text-muted flex items-start gap-2 leading-relaxed">
-                <Icon name="check" size={13} className="text-success mt-0.5 shrink-0" />
-                <span>{it}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {spec && <DocHero spec={spec} kind={kind} total={doc.sections.length} />}
+      {doc.sections.map((sec, i) => (
+        <DocGroup key={sec.heading} index={i + 1} heading={sec.heading} items={sec.items} />
       ))}
-      <Badge tone="neutral" icon="alert">
+      <p className="text-tiny text-subtle flex items-center gap-1 px-1 pt-1">
+        <Icon name="alert" size={12} />
         估算结果，非医疗建议
-      </Badge>
+      </p>
     </div>
+  )
+}
+
+function DocHero({
+  spec,
+  kind,
+  total,
+}: {
+  spec: ModuleSpec
+  kind: 'rules' | 'basis'
+  total: number
+}) {
+  return (
+    <Card className="flex flex-col gap-2.5 p-3">
+      <div className="flex items-start gap-2">
+        <Icon
+          name={kind === 'rules' ? 'shield' : 'bulb'}
+          size={15}
+          className="text-primary-ink mt-0.5 shrink-0"
+        />
+        <p className="text-caption leading-snug font-bold">
+          {kind === 'rules' ? spec.threshold : spec.tagline}
+        </p>
+      </div>
+      {kind === 'rules' ? (
+        <div className="border-border flex flex-col gap-1.5 border-t border-dashed pt-2.5">
+          <GlanceLine tone="success" label="盖章" text={spec.pass} />
+          <GlanceLine tone="warning" label="存档" text={spec.block} />
+        </div>
+      ) : (
+        <p className="text-tiny text-muted border-border border-t border-dashed pt-2.5">
+          评分依据共 {total} 组，点开查看
+        </p>
+      )}
+    </Card>
+  )
+}
+
+function GlanceLine({ tone, label, text }: { tone: Tone; label: string; text: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span
+        className={cn(
+          'text-tiny mt-px shrink-0 rounded-md px-1.5 py-0.5 leading-none font-bold',
+          softToneClass[tone],
+        )}
+      >
+        {label}
+      </span>
+      <span className="text-tiny text-muted leading-snug">{text}</span>
+    </div>
+  )
+}
+
+/** 一组条目：编号 + 标题 + 条数；点开才看条目。「名称：说明」的条目把名称加粗，扫一眼就能找到 */
+function DocGroup({ index, heading, items }: { index: number; heading: string; items: string[] }) {
+  const [open, setOpen] = useState(index === 1)
+  return (
+    <section className="border-border bg-surface min-w-0 rounded-lg border">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex min-h-11 w-full items-center gap-2.5 px-3 py-2 text-left"
+      >
+        <span className="bg-primary-soft text-primary-ink text-tiny grid size-5 shrink-0 place-items-center rounded-md leading-none font-bold">
+          {index}
+        </span>
+        <span className="text-caption min-w-0 flex-1 truncate font-bold">{heading}</span>
+        <span className="text-tiny text-subtle shrink-0">{items.length} 条</span>
+        <Icon
+          name="chevron-down"
+          size={14}
+          className={cn(
+            'text-subtle shrink-0 transition-transform duration-(--dur-base)',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+      <Collapse open={open}>
+        <ul className="flex flex-col gap-1.5 px-3 pb-3">
+          {items.map((it) => {
+            const at = it.indexOf('：')
+            const term = at > 0 && at <= 10 ? it.slice(0, at) : null
+            return (
+              <li key={it} className="text-tiny text-muted flex items-start gap-2 leading-snug">
+                <span aria-hidden className="bg-primary mt-1.5 size-1 shrink-0 rounded-full" />
+                <span>
+                  {term && <b className="text-foreground font-bold">{term}：</b>}
+                  {term ? it.slice(at + 1) : it}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      </Collapse>
+    </section>
   )
 }
 
