@@ -8,6 +8,7 @@ import { env } from '@/server/env'
 import { ApiError, type ErrorBody, type ErrorCode } from './errors'
 import { adminRoutes } from './routes/admin'
 import { agentRoutes } from './routes/agent'
+import { refereeRoutes } from './routes/referee'
 import { aiRoutes } from './routes/ai'
 import { chatRoutes } from './routes/chat'
 import { checkinRoutes } from './routes/checkins'
@@ -101,6 +102,7 @@ export const app = base
   .route('/', todoRoutes)
   .route('/', aiRoutes)
   .route('/', agentRoutes)
+  .route('/', refereeRoutes)
   .route('/', redeemRoutes)
   .route('/', adminRoutes)
 
