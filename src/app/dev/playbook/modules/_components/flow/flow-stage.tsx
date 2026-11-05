@@ -29,6 +29,7 @@ export function FlowStage({
   scenarios,
   activeId,
   onSelect,
+  extraDefaults,
 }: {
   ann: string
   phoneLabel: string
@@ -36,7 +37,13 @@ export function FlowStage({
   scenarios: FlowScenario[]
   activeId: string
   onSelect: (id: string) => void
+  /** 板块自己的默认展开 / 折叠说明，以及「不写没有影响」这类标注 */
+  extraDefaults?: { name: string; state: string; open: boolean }[]
 }) {
+  const defaults = [
+    ...DEFAULT_STATES.filter((d) => ann.includes('diet') || !d.name.startsWith('饮食')),
+    ...(extraDefaults ?? []),
+  ]
   const active = scenarios.find((s) => s.id === activeId) ?? scenarios[0]
   return (
     <div
@@ -97,7 +104,7 @@ export function FlowStage({
         <Card variant="sunken" className="flex flex-col gap-2 p-3.5" data-ann={`${ann}.defaults`}>
           <span className="text-caption font-bold">默认展开 / 折叠（最终呈现状态）</span>
           <ul className="text-tiny text-muted flex flex-col gap-1.5 leading-relaxed">
-            {DEFAULT_STATES.map((s) => (
+            {defaults.map((s) => (
               <li key={s.name} className="flex items-start justify-between gap-3">
                 <span>{s.name}</span>
                 <span
