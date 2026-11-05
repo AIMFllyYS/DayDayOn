@@ -19,6 +19,8 @@ import {
 } from '@/lib/api/queries/me'
 import { authClient } from '@/lib/auth-client'
 import { isThemeId, setTheme } from '@/lib/theme'
+import { useCheckUpdate } from '@/features/app-update/components/update-dialog'
+import { APP_VERSION } from '@/lib/app-version'
 import { MeView } from './me-view'
 
 /*
@@ -53,6 +55,7 @@ export function MeScreen() {
   const [signOutLoaded, setSignOutLoaded] = useState(false)
   const [confirmText, setConfirmText] = useState('')
   const [remindDraft, setRemindDraft] = useState<string | null>(null)
+  const updates = useCheckUpdate()
   if (deleteOpen && !deleteLoaded) setDeleteLoaded(true)
   if (signOutOpen && !signOutLoaded) setSignOutLoaded(true)
 
@@ -81,8 +84,12 @@ export function MeScreen() {
 
   return (
     <>
+      {updates.dialog}
       <MeView
         me={me}
+        onCheckUpdate={() => void updates.check()}
+        checkingUpdate={updates.checking}
+        appVersion={APP_VERSION}
         quota={<QuotaCard />}
         onPreferencesChange={changePreferences}
         remindControl={

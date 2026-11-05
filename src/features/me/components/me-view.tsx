@@ -32,6 +32,11 @@ export interface MeViewProps {
   onExport: () => void
   onDelete: () => void
   onSignOut: () => void
+  /** 「账号」里的检查更新（features/app-update）；不传就不显示这一行（Playbook 预览） */
+  onCheckUpdate?: () => void
+  checkingUpdate?: boolean
+  /** 当前版本，显示在检查更新下面 */
+  appVersion?: string
   exporting?: boolean
   thumb?: boolean
 }
@@ -44,6 +49,9 @@ export function MeView({
   onExport,
   onDelete,
   onSignOut,
+  onCheckUpdate,
+  checkingUpdate = false,
+  appVersion,
   thumb = false,
 }: MeViewProps) {
   const { preferences: prefs, profile } = me
@@ -198,6 +206,14 @@ export function MeView({
               description="介绍页与 App 下载"
               href="/welcome"
             />
+            {onCheckUpdate && (
+              <MenuItem
+                icon={checkingUpdate ? 'loader' : 'sparkles'}
+                label={checkingUpdate ? '正在检查更新…' : '检查更新'}
+                description={appVersion ? `当前版本 v${appVersion}` : undefined}
+                onClick={onCheckUpdate}
+              />
+            )}
             <MenuItem icon="link" label="隐私说明" href="/privacy" />
             <MenuItem icon="trash" label="注销账号" danger onClick={onDelete} />
             <MenuItem icon="x" label="退出登录" danger onClick={onSignOut} />

@@ -36,6 +36,8 @@ interface ConfirmDialogProps {
   buttonLayout?: 'responsive' | 'split'
   /** centered：标题与说明居中对齐 */
   centered?: boolean
+  /** md：内容较多时（如更新说明）加宽到 max-w-md；默认 sm */
+  size?: 'sm' | 'md'
   /** 返回 Promise 时等待完成后关闭；抛错时保持打开，由调用方提示错误 */
   onConfirm: () => void | Promise<unknown>
 }
@@ -51,6 +53,7 @@ export function ConfirmDialog({
   tone = 'default',
   buttonLayout = 'responsive',
   centered = false,
+  size = 'sm',
   onConfirm,
 }: ConfirmDialogProps) {
   const [pending, setPending] = useState(false)
@@ -84,7 +87,8 @@ export function ConfirmDialog({
         />
         <AlertDialog.Popup
           className={
-            'bg-surface text-foreground shadow-float fixed top-1/2 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col gap-5 rounded-3xl p-6 outline-none ' +
+            'bg-surface text-foreground shadow-float fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-5 rounded-3xl p-6 outline-none ' +
+            (size === 'md' ? 'max-w-md ' : 'max-w-sm ') +
             'ease-spring transition-[scale,opacity] duration-(--dur-base) ' +
             'data-starting-style:scale-90 data-starting-style:opacity-0 ' +
             'data-ending-style:ease-in-soft data-ending-style:scale-95 data-ending-style:opacity-0'
