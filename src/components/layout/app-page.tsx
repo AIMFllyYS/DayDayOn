@@ -20,6 +20,8 @@ interface AppPageProps {
   fitViewport?: boolean
   /** 是否隐藏顶栏（如"我的"页卡片直接置顶） */
   hideTopBar?: boolean
+  /** 整页自带标题栏与边距（如打卡页）：内容区不加左右、顶部内边距，页面自己处理安全区 */
+  flush?: boolean
   /** 是否为主导航一级页面（主页、待办、排行）：左侧展示用户头像，右侧展示通知与加号快捷操作 */
   primaryNav?: boolean
 }
@@ -39,6 +41,7 @@ export function AppPage({
   className,
   fitViewport = false,
   hideTopBar = false,
+  flush = false,
   primaryNav = false,
 }: AppPageProps) {
   const resolvedLeading =
@@ -63,8 +66,9 @@ export function AppPage({
       )}
       <div
         className={cn(
-          '@container flex w-full max-w-full min-w-0 flex-1 flex-col px-4 md:px-8',
-          hideTopBar && 'pt-[calc(var(--safe-top)+0.75rem)] md:pt-6',
+          '@container flex w-full max-w-full min-w-0 flex-1 flex-col',
+          !flush && 'px-4 md:px-8',
+          hideTopBar && !flush && 'pt-[calc(var(--safe-top)+0.75rem)] md:pt-6',
           fitViewport && 'min-h-0 overflow-hidden pb-0',
           className,
         )}

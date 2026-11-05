@@ -9,12 +9,12 @@ import { IdSchema } from '@/features/shared/schemas'
 export const metadata: Metadata = { title: '打卡' }
 
 /**
- * 打卡页（checkin-modules.md 第 5 节）。整页稿自带返回栏和底部操作条，所以隐藏通用顶栏、占满视口。
+ * 打卡页（checkin-modules.md 第 5 节）。整页稿自带返回栏和底部操作条，所以隐藏通用顶栏、占满视口、不加外层边距（flush）。
  * 读 params / searchParams 的部分放在 Suspense 里（Cache Components）。
  */
 export default function Page({ params, searchParams }: PageProps<'/goals/[goalId]/checkin'>) {
   return (
-    <AppPage title="打卡" hideTopBar fitViewport className="px-0 pt-0 md:px-0 md:pt-0">
+    <AppPage title="打卡" hideTopBar fitViewport flush>
       <Suspense fallback={<PageSkeleton />}>
         <CheckinRoute params={params} searchParams={searchParams} />
       </Suspense>
