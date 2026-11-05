@@ -13,6 +13,7 @@
 - [ui-design-system.md](./ui-design-system.md) — 页面设计规范：色彩、字体、动效、原子组件、导航、Agent 组件、批注流程（效果见 `/dev/playbook`）
 - [routing.md](./routing.md) — 路由统一规范：页面路由表、目录与命名、查询参数、调试区、接口路由
 - [ports.md](./ports.md) — 端口约定（应用 23329、数据库 23432）及所有引用位置
+- [checkin-modules.md](./checkin-modules.md) — 打卡板块与 Agent 裁判：统一骨架、板块目录、规则与事实契约、分数入库、目标设置唯一入口
 
 以下是 Phase 3 选型拍板后（2026-10-31）编写的库落地规范。本项目没有对应的内置规则包，这些文档由联网调研生成，条目未经实战验证，踩坑后按 lessons 机制修订：
 

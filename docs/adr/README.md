@@ -45,6 +45,7 @@
 | [0024](./0024-agent-chat.md) | Agent 对话：悬浮团团、工具调用与联网搜索（推翻 ADR-0003「联网搜索暂不做」） | Proposed |
 | [0025](./0025-ai-output-rendering.md) | AI 输出渲染：Markdown、KaTeX、Mermaid | Proposed |
 | [0026](./0026-friends-system.md) | 好友体系（6 位 10 分钟持久化配对码、双向完全透明仪表盘与 Agent 工具穿透） | Accepted |
+| [0027](./0027-agent-referee.md) | Agent 裁判与分数库：模型给事实、纯函数给结论、服务端重算入库 | Proposed |
 
 0004–0020 由 `scripts/dev/library-showcase/build.mjs --adr` 从调研结论生成草稿（已存在的不会被覆盖），对应的对比页在 [docs/designs/library-showcase/](../designs/library-showcase/index.html)。
 

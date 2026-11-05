@@ -148,6 +148,7 @@ public/          静态资源（制品要传到武汉服务器，保持小体积
 | 新建文件、纠结文件放哪、文件变长时 | [project-structure.md](docs/conventions/project-structure.md)、[code-size-and-organization.md](docs/conventions/code-size-and-organization.md) |
 | 写路由、`page.tsx`、`layout.tsx`、Route Handler、`next.config.ts` 前 | [nextjs-16-patterns.md](docs/conventions/nextjs-16-patterns.md)、[routing.md](docs/conventions/routing.md) |
 | 写 `/api/v1` 接口、service、数据库 schema 或迁移前 | [api-conventions.md](docs/conventions/api-conventions.md)、[database.md](docs/conventions/database.md) |
+| 写或改打卡页、板块表单、裁判规则、分数、目标设置、新人引导的板块配置前 | [checkin-modules.md](docs/conventions/checkin-modules.md)、[ADR-0027](docs/adr/0027-agent-referee.md) |
 | 写或改任何界面、组件、token、动效、Playbook 前 | [ui-design-system.md](docs/conventions/ui-design-system.md)、[ui-primitives.md](docs/conventions/ui-primitives.md) |
 | 前端请求数据、写表单、写 zod schema 前 | [client-data-and-forms.md](docs/conventions/client-data-and-forms.md) |
 | 处理日期、时间、时区、周期时 | [time-and-dates.md](docs/conventions/time-and-dates.md) |

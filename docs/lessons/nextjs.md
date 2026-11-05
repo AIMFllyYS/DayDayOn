@@ -41,3 +41,10 @@
 - 根因：Next.js `loadable.js` 中 `const hasSuspenseBoundary = !opts.ssr || !!opts.loading`，裸调 `dynamic(loader)` 只包 `React.Fragment`；首次挂载时 `React.lazy` 抛出的 Promise 向上冒泡击穿页面级或根布局的 `<Suspense>`。
 - 规则：所有用 `next/dynamic` 按需加载的弹层或局部组件，必须显式传入 `{ loading: () => null }`（或局部骨架占位），将挂起边界锁死在组件自身内部。
 - 元：next@16.4.3 | 2026-11-03 | 候选毕业方向：规范（`ui-primitives.md` 第 3 节）
+
+
+### useEffectEvent 绕不过 react-hooks/set-state-in-effect
+- 症状：「状态更新后下一次渲染再做一件事」写成 `useEffect(() => { if (flag) { setFlag(false); run() } })`，lint 报 set-state-in-effect；把 setState 挪进 `useEffectEvent` 里照样报。
+- 根因：以为包一层 effect event 就不算在 effect 里改状态；React Compiler 的规则会追进同步调用的函数里。
+- 规则：需要「用刚算出的新值立刻继续」时，让产生新值的函数直接返回它（如打卡表单的 `applySmart(draft)` 返回请求体），在事件回调里接着用，不经过 effect。
+- 元：eslint-config-next@16.4.3 + React 19.3 | 2026-11-05 | 候选毕业方向：无
