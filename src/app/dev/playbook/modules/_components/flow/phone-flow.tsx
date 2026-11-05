@@ -656,7 +656,10 @@ function EmbeddedPage({ children }: { children: ReactNode }) {
         '[&_.sm\\:grid-cols-2]:grid-cols-1! [&_.sm\\:grid-cols-3]:grid-cols-1!',
       )}
     >
-      {children}
+      {/* 这些面板按页面宽度设计，手机里整体缩一档，卡片内的标签和标题才不会被挤出边 */}
+      <div className="flex [zoom:0.84] flex-col gap-3 [&_.truncate]:overflow-visible! [&_.truncate]:text-clip! [&_.truncate]:whitespace-normal! [&_.whitespace-nowrap]:whitespace-normal!">
+        {children}
+      </div>
     </div>
   )
 }

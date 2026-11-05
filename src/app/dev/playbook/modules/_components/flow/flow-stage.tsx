@@ -56,8 +56,11 @@ export function FlowStage({
         </PhoneFrame>
       </div>
 
-      <div className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-24" data-ann={`${ann}.console`}>
-        <Card className="flex flex-col gap-3 p-3.5">
+      <div
+        className="flex min-w-0 flex-col gap-3 max-lg:contents lg:sticky lg:top-24"
+        data-ann={`${ann}.console`}
+      >
+        <Card className="flex flex-col gap-3 p-3.5 max-lg:order-1">
           <div className="flex items-center justify-between gap-2">
             <span className="text-caption font-bold">场景样本</span>
             <span className="text-tiny text-muted">切换后手机载入该场景的识别结果</span>
@@ -101,7 +104,11 @@ export function FlowStage({
           )}
         </Card>
 
-        <Card variant="sunken" className="flex flex-col gap-2 p-3.5" data-ann={`${ann}.defaults`}>
+        <Card
+          variant="sunken"
+          className="flex flex-col gap-2 p-3.5 max-lg:order-3"
+          data-ann={`${ann}.defaults`}
+        >
           <span className="text-caption font-bold">默认展开 / 折叠（最终呈现状态）</span>
           <ul className="text-tiny text-muted flex flex-col gap-1.5 leading-relaxed">
             {defaults.map((s) => (
