@@ -21,6 +21,8 @@ export const WeekHeatmapSchema = z
         module: ModuleSchema,
         /** 与 days 一一对应；今天之后的格子为 0 */
         cells: z.array(HeatmapCellSchema).length(7),
+        /** 与 days 一一对应：那天打了卡但都没达标（只存档）。格子显示为「打了没达标」，和「没打」区分开 */
+        archived: z.array(z.boolean()).length(7).optional(),
       }),
     ),
   })

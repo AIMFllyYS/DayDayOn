@@ -123,6 +123,7 @@ function cmpId(a: string, b: string): number {
 /**
  * 本周热力图（PRD 7.2）：周一到周日 × 五个板块，格值 = stats.heatmapCell。
  * 今天之后的格子为 0。days 必须是 weekDates(today) 的结果。
+ * archived：那天这个板块有打卡但一条都没达标（格值为 0），界面上和「没打」分开显示。
  */
 export function buildHeatmap(
   goals: readonly DashboardGoal[],
@@ -132,17 +133,23 @@ export function buildHeatmap(
 ): WeekHeatmap {
   const rows = MODULES.map((module) => {
     const ofModule = goals.filter((g) => g.module === module)
+    const archived: boolean[] = []
     const cells = days.map((date) => {
-      if (compareLocalDate(date, today) > 0) return 0
+      if (compareLocalDate(date, today) > 0) {
+        archived.push(false)
+        return 0
+      }
       const states = ofModule
         .map((g) => goalDay(g, date, index))
         .filter((d): d is GoalDay => d !== null && (d.planned || d.hasCheckins))
-      return heatmapCell(
+      const cell = heatmapCell(
         states,
         states.map((s) => s.progress),
       )
+      archived.push(cell === 0 && states.some((s) => s.hasCheckins))
+      return cell
     })
-    return { module, cells }
+    return { module, cells, archived }
   })
   return { days: [...days], rows }
 }

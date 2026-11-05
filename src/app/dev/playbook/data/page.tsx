@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { BarChart } from '@/components/charts/bar-chart'
 import { LineChart } from '@/components/charts/line-chart'
 import { Sparkline } from '@/components/charts/sparkline'
 import { WeekHeatmap } from '@/components/charts/week-heatmap'
@@ -6,6 +7,8 @@ import { Avatar, AvatarStack } from '@/components/ui/avatar'
 import { Card } from '@/components/ui/card'
 import { PresetAvatar } from '@/components/mascot/preset-avatar'
 import { mascotMoods } from '@/components/mascot/mascot-svg'
+import { InsightCard } from '@/features/insights/components/insight-card'
+import type { GoalInsight } from '@/features/insights/schemas'
 import { PageHeader, Rules, Section, Specimen } from '../_components/section'
 import {
   CalendarDemo,
@@ -60,13 +63,98 @@ const heatRows = [
   { module: 'study', cells: [0.3, 0, 0, 0, 0, 0, 0] },
   { module: 'custom', cells: [0, 0, 0, 0, 0, 0, 0] },
 ] as const
-// 周四的视角：前四天都有数据
+// 周四的视角：前四天都有数据；archived = 打了卡但没达标（只存档）
+const NO = [false, false, false, false, false, false, false]
 const heatRowsMidweek = [
-  { module: 'exercise', cells: [1, 1, 0.5, 1, 0, 0, 0] },
-  { module: 'diet', cells: [0.67, 1, 1, 0.33, 0, 0, 0] },
-  { module: 'sleep', cells: [1, 0, 1, 1, 0, 0, 0] },
-  { module: 'study', cells: [0.3, 0.8, 0, 1, 0, 0, 0] },
+  { module: 'exercise', cells: [1, 1, 0.5, 1, 0, 0, 0], archived: NO },
+  { module: 'diet', cells: [0.67, 1, 1, 0.33, 0, 0, 0], archived: NO },
+  {
+    module: 'sleep',
+    cells: [1, 0, 1, 1, 0, 0, 0],
+    archived: [false, true, false, false, false, false, false],
+  },
+  {
+    module: 'study',
+    cells: [0.3, 0.8, 0, 1, 0, 0, 0],
+    archived: [false, false, true, false, false, false, false],
+  },
 ] as const
+
+// 板块近况演示数据（features/insights）：近 7 天
+const insightDates = [
+  '2026-10-30',
+  '2026-10-31',
+  '2026-11-01',
+  '2026-11-02',
+  '2026-11-03',
+  '2026-11-04',
+  '2026-11-05',
+]
+const insightBase = {
+  total: 0,
+  valid: 0,
+  validDays: 0,
+  avgScore: null,
+  passScore: null,
+  totalSeconds: 0,
+  dailyTargetSeconds: null,
+  kcal: null,
+  avgSleepSeconds: null,
+  avgBedMinutes: null,
+  lateNights: null,
+  bedtimeBy: null,
+  minSleepSeconds: null,
+  topFailure: null,
+  deadline: null,
+} satisfies Partial<GoalInsight>
+const series = (vs: (number | null)[]) =>
+  insightDates.map((date, i) => ({ date, value: vs[i] ?? null }))
+const demoInsights: GoalInsight[] = [
+  {
+    ...insightBase,
+    goalId: 'd1',
+    module: 'diet',
+    title: '好好吃饭',
+    total: 9,
+    valid: 6,
+    validDays: 5,
+    avgScore: 3.4,
+    passScore: 3,
+    kcal: 610,
+    series: series([3.8, 2.6, null, 3.9, 3.1, 2.4, 4.1]),
+    topFailure: { text: '钠 ≤ 1500mg', count: 4, of: 9 },
+  },
+  {
+    ...insightBase,
+    goalId: 's1',
+    module: 'sleep',
+    title: '早点睡',
+    total: 6,
+    valid: 4,
+    validDays: 4,
+    avgSleepSeconds: 25560,
+    avgBedMinutes: 1425,
+    lateNights: 3,
+    bedtimeBy: '23:30',
+    minSleepSeconds: 23400,
+    series: series([27000, 22800, 26400, null, 28800, 21600, 26800]),
+    topFailure: { text: '入睡不晚于 23:30', count: 2, of: 6 },
+    deadline: { date: '2026-12-01', daysLeft: 26 },
+  },
+  {
+    ...insightBase,
+    goalId: 'e1',
+    module: 'exercise',
+    title: '动一动',
+    total: 4,
+    valid: 3,
+    validDays: 3,
+    totalSeconds: 7800,
+    kcal: 820,
+    series: series([1800, null, 2400, null, 600, 3000, null]),
+  },
+  { ...insightBase, goalId: 'c1', module: 'custom', title: '我的小目标', series: series([]) },
+]
 
 const tones = ['primary', 'exercise', 'diet', 'sleep', 'study', 'custom'] as const
 
@@ -185,9 +273,28 @@ export default function DataPage() {
             <Sparkline values={[7.5]} label="只有一天的数据" tone="sleep" />
           </Specimen>
           <Specimen
+            ann="playbook.data.charts.bar"
+            label="BarChart · 每日柱状图"
+            note="板块近况卡里看每天做了多少；虚线是门槛（有效线 / 每日下限），没到门槛的柱子变浅；没记录的日子只画一条短横"
+          >
+            <div className="grid w-full gap-4">
+              <BarChart
+                values={[3.8, 2.6, null, 3.9, 3.1, 2.4, 4.1]}
+                threshold={3}
+                tone="diet"
+                label="近 7 天每天的平均分，有效线 3"
+              />
+              <BarChart
+                values={[30, null, 40, null, 10, 50, null]}
+                tone="exercise"
+                label="近 7 天每天的运动分钟数"
+              />
+            </div>
+          </Specimen>
+          <Specimen
             ann="playbook.data.charts.heatmap"
             label="WeekHeatmap · 本周热力图"
-            note="周一到周日 × 板块；四档深浅 + 完成格打勾，不只靠颜色；今天之后的格子是虚线"
+            note="周一到周日 × 板块；四档深浅 + 完成格打勾，不只靠颜色；打了没达标是虚线框 + 斜纹（archived），和没打分开；今天之后的格子是虚线"
           >
             <div className="grid w-full gap-6">
               <WeekHeatmap days={heatDays} rows={heatRows} today={DEMO_TODAY} />
@@ -197,6 +304,38 @@ export default function DataPage() {
                 today="2026-11-05"
                 label="周四的本周热力图"
               />
+            </div>
+          </Specimen>
+        </div>
+      </Section>
+
+      <Section
+        ann="playbook.data.insights"
+        title="板块近况 InsightCard"
+        description="每个进行中目标一张：主数字只看这个板块的核心目的（饮食平均分、运动时长、睡眠时长与入睡时刻、学习专注时长、自定义达标天数）。主页小组件、目标详情、对话里 showStats 的结果都用这一个组件。"
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <Specimen
+            ann="playbook.data.insights.compact"
+            label="compact · 主页两列小卡"
+            note="主数字 + 达标率 + 迷你走势；数字和单位分开排，不折行；没打卡显示「近 7 天还没打卡」"
+          >
+            <div className="@container w-full">
+              <div className="grid grid-cols-2 gap-3">
+                {demoInsights.map((i) => (
+                  <InsightCard key={i.goalId} insight={i} days={7} />
+                ))}
+              </div>
+            </div>
+          </Specimen>
+          <Specimen
+            ann="playbook.data.insights.full"
+            label="full · 目标详情 / 对话里只看一个目标"
+            note="加每日柱状图、门槛线、最常卡住的规则、期限"
+          >
+            <div className="grid w-full gap-3">
+              <InsightCard insight={demoInsights[0]!} days={7} size="full" />
+              <InsightCard insight={demoInsights[1]!} days={7} size="full" />
             </div>
           </Specimen>
         </div>
