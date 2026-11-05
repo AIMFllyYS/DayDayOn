@@ -3447,6 +3447,12 @@
                     "minimum": 0,
                     "maximum": 1
                   }
+                },
+                "archived": {
+                  "type": "array",
+                  "items": {
+                    "type": "boolean"
+                  }
                 }
               },
               "required": [
@@ -3511,6 +3517,273 @@
         },
         "required": [
           "remaining"
+        ]
+      },
+      "Insights": {
+        "type": "object",
+        "properties": {
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "number",
+                "enum": [
+                  7
+                ]
+              },
+              {
+                "type": "number",
+                "enum": [
+                  30
+                ]
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoalInsight"
+            }
+          }
+        },
+        "required": [
+          "localDate",
+          "days",
+          "items"
+        ]
+      },
+      "GoalInsight": {
+        "type": "object",
+        "properties": {
+          "goalId": {
+            "type": "string"
+          },
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "title": {
+            "type": "string"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "valid": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "validDays": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "avgScore": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "passScore": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "totalSeconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dailyTargetSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "kcal": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "avgSleepSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "avgBedMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1439
+          },
+          "lateNights": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "bedtimeBy": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "minSleepSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "date",
+                "value"
+              ]
+            }
+          },
+          "topFailure": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "count": {
+                "type": "integer"
+              },
+              "of": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "text",
+              "count",
+              "of"
+            ]
+          },
+          "deadline": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "daysLeft": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "date",
+              "daysLeft"
+            ]
+          }
+        },
+        "required": [
+          "goalId",
+          "module",
+          "title",
+          "total",
+          "valid",
+          "validDays",
+          "avgScore",
+          "passScore",
+          "totalSeconds",
+          "dailyTargetSeconds",
+          "kcal",
+          "avgSleepSeconds",
+          "avgBedMinutes",
+          "lateNights",
+          "bedtimeBy",
+          "minSleepSeconds",
+          "series",
+          "topFailure",
+          "deadline"
+        ]
+      },
+      "AppUpdate": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "none",
+              "reload",
+              "install"
+            ]
+          },
+          "latest": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "android": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "fallbackUrl": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "size": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "version",
+              "url",
+              "fallbackUrl",
+              "sha256",
+              "size"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "latest",
+          "publishedAt",
+          "required",
+          "notes",
+          "android"
         ]
       },
       "FriendList": {
@@ -6596,6 +6869,150 @@
           },
           "404": {
             "description": "USER_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insights": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "每个进行中目标最近 7 / 30 天的近况",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30"
+              ],
+              "default": "7"
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "goalId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "达标率、主数字、每天走势、最常没通过的规则、期限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Insights"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "USER_NOT_FOUND | GOAL_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app/update": {
+      "get": {
+        "tags": [
+          "app"
+        ],
+        "summary": "检查更新：对比页面版本、壳版本与服务器上的版本清单",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "required": true,
+            "name": "web",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "required": false,
+            "name": "shell",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "kind = none / reload / install，附比当前版本新的更新日志（Markdown）与安装包地址",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppUpdate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
             "content": {
               "application/json": {
                 "schema": {
