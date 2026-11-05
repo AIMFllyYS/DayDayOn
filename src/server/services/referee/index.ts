@@ -4,16 +4,18 @@ import { effectiveRules } from '@/features/referee/defaults'
 import { subjectOf } from '@/features/referee/subject'
 import { formatTime, localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
-import { streamReferee } from '@/server/ai/referee'
+import { streamReferee, type RefereeConversation } from '@/server/ai/referee'
 import { db } from '@/server/db/client'
 import { loadClock } from '@/server/services/checkins/clock'
 import { loadFields, loadGoal } from '@/server/services/checkins/goal'
 import { latestWeightGrams } from '@/server/services/metrics/weight'
+import { loadPetName } from '@/server/services/agent/pet-name'
 import { loadRefereeTier } from './context'
 
 /*
  * POST /goals/{goalId}/referee：对一条还没入库的打卡做 Agent 裁判，流式返回。
- * 不写任何业务表；用户确认后前端再调创建打卡接口，带上 facts 与 refereeRunId（checkin-modules.md 第 4 节）。
+ * 不写打卡表；用户确认后前端再调创建打卡接口，带上 facts 与 refereeRunId（checkin-modules.md 第 4 节）。
+ * 带 conversation 时把这次分析存成一个 Agent 会话（标题「目标名 · 打卡分析」），对话框里能接着问。
  */
 
 const TIER_LABEL = {
@@ -28,6 +30,7 @@ export async function startReferee(input: {
   idempotencyKey: string
   goalId: string
   checkin: CreateCheckin
+  conversation?: RefereeConversation | null
   now?: Date
 }): Promise<Response> {
   const now = input.now ?? new Date()
@@ -42,13 +45,14 @@ export async function startReferee(input: {
       fields: { module: ['板块和目标不一致'] },
     })
   }
-  const [clock, tier, weightGrams, fields] = await Promise.all([
+  const [clock, tier, weightGrams, fields, petName] = await Promise.all([
     loadClock(db, input.userId),
     loadRefereeTier(db, input.userId),
     latestWeightGrams(db, input.userId),
     goal.module === 'custom' && goal.fieldVersion !== null
       ? loadFields(db, goal.id, goal.fieldVersion)
       : Promise.resolve(null),
+    loadPetName(db, input.userId),
   ])
   const subject = subjectOf(input.checkin, { timeZone: clock.timeZone, fields })
   const rules = effectiveRules(goal.module, goal.refereeRules)
@@ -65,6 +69,10 @@ export async function startReferee(input: {
     timeZone: clock.timeZone,
     weightKg: weightGrams !== null && weightGrams > 0 ? weightGrams / 1000 : null,
     judgeBase: { ...subject, storedRules: goal.refereeRules, tier },
+    petName,
+    conversation: input.conversation
+      ? { ...input.conversation, title: `${goal.title} · 打卡分析` }
+      : null,
     brief: {
       板块: goal.module,
       目标: goal.title,

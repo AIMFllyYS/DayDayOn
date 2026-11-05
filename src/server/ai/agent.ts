@@ -16,11 +16,12 @@ import { REFEREE_SKILLS } from './referee/prompt'
 
 /*
  * Agent 对话的模型与指令（悬浮团团）。每轮对话构建一次 ToolLoopAgent：
- * 最多 12 步（isStepCount(12)），联网最多 10 次（由工具内计数强制），每步输出上限 2000 tokens。
+ * 最多 20 步（一次请求可能要查目标、查事实、出几张草稿）；最后一步不许再调工具，保证一定有文字回答。
+ * 联网最多 10 次（由工具内计数强制），每步输出上限 2000 tokens。
  * 深度思考默认关；输入框的"深度思考"打开时用 deepseek 最低思考强度（reasoningEffort: 'low'）。
  */
 
-export const MAX_STEPS = 12
+export const MAX_STEPS = 20
 export const MAX_OUTPUT_TOKENS_PER_STEP = 2000
 
 const BASE_SYSTEM = `你是「团团」，DayDayOn 里的治愈系打卡小宠物，也是用户的朋友。你帮朋友把"今天做了什么"轻松记下来，也陪聊、给建议。
@@ -69,6 +70,7 @@ ${Object.values(REFEREE_SKILLS).join('\n\n')}
 export function buildSystemPrompt(
   now: Date,
   clock: Clock = { timeZone: BUSINESS_TIME_ZONE, dayStartHour: DEFAULT_DAY_START_HOUR },
+  petName = '团团',
 ): string {
   const calendarDate = calendarDateOf(now, clock.timeZone)
   const localTime = formatTime(now, clock.timeZone)
@@ -77,7 +79,7 @@ export function buildSystemPrompt(
   const tomorrow = addDays(today, 1)
   const weekday = formatWeekday(today)
 
-  return `${BASE_SYSTEM}
+  return `${BASE_SYSTEM.replaceAll('团团', petName)}
 
 ## 当前时间上下文
 - 当前 UTC 时刻：${now.toISOString()}
@@ -96,6 +98,8 @@ export interface BuildAgentInput {
   search: SearchBudget
   now: Date
   clock?: Clock
+  /** 用户选的形象名（墩墩 / 团团），Agent 用它称呼自己 */
+  petName?: string
 }
 
 /** 构建一轮对话的 agent（工具闭包捕获 userId / now / clock / 搜索预算） */
@@ -112,10 +116,13 @@ export function buildAgent(input: BuildAgentInput) {
   }
   return new ToolLoopAgent({
     model: input.model,
-    instructions: buildSystemPrompt(input.now, clock),
+    instructions: buildSystemPrompt(input.now, clock, input.petName),
     tools: buildAgentTools(ctx),
     stopWhen: isStepCount(MAX_STEPS),
     maxOutputTokens: MAX_OUTPUT_TOKENS_PER_STEP,
+    // 最后一步只许说话：步数用完时也一定给出文字回答，不会只剩一串工具调用
+    prepareStep: ({ stepNumber }) =>
+      stepNumber >= MAX_STEPS - 1 ? { toolChoice: 'none' as const } : undefined,
     providerOptions: {
       deepseek: {
         userId: input.userIdHash,
