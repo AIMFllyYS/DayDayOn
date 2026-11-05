@@ -109,7 +109,7 @@ export function FolderCard({
         {spec.children && spec.children.length > 0 && (
           <div className="flex flex-col gap-2">
             {spec.children.map((c) => (
-              <FolderCard key={c.id} spec={c} compact />
+              <FolderCard key={c.id} spec={c} compact defaultOpen={c.defaultOpen} />
             ))}
           </div>
         )}

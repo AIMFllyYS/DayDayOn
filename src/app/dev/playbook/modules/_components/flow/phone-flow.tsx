@@ -50,6 +50,10 @@ interface PhoneFlowProps {
   overlay?: ReactNode
   /** 排在最前面的分区，手动 / 智能模式都显示（饮食的「加餐时间」），出现时带动画 */
   leadSection?: FillSectionSpec | null
+  /** 手动模式下排在分区后面的内容（运动的「+ 添加一项运动」） */
+  afterSections?: ReactNode
+  /** 外部要求展开某个分区：值变了就展开它（比如刚添加的那一项） */
+  autoOpen?: string | null
 }
 
 /**
@@ -73,10 +77,17 @@ export function PhoneFlow({
   onModeChange,
   overlay,
   leadSection,
+  afterSections,
+  autoOpen,
 }: PhoneFlowProps) {
   const [stack, setStack] = useState<Page[]>(['fill'])
   const [mode, setMode] = useState<FlowMode>('smart-capture')
   const [openId, setOpenId] = useState<string | null>(null)
+  const [seenAutoOpen, setSeenAutoOpen] = useState(autoOpen)
+  if (autoOpen !== seenAutoOpen) {
+    setSeenAutoOpen(autoOpen)
+    setOpenId(autoOpen ?? null)
+  }
   // 智能模式的扫描阶段；Agent 分析阶段（手动提交后、或智能扫描完成后自动开始）
   const [scanPhase, setScanPhase] = useState<ScanPhase>('idle')
   const [agent, setAgent] = useState<'none' | 'analyzing' | 'done'>('none')
@@ -249,6 +260,7 @@ export function PhoneFlow({
                 />
               ))
             )}
+            {!smart && afterSections}
             {agent === 'done' && (
               <div className="flex flex-col gap-2.5" data-ann="playbook.modules.flow.report-inline">
                 <ReportDivider />
