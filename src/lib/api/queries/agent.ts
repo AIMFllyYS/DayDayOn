@@ -11,7 +11,7 @@ import { afterCheckinChange, keys } from '../keys'
 
 /*
  * Agent 会话的读取与草稿确认（features/agent 使用）。
- * 草稿确认走普通创建接口（打卡 / 待办 / 体重），成功后失效对应查询。
+ * 草稿确认走普通接口（打卡新增 / 修改 / 删除、待办、体重），成功后失效对应查询。
  */
 
 export function useAgentConversations() {
@@ -83,25 +83,37 @@ export interface ConfirmDraftVariables {
   idempotencyKey?: string
 }
 
-/** 确认一张草稿：按 kind 调普通创建接口，返回新记录 */
+/** 确认一张草稿：按 kind 调普通接口（新增 / 修改 / 删除打卡、待办、体重），返回新记录 */
 async function confirmDraft(vars: ConfirmDraftVariables): Promise<unknown> {
   const key = vars.idempotencyKey ?? newIdempotencyKey()
   const d = vars.draft
-  if (d.kind === 'checkin') {
-    return apiFetch(`/goals/${encodeURIComponent(d.goalId)}/checkins`, {
-      method: 'POST',
-      json: d.confirmBody,
-      idempotencyKey: key,
-    })
+  switch (d.kind) {
+    case 'checkin':
+      return apiFetch(`/goals/${encodeURIComponent(d.goalId)}/checkins`, {
+        method: 'POST',
+        json: d.confirmBody,
+        idempotencyKey: key,
+      })
+    case 'checkin-update':
+      return apiFetch(`/checkins/${encodeURIComponent(d.checkinId)}`, {
+        method: 'PATCH',
+        json: d.confirmBody,
+      })
+    case 'checkin-delete': {
+      const query = new URLSearchParams({ origin: 'agent', reason: d.reason })
+      return apiFetch(`/checkins/${encodeURIComponent(d.checkinId)}?${query.toString()}`, {
+        method: 'DELETE',
+      })
+    }
+    case 'todo':
+      return apiFetch('/todos', { method: 'POST', json: d.confirmBody, idempotencyKey: key })
+    case 'weight':
+      return apiFetch('/metrics/weight', {
+        method: 'PUT',
+        json: d.confirmBody,
+        idempotencyKey: key,
+      })
   }
-  if (d.kind === 'todo') {
-    return apiFetch('/todos', { method: 'POST', json: d.confirmBody, idempotencyKey: key })
-  }
-  return apiFetch('/metrics/weight', {
-    method: 'PUT',
-    json: d.confirmBody,
-    idempotencyKey: key,
-  })
 }
 
 export function useConfirmDraft() {

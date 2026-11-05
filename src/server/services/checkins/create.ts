@@ -21,6 +21,7 @@ import { loadRefereeTier } from '@/server/services/referee/context'
 import { goalDayProgress } from '@/server/services/stats'
 import { latestWeightGrams } from '../metrics/weight'
 import { loadClock } from './clock'
+import { recordRevision } from './revisions'
 import {
   checkinColumns,
   loadFields,
@@ -88,7 +89,7 @@ function exerciseBurnKcal(
  * 裁判结论（checkin-modules.md 第 3.4 节）：用目标规则、个人体质和请求带来的事实重算，
  * 前端算好的结论一律不用。refereeRunId 必须是自己的裁判记录。
  */
-async function refereeVerdict(
+export async function judgeCheckin(
   db: DbOrTx,
   userId: string,
   goal: GoalRow,
@@ -129,8 +130,8 @@ async function refereeVerdict(
   )
 }
 
-/** 按板块组装要写入的列；需要查库的校验（自定义字段、AI 记录、体重）也在这里 */
-async function buildDraft(
+/** 按板块组装要写入的列；需要查库的校验（自定义字段、AI 记录、体重）也在这里。修改打卡复用它 */
+export async function buildDraft(
   db: DbOrTx,
   userId: string,
   goal: GoalRow,
@@ -300,7 +301,7 @@ export async function createCheckin(
       if (goal.module !== input.module) throw invalid('module', '板块和目标不一致')
       const clock = await loadClock(tx, userId)
       const draft = await buildDraft(tx, userId, goal, input, clock, now)
-      const verdict = await refereeVerdict(tx, userId, goal, input, clock)
+      const verdict = await judgeCheckin(tx, userId, goal, input, clock)
       const localDate = localDateOf(draft.occurredAt, clock.timeZone, clock.dayStartHour)
       const [row] = await tx
         .insert(checkins)
@@ -318,8 +319,16 @@ export async function createCheckin(
         })
         .returning(checkinColumns)
       if (!row) throw new Error('createCheckin：写入没有返回行')
+      const checkin = toCheckinDto(row)
+      await recordRevision(tx, {
+        userId,
+        action: 'create',
+        origin: input.origin,
+        before: null,
+        after: checkin,
+      })
       const progress = await goalProgressOn(tx, userId, goal, localDate)
-      return { checkin: toCheckinDto(row), progress }
+      return { checkin, progress }
     })
   } catch (error) {
     if (isUniqueViolation(error)) {

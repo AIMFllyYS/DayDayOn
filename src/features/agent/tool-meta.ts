@@ -54,6 +54,25 @@ const toolMeta: Record<string, ToolMeta> = {
     tone: 'primary',
   },
   draftCheckin: { label: '整理打卡草稿', verb: '正在整理打卡', icon: 'check', tone: 'primary' },
+  draftUpdateCheckin: {
+    label: '整理改打卡草稿',
+    verb: '正在整理要改的打卡',
+    icon: 'edit',
+    tone: 'primary',
+  },
+  draftDeleteCheckin: {
+    label: '整理删打卡草稿',
+    verb: '正在整理要删的打卡',
+    icon: 'trash',
+    tone: 'danger',
+  },
+  getCheckin: { label: '读取一条打卡', verb: '正在看这条打卡', icon: 'calendar', tone: 'study' },
+  getCheckinHistory: {
+    label: '查看打卡留痕',
+    verb: '正在翻改动记录',
+    icon: 'clock',
+    tone: 'neutral',
+  },
   draftTodo: { label: '整理待办草稿', verb: '正在整理待办', icon: 'todo', tone: 'neutral' },
   draftWeight: { label: '整理体重草稿', verb: '正在整理体重', icon: 'chart', tone: 'primary' },
   // 打卡裁判（server/ai/referee/tools.ts）

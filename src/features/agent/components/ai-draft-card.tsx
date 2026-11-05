@@ -10,6 +10,8 @@ import { ProgressBar } from '@/components/ui/progress'
 import { moduleMeta, type ModuleTone } from '@/components/ui/tone'
 import { cn } from '@/lib/cn'
 import { draftItemsTotal, emptyDraftItem, type DraftItem, type DraftItemErrors } from '../draft'
+import type { DraftVerdict } from '../schemas'
+import { VerdictStrip } from './verdict-strip'
 
 export type { DraftItem, DraftItemErrors } from '../draft'
 
@@ -49,6 +51,10 @@ interface AiDraftCardProps {
   errorText?: string
   /** 热量、睡眠类结果要显示"估算，非医疗建议"（架构基线 5.2 第 7 条） */
   estimate?: boolean
+  /** 裁判结论预览：确认前告诉用户这条算不算有效打卡 */
+  verdict?: DraftVerdict
+  /** 用户改过条目后，预览结论不再准确：入库时按新条目重新判定 */
+  verdictStale?: boolean
   className?: string
 }
 
@@ -81,6 +87,8 @@ export function AiDraftCard({
   confirmed = false,
   errorText,
   estimate = false,
+  verdict,
+  verdictStale = false,
   className,
 }: AiDraftCardProps) {
   const meta = moduleMeta[module]
@@ -119,6 +127,16 @@ export function AiDraftCard({
       ) : (
         <ReadonlyFields fields={itemsAsFields(items)} />
       )}
+
+      {verdict &&
+        (verdictStale ? (
+          <p className="bg-surface-sunken text-tiny text-muted mt-3 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5">
+            <Icon name="shield" size={14} />
+            改过条目了，确认后按新内容重新判定是否达标
+          </p>
+        ) : (
+          <VerdictStrip verdict={verdict} className="mt-3" />
+        ))}
 
       <div className="mt-3 flex items-center gap-3">
         <ProgressBar

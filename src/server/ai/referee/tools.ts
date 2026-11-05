@@ -2,7 +2,7 @@ import 'server-only'
 import { tool, type ToolSet } from 'ai'
 import * as z from 'zod'
 import { judge, type JudgeInput } from '@/features/referee/rules'
-import { estimateKcal, metOf } from '@/features/referee/rules/exercise'
+import { estimateKcal } from '@/features/referee/rules/exercise'
 import {
   CitationSchema,
   CustomFactsSchema,
@@ -17,7 +17,7 @@ import type { DbOrTx } from '@/server/db/client'
 import { recentGoalCheckins, recentSleep, todayStudyMinutes } from '@/server/services/referee/read'
 import { SEARCH_FETCH_COST_MICROS, type SearchBudget } from '../agent-tools'
 import { fetchWeb, searchWeb } from '../web-search'
-import { findFood } from './food-table'
+import { lookupFoods, lookupMets } from '../checkin-lookups'
 
 /*
  * 裁判 Agent 的工具（checkin-modules.md 第 4 节）。每次裁判构建一次，闭包捕获用户、目标与搜索预算。
@@ -96,20 +96,7 @@ function moduleTools(ctx: RefereeToolContext): ToolSet {
           description:
             '查内置的常见食物营养表（每 100 克 / 100 毫升的热量、蛋白、碳水、脂肪、纤维、钠、GI，以及一份的常见克数）。先用它，查不到的再联网。',
           inputSchema: z.object({ names: z.array(z.string().min(1).max(30)).min(1).max(20) }),
-          execute: async ({ names }) => {
-            const found = []
-            const missing: string[] = []
-            for (const name of names) {
-              const row = findFood(name)
-              if (!row) {
-                missing.push(name)
-                continue
-              }
-              const { names: aliases, ...per100g } = row
-              found.push({ name, matched: aliases[0], per100g })
-            }
-            return { found, missing }
-          },
+          execute: async ({ names }) => lookupFoods(names),
         }),
         ...webTools(ctx.search),
       }
@@ -125,9 +112,7 @@ function moduleTools(ctx: RefereeToolContext): ToolSet {
               .min(1)
               .max(10),
           }),
-          execute: async ({ activities }) => ({
-            items: activities.map((a) => ({ name: a.name, ...metOf(a.name, a.calc) })),
-          }),
+          execute: async ({ activities }) => lookupMets(activities),
         }),
         calcExerciseKcal: tool({
           description: '按 MET × 体重 × 小时估算消耗；体重取用户最近一次记录，没有则按 60kg。',
