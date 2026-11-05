@@ -5,6 +5,7 @@ import {
   type Me,
   type Role,
 } from '@/features/me/schemas'
+import { DEFAULT_REFEREE_TIER, RefereeTierSchema } from '@/features/referee/schemas'
 import { LocalTimeSchema } from '@/features/shared/schemas'
 
 /*
@@ -31,6 +32,7 @@ export interface MeRow {
   theme: string
   mascot: string
   remindAt: string | null
+  refereeTier: string
 }
 
 function toRole(role: string | null): Role {
@@ -42,6 +44,7 @@ export function toMeDto(row: MeRow, streak: number): Me {
   const theme = ThemeSchema.safeParse(row.theme)
   const mascot = MascotCharacterSchema.safeParse(row.mascot)
   const remindAt = LocalTimeSchema.safeParse(row.remindAt)
+  const tier = RefereeTierSchema.safeParse(row.refereeTier)
   return {
     userId: row.userId,
     email: row.email,
@@ -62,6 +65,7 @@ export function toMeDto(row: MeRow, streak: number): Me {
       leaderboardOptIn: row.leaderboardOptIn,
       dayStartHour: row.dayStartHour,
       remindAt: remindAt.success ? remindAt.data : null,
+      refereeTier: tier.success ? tier.data : DEFAULT_REFEREE_TIER,
     },
     streak: Math.max(0, Math.trunc(streak)),
     createdAt: row.createdAt.toISOString(),

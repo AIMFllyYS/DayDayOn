@@ -53,7 +53,7 @@ export function HomeDashboard({
             }
             action={
               !readOnly ? (
-                <LinkButton href="/goals/new" icon="plus">
+                <LinkButton href="/goals" icon="plus">
                   去设定目标
                 </LinkButton>
               ) : undefined

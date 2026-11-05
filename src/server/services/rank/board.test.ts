@@ -31,7 +31,12 @@ const candidate = (
   nickname: userId,
   avatar: null,
   streak,
-  checkins: dates.map((x) => ({ localDate: x.d, occurredAt: x.at, isMakeup: x.makeup ?? false })),
+  checkins: dates.map((x) => ({
+    localDate: x.d,
+    occurredAt: x.at,
+    isMakeup: x.makeup ?? false,
+    isValid: true,
+  })),
 })
 
 describe('isRankEligible', () => {

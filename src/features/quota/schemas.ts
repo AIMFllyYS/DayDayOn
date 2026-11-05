@@ -7,7 +7,12 @@ import { IdSchema, InstantSchema, MicrosSchema } from '@/features/shared/schemas
  */
 
 /** AI 用途：每个用途一个 prompt 文件（src/server/ai/prompts/<purpose>.ts）。agent-chat 走 ToolLoopAgent 流式对话 */
-export const AI_PURPOSES = ['diet-recognition', 'smart-recognition', 'agent-chat'] as const
+export const AI_PURPOSES = [
+  'diet-recognition',
+  'smart-recognition',
+  'agent-chat',
+  'referee',
+] as const
 export const AiPurposeSchema = z.enum(AI_PURPOSES).meta({ id: 'AiPurpose' })
 export type AiPurpose = z.infer<typeof AiPurposeSchema>
 

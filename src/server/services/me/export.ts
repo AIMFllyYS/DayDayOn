@@ -70,6 +70,8 @@ async function exportGoals(db: DbOrTx, userId: string): Promise<Goal[]> {
     sortOrder: g.sortOrder,
     fieldVersion: g.fieldVersion,
     fields: g.fieldVersion === null ? null : (fieldsOf.get(`${g.id}:${g.fieldVersion}`) ?? null),
+    refereeRules: g.refereeRules ?? null,
+    deadlineDate: g.deadlineDate,
     createdAt: iso(g.createdAt),
     updatedAt: iso(g.updatedAt),
   }))
@@ -99,6 +101,9 @@ async function exportCheckins(db: DbOrTx, userId: string): Promise<Checkin[]> {
     payload: c.payload,
     fieldVersion: c.fieldVersion,
     aiRunId: c.aiRunId,
+    score: c.score,
+    isValid: c.isValid,
+    verdict: c.verdict,
     createdAt: iso(c.createdAt),
   }))
 }

@@ -4,7 +4,10 @@ import { useState } from 'react'
 import { Button, IconButton } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { toast } from '@/components/ui/toast'
-import { CheckinSheetList } from '@/features/checkin/components/checkin-sheet-list'
+import {
+  CheckinSheetList,
+  FirstCheckinCard,
+} from '@/features/checkin/components/checkin-sheet-list'
 import type { CheckinToday } from '@/features/checkin/schemas'
 import { SmartActionBar } from './smart-action-bar'
 
@@ -74,11 +77,14 @@ export function CheckinSheet({
   onOpenChange,
   onSmartAction,
   onGoalNavigate,
+  empty = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSmartAction?: (mode: 'capture' | 'upload') => void
   onGoalNavigate?: () => void
+  /** 演示一个目标都没有：只剩虚线卡「建立你的第一个打卡」+ 体重 / 心情两行 */
+  empty?: boolean
 }) {
   const [view, setView] = useState<'list' | 'weight' | 'mood'>('list')
 
@@ -134,7 +140,17 @@ export function CheckinSheet({
         )
       }
     >
-      {view === 'list' ? (
+      {view === 'list' && empty ? (
+        <div className="flex flex-col gap-3">
+          <FirstCheckinCard onNavigate={() => onOpenChange(false)} />
+          <CheckinSheetList
+            data={{ ...demo, goals: [], completion: { done: 0, planned: 0 } }}
+            onNavigate={() => onOpenChange(false)}
+            onOpenView={setView}
+            metricsOnly
+          />
+        </div>
+      ) : view === 'list' ? (
         <CheckinSheetList
           data={demo}
           onNavigate={() => {

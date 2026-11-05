@@ -63,6 +63,8 @@ export async function createGoal(
         status: 'active',
         sortOrder: nextSort,
         fieldVersion: custom ? 1 : null,
+        refereeRules: input.refereeRules ?? null,
+        deadlineDate: input.deadlineDate ?? null,
       })
       .returning()
   } catch (error) {

@@ -83,6 +83,8 @@ export async function getRankBoard(
         inArray(checkins.userId, ids),
         gte(checkins.localDate, from),
         lte(checkins.localDate, to),
+        // 未达标的记录不上榜，防止糊弄打卡刷榜
+        eq(checkins.isValid, true),
       ),
     )
     .groupBy(checkins.userId, checkins.localDate, checkins.isMakeup)
@@ -95,6 +97,7 @@ export async function getRankBoard(
     const row: RankCheckin = {
       localDate: d.localDate,
       isMakeup: d.isMakeup,
+      isValid: true,
       occurredAt: d.lastAt.toISOString(),
     }
     const list = byUser.get(d.userId)
@@ -140,6 +143,7 @@ export async function getRankFeed(db: DbOrTx, now: Date): Promise<Feed> {
         gte(checkins.occurredAt, feedSince(now)),
         lte(checkins.occurredAt, now),
         eq(checkins.isMakeup, false),
+        eq(checkins.isValid, true),
         eq(profiles.leaderboardOptIn, true),
         isNotNull(profiles.onboardedAt),
         isNotNull(profiles.nickname),

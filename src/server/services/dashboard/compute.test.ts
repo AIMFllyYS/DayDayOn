@@ -34,6 +34,7 @@ function ck(goalId: string, localDate: string, over: Partial<GoalCheckin> = {}):
     count: 1,
     mealType: null,
     occurredAt: `${localDate}T02:00:00.000Z`,
+    isValid: true,
     ...over,
   }
 }

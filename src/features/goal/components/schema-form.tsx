@@ -121,7 +121,8 @@ function ChoiceChips<V extends string>({
   )
 }
 
-function FieldControl({ id, field, value, invalid, onChange }: ControlProps) {
+/** 单个字段的输入控件：打卡页「我的小目标」每个字段一个分区时直接用它 */
+export function FieldControl({ id, field, value, invalid, onChange }: ControlProps) {
   switch (field.type) {
     case 'number':
       return (

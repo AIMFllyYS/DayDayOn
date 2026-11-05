@@ -1,5 +1,5 @@
 import 'server-only'
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, countDistinct, eq } from 'drizzle-orm'
 import {
   type CreateGoal,
   type Goal,
@@ -11,7 +11,7 @@ import {
 } from '@/features/goal/schemas'
 import { ApiError } from '@/server/api/errors'
 import type { DbOrTx, Tx } from '@/server/db/client'
-import { goalFieldVersions, goals, goalTargets } from '@/server/db/schema'
+import { checkins, goalFieldVersions, goals, goalTargets } from '@/server/db/schema'
 import { createGoal } from './create'
 import {
   assertCanActivate,
@@ -79,8 +79,8 @@ export async function getGoal(db: DbOrTx, userId: string, goalId: string): Promi
   const row = await findGoal(db, userId, goalId)
   if (!row) throw new ApiError('GOAL_NOT_FOUND', '目标不存在')
 
-  // 下面两条只按 goalId 查：上一步已确认这个目标属于当前用户
-  const [versions, targets] = await Promise.all([
+  // 下面几条只按 goalId 查：上一步已确认这个目标属于当前用户
+  const [versions, targets, valid] = await Promise.all([
     db
       .select({
         version: goalFieldVersions.version,
@@ -100,6 +100,10 @@ export async function getGoal(db: DbOrTx, userId: string, goalId: string): Promi
       .from(goalTargets)
       .where(eq(goalTargets.goalId, goalId))
       .orderBy(asc(goalTargets.effectiveFrom)),
+    db
+      .select({ days: countDistinct(checkins.localDate) })
+      .from(checkins)
+      .where(and(eq(checkins.goalId, goalId), eq(checkins.isValid, true))),
   ])
 
   return {
@@ -110,6 +114,7 @@ export async function getGoal(db: DbOrTx, userId: string, goalId: string): Promi
       createdAt: v.createdAt.toISOString(),
     })),
     targetHistory: targets,
+    validDays: valid[0]?.days ?? 0,
   }
 }
 
@@ -154,6 +159,15 @@ export async function updateGoal(
   if (input.plannedTime !== undefined) changes.plannedTime = input.plannedTime
   if (input.status !== undefined) changes.status = input.status
   if (input.sortOrder !== undefined) changes.sortOrder = input.sortOrder
+  if (input.deadlineDate !== undefined) changes.deadlineDate = input.deadlineDate
+  if (input.refereeRules !== undefined) {
+    if (input.refereeRules !== null && input.refereeRules.module !== current.module) {
+      throw new ApiError('VALIDATION_FAILED', '裁判规则的板块和目标不一致', {
+        fields: { refereeRules: ['裁判规则的板块和目标不一致'] },
+      })
+    }
+    changes.refereeRules = input.refereeRules
+  }
 
   const currentTarget = {
     kind: current.targetKind,

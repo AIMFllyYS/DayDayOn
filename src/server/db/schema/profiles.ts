@@ -1,4 +1,5 @@
 import { boolean, pgTable, smallint, text, uniqueIndex } from 'drizzle-orm/pg-core'
+import type { RefereeTier } from '../../../features/referee/schemas'
 import { user } from './auth'
 import { id, timestamps, timestamptz } from './columns'
 
@@ -29,6 +30,8 @@ export const profiles = pgTable(
     onboardedAt: timestamptz(),
     theme: text().notNull().default('caramel'),
     mascot: text().$type<'tuan' | 'dun' | 'mian' | 'you'>().notNull().default('tuan'),
+    /** 个人体质档位：饮食裁判按它调整扣分权重（checkin-modules.md 第 3.1 节） */
+    refereeTier: text().$type<RefereeTier>().notNull().default('balanced-glycemic'),
     // 可空：为空表示不提醒（PRD 7.1），值为 HH:mm
     remindAt: text(),
     // 可空：本地开发没有 x-real-ip 时记 127.0.0.1，老数据可能为空

@@ -23,6 +23,7 @@ export type GoalRow = Pick<
   | 'targetValue'
   | 'weekdays'
   | 'fieldVersion'
+  | 'refereeRules'
 >
 
 const goalColumns = {
@@ -35,6 +36,7 @@ const goalColumns = {
   targetValue: goals.targetValue,
   weekdays: goals.weekdays,
   fieldVersion: goals.fieldVersion,
+  refereeRules: goals.refereeRules,
 }
 
 /** 当前用户的目标；不存在或不属于当前用户都是 404 GOAL_NOT_FOUND */
@@ -137,6 +139,9 @@ export const checkinColumns = {
   payload: checkins.payload,
   fieldVersion: checkins.fieldVersion,
   aiRunId: checkins.aiRunId,
+  score: checkins.score,
+  isValid: checkins.isValid,
+  verdict: checkins.verdict,
   createdAt: checkins.createdAt,
 }
 

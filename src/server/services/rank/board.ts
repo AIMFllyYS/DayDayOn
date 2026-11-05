@@ -27,7 +27,7 @@ export function isRankEligible(p: RankProfileFields, now: Date): boolean {
 }
 
 /** 某用户在范围内的打卡（按 userId、localDate、isMakeup 聚合后的行也可以，countRankDays 会去重） */
-export type RankCheckin = Pick<StatCheckin, 'localDate' | 'isMakeup' | 'occurredAt'>
+export type RankCheckin = Pick<StatCheckin, 'localDate' | 'isMakeup' | 'occurredAt' | 'isValid'>
 
 export interface RankCandidate extends PublicUser {
   streak: number

@@ -1,0 +1,153 @@
+# 打卡板块与 Agent 裁判规范
+
+> 日期：2026-11-05 · 状态：初版，随 ADR-0027 一起提交。
+> 依据：[ADR-0027](../adr/0027-agent-referee.md)（Agent 裁判与分数库）、Epic #33 及子任务 #35–#38、`/dev/playbook/modules/*` 五个板块的整页稿（视觉与交互的唯一参照）。
+> 写或改任何打卡页面、板块表单、裁判规则、目标设置、新人引导里的板块配置前，先读本文。
+
+## 1. 一句话模型
+
+**一个打卡 = 若干「填什么」+「怎么算达标」+ 一个周期。** 饮食、运动、睡眠、学习四个板块是固定好的组合，「我的小目标」是用户自己拼的组合。由此：
+
+- 页面骨架只有一套（`CheckinFlow`），五个板块只提供数据，不改版式。
+- 达标判定只有一种形状（`Verdict`），五个板块各写一个纯函数产出它。
+- 规则配置只有一个入口（「我的 → 目标设置」），五个板块各写一个配置面板挂进去。
+- Agent 裁判只有一个运行器（`runReferee`），五个板块各提供一份「技能」：提示词片段、工具子集、事实 schema。
+
+## 2. 目录与所有权
+
+```
+src/features/referee/                 前后端共用（无 server-only、无 React）
+├── schemas.ts                        RefereeTier、RefereeRules（按板块联合）、Facts（按板块联合）、Verdict、Check
+├── rules/<module>.ts                 judge<Module>(subject, ctx) → Verdict，纯函数 + 同名 .test.ts
+├── rules/index.ts                    judge() 分发；唯一知道全部板块的规则入口
+├── subject.ts                        创建打卡请求体 → 裁判输入（前端预览、Agent、入库三处共用）
+└── defaults.ts                       各板块默认规则（DEFAULT_RULES[module]）与 effectiveRules()
+
+src/features/checkin/flow/            打卡页骨架（从 Playbook PhoneFlow 提升，Playbook 反过来 re-export）
+├── checkin-flow.tsx                  标题栏 → 头部卡 → 模式 Tab → 主选择器 → 分区 / 扫描镜 → 报告 → 底部 Agent 抽屉 + 操作条 → 结果弹窗
+├── fill-section.tsx  folder-card.tsx  agent-drawer.tsx  doc-page.tsx  time-picker.tsx  types.ts
+└── fields/                           分区里的原子输入：tags.tsx（常用标签 + 设置浮层）、inputs.tsx（InlineRow、PointsEditor）
+
+src/features/checkin/modules/         板块定义；板块目录之间互相不 import
+├── <module>/                         useForm（填写页）、buildReport（分析页）、docs（二级页）、RulesEditor
+├── rules-editors.tsx                 四个固定板块的规则面板（「我的小目标」的在 custom/ 里）
+├── tier-picker.tsx                   人群档位选择（目标设置与新人引导共用）
+├── registry.ts                       Module → 板块定义；唯一知道全部板块的前端入口
+└── types.ts                          CheckinModuleDef、ModuleFormApi、RulesEditorProps
+
+src/features/agent/use-referee-run.ts 裁判流式 hook（@ai-sdk/react 只允许在 features/agent/）
+
+src/server/ai/referee/                裁判 Agent（ai 包只允许在 src/server/ai/）
+├── prompt.ts                         通用提示词 + 每个板块一段技能；改动加 REFEREE_PROMPT_VERSION
+├── tools.ts                          各板块工具 + submitVerdict（入参 = 该板块事实 schema）
+├── food-table.ts                     lookupFoodNutrition 的内置营养表
+└── index.ts                          streamReferee()：预占 → ToolLoopAgent 流式 → 结算
+src/server/services/referee/          startReferee()（读目标、规则、体质、体重）与工具要读的数据（read.ts）
+src/server/api/routes/referee.ts      POST /goals/{goalId}/referee（流式，不走 OpenAPI 子应用）
+```
+
+- `features/checkin/modules/<module>/` 之间、`features/referee/rules/*` 之间**禁止互相 import**。共用的东西放到上一层（`flow/`、`flow/fields/`、`modules/rules-editors.tsx`、`referee/schemas.ts`）。
+- 只有两个 `registry` / `index` 文件可以按 `Module` 分发。页面、路由、统计里禁止出现 `if (module === 'diet')` 这类分支去决定裁判结果或报告内容，一律走注册表。
+- 裁判规则写在 `src/features/referee/rules/`，前端用它做即时预览，服务端用**同一份代码**重算并以重算结果入库。这是 AGENTS.md「业务逻辑放 services」的唯一例外，理由同 `schemas.ts`：前后端必须得出同一个结论。规则文件不 import React、`next/*`、数据库或 `ai`。
+
+## 3. 数据契约
+
+### 3.1 规则配置（两层）
+
+| 层 | 存哪里 | 内容 |
+|---|---|---|
+| 个人体质 | `profiles.referee_tier`（text，默认 `balanced-glycemic`） | `strict-fat-loss` 减脂严管 / `balanced-glycemic` 控糖均衡 / `gentle-gain` 增肌温和。饮食扣分权重按它调整 |
+| 目标规则 | `goals.referee_rules`（jsonb，可空 = 用 `DEFAULT_RULES[module]`）+ `goals.deadline_date`（date，可空 = 不设期限） | 按板块的阈值，见下表 |
+
+| 板块 | `RefereeRules` 字段（默认值） |
+|---|---|
+| diet | `passScore`（3.0，固定 > 该分才有效） |
+| exercise | `distanceMinMinutes` 20、`distanceMinKm` 2、`countMinMinutes` 15、`countMinSets` 4 |
+| sleep | `bedtimeBy` "23:30"、`minHours` 6.5、`maxHours` 9.5 |
+| study | `minFocusMinutes` 25、`minNoteChars` 10 |
+| custom | `conditions`：`[{ key, op: 'gte'\|'lte'\|'eq'\|'filled', value? }]`，`aiCriteria`：可选的一句话判卷标准 |
+
+- 规则写入前用 `RefereeRulesSchema`（按 `module` 判别）校验；`module` 必须与目标一致。
+- 用户调过的阈值只影响之后的打卡；已入库的 `verdict` 不重算。
+
+### 3.2 事实（Facts）
+
+事实 = 裁判需要、但表单里没有的数：饮食每道菜的热量 / 蛋白 / 碳水 / 脂肪 / 纤维 / 钠 / GI / 是否一票否决；运动每项的 MET 与消耗；学习要点是否有实质内容。
+
+- 事实由 Agent 通过 `submitVerdict` 工具提交（入参就是该板块的 Facts schema），或在 AI 不可用时由规则函数用默认值兜底（见 3.4）。
+- 事实连同裁判结果一起作为草稿返回前端，用户确认时随创建打卡请求一起提交。
+
+### 3.3 裁判结果（Verdict）
+
+```ts
+interface Verdict {
+  version: 1
+  isValid: boolean          // 是否计入有效打卡
+  score: number | null      // 只有评分制板块有（饮食 0.0–5.0）
+  scoreMax: number | null
+  detail: string            // 一句话：「本餐 4.4 分，超过 3.0 分有效线」
+  checks: Check[]           // 逐项核验：{ id, text, ok, source? }
+  metrics: Record<string, number | string | null>   // 报告用的数（板块自定键）
+  facts: Facts              // 当时依据的事实
+  citations: { title: string; url: string }[]       // 联网核验来源
+  advice: string[]          // 改进建议（最多 3 条）
+  refereeRunId: string | null                        // 裁判那次 ai_runs.id；离线判定为 null
+  offline: boolean          // true = 没经过 Agent，只按规则判定
+}
+```
+
+### 3.4 入库（分数库）
+
+`checkins` 新增三列：
+
+| 列 | 类型 | 说明 |
+|---|---|---|
+| `score` | `numeric(3,1)`，可空 | 评分制板块的分数；其余为空 |
+| `is_valid` | `boolean not null default true` | 老数据迁移后都是 true |
+| `verdict` | `jsonb`，可空 | 上面的 `Verdict`；老数据为空 |
+
+- 服务端在创建打卡时**重算**：`judge(module, facts, rules, ctx)`，前端传来的 `isValid` / `score` 一律忽略。
+- 没有事实（离线、AI 暂停、额度不足）时也必须出结论：饮食按关键词识别一票否决食物，`score` 为空、`isValid = !一票否决`；其余板块的规则本来就不依赖事实。
+- `isValid = false` 的记录照常保存、照常出现在历史和日历里（标「未达标·仅供复盘」），但**不计入**今日进度、`done`、连续天数、排行榜天数，也不给好友发完成动态。所有统计只在 `src/server/services/stats.ts` 一处过滤。
+
+## 4. Agent 裁判的运行
+
+1. 前端提交草稿：`POST /api/v1/goals/{goalId}/referee`（`idempotency-key` 必填），请求体是该板块的创建打卡请求体（不含 `isValid` / `score`）。
+2. 服务端 `streamReferee()`：读目标规则与体质 → 按板块取技能 → 建 `ToolLoopAgent`（`deepseek-flash`，思考关闭，最多 6 步，最后一步强制 `submitVerdict`，联网最多 3 次）→ 流式返回 UI message stream。
+3. Agent 按需调用工具，最后必须调用 `submitVerdict(facts)`；工具内部跑 `judge()`，输出就是 `Verdict`。没调到 `submitVerdict` 视为识别失败，前端降级为离线判定。
+4. 额度和 Agent 对话同一套账本：预占 token 上限 + 联网次数上限，结束后按实际用量结算，失败释放，`ai_runs.purpose = 'referee'`。
+5. 前端只认 `submitVerdict` 的输出；思考与工具调用用 `<AgentTurn>` 显示在 Agent 抽屉里，工具名在 `features/agent/tool-meta.ts` 登记中文名和图标。
+- 用户点「确认有效打卡」或「仅保存记录」后，前端调普通的创建打卡接口，带上 `facts`、`refereeRunId`、`citations`、`advice`。用户放弃时什么也不写。
+- 智能拍照 / 上传：扫描镜识别出草稿后，`applySmart(draft)` 填表并直接返回请求体，骨架立刻交给 Agent 裁判，不等下一次渲染。
+
+| 板块 | 工具 |
+|---|---|
+| diet | `lookupFoodNutrition`（内置常见食物营养表）、`webSearch` / `webFetch`（表里没有的菜） |
+| exercise | `lookupMet`（内置 MET 表）、`calcExerciseKcal`（读用户最近体重） |
+| sleep | `getRecentSleep`（最近 7 天睡眠记录，用于规律度） |
+| study | `getTodayStudy`（今天已有的学习时长，碎片累加）、`webSearch` |
+| custom | `listCheckins`（本目标最近记录） |
+
+## 5. 页面与入口
+
+- **打卡页**：`/goals/{goalId}/checkin` 渲染 `CheckinFlow` + 该板块的定义。进来就是填写页；「达标规则」「评判依据」是头部卡里的标签，点开是二级页；提交后底部弹 Agent 抽屉；分析完成后内容区追加报告；确认后弹结果卡（团团 + 盖章 / 存档）。
+- **目标设置**（全局唯一）：`/goals`，入口是「我的 → 目标设置」。顶栏「＋ → 设置目标」、底栏「＋」弹层里的空状态、主页空状态都跳到这里，不再弹抽屉。页面里：选择要坚持的板块 → 每个板块的规则面板（`settings.tsx`）→ 饮食面板里选体质档位。
+- **底栏「＋」**：打卡弹层列出今天的目标；一个目标都没有时只显示一张虚线框卡片「建立你的第一个打卡」，样式与目标卡片同尺寸，点击跳 `/goals`。
+- **新人引导**：选板块后多一步「定个标准」：每个选中的板块一张折叠卡（饮食卡里先选人群），整步可跳过，跳过就用默认规则。引导和目标设置用同一组 `RulesEditor` 与 `TierPicker`，不各写一份。
+
+## 6. 禁止
+
+- 不要在页面、路由或 Hono handler 里写达标判据（分数线、分钟数、红线时刻）；只能出现在 `features/referee/rules/` 和 `defaults.ts`。
+- 不要信任前端传来的 `isValid` / `score`；schema 里不收这两个字段。
+- 不要因为未达标拒绝保存（不返回 4xx），也不要删掉未达标记录。
+- 不要给某个板块单独复制一套打卡页骨架、报告卡片或 Agent 抽屉；要差异就给 `CheckinFlow` 加一个可选插槽。
+- 不要在板块之间 import 表单或规则；两个板块都要的东西提升到 `flow/fields/` 或 `referee/`。
+- 不要再新增「设置目标」抽屉或第二个目标设置页面。
+- 不要把用户上传的图片、笔记原文写进 `verdict`；只存解析出的事实与摘要。
+
+## 7. 测试
+
+- `features/referee/rules/*.test.ts`：每个板块至少覆盖 Playbook 判例里的 A–D 四个场景，加离线兜底一条。
+- `stats.test.ts`：`isValid = false` 不计进度、不计连续天数、不计排行。
+- 裁判接口：用 `MockLanguageModelV4` 测「调用 submitVerdict」「没调用 submitVerdict」两条路径，测试不调真实 DeepSeek。
+- 界面：ego-browser 在 390px 与 1280px 下各走一遍五个板块的「填写 → Agent 分析 → 确认 → 历史可见」，至少一条走真实 AI。

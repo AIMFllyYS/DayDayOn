@@ -56,6 +56,21 @@ const toolMeta: Record<string, ToolMeta> = {
   draftCheckin: { label: '整理打卡草稿', verb: '正在整理打卡', icon: 'check', tone: 'primary' },
   draftTodo: { label: '整理待办草稿', verb: '正在整理待办', icon: 'todo', tone: 'neutral' },
   draftWeight: { label: '整理体重草稿', verb: '正在整理体重', icon: 'chart', tone: 'primary' },
+  // 打卡裁判（server/ai/referee/tools.ts）
+  lookupFoodNutrition: {
+    label: '查食物营养表',
+    verb: '正在查每道菜的营养',
+    icon: 'diet',
+    tone: 'diet',
+  },
+  getRecentSleep: { label: '读近期睡眠', verb: '正在看最近几晚', icon: 'sleep', tone: 'sleep' },
+  getTodayStudy: { label: '读今日学习', verb: '正在累加今天的学习', icon: 'study', tone: 'study' },
+  submitVerdict: {
+    label: '提交裁判事实',
+    verb: '正在按规则出结论',
+    icon: 'shield',
+    tone: 'success',
+  },
 }
 
 const fallback: ToolMeta = {

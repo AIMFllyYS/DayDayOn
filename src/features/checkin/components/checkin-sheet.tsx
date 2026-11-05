@@ -3,16 +3,18 @@
 import { useRouter } from 'next/navigation'
 import { Button, IconButton } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
-import { EmptyState } from '@/components/ui/empty-state'
 import { Sheet } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
-import { LinkButton } from '@/features/dashboard/components/link-button'
 import { errorMessage, isApiError, useQuery } from '@/lib/api'
 import { checkinTodayQuery } from '@/lib/api/queries/checkins'
 import type { CheckinToday } from '../schemas'
 import { useCheckinLauncher, type CheckinLauncherView } from '../launcher-store'
 import { setSmartPageViewMode } from '../smart-handoff'
-import { CheckinSheetList, type CheckinSheetListProps } from './checkin-sheet-list'
+import {
+  CheckinSheetList,
+  FirstCheckinCard,
+  type CheckinSheetListProps,
+} from './checkin-sheet-list'
 import { MoodPanel } from './mood-panel'
 import { SmartActionBar } from './smart-action-bar'
 import { WeightPanel } from './weight-panel'
@@ -136,16 +138,7 @@ function SheetBody({
   if (data.goals.length === 0 && data.completion.planned === 0) {
     return (
       <div className="flex flex-col gap-3">
-        <EmptyState
-          size="compact"
-          title="今天没有计划的目标"
-          description="设定一个小目标，每天来这里打卡"
-          action={
-            <LinkButton href="/goals/new" variant="soft" onClick={onNavigate}>
-              去设定目标
-            </LinkButton>
-          }
-        />
+        <FirstCheckinCard onNavigate={onNavigate} />
         <CheckinSheetList data={data} onNavigate={onNavigate} onOpenView={onOpenView} metricsOnly />
       </div>
     )
