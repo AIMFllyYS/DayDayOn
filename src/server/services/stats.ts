@@ -93,12 +93,14 @@ function durationValue(module: Module, checkins: readonly StatCheckin[]): number
 
 function countValue(module: Module, checkins: readonly StatCheckin[]): number {
   if (module === 'diet') {
-    // 同一餐记多条只算一次；没有餐次的记录不计次
-    return new Set(checkins.flatMap((c) => (c.mealType === null ? [] : [c.mealType]))).size
+    // 同一餐记多条只算一次；若某条因豁免跳过了整天目标（count > 1），取较大值
+    const maxCount = checkins.reduce((m, c) => Math.max(m, c.count), 0)
+    const meals = new Set(checkins.flatMap((c) => (c.mealType === null ? [] : [c.mealType]))).size
+    return Math.max(maxCount, meals)
   }
   // 睡眠按"当天那一条"：最多 1 次
   if (module === 'sleep') return Math.min(1, checkins.length)
-  return checkins.length
+  return checkins.reduce((sum, c) => sum + Math.max(1, c.count), 0)
 }
 
 /** 当天完成度：只数计划内的目标（不在计划日的打卡计入进度，但不计入 planned） */
