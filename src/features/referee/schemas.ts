@@ -121,15 +121,29 @@ export const DietDishFactSchema = z.object({
   junk: z.boolean(),
   /** 甜点、冰淇淋这类解馋食物：按餐次轻扣或重扣 */
   sweet: z.boolean().default(false),
+  /** 空腹 / 断食（不扣分且适当加分） */
+  isFasting: z.boolean().optional(),
+  /** 碳水质量：精米白面 refined / 土豆玉米粗粮 complex / 无主食碳水 none */
+  carbQuality: z.enum(['refined', 'complex', 'none']).optional(),
+  /** 油脂质量：坚果深海鱼牛油果等优质脂肪 healthy / 劣质反式油炸 unhealthy / 普通 normal */
+  fatQuality: z.enum(['healthy', 'unhealthy', 'normal']).optional(),
   cooking: z.enum(COOKING_METHODS).default('other'),
   /** 数据来源：内置营养表 / 联网检索 / 模型估算 */
   source: z.enum(['table', 'web', 'estimate']).default('estimate'),
 })
 export type DietDishFact = z.infer<typeof DietDishFactSchema>
 
+const SkipFactFields = {
+  /** 用户在手动填写页填写「跳过本次打卡」理由时，Agent 核验理由是否合理充分 */
+  skipApproved: z.boolean().optional(),
+  /** Agent 对跳过理由的核验说明 */
+  skipComment: z.string().trim().max(120).nullable().optional(),
+}
+
 export const DietFactsSchema = z.object({
   module: z.literal('diet'),
   dishes: z.array(DietDishFactSchema).min(1).max(20),
+  ...SkipFactFields,
 })
 
 export const ExerciseItemFactSchema = z.object({
@@ -151,6 +165,7 @@ export const ExerciseFactsSchema = z.object({
   items: z.array(ExerciseItemFactSchema).min(1).max(10),
   /** 估算消耗用的体重；没有体重记录时按 60kg */
   weightKg: z.number().min(20).max(300).nullable(),
+  ...SkipFactFields,
 })
 
 export const SleepFactsSchema = z.object({
@@ -158,6 +173,7 @@ export const SleepFactsSchema = z.object({
   /** 最近几晚入睡时刻的平均偏差（分钟），越小越规律；没有历史为 null */
   regularityMinutes: z.number().min(0).max(720).nullable(),
   recentNights: z.number().int().min(0).max(14),
+  ...SkipFactFields,
 })
 
 export const StudyFactsSchema = z.object({
@@ -169,6 +185,7 @@ export const StudyFactsSchema = z.object({
   keyPoints: z.array(z.string().trim().min(1).max(60)).max(5).default([]),
   /** 今天这个目标之前已经记过的学习分钟数（碎片累加） */
   todayMinutesBefore: z.number().int().min(0).max(1440).default(0),
+  ...SkipFactFields,
 })
 
 export const CustomFactsSchema = z.object({
@@ -176,6 +193,7 @@ export const CustomFactsSchema = z.object({
   /** 按 aiCriteria 判卷的结果；没有 aiCriteria 时为 null */
   aiPass: z.boolean().nullable(),
   aiComment: z.string().trim().max(120).nullable(),
+  ...SkipFactFields,
 })
 
 export const FactsSchema = z

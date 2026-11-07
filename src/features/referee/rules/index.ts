@@ -1,7 +1,7 @@
 import type { Module } from '@/features/shared/schemas'
 import { effectiveRules } from '../defaults'
 import type { Facts, FactsOf, RefereeTier, Verdict } from '../schemas'
-import type { RefereeExtras } from './common'
+import { buildVerdict, type RefereeExtras } from './common'
 import { judgeCustom, type CustomSubject } from './custom'
 import { judgeDiet, type DietSubject } from './diet'
 import { judgeExercise, type ExerciseSubject } from './exercise'
@@ -29,6 +29,8 @@ export type JudgeInput = {
     storedRules: unknown
     facts: Facts | null
     tier: RefereeTier
+    /** 手动填写模式下的「跳过本次打卡」理由 */
+    skipReason?: string | null
     extras?: RefereeExtras
   }
 }[Module]
@@ -38,6 +40,51 @@ function factsFor<M extends Module>(module: M, facts: Facts | null): FactsOf<M> 
 }
 
 export function judge(input: JudgeInput): Verdict {
+  const skipReason = input.skipReason?.trim()
+  if (skipReason && skipReason.length > 0) {
+    const approved =
+      input.facts === null ? skipReason.length >= 2 : input.facts.skipApproved !== false
+    const comment = input.facts?.skipComment ?? null
+    return buildVerdict({
+      isValid: approved,
+      score: input.module === 'diet' ? (approved ? 4.0 : 0) : null,
+      scoreMax: input.module === 'diet' ? 5 : null,
+      detail: approved
+        ? comment || `跳过理由合理（${skipReason}），本次打卡豁免通过`
+        : comment || '跳过理由不够充分，请补充具体合理的原因',
+      checks: [
+        {
+          id: 'skip-reason',
+          text: approved ? `跳过理由核验通过：${skipReason}` : '跳过理由需要具体合理的原因',
+          ok: approved,
+        },
+      ],
+      metrics: {
+        skipped: approved ? 1 : 0,
+        ...(input.module === 'diet'
+          ? {
+              kcal: 0,
+              protein: 0,
+              carb: 0,
+              fat: 0,
+              fiber: 0,
+              sodium: 0,
+              gi: 0,
+              dishes: 0,
+              kcalMin: 300,
+              kcalMax: 700,
+              passScore: 3,
+            }
+          : {}),
+      },
+      facts: input.facts,
+      advice: approved
+        ? ['好好休息调整状态，准备好后再继续打卡']
+        : ['请填写具体客观的跳过理由（如身体不适、生病、外出赶路等）'],
+      extras: input.extras,
+    })
+  }
+
   const base = { tier: input.tier, extras: input.extras }
   switch (input.module) {
     case 'diet':
