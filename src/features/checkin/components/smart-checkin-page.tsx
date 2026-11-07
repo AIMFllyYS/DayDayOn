@@ -8,6 +8,7 @@ import { Button, IconButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
+import { Input } from '@/components/ui/field'
 import type { FormErrors } from '@/components/ui/form'
 import { ProgressBar } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -49,6 +50,7 @@ import {
   useMagicStreamFill,
 } from './smart-magic-stream'
 import { SmartModuleDetector, SmartScannerLens } from './smart-scanner'
+import { FillSection } from '../flow/fill-section'
 
 /*
  * 全局智能识别与历史记录页（/checkin/smart）：
@@ -106,6 +108,8 @@ export function SmartCheckinPage({
   const [selectedModule, setSelectedModule] = useState<Module>('diet')
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const [smartContext, setSmartContext] = useState<SmartFillContext | null>(null)
+  const [scanNote, setScanNote] = useState('')
+  const [noteOpen, setNoteOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<FormErrors>()
   const [done, setDone] = useState<{
@@ -369,6 +373,7 @@ export function SmartCheckinPage({
       <SmartScannerLens
         mode={activeMode}
         tone={selectedModule}
+        note={scanNote}
         onScanStart={(nextMode) => {
           setViewingHistoryId(null)
           setActiveMode(nextMode)
@@ -383,6 +388,32 @@ export function SmartCheckinPage({
           setScanPhase('manual')
         }}
       />
+
+      {/* 复用前端备注组件：作为拍照/上传识别与 Agent 判定的最高优先级补充上下文 */}
+      {!showResultSection && (
+        <FillSection
+          spec={{
+            id: 'note',
+            label: '备注',
+            icon: 'pen',
+            filled: scanNote.trim().length > 0,
+            summary: scanNote.trim() || '可选：例如「晚上没吃饭只吃菜」「空腹」',
+            content: (
+              <Input
+                aria-label="备注"
+                value={scanNote}
+                maxLength={200}
+                placeholder="例如：晚上没吃饭只吃菜、空腹、外卖少油"
+                onChange={(e) => setScanNote(e.target.value)}
+              />
+            ),
+          }}
+          tone={selectedModule}
+          open={noteOpen}
+          ai={false}
+          onToggle={() => setNoteOpen((v) => !v)}
+        />
+      )}
 
       {/* 2. 扫描进行中：展示「正在搜索哪个打卡分区」自定义懒加载动画 */}
       {scanPhase === 'scanning' && <SmartPartitionSearchLoader />}

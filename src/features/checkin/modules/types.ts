@@ -5,7 +5,7 @@ import type { Module } from '@/features/shared/schemas'
 import type { DocGlance } from '../flow/doc-page'
 import type { DocPageSpec, FillSectionSpec, ReportSpec } from '../flow/types'
 import type { CheckinClock, CheckinGoal } from '../components/form-types'
-import type { CreateCheckinInput } from '../schemas'
+import type { Checkin, CreateCheckinInput } from '../schemas'
 import type { SmartRecognitionDraft } from '../smart-schemas'
 
 /*
@@ -17,6 +17,10 @@ import type { SmartRecognitionDraft } from '../smart-schemas'
 export interface ModuleFormApi {
   /** Tab 栏下面常驻的主选择器（饮食的餐次） */
   selector?: ReactNode
+  /** 当前激活的子维度键值（饮食的 mealType），切换时用于同步该子维度的已入库状态 */
+  activeKey?: string
+  /** 当前填写的备注文本（供智能拍照/智能上传扫描镜共享上下文） */
+  note?: string
   /** 排在最前面的分区（饮食的「加餐时间」） */
   leadSection?: FillSectionSpec | null
   sections: FillSectionSpec[]
@@ -40,6 +44,8 @@ export interface ModuleFormProps {
   clock: CheckinClock
   /** 今天的打卡日 */
   today: string
+  /** 今天已入库的打卡记录（凌晨 0 点前重进页面或切换餐次时直接读取恢复状态） */
+  todayCheckins?: readonly Checkin[]
 }
 
 export interface ModuleDocs {

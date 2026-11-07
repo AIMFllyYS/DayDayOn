@@ -8,7 +8,7 @@ import type { SmartRecognitionDraft } from '../../smart-schemas'
 import { FavoritesSheet, splitNames, TagRow, useFavorites } from '../../flow/fields/tags'
 import { TimePicker } from '../../flow/time-picker'
 import type { FillSectionSpec } from '../../flow/types'
-import type { ModuleFormApi } from '../types'
+import type { ModuleFormApi, ModuleFormProps } from '../types'
 
 /*
  * 好好吃饭的填写页（Playbook diet-flow）：餐次 → 吃了什么（输入框 + 常吃标签）→ 备注；
@@ -22,7 +22,16 @@ export const MEAL_LABEL: Record<MealType, string> = {
   snack: '加餐',
 }
 
-const DEFAULT_FAVS = ['糙米饭', '清蒸鱼', '蒜蓉西兰花', '番茄炒蛋', '鸡胸肉', '燕麦粥', '水煮蛋']
+const DEFAULT_FAVS = [
+  '空腹',
+  '糙米饭',
+  '清蒸鱼',
+  '蒜蓉西兰花',
+  '番茄炒蛋',
+  '鸡胸肉',
+  '燕麦粥',
+  '水煮蛋',
+]
 
 /** 按当前时刻猜餐次 */
 function guessMeal(hour: number): MealType {
@@ -43,7 +52,7 @@ interface SmartItem {
   kcal: number | null
 }
 
-export function useDietForm(): ModuleFormApi {
+export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
   const enteredRef = useRef<string | null>(null)
   const clock = useSyncExternalStore(
     () => () => undefined,
@@ -59,6 +68,32 @@ export function useDietForm(): ModuleFormApi {
   const { favs, setFavs, resetFavs } = useFavorites('diet', DEFAULT_FAVS)
 
   const mealType: MealType = meal ?? (clock ? guessMeal(Number(clock.slice(0, 2))) : 'lunch')
+
+  // 凌晨 0 点前重进页面或切换餐次时，直接读取数据库已存的该餐次记录；切换到未打卡餐次时清空表单
+  const savedMeal = props?.todayCheckins?.find(
+    (c) => c.payload.module === 'diet' && c.payload.mealType === mealType,
+  )
+  const syncKey = `${mealType}:${savedMeal?.id ?? 'none'}`
+  const [seenSyncKey, setSeenSyncKey] = useState<string | null>(null)
+  if (syncKey !== seenSyncKey) {
+    setSeenSyncKey(syncKey)
+    if (savedMeal && savedMeal.payload.module === 'diet') {
+      const savedItems = savedMeal.payload.items.map((i) => ({
+        name: i.name,
+        portion: i.portion ?? '',
+        kcal: i.kcal,
+      }))
+      setSmartItems(savedMeal.payload.method === 'photo' ? savedItems : null)
+      setText(savedItems.map((i) => i.name).join('、'))
+      setNote(savedMeal.note ?? '')
+      if (savedMeal.payload.snackTime) setSnackTime(savedMeal.payload.snackTime)
+    } else {
+      setSmartItems(null)
+      setText('')
+      setNote('')
+    }
+  }
+
   const snackAt = snackTime || clock || '12:00'
   const names = splitNames(text)
   // 识别出来的条目带份量和热量；用户改了文字就以文字为准
@@ -120,6 +155,8 @@ export function useDietForm(): ModuleFormApi {
   ]
 
   return {
+    activeKey: mealType,
+    note,
     selector: (
       <SegmentedControl
         size="sm"
@@ -166,6 +203,10 @@ export function useDietForm(): ModuleFormApi {
     applySmart: (draft: SmartRecognitionDraft) => {
       const d = draft.diet
       if (!d) return null
+      const targetSaved = props?.todayCheckins?.find(
+        (c) => c.payload.module === 'diet' && c.payload.mealType === d.mealType,
+      )
+      setSeenSyncKey(`${d.mealType}:${targetSaved?.id ?? 'none'}`)
       setMeal(d.mealType)
       const list = d.items.map((i) => ({ name: i.name, portion: i.portion ?? '', kcal: i.kcal }))
       setSmartItems(list)
