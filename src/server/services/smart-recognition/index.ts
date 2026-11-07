@@ -96,6 +96,7 @@ export async function recognizeSmart(input: RecognizeSmartInput): Promise<SmartR
     draft: normalizeSmartDraft(result.output, {
       hintModule: input.fields.hintModule,
       goalId: input.fields.goalId,
+      note: input.fields.note,
       goals,
     }),
     aiRunId: result.aiRunId,
