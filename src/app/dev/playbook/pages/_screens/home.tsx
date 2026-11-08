@@ -83,6 +83,20 @@ const demo: DashboardToday = {
     deltaGrams7d: -600,
   },
   mood: 4,
+  steps: {
+    todaySteps: 6420,
+    entries: [5100, 7200, 4800, 6300, 8100, 5900, 6420].map((s, i) => ({
+      localDate: `2026-10-${String(26 + i).padStart(2, '0')}`,
+      steps: s,
+      measuredAt: `2026-10-${String(26 + i).padStart(2, '0')}T12:00:00.000Z`,
+    })),
+    latest: {
+      localDate: '2026-11-01',
+      steps: 6420,
+      measuredAt: '2026-11-01T12:00:00.000Z',
+    },
+    deltaSteps7d: 1320,
+  },
   heatmap: {
     days: [
       '2026-10-26',
@@ -164,6 +178,11 @@ export function HomeScreen({ thumb = false }: { thumb?: boolean }) {
       timeZone="Asia/Shanghai"
       onOpenWeight={() => launcher.open('weight')}
       onOpenMood={() => launcher.open('mood')}
+      onOpenSteps={() =>
+        toast.info('手机端自动同步硬件计步器', {
+          description: '网页端未安装 App 时默认显示 0 步，绝不报错～',
+        })
+      }
       readOnly={Boolean(activeFriend)}
       friendBanner={
         activeFriend ? (

@@ -40,6 +40,7 @@ async function loadMeRow(db: DbOrTx, userId: string): Promise<MeRow | null> {
       theme: profiles.theme,
       mascot: profiles.mascot,
       remindAt: profiles.remindAt,
+      remindMode: profiles.remindMode,
       refereeTier: profiles.refereeTier,
     })
     .from(user)
@@ -55,6 +56,7 @@ async function loadMeRow(db: DbOrTx, userId: string): Promise<MeRow | null> {
     leaderboardOptIn: row.leaderboardOptIn ?? false,
     theme: row.theme ?? 'caramel',
     mascot: row.mascot ?? 'tuan',
+    remindMode: row.remindMode ?? (row.remindAt ? 'in-app' : 'off'),
     refereeTier: row.refereeTier ?? 'balanced-glycemic',
   }
 }

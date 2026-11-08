@@ -1,6 +1,6 @@
 import * as z from 'zod'
 import { TodayGoalSchema } from '@/features/checkin/schemas'
-import { WeightTrendSchema } from '@/features/metric/schemas'
+import { StepTrendSchema, WeightTrendSchema } from '@/features/metric/schemas'
 import { FeedItemSchema } from '@/features/rank/schemas'
 import { LocalDateSchema, ModuleSchema, RatingValueSchema } from '@/features/shared/schemas'
 
@@ -51,6 +51,13 @@ export const DashboardTodaySchema = z
     weight: WeightTrendSchema,
     /** 3 今日心情，没记为 null */
     mood: RatingValueSchema.nullable(),
+    /** 3 今日步数卡（无记录或纯网页端恒为 todaySteps: 0，绝不报错） */
+    steps: StepTrendSchema.default({
+      todaySteps: 0,
+      entries: [],
+      latest: null,
+      deltaSteps7d: null,
+    }),
     /** 4 本周热力图 */
     heatmap: WeekHeatmapSchema,
     /** 5 榜单动态：最近 24 小时最多 10 条 */

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { FileUIPart } from 'ai'
 import { Icon } from '@/components/ui/icon'
+import { PhotoAlbumSheet } from '@/components/ui/photo-album-sheet'
+import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/cn'
 import { newIdempotencyKey } from '@/lib/api/fetcher'
 import { compressImage, ImageCompressError } from '@/lib/image/compress'
@@ -50,6 +52,7 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
   const [input, setInput] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [attachError, setAttachError] = useState<string | null>(null)
+  const [albumOpen, setAlbumOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputRowRef = useRef<HTMLDivElement>(null)
@@ -87,13 +90,21 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
     }
   }, [input])
 
-  async function onPick(files: FileList | null) {
+  async function onPick(files: FileList | File[] | null) {
     if (!files || files.length === 0) return
     setAttachError(null)
+    const rawArray = Array.from(files)
+    const imageFiles = rawArray.filter((f) => f.type.startsWith('image/'))
+    if (imageFiles.length > 2) {
+      toast.info(`已选 ${imageFiles.length} 张照片，单次最多同时上传前 2 张～`)
+    }
+    let imageQuota = 2
     const next: Attachment[] = []
-    for (const file of Array.from(files)) {
+    for (const file of rawArray) {
       try {
         if (file.type.startsWith('image/')) {
+          if (imageQuota <= 0) continue
+          imageQuota--
           const { blob } = await compressImage(file)
           const url = await blobToDataUrl(blob)
           next.push({
@@ -118,7 +129,14 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
         setAttachError(err instanceof ImageCompressError ? err.message : '附件读取失败，换一个试试')
       }
     }
-    if (next.length > 0) setAttachments((prev) => [...prev, ...next])
+    if (next.length > 0) {
+      setAttachments((prev) => {
+        const merged = [...prev, ...next]
+        const imgs = merged.filter((x) => x.kind === 'image').slice(0, 2)
+        const texts = merged.filter((x) => x.kind !== 'image')
+        return [...imgs, ...texts]
+      })
+    }
   }
 
   function sendNow() {
@@ -161,6 +179,14 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
           e.target.value = ''
         }}
       />
+      <PhotoAlbumSheet
+        open={albumOpen}
+        onOpenChange={setAlbumOpen}
+        maxSelect={9}
+        onConfirm={(files) => {
+          void onPick(files)
+        }}
+      />
 
       {/* 悬浮在输入框之上的深度思考按钮：AI 输出时透明隐藏但保持高度，避免消息区跳动 */}
       <div
@@ -187,26 +213,53 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
         </button>
       </div>
 
-      {attachments.length > 0 && (
-        <ul className="pointer-events-auto flex flex-wrap gap-1.5 px-1">
-          {attachments.map((a) => (
-            <li
-              key={a.id}
-              className="bg-surface-sunken text-tiny text-muted flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1"
-            >
-              <Icon name={a.kind === 'image' ? 'camera' : 'copy'} size={12} lineOnly />
-              <span className="truncate">{a.label}</span>
-              <button
-                type="button"
-                aria-label={`移除 ${a.label}`}
-                onClick={() => setAttachments((prev) => prev.filter((x) => x.id !== a.id))}
-              >
-                <Icon name="x" size={12} className="text-subtle" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {attachments.length > 0 &&
+        (() => {
+          const imageAtts = attachments.filter((a) => a.kind === 'image')
+          const firstImage = imageAtts[0]
+          const textAtts = attachments.filter((a) => a.kind !== 'image')
+          return (
+            <ul className="pointer-events-auto flex flex-wrap gap-1.5 px-1">
+              {firstImage && (
+                <li
+                  key={firstImage.id}
+                  className="bg-surface-sunken text-tiny text-muted flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1"
+                >
+                  <Icon name="camera" size={12} lineOnly />
+                  <span className="truncate">{firstImage.label}</span>
+                  {imageAtts.length > 1 && (
+                    <span className="bg-primary-soft text-primary-ink rounded-full px-1.5 py-0.5 font-semibold">
+                      共 {imageAtts.length} 张 · 默认展示首图
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    aria-label="移除已选图片"
+                    onClick={() => setAttachments((prev) => prev.filter((x) => x.kind !== 'image'))}
+                  >
+                    <Icon name="x" size={12} className="text-subtle" />
+                  </button>
+                </li>
+              )}
+              {textAtts.map((a) => (
+                <li
+                  key={a.id}
+                  className="bg-surface-sunken text-tiny text-muted flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1"
+                >
+                  <Icon name="copy" size={12} lineOnly />
+                  <span className="truncate">{a.label}</span>
+                  <button
+                    type="button"
+                    aria-label={`移除 ${a.label}`}
+                    onClick={() => setAttachments((prev) => prev.filter((x) => x.id !== a.id))}
+                  >
+                    <Icon name="x" size={12} className="text-subtle" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )
+        })()}
       {attachError && (
         <p className="text-tiny text-danger-ink pointer-events-auto px-1">{attachError}</p>
       )}
@@ -219,7 +272,7 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
         <button
           type="button"
           aria-label="添加图片或文件"
-          onClick={() => fileRef.current?.click()}
+          onClick={() => setAlbumOpen(true)}
           className="text-muted hover:text-foreground hover:bg-surface-sunken flex size-7 shrink-0 items-center justify-center rounded-full transition-colors active:scale-95"
         >
           <Icon name="camera" size={15} lineOnly />

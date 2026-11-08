@@ -1,4 +1,9 @@
-import type { MascotCharacter, UpdatePreferences, UpdateProfile } from '@/features/me/schemas'
+import type {
+  MascotCharacter,
+  RemindMode,
+  UpdatePreferences,
+  UpdateProfile,
+} from '@/features/me/schemas'
 import type { RefereeTier } from '@/features/referee/schemas'
 
 /*
@@ -21,6 +26,7 @@ export interface PreferenceColumns {
   leaderboardOptIn?: boolean
   dayStartHour?: number
   remindAt?: string | null
+  remindMode?: RemindMode
   refereeTier?: RefereeTier
 }
 
@@ -39,6 +45,7 @@ const PREFERENCE_KEYS = [
   'leaderboardOptIn',
   'dayStartHour',
   'remindAt',
+  'remindMode',
   'refereeTier',
 ] as const
 

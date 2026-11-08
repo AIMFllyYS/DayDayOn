@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DayDayOn</string>
+    <string name="daydayon_url">https://daydayon.husteread.com/</string>
+    <string name="error_message">请检查手机网络连接，稍后点下方按钮重新打开你的打卡手账。</string>
+    <string name="error_retry">重新连接</string>
+    <string name="error_title">暂时连不上 DayDayOn</string>
+</resources>

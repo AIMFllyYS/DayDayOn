@@ -30,20 +30,30 @@ const tooLarge = new ApiError('PAYLOAD_TOO_LARGE', '请求体超过 4 MB')
 
 const RecognitionFormSchema = DietRecognitionFieldsSchema.extend({
   // 文件本身由 imageToFilePart 校验（类型、文件头、大小），这里只声明给 OpenAPI
-  image: z.unknown().openapi({ type: 'string', format: 'binary', description: 'JPEG，≤ 4 MB' }),
+  image: z
+    .unknown()
+    .openapi({ type: 'string', format: 'binary', description: '首张 JPEG，≤ 4 MB' }),
+  image2: z
+    .unknown()
+    .optional()
+    .openapi({ type: 'string', format: 'binary', description: '可选第 2 张 JPEG，≤ 4 MB' }),
 })
 
 const SmartRecognitionFormSchema = SmartRecognitionFieldsSchema.extend({
   image: z
     .unknown()
     .optional()
-    .openapi({ type: 'string', format: 'binary', description: '可选 JPEG 图片，≤ 4 MB' }),
+    .openapi({ type: 'string', format: 'binary', description: '可选首张 JPEG 图片，≤ 4 MB' }),
+  image2: z
+    .unknown()
+    .optional()
+    .openapi({ type: 'string', format: 'binary', description: '可选第 2 张 JPEG 图片，≤ 4 MB' }),
 })
 
 const recognizeRoute = createRoute({
   method: 'post',
   path: '/ai/diet-recognitions',
-  summary: '饮食拍照识别（返回草稿，不入库）',
+  summary: '饮食拍照识别（最多支持 2 张照片，返回草稿，不入库）',
   middleware: [
     requireUser,
     requireOnboarded,
@@ -84,7 +94,7 @@ const recognizeRoute = createRoute({
 const smartRecognizeRoute = createRoute({
   method: 'post',
   path: '/ai/smart-recognitions',
-  summary: '全板块智能打卡识别（支持拍照/上传图片或 TXT/HTML 文本附件，自动判别板块并返回草稿）',
+  summary: '全板块智能打卡识别（支持最多 2 张图片或 TXT/HTML 文本附件，自动判别板块并返回草稿）',
   middleware: [
     requireUser,
     requireOnboarded,
@@ -123,23 +133,25 @@ const smartRecognizeRoute = createRoute({
 
 export const aiRoutes = new OpenAPIHono<AppEnv>()
   .openapi(recognizeRoute, async (c) => {
-    const { image, mealType, note } = c.req.valid('form')
+    const { image, image2, mealType, note } = c.req.valid('form')
     const result = await recognizeDiet({
       userId: c.get('user').id,
       ip: c.get('ip'),
       idempotencyKey: c.req.valid('header')['idempotency-key'],
       image,
+      image2,
       fields: { mealType, note },
     })
     return c.json(result, 201)
   })
   .openapi(smartRecognizeRoute, async (c) => {
-    const { image, hintModule, goalId, textContent, note } = c.req.valid('form')
+    const { image, image2, hintModule, goalId, textContent, note } = c.req.valid('form')
     const result = await recognizeSmart({
       userId: c.get('user').id,
       ip: c.get('ip'),
       idempotencyKey: c.req.valid('header')['idempotency-key'],
       image,
+      image2,
       fields: { hintModule, goalId, textContent, note },
     })
     return c.json(result, 201)

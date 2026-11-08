@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isWeightInRange, needsWeightConfirm, weightSummary } from './rules'
+import {
+  isStepsInRange,
+  isWeightInRange,
+  needsWeightConfirm,
+  stepSummary,
+  weightSummary,
+} from './rules'
 
 describe('体重范围', () => {
   it('20–300 kg 含两端，按整克', () => {
@@ -45,5 +51,41 @@ describe('体重走势摘要', () => {
     expect(
       weightSummary([e('2026-10-30', 60_000), e('2026-11-01', 60_200)], '2026-10-01').deltaGrams7d,
     ).toBeNull()
+  })
+})
+
+describe('步数范围与走势摘要', () => {
+  const s = (localDate: string, steps: number) => ({
+    localDate,
+    steps,
+    measuredAt: `${localDate}T00:00:00.000Z`,
+  })
+
+  it('0–200000 步含两端，按整数', () => {
+    expect(isStepsInRange(0)).toBe(true)
+    expect(isStepsInRange(200_000)).toBe(true)
+    expect(isStepsInRange(-1)).toBe(false)
+    expect(isStepsInRange(200_001)).toBe(false)
+    expect(isStepsInRange(100.5)).toBe(false)
+  })
+
+  it('无记录或今日未记录时 todaySteps 恒为 0', () => {
+    const empty = stepSummary([], '2026-10-26', '2026-11-01')
+    expect(empty.todaySteps).toBe(0)
+    expect(empty.latest).toBeNull()
+
+    const noToday = stepSummary([s('2026-10-31', 5400)], '2026-10-26', '2026-11-01')
+    expect(noToday.todaySteps).toBe(0)
+    expect(noToday.latest?.steps).toBe(5400)
+  })
+
+  it('有今日记录时返回今日步数及 7 天差值', () => {
+    const res = stepSummary(
+      [s('2026-10-24', 6000), s('2026-11-01', 8500)],
+      '2026-10-26',
+      '2026-11-01',
+    )
+    expect(res.todaySteps).toBe(8500)
+    expect(res.deltaSteps7d).toBe(2500)
   })
 })

@@ -1,7 +1,7 @@
 import 'server-only'
 import type { TodayGoal } from '@/features/checkin/schemas'
 import type { Reminder, WeekHeatmap } from '@/features/dashboard/schemas'
-import type { WeightEntry, WeightTrend } from '@/features/metric/schemas'
+import type { StepEntry, StepTrend, WeightEntry, WeightTrend } from '@/features/metric/schemas'
 import { MODULES, type LocalDate, type Module } from '@/features/shared/schemas'
 import { addDays, compareLocalDate, parseLocalTime } from '@/lib/time'
 import {
@@ -203,4 +203,23 @@ export function buildWeightTrend(
 /** 体重对比的参考日：latest 那天往前 7 天 */
 export function weightReferenceDate(latest: LocalDate): LocalDate {
   return addDays(latest, -7)
+}
+
+/**
+ * 步数卡：entries 为近 30 天（升序），todaySteps 无记录时恒为 0（纯网页端未装 App 绝不报错）。
+ */
+export function buildStepTrend(
+  entries: readonly StepEntry[],
+  today: LocalDate,
+  latest: StepEntry | null,
+  reference: StepEntry | null,
+): StepTrend {
+  const sorted = [...entries].sort((a, b) => compareLocalDate(a.localDate, b.localDate))
+  const todayEntry = sorted.find((e) => e.localDate === today)
+  return {
+    todaySteps: todayEntry?.steps ?? 0,
+    entries: sorted,
+    latest,
+    deltaSteps7d: latest !== null && reference !== null ? latest.steps - reference.steps : null,
+  }
 }

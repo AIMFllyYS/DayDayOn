@@ -60,6 +60,29 @@ export function weightTrendLabel(gramsAsc: readonly number[]): string {
   return `近 30 天体重，从 ${formatKg(first)} 到 ${formatKg(last)} 千克`
 }
 
+/** 步数格式化：带千分位或原整数（如 '6,420' / '0'） */
+export function formatSteps(steps: number): string {
+  const safe = Number.isFinite(steps) && steps >= 0 ? Math.floor(steps) : 0
+  return safe.toLocaleString('en-US')
+}
+
+/** 步数差值 → '+1,320' / '−500' / '0' */
+export function formatStepsDelta(delta: number): string {
+  const rounded = Math.round(delta)
+  if (rounded === 0) return '0'
+  const abs = Math.abs(rounded).toLocaleString('en-US')
+  return rounded < 0 ? `−${abs}` : `+${abs}`
+}
+
+/** 步数走势的读屏摘要 */
+export function stepTrendLabel(stepsAsc: readonly number[]): string {
+  const first = stepsAsc[0]
+  const last = stepsAsc.at(-1)
+  if (first === undefined || last === undefined) return '近 30 天还没有步数记录'
+  if (stepsAsc.length === 1) return `近 30 天记录了一次步数：${formatSteps(last)} 步`
+  return `近 30 天步数，从 ${formatSteps(first)} 到 ${formatSteps(last)} 步`
+}
+
 /** 完成度百分比（取整）；今天没有计划时为 null */
 export function completionPercent(c: { done: number; planned: number }): number | null {
   if (c.planned <= 0) return null

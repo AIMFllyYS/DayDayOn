@@ -1,18 +1,26 @@
 import 'server-only'
 import { and, asc, desc, eq, gte, inArray, lte } from 'drizzle-orm'
 import type { DashboardToday } from '@/features/dashboard/schemas'
-import type { WeightEntry } from '@/features/metric/schemas'
+import type { StepEntry, WeightEntry } from '@/features/metric/schemas'
 import type { LocalDate } from '@/features/shared/schemas'
 import { addDays, localDateOf, localTimeOf, weekDates } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import type { DbOrTx } from '@/server/db/client'
-import { bodyMetrics, checkins, dailyRatings, goals, profiles } from '@/server/db/schema'
+import {
+  bodyMetrics,
+  checkins,
+  dailyRatings,
+  goals,
+  profiles,
+  stepMetrics,
+} from '@/server/db/schema'
 import { loadTargetHistory } from '@/server/services/checkins/goal'
 import { getRankFeed } from '@/server/services/rank'
 import { loadStreak } from '@/server/services/rank/streaks'
 import {
   buildHeatmap,
   buildReminder,
+  buildStepTrend,
   buildToday,
   buildWeightTrend,
   indexCheckins,
@@ -41,6 +49,14 @@ function weightDto(r: { localDate: string; weightGrams: number; measuredAt: Date
   return {
     localDate: r.localDate,
     weightGrams: r.weightGrams,
+    measuredAt: r.measuredAt.toISOString(),
+  }
+}
+
+function stepDto(r: { localDate: string; steps: number; measuredAt: Date }): StepEntry {
+  return {
+    localDate: r.localDate,
+    steps: r.steps,
     measuredAt: r.measuredAt.toISOString(),
   }
 }
@@ -197,6 +213,54 @@ async function loadMood(db: DbOrTx, userId: string, today: LocalDate): Promise<n
   return row?.value ?? null
 }
 
+async function loadSteps(db: DbOrTx, userId: string, today: LocalDate) {
+  const columns = {
+    localDate: stepMetrics.localDate,
+    steps: stepMetrics.steps,
+    measuredAt: stepMetrics.measuredAt,
+  }
+  const recent = await db
+    .select(columns)
+    .from(stepMetrics)
+    .where(
+      and(
+        eq(stepMetrics.userId, userId),
+        gte(stepMetrics.localDate, addDays(today, -(WEIGHT_DAYS - 1))),
+        lte(stepMetrics.localDate, today),
+      ),
+    )
+    .orderBy(asc(stepMetrics.localDate))
+    .limit(WEIGHT_DAYS)
+
+  const [latestRow] =
+    recent.length > 0
+      ? recent.slice(-1)
+      : await db
+          .select(columns)
+          .from(stepMetrics)
+          .where(and(eq(stepMetrics.userId, userId), lte(stepMetrics.localDate, today)))
+          .orderBy(desc(stepMetrics.localDate))
+          .limit(1)
+  const latest = latestRow ? stepDto(latestRow) : null
+
+  let reference: StepEntry | null = null
+  if (latest) {
+    const [ref] = await db
+      .select(columns)
+      .from(stepMetrics)
+      .where(
+        and(
+          eq(stepMetrics.userId, userId),
+          lte(stepMetrics.localDate, weightReferenceDate(latest.localDate)),
+        ),
+      )
+      .orderBy(desc(stepMetrics.localDate))
+      .limit(1)
+    reference = ref ? stepDto(ref) : null
+  }
+  return buildStepTrend(recent.map(stepDto), today, latest, reference)
+}
+
 export async function getDashboardToday(
   db: DbOrTx,
   userId: string,
@@ -219,7 +283,7 @@ export async function getDashboardToday(
   const monday = days[0] ?? today
 
   const userGoals = await loadGoals(db, userId, profile)
-  const [weekRows, weight, mood, streak, feed] = await Promise.all([
+  const [weekRows, weight, mood, steps, streak, feed] = await Promise.all([
     loadWeekCheckins(
       db,
       userId,
@@ -229,6 +293,7 @@ export async function getDashboardToday(
     ),
     loadWeight(db, userId, today),
     loadMood(db, userId, today),
+    loadSteps(db, userId, today),
     loadStreak(db, userId, today),
     getRankFeed(db, now),
   ])
@@ -244,6 +309,7 @@ export async function getDashboardToday(
     goals: todaySection.goals,
     weight,
     mood,
+    steps,
     heatmap: buildHeatmap(userGoals, index, days, today),
     feed: feed.items,
     reminder: buildReminder(

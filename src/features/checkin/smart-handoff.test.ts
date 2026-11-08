@@ -79,6 +79,41 @@ describe('smart-handoff', () => {
     expect(listSmartHistory()).toHaveLength(0)
   })
 
+  it('同时上传 2 张照片时保存两个相对路径（relativeImagePaths），并保持首图路径兼容', () => {
+    const record = saveSmartHistoryRecord({
+      mode: 'smart-upload',
+      mediaKind: 'image',
+      fileName: 'photo1.jpg, photo2.jpg',
+      relativeImagePath: 'uploads/2026-11-08/photo1.jpg',
+      relativeImagePaths: ['uploads/2026-11-08/photo1.jpg', 'uploads/2026-11-08/photo2.jpg'],
+      result: {
+        aiRunId: '0193f6b2-0000-7000-8000-000000000456',
+        draft: {
+          detectedModule: 'diet',
+          matchedGoalId: null,
+          confidence: 0.92,
+          summary: '识别到两份餐食',
+          scanSteps: ['步骤1', '步骤2', '步骤3'],
+          exercise: null,
+          diet: {
+            mealType: 'lunch',
+            items: [{ name: '米饭', portion: '1碗', kcal: 200 }],
+            note: null,
+          },
+          sleep: null,
+          study: null,
+          custom: null,
+        },
+      },
+    })
+
+    expect(record.relativeImagePath).toBe('uploads/2026-11-08/photo1.jpg')
+    expect(record.relativeImagePaths).toEqual([
+      'uploads/2026-11-08/photo1.jpg',
+      'uploads/2026-11-08/photo2.jpg',
+    ])
+  })
+
   it('未确认守卫仅在 scanner 实时扫描视图下激活，history 与 history-detail 只读视图下永不拦截退出', () => {
     setUnconfirmedSmartRecord(true)
     setSmartPageViewMode('scanner')
