@@ -3,6 +3,8 @@ import type { RefereeTier } from '../../../features/referee/schemas'
 import { user } from './auth'
 import { id, timestamps, timestamptz } from './columns'
 
+export type RemindMode = 'off' | 'in-app' | 'native'
+
 /** 用户资料与偏好（PRD 4、7.1）。注册时由 P1 的 databaseHooks 建行，引导只做 UPDATE */
 export const profiles = pgTable(
   'profiles',
@@ -34,6 +36,8 @@ export const profiles = pgTable(
     refereeTier: text().$type<RefereeTier>().notNull().default('balanced-glycemic'),
     // 可空：为空表示不提醒（PRD 7.1），值为 HH:mm
     remindAt: text(),
+    /** 打卡提醒方式：off 关闭 | in-app 应用内提醒 | native 手机端原生提醒 */
+    remindMode: text().$type<RemindMode>().notNull().default('off'),
     // 可空：本地开发没有 x-real-ip 时记 127.0.0.1，老数据可能为空
     signupIp: text(),
     // 可空：注册后尚未产生会话时为空
