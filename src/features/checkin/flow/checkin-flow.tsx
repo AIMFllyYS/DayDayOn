@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Mascot } from '@/components/mascot/mascot'
 import { IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/field'
 import { Icon } from '@/components/ui/icon'
 import { ProgressRing } from '@/components/ui/progress'
 import { Stamp } from '@/components/ui/stamp'
@@ -19,13 +20,14 @@ import { judgeInputOf } from '@/features/referee/subject'
 import type { Module } from '@/features/shared/schemas'
 import { newIdempotencyKey } from '@/lib/api'
 import { cn } from '@/lib/cn'
+import { sleepRangeForDay } from '@/lib/time'
 import type { CheckinClock, CheckinGoal, SmartFillContext } from '../components/form-types'
 import {
   CheckinModeTabs,
   SmartScannerLens,
   type CheckinInputMode,
 } from '../components/smart-scanner'
-import { analysisPrompt } from '../format'
+import { analysisPrompt, checkinToInput } from '../format'
 import type { CheckinModuleDef } from '../modules/types'
 import type { Checkin, CreateCheckinInput } from '../schemas'
 import { AgentDrawer, ReportDivider, SectionDivider } from './agent-drawer'
@@ -50,6 +52,8 @@ export interface CheckinFlowProps {
   goal: CheckinGoal & { refereeRules: unknown }
   clock: CheckinClock
   today: string
+  /** 今天已入库的打卡记录（凌晨 0 点前重进页面或切换餐次时直接从数据库恢复状态） */
+  todayCheckins?: readonly Checkin[]
   tier: RefereeTier
   /** 打卡周期：有效天数 / 周期总天数 */
   period: { done: number; total: number }
@@ -57,6 +61,66 @@ export interface CheckinFlowProps {
   /** 确认入库；返回服务端重算后的记录 */
   onConfirm: (input: CreateCheckinInput) => Promise<Checkin>
   onBack: () => void
+}
+
+function buildSkipFallbackInput(
+  goal: CheckinGoal,
+  clock: CheckinClock,
+  today: string,
+  activeKey?: string,
+  note?: string,
+): CreateCheckinInput {
+  const cleanNote = note?.trim() || null
+  switch (goal.module) {
+    case 'diet':
+      return {
+        module: 'diet',
+        method: 'manual',
+        mealType:
+          activeKey === 'breakfast' ||
+          activeKey === 'lunch' ||
+          activeKey === 'dinner' ||
+          activeKey === 'snack'
+            ? activeKey
+            : 'lunch',
+        items: [{ name: '跳过打卡', portion: '', kcal: null }],
+        note: cleanNote,
+      }
+    case 'exercise':
+      return {
+        module: 'exercise',
+        category: '跳过打卡',
+        intensity: 'easy',
+        durationSeconds: 60,
+        note: cleanNote,
+      }
+    case 'sleep': {
+      const r = sleepRangeForDay(today, '23:00', '07:00', clock.timeZone, clock.dayStartHour)
+      const wakeAt = r ? r.wakeAt : new Date()
+      const bedAt = r ? r.bedAt : new Date(wakeAt.getTime() - 8 * 3600_000)
+      return {
+        module: 'sleep',
+        bedAt: bedAt.toISOString(),
+        wakeAt: wakeAt.toISOString(),
+        quality: 3,
+        note: cleanNote,
+      }
+    }
+    case 'study':
+      return {
+        module: 'study',
+        what: '跳过打卡',
+        durationSeconds: 60,
+        note: cleanNote,
+      }
+    case 'custom':
+      return {
+        module: 'custom',
+        fieldVersion: goal.fieldVersion ?? 1,
+        values: {},
+        note: cleanNote,
+      }
+  }
 }
 
 /** 内容区够宽（56rem）时 Agent 分析放右栏 */
@@ -77,12 +141,24 @@ function useWide(ref: React.RefObject<HTMLElement | null>): boolean {
 }
 
 export function CheckinFlow(props: CheckinFlowProps) {
-  const { def, goal, clock, today, tier, period } = props
+  const { def, goal, clock, today, todayCheckins, tier, period } = props
   const tone = def.tone
-  const form = def.useForm({ goal, clock, today })
+  const form = def.useForm({ goal, clock, today, todayCheckins })
   const referee = useRefereeRun(goal.id)
   const rules = effectiveRules(def.module, goal.refereeRules) as RulesOf<Module>
   const docs = useMemo(() => def.docs(rules as never, goal), [def, rules, goal])
+
+  const savedFromDb = useMemo(() => {
+    if (!todayCheckins || todayCheckins.length === 0) return null
+    if (goal.module === 'diet' && form.activeKey) {
+      return (
+        todayCheckins.find(
+          (c) => c.payload.module === 'diet' && c.payload.mealType === form.activeKey,
+        ) ?? null
+      )
+    }
+    return todayCheckins[0] ?? null
+  }, [todayCheckins, goal.module, form.activeKey])
 
   const [stack, setStack] = useState<Page[]>(['fill'])
   const [mode, setMode] = useState<CheckinInputMode>(props.initialMode)
@@ -97,12 +173,26 @@ export function CheckinFlow(props: CheckinFlowProps) {
   }
   const [scanPhase, setScanPhase] = useState<'idle' | 'scanning' | 'done'>('idle')
   const [smart, setSmart] = useState<SmartFillContext | null>(null)
-  const [subject, setSubject] = useState<CreateCheckinInput | null>(null)
+  const [subject, setSubject] = useState<CreateCheckinInput | null>(() =>
+    savedFromDb ? checkinToInput(savedFromDb) : null,
+  )
   const [agentOpen, setAgentOpen] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState<Checkin | null>(null)
+  const [saved, setSaved] = useState<Checkin | null>(savedFromDb)
   const [popup, setPopup] = useState(false)
   const [bonus, setBonus] = useState(0)
+  const [skipReason, setSkipReason] = useState('')
+
+  // 切换子维度（如从早餐切到午餐）或初始数据库记录到位时，同步当前子维度的已入库状态
+  const activeSyncKey = `${form.activeKey ?? 'default'}:${savedFromDb?.id ?? 'none'}`
+  const [seenSyncKey, setSeenSyncKey] = useState<string>(activeSyncKey)
+  if (activeSyncKey !== seenSyncKey) {
+    setSeenSyncKey(activeSyncKey)
+    setSaved(savedFromDb)
+    setSubject(savedFromDb ? checkinToInput(savedFromDb) : null)
+    setSkipReason('')
+    referee.reset()
+  }
 
   const rootRef = useRef<HTMLDivElement>(null)
   const wide = useWide(rootRef)
@@ -150,13 +240,21 @@ export function CheckinFlow(props: CheckinFlowProps) {
   })
 
   function startAnalyze(override?: CreateCheckinInput | null) {
-    const input = override ?? form.toInput()
-    if (!input) return
+    const trimmedSkip = !isSmart ? skipReason.trim() : ''
+    const rawInput =
+      override ??
+      form.toInput() ??
+      (trimmedSkip ? buildSkipFallbackInput(goal, clock, today, form.activeKey, form.note) : null)
+    if (!rawInput) return
+    const input: CreateCheckinInput = trimmedSkip
+      ? { ...rawInput, skipReason: trimmedSkip }
+      : rawInput
     setOpenId(null)
     setIndOpen(
       Object.fromEntries(form.sections.filter((s) => s.independent).map((s) => [s.id, false])),
     )
     setAgentOpen(true)
+    setSaved(null)
     setSubject(input)
     referee.start({
       checkin: input,
@@ -166,7 +264,8 @@ export function CheckinFlow(props: CheckinFlowProps) {
   }
 
   function invalidateAnalysis() {
-    if (subject === null) return
+    if (subject === null && saved === null) return
+    setSaved(null)
     setSubject(null)
     referee.reset()
   }
@@ -207,6 +306,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
         ...(verdict.citations.length > 0 ? { citations: verdict.citations } : {}),
         ...(verdict.advice.length > 0 ? { advice: verdict.advice.map((a) => a.slice(0, 80)) } : {}),
       })
+      setSeenSyncKey(`${form.activeKey ?? 'default'}:${result.id}`)
       setSaved(result)
       if (result.isValid) setBonus((b) => b + 1)
       setPopup(true)
@@ -217,6 +317,49 @@ export function CheckinFlow(props: CheckinFlowProps) {
     }
   }
 
+  // 「跳过本次打卡」经 Agent 判定理由通过后，自动入库并直接弹出「打卡成功，连击 +1」盖章弹窗
+  const autoConfirmedRef = useRef<CreateCheckinInput | null>(null)
+  useEffect(() => {
+    if (
+      subject?.skipReason &&
+      agent === 'done' &&
+      verdict?.isValid &&
+      !saved &&
+      !saving &&
+      autoConfirmedRef.current !== subject
+    ) {
+      autoConfirmedRef.current = subject
+      void confirm()
+    }
+  })
+
+  const noteSection = form.sections.find((s) => s.id === 'note') ?? null
+  const skipSection: FillSectionSpec = {
+    id: 'skip',
+    label: '跳过本次打卡',
+    icon: 'pen',
+    filled: skipReason.trim().length > 0,
+    summary: skipReason.trim() || '填写合理理由可豁免本次打卡',
+    content: (
+      <>
+        <Input
+          aria-label="跳过本次打卡"
+          value={skipReason}
+          maxLength={200}
+          placeholder="例如：肠胃炎禁食、发烧休息、外出赶车无法按时打卡"
+          onChange={(e) => {
+            setSkipReason(e.target.value)
+            invalidateAnalysis()
+          }}
+        />
+        <p className="text-tiny text-subtle">
+          仅手动填写可用：其他项可留空，{pet.name}核验理由合理后将自动为您记为有效打卡
+        </p>
+      </>
+    ),
+  }
+
+  const canSubmit = form.canSubmit || (!isSmart && skipReason.trim().length > 0)
   const report = verdict && subject ? def.buildReport(verdict, subject, goal) : null
   const savedValid = saved?.isValid ?? verdict?.isValid ?? false
 
@@ -295,6 +438,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
                   mode={mode}
                   hintModule={goal.module}
                   goalId={goal.id}
+                  note={form.note}
                   tone={tone}
                   onScanStart={() => {
                     invalidateAnalysis()
@@ -312,6 +456,16 @@ export function CheckinFlow(props: CheckinFlowProps) {
                   onManualFallback={() => changeMode('manual')}
                 />
               )}
+              {isSmart && scanPhase !== 'done' && noteSection && (
+                <FillSection
+                  key={noteSection.id}
+                  spec={noteSection}
+                  tone={tone}
+                  open={isOpen(noteSection)}
+                  ai={false}
+                  onToggle={() => toggleSection(noteSection)}
+                />
+              )}
               {(!isSmart || scanPhase === 'done') &&
                 form.sections.map((s) => (
                   <FillSection
@@ -324,6 +478,16 @@ export function CheckinFlow(props: CheckinFlowProps) {
                   />
                 ))}
               {!isSmart && form.afterSections}
+              {!isSmart && (
+                <FillSection
+                  key={skipSection.id}
+                  spec={skipSection}
+                  tone={tone}
+                  open={isOpen(skipSection)}
+                  ai={false}
+                  onToggle={() => toggleSection(skipSection)}
+                />
+              )}
               {agent === 'done' && report && (
                 <div className="flex flex-col gap-2.5">
                   <ReportDivider />
@@ -357,7 +521,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
                   <Button
                     icon="sparkles"
                     className="w-full"
-                    disabled={!form.canSubmit || scanPhase === 'scanning'}
+                    disabled={!canSubmit || scanPhase === 'scanning'}
                     loading={scanPhase === 'scanning'}
                     onClick={() => startAnalyze()}
                   >

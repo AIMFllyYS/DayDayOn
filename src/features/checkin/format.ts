@@ -138,9 +138,63 @@ export function analysisPrompt(
   input: CreateCheckinInput,
   timeZone: string,
 ): string {
+  if (input.skipReason?.trim()) {
+    const note = input.note ? `（备注：${input.note}）` : ''
+    const text = `帮我审核这条「${goalTitle}」跳过本次打卡申请，跳过理由：${input.skipReason.trim()}${note}`
+    return text.length > ANALYSIS_PROMPT_MAX ? `${text.slice(0, ANALYSIS_PROMPT_MAX - 1)}…` : text
+  }
   const note = input.note ? `（备注：${input.note}）` : ''
   const text = `帮我分析这条「${goalTitle}」打卡：${inputBrief(input, timeZone)}${note}`
   return text.length > ANALYSIS_PROMPT_MAX ? `${text.slice(0, ANALYSIS_PROMPT_MAX - 1)}…` : text
+}
+
+/** 已入库的打卡记录还原为请求体结构（重进打卡页或切换餐次时恢复报告与表单状态） */
+export function checkinToInput(c: Checkin): CreateCheckinInput {
+  const p = c.payload
+  switch (p.module) {
+    case 'diet':
+      return {
+        module: 'diet',
+        method: p.method,
+        mealType: p.mealType,
+        items: p.items,
+        ...(p.snackTime ? { snackTime: p.snackTime } : {}),
+        note: c.note,
+      }
+    case 'exercise':
+      return {
+        module: 'exercise',
+        category: p.category,
+        intensity: p.intensity,
+        durationSeconds: c.durationSeconds ?? 60,
+        ...(p.items ? { items: p.items } : {}),
+        note: c.note,
+      }
+    case 'sleep':
+      return {
+        module: 'sleep',
+        bedAt: p.bedAt,
+        wakeAt: p.wakeAt,
+        quality: p.quality,
+        ...(p.advanced ? { advanced: p.advanced } : {}),
+        note: c.note,
+      }
+    case 'study':
+      return {
+        module: 'study',
+        what: p.what,
+        ...(c.durationSeconds ? { durationSeconds: c.durationSeconds } : {}),
+        ...(p.points ? { points: p.points } : {}),
+        note: c.note,
+      }
+    case 'custom':
+      return {
+        module: 'custom',
+        fieldVersion: c.fieldVersion ?? 1,
+        values: p.values,
+        note: c.note,
+      }
+  }
 }
 
 /** 千克一位小数 ↔ 克 */

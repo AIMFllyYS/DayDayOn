@@ -29,12 +29,12 @@ describe('localDateOf', () => {
     expect(localDateOf('2026-10-31T16:00:00Z', SH, 0)).toBe('2026-11-01')
   })
 
-  it('默认 4 点换日：23:59 与 00:00 都算当天', () => {
+  it('默认 0 点换日：23:59 算当天，00:00 算第二天', () => {
     expect(localDateOf('2026-10-31T15:59:00Z', SH)).toBe('2026-10-31')
-    expect(localDateOf('2026-10-31T16:00:00Z', SH)).toBe('2026-10-31')
+    expect(localDateOf('2026-10-31T16:00:00Z', SH)).toBe('2026-11-01')
   })
 
-  it('换日边界：03:59 仍算前一天，04:00 算新的一天', () => {
+  it('换日边界（4 点换日）：03:59 仍算前一天，04:00 算新的一天', () => {
     // 北京时间 2026-11-01 03:59:59 / 04:00:00
     expect(localDateOf('2026-10-31T19:59:59Z', SH, 4)).toBe('2026-10-31')
     expect(localDateOf('2026-10-31T20:00:00Z', SH, 4)).toBe('2026-11-01')
@@ -46,10 +46,10 @@ describe('localDateOf', () => {
   })
 
   it('跨月、跨年的换日', () => {
-    // 北京时间 2027-01-01 03:00 → 仍是 2026-12-31
-    expect(localDateOf('2026-12-31T19:00:00Z', SH)).toBe('2026-12-31')
-    // 北京时间 2026-03-01 02:00 → 2026-02-28（2026 不是闰年）
-    expect(localDateOf('2026-02-28T18:00:00Z', SH)).toBe('2026-02-28')
+    // 北京时间 2027-01-01 03:00（4 点换日）→ 仍是 2026-12-31
+    expect(localDateOf('2026-12-31T19:00:00Z', SH, 4)).toBe('2026-12-31')
+    // 北京时间 2026-03-01 02:00（4 点换日）→ 2026-02-28（2026 不是闰年）
+    expect(localDateOf('2026-02-28T18:00:00Z', SH, 4)).toBe('2026-02-28')
   })
 
   it('用户时区不是北京时间时按用户时区算', () => {
@@ -57,8 +57,8 @@ describe('localDateOf', () => {
     expect(localDateOf('2026-11-01T03:30:00Z', NY)).toBe('2026-10-31')
     expect(localDateOf('2026-11-01T03:30:00Z', SH)).toBe('2026-11-01')
     // 纽约 2026-11-01 04:00 EST（夏令时结束后）= 09:00Z
-    expect(localDateOf('2026-11-01T08:59:00Z', NY)).toBe('2026-10-31')
-    expect(localDateOf('2026-11-01T09:00:00Z', NY)).toBe('2026-11-01')
+    expect(localDateOf('2026-11-01T08:59:00Z', NY, 4)).toBe('2026-10-31')
+    expect(localDateOf('2026-11-01T09:00:00Z', NY, 4)).toBe('2026-11-01')
   })
 
   it('接受 Date 与毫秒时间戳', () => {
@@ -171,7 +171,7 @@ describe('combineLocal', () => {
   })
 
   it('与 localDateOf 往返一致', () => {
-    const at = combineLocal('2026-11-01', '04:00', SH)
+    const at = combineLocal('2026-11-01', '00:00', SH)
     expect(localDateOf(at, SH)).toBe('2026-11-01')
     expect(localDateOf(new Date(at.getTime() - 1000), SH)).toBe('2026-10-31')
   })

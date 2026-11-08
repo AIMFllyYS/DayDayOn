@@ -50,15 +50,26 @@ interface Snapshot {
 
 const IDLE: Snapshot = { status: 'idle', turn: null, verdict: null, errorText: null }
 
-/** 从当前会话的消息里读出这次分析（第一条助手消息） */
+/** 从当前会话的消息里读出这次分析（优先取最新一轮带结论的助手消息，方便在对话里追问修正） */
 export function readRun(
   messages: readonly UIMessage[],
   chatStatus: 'submitted' | 'streaming' | 'ready' | 'error',
   error: Error | undefined,
 ): Snapshot {
-  const assistantIndex = messages.findIndex((m) => m.role === 'assistant')
+  let assistantIndex = -1
+  let verdict: Verdict | null = null
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]
+    if (m?.role !== 'assistant') continue
+    if (assistantIndex < 0) assistantIndex = i
+    const v = findVerdict(m.parts)
+    if (v) {
+      verdict = v
+      assistantIndex = i
+      break
+    }
+  }
   const assistant = assistantIndex >= 0 ? messages[assistantIndex] : undefined
-  const verdict = assistant ? findVerdict(assistant.parts) : null
   // 第一轮还在跑：会话里只有用户那句话，或者第一条助手消息就是最后一条且还在流式
   const firstTurnLive =
     (chatStatus === 'submitted' || chatStatus === 'streaming') &&

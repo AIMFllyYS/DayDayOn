@@ -149,6 +149,8 @@ export interface SmartScannerLensProps {
   hintModule?: Module
   /** 已知目标 ID */
   goalId?: string
+  /** 用户在下方填写的备注（作为识别与判定的最高优先级补充上下文） */
+  note?: string
   /** 视觉主题色 */
   tone?: ModuleTone
   /** 开始扫描时的回调（通知父级展示「正在搜索哪个分区」懒加载动画） */
@@ -165,6 +167,7 @@ export function SmartScannerLens({
   mode = 'smart-capture',
   hintModule,
   goalId,
+  note,
   tone = 'exercise',
   onScanStart,
   onRecognized,
@@ -233,6 +236,7 @@ export function SmartScannerLens({
         textContent: payload.textContent,
         hintModule,
         goalId,
+        note: note?.trim() || undefined,
         idempotencyKey: payload.key,
       },
       {

@@ -62,7 +62,7 @@ export function buildSmartUserText(input: {
 
   const note = fields.note?.trim()
   if (note) {
-    lines.push(`用户补充说明：${note}`)
+    lines.push(`用户补充说明（备注·第一核心优先级）：${note}`)
   }
 
   return lines.join('\n')
@@ -79,10 +79,12 @@ export function normalizeSmartDraft(
   context: {
     hintModule?: Module
     goalId?: string
+    note?: string
     goals: readonly SmartGoalBrief[]
   },
 ): SmartRecognitionDraft {
   const detectedModule: Module = context.hintModule ?? draft.detectedModule
+  const userNote = context.note?.trim() || null
   const moduleGoals = context.goals.filter((g) => g.module === detectedModule)
 
   let matchedGoalId: string | null = null
@@ -109,6 +111,7 @@ export function normalizeSmartDraft(
   const diet = draft.diet
     ? {
         ...draft.diet,
+        note: userNote ?? draft.diet.note,
         items: draft.diet.items.map((i) => ({
           name: i.name.trim() || '未命名食物',
           portion: i.portion.trim(),
@@ -119,7 +122,7 @@ export function normalizeSmartDraft(
       ? {
           mealType: 'lunch' as const,
           items: [{ name: '识别餐食', portion: '1 份', kcal: null }],
-          note: null,
+          note: userNote,
         }
       : null
 

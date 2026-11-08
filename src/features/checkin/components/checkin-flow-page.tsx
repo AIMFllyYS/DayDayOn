@@ -9,6 +9,7 @@ import { GoalLinkButton } from '@/features/goal/components/goal-link-button'
 import { daysBetween } from '@/lib/time'
 import { errorMessage, isApiError, newIdempotencyKey, useQuery } from '@/lib/api'
 import {
+  checkinDayQuery,
   checkinGoalQuery,
   checkinMeQuery,
   checkinTodayQuery,
@@ -46,9 +47,21 @@ export function CheckinFlowPage({
   const goal = useQuery(checkinGoalQuery(goalId))
   const today = useQuery(checkinTodayQuery())
   const me = useQuery(checkinMeQuery())
+  const localDate = today.data?.localDate ?? ''
+  const dayCheckins = useQuery({
+    ...checkinDayQuery(goalId, localDate),
+    enabled: Boolean(localDate),
+  })
   const create = useCreateCheckin()
 
-  if (goal.isPending || today.isPending || me.isPending) return <FlowSkeleton />
+  if (
+    goal.isPending ||
+    today.isPending ||
+    me.isPending ||
+    (Boolean(localDate) && dayCheckins.isPending)
+  ) {
+    return <FlowSkeleton />
+  }
   if (goal.isError && isApiError(goal.error) && goal.error.code === 'GOAL_NOT_FOUND') {
     return (
       <EmptyState
@@ -88,7 +101,7 @@ export function CheckinFlowPage({
   const def = moduleDef(g.module)
   const clock = {
     timeZone: me.data.profile.timeZone,
-    dayStartHour: me.data.preferences.dayStartHour,
+    dayStartHour: 0,
   }
   const startDate = g.createdAt.slice(0, 10)
 
@@ -118,6 +131,7 @@ export function CheckinFlowPage({
       goal={g}
       clock={clock}
       today={today.data.localDate}
+      todayCheckins={dayCheckins.data?.items ?? []}
       tier={me.data.preferences.refereeTier}
       period={periodOf(g.validDays, startDate, g.deadlineDate)}
       initialMode={initialMode}

@@ -68,7 +68,12 @@ export async function startReferee(input: {
     today,
     timeZone: clock.timeZone,
     weightKg: weightGrams !== null && weightGrams > 0 ? weightGrams / 1000 : null,
-    judgeBase: { ...subject, storedRules: goal.refereeRules, tier },
+    judgeBase: {
+      ...subject,
+      storedRules: goal.refereeRules,
+      tier,
+      skipReason: input.checkin.skipReason ?? null,
+    },
     petName,
     conversation: input.conversation
       ? { ...input.conversation, title: `${goal.title} · 打卡分析` }
@@ -80,7 +85,8 @@ export async function startReferee(input: {
       个人体质: TIER_LABEL[tier],
       达标规则: rules,
       待裁判的记录: subject.subject,
-      ...(input.checkin.note ? { 备注: input.checkin.note } : {}),
+      ...(input.checkin.note ? { 备注_最高优先级上下文: input.checkin.note } : {}),
+      ...(input.checkin.skipReason ? { 跳过本次打卡理由: input.checkin.skipReason } : {}),
     },
     now,
   })
