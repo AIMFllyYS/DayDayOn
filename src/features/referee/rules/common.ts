@@ -22,6 +22,7 @@ export interface JudgeContext<R, F> {
   facts: F | null
   tier: RefereeTier
   extras?: RefereeExtras
+  priorMinutesToday?: number
 }
 
 export function buildVerdict(input: {

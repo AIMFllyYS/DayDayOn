@@ -7,6 +7,7 @@ import { Field, Input, Textarea } from '@/components/ui/field'
 import { Form } from '@/components/ui/form'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { mealLabel } from '../format'
+import { guessMainMeal } from '../modules/diet/form'
 import { NOTE_MAX, type MealType } from '../schemas'
 import { NOTE_PLACEHOLDER, type ModuleFormProps } from './form-types'
 import { MagicFieldBlock } from './smart-magic-stream'
@@ -32,6 +33,35 @@ interface ItemDraft {
 let seq = 0
 const blankItem = (): ItemDraft => ({ key: ++seq, name: '', portion: '', kcal: '' })
 
+function defaultMealOf(aiMeal: MealType | undefined): MealType {
+  const timeMeal = guessMainMeal(new Date().getHours())
+  if (!aiMeal || aiMeal === 'snack') return timeMeal
+  return aiMeal
+}
+
+function itemsFromContext(smartContext: ModuleFormProps['smartContext']): ItemDraft[] {
+  const aiDiet = smartContext?.draft.diet
+  if (aiDiet && aiDiet.items.length > 0) {
+    return aiDiet.items.map((it) => ({
+      key: ++seq,
+      name: it.name,
+      portion: it.portion ?? '',
+      kcal: it.kcal === null ? '' : String(Math.round(it.kcal)),
+    }))
+  }
+  if (smartContext) {
+    return [
+      {
+        key: ++seq,
+        name: smartContext.draft.summary.slice(0, 24) || '识别餐食',
+        portion: '1 份',
+        kcal: '',
+      },
+    ]
+  }
+  return [blankItem()]
+}
+
 export function DietForm({
   isMakeup,
   submitting,
@@ -44,27 +74,18 @@ export function DietForm({
 }: ModuleFormProps) {
   const aiDiet = smartContext?.draft.diet
   const streamDiet = streamedContext?.draft.diet
-  const [meal, setMeal] = useState<MealType>(aiDiet?.mealType ?? 'lunch')
-  const [items, setItems] = useState<ItemDraft[]>(() =>
-    aiDiet && aiDiet.items.length > 0
-      ? aiDiet.items.map((it) => ({
-          key: ++seq,
-          name: it.name,
-          portion: it.portion ?? '',
-          kcal: it.kcal === null ? '' : String(Math.round(it.kcal)),
-        }))
-      : smartContext
-        ? [
-            {
-              key: ++seq,
-              name: smartContext.draft.summary.slice(0, 24) || '识别餐食',
-              portion: '1 份',
-              kcal: '',
-            },
-          ]
-        : [blankItem()],
-  )
+  const [meal, setMeal] = useState<MealType>(() => defaultMealOf(aiDiet?.mealType))
+  const [items, setItems] = useState<ItemDraft[]>(() => itemsFromContext(smartContext))
   const [note, setNote] = useState(aiDiet?.note ?? '')
+
+  const runKey = smartContext?.aiRunId ?? 'manual'
+  const [seenRunKey, setSeenRunKey] = useState(runKey)
+  if (runKey !== seenRunKey) {
+    setSeenRunKey(runKey)
+    setMeal(defaultMealOf(aiDiet?.mealType))
+    setItems(itemsFromContext(smartContext))
+    setNote(aiDiet?.note ?? '')
+  }
 
   const update = (key: number, patch: Partial<ItemDraft>) =>
     setItems((list) => list.map((i) => (i.key === key ? { ...i, ...patch } : i)))

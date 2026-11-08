@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 import { AppPage } from '@/components/layout/app-page'
 import { PageSkeleton } from '@/components/layout/page-skeleton'
 import { CheckinFlowPage } from '@/features/checkin/components/checkin-flow-page'
+import { MealTypeSchema } from '@/features/checkin/schemas'
 import { IdSchema } from '@/features/shared/schemas'
 
 export const metadata: Metadata = { title: '打卡' }
@@ -26,13 +27,15 @@ async function CheckinRoute({ params, searchParams }: PageProps<'/goals/[goalId]
   const { goalId } = await params
   // 不是合法 id 的地址直接 404，不去请求接口（与目标详情页一致）
   if (!IdSchema.safeParse(goalId).success) notFound()
-  const { mode } = await searchParams
-  // ?mode=photo：打卡弹层「拍照记一餐」直达智能拍照；非法值回落到手动
+  const { mode, meal } = await searchParams
+  const parsedMeal = MealTypeSchema.safeParse(meal)
+  // ?mode=photo：打卡弹层「拍照记一餐」直达智能拍照；?meal=lunch：指定初始餐次
   return (
     <CheckinFlowPage
-      key={goalId}
+      key={`${goalId}:${parsedMeal.success ? parsedMeal.data : ''}`}
       goalId={goalId}
       initialMode={mode === 'photo' ? 'smart-capture' : 'manual'}
+      initialMeal={parsedMeal.success ? parsedMeal.data : undefined}
     />
   )
 }

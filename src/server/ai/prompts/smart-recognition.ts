@@ -30,9 +30,11 @@ const SYSTEM = `你是 DayDayOn 的智能打卡识别助手「团团」。请根
      - durationMinutes：时长（整数分钟，1–600）；
      - intensity：强度（"easy" | "moderate" | "hard"）；
      - estimatedKcal：估算消耗千卡（整数，未知填 null）；
+     - km：距离公里数（小数或整数，如跑步 3.5 公里填 3.5，非距离类或未知填 null）；
+     - sets：力量训练组数（整数，如卧推 4 组填 4，非力量类或未知填 null）；
      - note：简短备注（最多 100 字，可填 null）。
    - diet（饮食）：
-     - mealType：餐次（"breakfast" | "lunch" | "dinner" | "snack"）；
+     - mealType：正餐餐次（只能填 "breakfast" | "lunch" | "dinner"，根据餐食特征、截图时间或备注就近判断早/午/晚餐，不要填 "snack"）；
      - items：食物列表（1–20 条），每条含 name（食物名，≤30 字）、portion（份量，如"约 200 克"）、kcal（整数千卡，0–5000，未知填 null）；
      - note：简短备注（可填 null）。
    - sleep（睡眠）：

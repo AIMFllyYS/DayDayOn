@@ -181,16 +181,24 @@ export function dietScore(
   const t = dietTotals(effectiveDishes)
   const lateMeal = mealType === 'dinner' || mealType === 'snack'
   let s = 2
-  if (t.protein >= 15) s += 0.5
-  if (t.protein >= 25) s += 0.5
-  if (t.protein < 15) s -= w.lowProteinPenalty
+  if (t.protein >= 10) s += 0.5
+  if (t.protein >= 20) s += 0.5
+  if (t.protein < 10) s -= w.lowProteinPenalty
 
-  // 膳食纤维：>= 5g +0.8，>= 8g 额外再 +0.2（共 +1.0）
-  if (t.fiber >= 5) s += 0.8
+  // 膳食纤维：>= 1g（含常规蔬菜/粗粮配菜）+0.4，>= 5g 再 +0.4（共 +0.8），>= 8g 再 +0.2（共 +1.0）
+  if (t.fiber >= 1) s += 0.4
+  if (t.fiber >= 5) s += 0.4
   if (t.fiber >= 8) s += 0.2
 
-  if (t.gi <= 55) s += 0.6
-  if (t.kcal >= w.kcalMin && t.kcal <= w.kcalMax) s += 0.4
+  // 升糖指数：低 GI（<=55）+0.6；常规主食配菜中低 GI（<=75 且未触发晚餐高 GI 线）+0.4
+  if (t.gi <= 55) {
+    s += 0.6
+  } else if (t.gi <= 75 && !(mealType === 'dinner' && t.gi >= w.dinnerGiFrom)) {
+    s += 0.4
+  }
+
+  const minKcal = mealType === 'breakfast' ? Math.min(w.kcalMin, 200) : Math.min(w.kcalMin, 300)
+  if (t.kcal >= minKcal && t.kcal <= w.kcalMax) s += 0.4
 
   // 钠超标轻扣：中国食堂普遍钠偏高，仅轻扣 0.2 分，不重罚
   if (t.sodium > 1500) s -= 0.2
@@ -218,7 +226,9 @@ export function dietScore(
     s -= w.nightRefinedCarbPenalty
   }
 
-  if (effectiveDishes.some((d) => d.sweet)) s -= lateMeal ? w.sweetPenalty : w.sweetPenalty / 5
+  if (effectiveDishes.some((d) => d.sweet)) {
+    s -= lateMeal ? w.sweetPenalty : round1(w.sweetPenalty * 0.6)
+  }
   return Math.max(0, Math.min(5, round1(s)))
 }
 

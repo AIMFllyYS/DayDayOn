@@ -22,8 +22,8 @@ import { checkinMeQuery, checkinTodayQuery, useCreateCheckin } from '@/lib/api/q
 import { goalListQuery } from '@/lib/api/queries/goals'
 import { cn } from '@/lib/cn'
 import { BUSINESS_TIME_ZONE } from '@/lib/time'
-import { progressText, targetText } from '../format'
-import type { CreateCheckinInput, GoalProgress } from '../schemas'
+import { mealLabel, progressText, targetText } from '../format'
+import type { CreateCheckinInput, GoalProgress, MealType } from '../schemas'
 import {
   deleteSmartHistoryRecord,
   getSmartHistoryRecord,
@@ -113,11 +113,13 @@ export function SmartCheckinPage({
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<FormErrors>()
   const [done, setDone] = useState<{
+    goalId: string
     localDate: string
     progress: GoalProgress
     goalTitle: string
     module: Module
     targetKind: 'duration' | 'count'
+    mealType?: MealType
   } | null>(null)
   const [key, setKey] = useState(newIdempotencyKey)
   const [lastBody, setLastBody] = useState<string | null>(null)
@@ -226,11 +228,13 @@ export function SmartCheckinPage({
       setKey(newIdempotencyKey())
       setLastBody(null)
       setDone({
+        goalId: activeGoal.id,
         localDate: result.checkin.localDate,
         progress: result.progress,
         goalTitle: activeGoal.title,
         module: activeGoal.module,
         targetKind: activeGoal.target.kind,
+        mealType: input.module === 'diet' ? input.mealType : undefined,
       })
     } catch (e) {
       if (isApiError(e) && e.fields) {
@@ -296,7 +300,10 @@ export function SmartCheckinPage({
             className="absolute -top-2 -right-12"
           />
         </div>
-        <p className="text-heading font-bold">{done.goalTitle}记好啦</p>
+        <p className="text-heading font-bold">
+          {done.goalTitle}
+          {done.mealType ? `（${mealLabel[done.mealType]}）` : ''}记好啦
+        </p>
         <p className="text-caption text-muted">
           今天{done.progress.done ? '已经完成目标' : '的进度'} ·{' '}
           {progressText(done.targetKind, done.progress)}
@@ -309,6 +316,11 @@ export function SmartCheckinPage({
           className="max-w-xs"
         />
         <div className="mt-2 flex flex-wrap justify-center gap-2">
+          <GoalLinkButton
+            href={`/goals/${done.goalId}/checkin${done.mealType ? `?meal=${done.mealType}` : ''}`}
+          >
+            查看打卡详情
+          </GoalLinkButton>
           <Button
             variant="soft"
             onClick={() => {
@@ -319,16 +331,6 @@ export function SmartCheckinPage({
             }}
           >
             {activeMode === 'smart-upload' ? '继续上传' : '继续拍摄'}
-          </Button>
-          <Button
-            variant="secondary"
-            icon="clock"
-            onClick={() => {
-              setDone(null)
-              setSmartPageViewMode('history')
-            }}
-          >
-            查看历史记录
           </Button>
           <Link
             href="/"

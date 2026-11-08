@@ -24,7 +24,7 @@ export function judgeStudy(
 ): Verdict {
   const { rules, facts, extras } = ctx
   const now = subject.minutes ?? 0
-  const before = facts?.todayMinutesBefore ?? 0
+  const before = facts?.todayMinutesBefore ?? ctx.priorMinutesToday ?? 0
   const total = now + before
   const timeOk = total >= rules.minFocusMinutes
   const chars = noteChars(subject.points)

@@ -54,6 +54,13 @@ function useCustomForm({ goal, todayCheckins }: ModuleFormProps): ModuleFormApi 
   const savedCustom = savedLatest?.payload.module === 'custom' ? savedLatest.payload : null
   const [values, setValues] = useState<FieldValues>(savedCustom?.values ?? {})
   const [note, setNote] = useState(savedLatest?.note ?? '')
+  const syncKey = `${savedLatest?.id ?? 'none'}`
+  const [seenSyncKey, setSeenSyncKey] = useState<string>(syncKey)
+  if (syncKey !== seenSyncKey) {
+    setSeenSyncKey(syncKey)
+    setValues(savedCustom?.values ?? {})
+    setNote(savedLatest?.note ?? '')
+  }
   const parsed = buildSchema(fields).safeParse(values)
   const filled = fields.filter((f) => values[f.key] !== undefined)
 

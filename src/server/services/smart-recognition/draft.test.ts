@@ -70,6 +70,22 @@ describe('normalizeSmartDraft', () => {
     expect(out.diet?.items.length).toBeGreaterThan(0)
   })
 
+  it('饮食草稿归一化时将 AI 误判的 snack 纠正为正餐（加餐仅限手动选择）', () => {
+    const out = normalizeSmartDraft(
+      {
+        ...rawDraft,
+        detectedModule: 'diet',
+        diet: {
+          mealType: 'snack',
+          items: [{ name: '米饭', portion: '1 碗', kcal: 200 }],
+          note: null,
+        },
+      },
+      { goals: sampleGoals },
+    )
+    expect(out.diet?.mealType).toBe('lunch')
+  })
+
   it('自定义目标归一化时剔除未知键、支持 label 映射并补齐必填布尔字段默认值', () => {
     const customGoals: readonly SmartGoalBrief[] = [
       {
