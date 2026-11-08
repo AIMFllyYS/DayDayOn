@@ -1,6 +1,7 @@
 import {
   GenderSchema,
   MascotCharacterSchema,
+  RemindModeSchema,
   ThemeSchema,
   type Me,
   type Role,
@@ -32,6 +33,7 @@ export interface MeRow {
   theme: string
   mascot: string
   remindAt: string | null
+  remindMode?: string
   refereeTier: string
 }
 
@@ -44,7 +46,14 @@ export function toMeDto(row: MeRow, streak: number): Me {
   const theme = ThemeSchema.safeParse(row.theme)
   const mascot = MascotCharacterSchema.safeParse(row.mascot)
   const remindAt = LocalTimeSchema.safeParse(row.remindAt)
+  const remindMode = RemindModeSchema.safeParse(row.remindMode)
   const tier = RefereeTierSchema.safeParse(row.refereeTier)
+  const resolvedRemindAt = remindAt.success ? remindAt.data : null
+  const resolvedRemindMode = remindMode.success
+    ? remindMode.data
+    : resolvedRemindAt !== null
+      ? 'in-app'
+      : 'off'
   return {
     userId: row.userId,
     email: row.email,
@@ -64,7 +73,8 @@ export function toMeDto(row: MeRow, streak: number): Me {
       mascot: mascot.success ? mascot.data : 'tuan',
       leaderboardOptIn: row.leaderboardOptIn,
       dayStartHour: row.dayStartHour,
-      remindAt: remindAt.success ? remindAt.data : null,
+      remindAt: resolvedRemindAt,
+      remindMode: resolvedRemindMode,
       refereeTier: tier.success ? tier.data : DEFAULT_REFEREE_TIER,
     },
     streak: Math.max(0, Math.trunc(streak)),

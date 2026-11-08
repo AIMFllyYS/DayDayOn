@@ -56,6 +56,7 @@ const ME = {
     leaderboardOptIn: false,
     dayStartHour: 4,
     remindAt: null,
+    remindMode: 'off',
   },
   streak: 3,
   createdAt: '2026-10-30T00:00:00.000Z',

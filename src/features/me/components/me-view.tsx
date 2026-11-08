@@ -9,12 +9,17 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { MenuItem, MenuList } from '@/components/ui/menu-list'
+import { Popover } from '@/components/ui/popover'
 import { Select } from '@/components/ui/select'
 import { Sheet } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
-import type { Me, UpdatePreferences } from '@/features/me/schemas'
+import { toast } from '@/components/ui/toast'
+import type { Me, RemindMode, UpdatePreferences } from '@/features/me/schemas'
+import { cn } from '@/lib/cn'
+import { isNativeApp, syncNativeReminder } from '@/lib/native'
 import { themes } from '@/lib/theme'
 import { DAY_START_OPTIONS } from '../units'
+import { PermissionsSheet } from './permissions-sheet'
 
 /*
  * 「我的」页的展示层（PRD 2.11，原型 MeScreen）。纯展示：数据和回调由 me-screen.tsx 传入，
@@ -41,6 +46,28 @@ export interface MeViewProps {
   thumb?: boolean
 }
 
+const REMIND_MODE_OPTIONS: {
+  value: RemindMode
+  label: string
+  description: string
+}[] = [
+  {
+    value: 'in-app',
+    label: '应用内提醒',
+    description: '每天过提醒时间后在主页与通知铃铛提示',
+  },
+  {
+    value: 'native',
+    label: '手机提醒（手机端原生组件）',
+    description: '调用手机原生闹钟与系统通知定时提醒打卡',
+  },
+  {
+    value: 'off',
+    label: '关闭提醒',
+    description: '不展示打卡提醒横幅，也不触发手机闹钟',
+  },
+]
+
 export function MeView({
   me,
   quota,
@@ -58,8 +85,40 @@ export function MeView({
   const nickname = profile.nickname ?? '新朋友'
   const [themeSheetOpen, setThemeSheetOpen] = useState(false)
   const [mascotSheetOpen, setMascotSheetOpen] = useState(false)
+  const [permissionsOpen, setPermissionsOpen] = useState(false)
+  const [remindMenuOpen, setRemindMenuOpen] = useState(false)
   const currentTheme = themes.find((t) => t.id === prefs.theme) ?? themes[0]
   const currentMascot = mascotCharacters.find((c) => c.id === prefs.mascot) ?? mascotCharacters[0]
+  const currentRemindMode: RemindMode =
+    prefs.remindMode ?? (prefs.remindAt !== null ? 'in-app' : 'off')
+  const currentRemindLabel =
+    REMIND_MODE_OPTIONS.find((o) => o.value === currentRemindMode)?.label ?? '关闭提醒'
+
+  async function handleSelectRemindMode(nextMode: RemindMode) {
+    setRemindMenuOpen(false)
+    const nextTime = nextMode === 'off' ? null : (prefs.remindAt ?? '21:00')
+    onPreferencesChange({ remindMode: nextMode, remindAt: nextTime })
+
+    if (nextMode === 'native') {
+      const ok = await syncNativeReminder({ enabled: true, remindAt: nextTime })
+      if (ok && isNativeApp()) {
+        toast.success(`已开启手机原生打卡提醒（每天 ${nextTime}）`)
+      } else if (isNativeApp() && !ok) {
+        toast.error('手机通知或闹钟权限未开启', {
+          description: '请前往「我的 → 权限管理」开启通知与本地闹钟权限',
+        })
+      } else {
+        toast.info('已切换为「手机提醒（手机端原生组件）」', {
+          description: `在安卓客户端内将于每天 ${nextTime} 触发系统级打卡提醒`,
+        })
+      }
+    } else if (nextMode === 'in-app') {
+      await syncNativeReminder({ enabled: false, remindAt: nextTime })
+      toast.success(`已开启应用内打卡提醒（每天 ${nextTime}）`)
+    } else {
+      await syncNativeReminder({ enabled: false, remindAt: null })
+    }
+  }
 
   return (
     <>
@@ -163,17 +222,84 @@ export function MeView({
               tone="primary"
               label="打卡提醒"
               description={
-                prefs.remindAt ? `每天 ${prefs.remindAt} 后在主页提醒` : '只在应用里提示，不发消息'
+                currentRemindMode === 'native' && prefs.remindAt
+                  ? `每天 ${prefs.remindAt} 手机原生闹钟与主页提醒`
+                  : currentRemindMode === 'in-app' && prefs.remindAt
+                    ? `每天 ${prefs.remindAt} 后在应用内提醒`
+                    : '点击右侧选择「应用内提醒」或「手机提醒」'
               }
+              onClick={() => setRemindMenuOpen((v) => !v)}
               trailing={
-                <Switch
-                  checked={prefs.remindAt !== null}
-                  onCheckedChange={(on) => onPreferencesChange({ remindAt: on ? '21:00' : null })}
-                  label="打卡提醒"
-                />
+                <Popover
+                  open={remindMenuOpen}
+                  onOpenChange={setRemindMenuOpen}
+                  side="bottom"
+                  align="end"
+                  clean
+                  className="w-68 p-1.5"
+                  trigger={
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setRemindMenuOpen((v) => !v)
+                      }}
+                      className="text-body text-muted hover:text-foreground inline-flex items-center gap-1 rounded-lg px-1.5 py-1 font-normal transition-colors"
+                    >
+                      <span className="text-caption font-semibold">{currentRemindLabel}</span>
+                      <Icon
+                        name="chevron-right"
+                        size={16}
+                        className={cn(
+                          'text-subtle transition-transform duration-150',
+                          remindMenuOpen && 'rotate-90',
+                        )}
+                      />
+                    </button>
+                  }
+                >
+                  <div
+                    role="menu"
+                    aria-label="选择打卡提醒方式"
+                    className="flex flex-col gap-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {REMIND_MODE_OPTIONS.map((opt) => {
+                      const active = opt.value === currentRemindMode
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={active}
+                          onClick={() => void handleSelectRemindMode(opt.value)}
+                          className={cn(
+                            'flex w-full items-start justify-between gap-2 rounded-xl px-3 py-2 text-left transition-colors',
+                            active
+                              ? 'bg-primary-soft/75 text-primary-ink'
+                              : 'hover:bg-surface-sunken text-foreground',
+                          )}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-caption font-bold">{opt.label}</p>
+                            <p className="text-tiny text-muted mt-0.5">{opt.description}</p>
+                          </div>
+                          {active && (
+                            <Icon
+                              name="check"
+                              size={15}
+                              strokeWidth={2.5}
+                              className="text-primary mt-0.5 shrink-0"
+                            />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </Popover>
               }
             />
-            {prefs.remindAt !== null && remindControl && (
+            {currentRemindMode !== 'off' && prefs.remindAt !== null && remindControl && (
               <li className="px-4 pt-1 pb-3">{remindControl}</li>
             )}
             <MenuItem
@@ -215,6 +341,13 @@ export function MeView({
               />
             )}
             <MenuItem icon="link" label="隐私说明" href="/privacy" />
+            <MenuItem
+              icon="shield"
+              tone="exercise"
+              label="权限管理"
+              description="相机、相册、计步器与本地闹钟权限"
+              onClick={() => setPermissionsOpen(true)}
+            />
             <MenuItem icon="trash" label="注销账号" danger onClick={onDelete} />
             <MenuItem icon="x" label="退出登录" danger onClick={onSignOut} />
           </MenuList>
@@ -287,6 +420,8 @@ export function MeView({
           })}
         </MenuList>
       </Sheet>
+
+      <PermissionsSheet open={permissionsOpen} onOpenChange={setPermissionsOpen} />
     </>
   )
 }

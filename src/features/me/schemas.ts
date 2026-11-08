@@ -28,6 +28,12 @@ export type Gender = z.infer<typeof GenderSchema>
 export const RoleSchema = z.enum(['user', 'admin']).meta({ id: 'Role' })
 export type Role = z.infer<typeof RoleSchema>
 
+export const REMIND_MODES = ['off', 'in-app', 'native'] as const
+export const RemindModeSchema = z
+  .enum(REMIND_MODES, { error: '提醒模式不存在' })
+  .meta({ id: 'RemindMode' })
+export type RemindMode = z.infer<typeof RemindModeSchema>
+
 export const NICKNAME_MAX = 12
 
 // C0 / C1 控制字符和 Unicode 行、段分隔符（U+2028、U+2029）
@@ -102,6 +108,8 @@ export const PreferencesSchema = z
     dayStartHour: z.number().int(),
     /** null 表示不提醒 */
     remindAt: LocalTimeSchema.nullable(),
+    /** 打卡提醒方式：off 关闭 | in-app 应用内提醒 | native 手机端原生提醒 */
+    remindMode: RemindModeSchema.default('off'),
     /** 个人体质档位：饮食裁判按它调整（checkin-modules.md 第 3.1 节） */
     refereeTier: RefereeTierSchema,
   })
@@ -183,6 +191,7 @@ export const UpdatePreferencesSchema = z
     leaderboardOptIn: z.boolean(),
     dayStartHour: DayStartHourSchema,
     remindAt: LocalTimeSchema.nullable(),
+    remindMode: RemindModeSchema,
     refereeTier: RefereeTierSchema,
   })
   .partial()
