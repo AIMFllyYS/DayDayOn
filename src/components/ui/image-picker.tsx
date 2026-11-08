@@ -2,15 +2,18 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { cn } from '@/lib/cn'
+import { captureNativeHighResPhoto, isNativeApp } from '@/lib/native'
 import { Button } from './button'
 import { Icon } from './icon'
+import { PhotoAlbumSheet } from './photo-album-sheet'
+import { toast } from './toast'
 
 /*
- * 图片选择：拍照（capture="environment"）或从相册选，压缩后交给调用方上传识别（PRD 2.6）。
- * - 压缩函数由调用方传入（一般是 src/lib/image/compress.ts），原子组件不依赖领域代码。
+ * 图片选择：拍照（优先直接调用安卓原生高分辨率相机，兜底 capture="environment"）或从自定义多选相册选，压缩后交给调用方上传识别（PRD 2.6）。
+ * - 支持同时上传 2 张图片（相册默认支持 9 张多选，选超过 2 张时自动取前 2 张并提示）；
+ * - 边界条件：前端默认只显示上传的第 1 张照片（附角标「共 2 张 · 默认展示首图」），但实际上传两张；
  * - 预览只在内存里：用压缩后的 Blob 生成 object URL，换图或卸载时立即 revoke。
- *   图片不落盘、不进任何缓存（ADR-0002 第 4 节）；预览只在本组件里出现，识别结果和历史里不展示。
- * - 状态：idle 等待选图 → compressing 压缩中 → recognizing 识别中（调用方控制）→ error 出错可重选。
+ *   图片不落盘、不进任何缓存（ADR-0002 第 4 节）。
  */
 
 export type ImagePickerStatus = 'idle' | 'compressing' | 'recognizing' | 'error'
@@ -18,8 +21,8 @@ export type ImagePickerStatus = 'idle' | 'compressing' | 'recognizing' | 'error'
 interface ImagePickerProps {
   /** 压缩：解码失败时抛错，组件显示 decodeErrorText */
   compress: (file: File) => Promise<Blob>
-  /** 压缩完成：调用方在这里发起识别请求 */
-  onImage: (image: Blob) => void
+  /** 压缩完成：调用方在这里发起识别请求（支持同时上传第 2 张图片） */
+  onImage: (image: Blob, image2?: Blob) => void
   /** 识别请求进行中（调用方控制） */
   recognizing?: boolean
   /** 调用方的错误（例如识别失败），显示在预览下方 */
@@ -47,6 +50,8 @@ export function ImagePicker({
   // 只处理最后一次选择的结果：连续选两张时，先选的那张压缩完成也丢弃
   const pickSeq = useRef(0)
   const [preview, setPreview] = useState<string | null>(null)
+  const [imageCount, setImageCount] = useState(1)
+  const [albumOpen, setAlbumOpen] = useState(false)
   const [compressing, setCompressing] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
@@ -58,26 +63,32 @@ export function ImagePicker({
     [],
   )
 
-  function replacePreview(next: string | null) {
+  function replacePreview(next: string | null, count = 1) {
     if (urlRef.current) URL.revokeObjectURL(urlRef.current)
     urlRef.current = next
     setPreview(next)
+    setImageCount(count)
   }
 
-  async function handleChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    // 清空 value，同一张图可以再次选择
-    e.target.value = ''
-    if (!file) return
+  async function handleFiles(files: File[]) {
+    if (files.length === 0) return
+    if (files.length > 2) {
+      toast.info(`已选 ${files.length} 张照片，单次识别最多同时上传前 2 张～`)
+    }
+    const picked = files.slice(0, 2)
+    const first = picked[0]
+    if (!first) return
     const seq = ++pickSeq.current
-    replacePreview(null)
+    replacePreview(null, 1)
     setLocalError(null)
     setCompressing(true)
     try {
-      const blob = await compress(file)
+      const blob1 = await compress(first)
+      const blob2 = picked[1] ? await compress(picked[1]) : undefined
       if (seq !== pickSeq.current) return
-      replacePreview(URL.createObjectURL(blob))
-      onImage(blob)
+      // 前端默认只显示上传的第一张照片
+      replacePreview(URL.createObjectURL(blob1), picked.length)
+      onImage(blob1, blob2)
     } catch {
       if (seq !== pickSeq.current) return
       setLocalError(decodeErrorText)
@@ -86,9 +97,34 @@ export function ImagePicker({
     }
   }
 
+  async function handleChange(e: ChangeEvent<HTMLInputElement>) {
+    const list = e.target.files ? Array.from(e.target.files) : []
+    // 清空 value，同一张图可以再次选择
+    e.target.value = ''
+    await handleFiles(list)
+  }
+
+  async function handleCameraClick() {
+    if (isNativeApp()) {
+      try {
+        const file = await captureNativeHighResPhoto()
+        if (file) {
+          await handleFiles([file])
+          return
+        }
+      } catch {
+        toast.error('未开启相机权限，无法调用手机原生相机', {
+          description: '请前往「我的 → 权限管理」开启相机权限',
+        })
+        return
+      }
+    }
+    cameraRef.current?.click()
+  }
+
   function clear() {
     pickSeq.current++
-    replacePreview(null)
+    replacePreview(null, 1)
     setCompressing(false)
     setLocalError(null)
     onClear?.()
@@ -122,10 +158,19 @@ export function ImagePicker({
         ref={albumRef}
         type="file"
         accept="image/*"
+        multiple
         className="sr-only"
         tabIndex={-1}
         aria-hidden
         onChange={handleChange}
+      />
+      <PhotoAlbumSheet
+        open={albumOpen}
+        onOpenChange={setAlbumOpen}
+        maxSelect={9}
+        onConfirm={(files) => {
+          void handleFiles(files)
+        }}
       />
 
       <div
@@ -135,13 +180,20 @@ export function ImagePicker({
         )}
       >
         {preview ? (
-          // eslint-disable-next-line @next/next/no-img-element -- 内存里的 blob: 预览，不经过 next/image 优化
-          <img src={preview} alt="待识别的照片预览" className="size-full object-cover" />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- 内存里的首张图片 blob: 预览，不经过 next/image 优化 */}
+            <img src={preview} alt="待识别的照片预览" className="size-full object-cover" />
+            {imageCount > 1 && (
+              <span className="bg-foreground/75 text-on-primary text-tiny absolute top-2.5 right-2.5 rounded-full px-2.5 py-0.5 font-semibold backdrop-blur-xs">
+                共 {imageCount} 张 · 默认展示首图
+              </span>
+            )}
+          </>
         ) : (
           <div className="text-muted flex flex-col items-center gap-2 px-6 text-center">
             <Icon name="camera" size={36} />
-            <p className="text-caption">拍一张这餐的照片，团团帮你估算热量</p>
-            <p className="text-tiny">照片只用来识别，识别后不保存</p>
+            <p className="text-caption">拍一张或从相册多选照片，团团帮你估算热量</p>
+            <p className="text-tiny">支持同时上传 2 张照片（默认展示首图），识别后不保存原图</p>
           </div>
         )}
         {busy && (
@@ -168,7 +220,7 @@ export function ImagePicker({
           variant={preview ? 'soft' : 'primary'}
           className="flex-1"
           disabled={disabled || busy}
-          onClick={() => cameraRef.current?.click()}
+          onClick={() => void handleCameraClick()}
         >
           {preview ? '重拍' : '拍照'}
         </Button>
@@ -176,7 +228,7 @@ export function ImagePicker({
           variant="secondary"
           className="flex-1"
           disabled={disabled || busy}
-          onClick={() => albumRef.current?.click()}
+          onClick={() => setAlbumOpen(true)}
         >
           从相册选
         </Button>
