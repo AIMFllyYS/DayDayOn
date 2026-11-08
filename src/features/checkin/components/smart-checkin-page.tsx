@@ -271,11 +271,11 @@ export function SmartCheckinPage({
           }
           toast.success('已删除历史拍摄记录')
         }}
-        onStartNewScan={(file, mode) => {
+        onStartNewScan={(file, mode, files) => {
           setViewingHistoryId(null)
           setActiveMode(mode)
           setDone(null)
-          setPendingSmartCapture({ file, mode })
+          setPendingSmartCapture({ file, files, mode })
           setSmartPageViewMode('scanner')
         }}
       />
