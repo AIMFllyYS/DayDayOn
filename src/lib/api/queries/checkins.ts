@@ -49,6 +49,16 @@ export const checkinHistoryQuery = (goalId: string) =>
     getNextPageParam: (last) => last.nextCursor,
   })
 
+/** 某目标今日已入库的打卡记录（凌晨 0 点前重进页面或切换餐次时直接读取恢复状态） */
+export const checkinDayQuery = (goalId: string, localDate: string) =>
+  queryOptions({
+    queryKey: keys.checkins.history(goalId, { from: localDate, to: localDate }),
+    queryFn: () =>
+      apiFetch<CheckinHistory>(
+        `/goals/${goalId}/checkins?from=${encodeURIComponent(localDate)}&to=${encodeURIComponent(localDate)}&limit=20`,
+      ),
+  })
+
 /** 打卡页需要目标详情（标题、目标量、自定义字段版本）。key 与 D2 的 goals 详情共用 */
 export const checkinGoalQuery = (goalId: string) =>
   queryOptions({

@@ -8,7 +8,9 @@ import type {
   GoalProgress,
 } from '@/features/checkin/schemas'
 import { buildSchema } from '@/features/goal/build-schema'
+import { effectiveRules } from '@/features/referee/defaults'
 import { judge } from '@/features/referee/rules'
+import { calcDietDayScore } from '@/features/referee/rules/diet'
 import { estimateKcal, metOf } from '@/features/referee/rules/exercise'
 import type { Verdict } from '@/features/referee/schemas'
 import { judgeInputOf } from '@/features/referee/subject'
@@ -29,6 +31,7 @@ import {
   loadTargetHistory,
   targetFor,
   toCheckinDto,
+  type CheckinRow,
   type GoalRow,
 } from './goal'
 import {
@@ -192,11 +195,14 @@ export async function buildDraft(
       const bedAt = new Date(input.bedAt)
       const wakeAt = new Date(input.wakeAt)
       const check = checkSleepTimes(bedAt, wakeAt, now, clock, input.isMakeup)
-      if (!check.ok) throw new ApiError('MAKEUP_NOT_ALLOWED', check.reason)
+      if (!check.ok && !input.skipReason?.trim()) {
+        throw new ApiError('MAKEUP_NOT_ALLOWED', check.reason)
+      }
+      const occurredAt = check.ok ? check.occurredAt : serverOccurredAt(now, clock, input.isMakeup)
       return {
         ...base,
         module: 'sleep',
-        occurredAt: check.occurredAt,
+        occurredAt,
         durationSeconds: secondsBetween(bedAt, wakeAt),
         payload: {
           module: 'sleep',
@@ -225,14 +231,15 @@ export async function buildDraft(
       const fields = await loadFields(db, goal.id, goal.fieldVersion)
       if (!fields) throw invalid('fieldVersion', '找不到这个字段版本')
       const parsed = buildSchema(fields).safeParse(input.values)
-      if (!parsed.success) {
+      if (!parsed.success && !input.skipReason?.trim()) {
         throw new ApiError('VALIDATION_FAILED', '自定义字段校验失败', {
           fields: z.flattenError(parsed.error).fieldErrors as Record<string, string[]>,
         })
       }
       // 去掉 undefined：jsonb 里只放填了的字段
+      const rawValues = parsed.success ? parsed.data : input.values
       const values = Object.fromEntries(
-        Object.entries(parsed.data).filter(
+        Object.entries(rawValues).filter(
           (e): e is [string, NonNullable<(typeof e)[1]>] => e[1] !== undefined,
         ),
       )
@@ -283,9 +290,107 @@ export async function goalProgressOn(
 }
 
 /**
+ * 饮食全天结算与加餐硬覆盖（reconcileDailyDiet）：
+ * - 当天早、午、晚三餐全部打卡后，按全天总分（含加餐修正）判定当日饮食是否有效（isValid）。
+ * - 若后续有加餐（或修改某餐），重新计算全天总分并直接硬覆盖（Hard Overwrite）当日所有饮食记录的 isValid，不做软覆盖、不设回退。
+ */
+export async function reconcileDailyDiet(
+  tx: DbOrTx,
+  userId: string,
+  goal: GoalRow,
+  localDate: LocalDate,
+  currentRow: CheckinRow,
+): Promise<CheckinRow> {
+  if (goal.module !== 'diet') return currentRow
+  // 若本次是通过「跳过本次打卡」整天豁免，不按单餐重算覆盖
+  if (currentRow.verdict?.metrics?.skipped === 1 && currentRow.isValid) {
+    return currentRow
+  }
+
+  const dayRows = await tx
+    .select(checkinColumns)
+    .from(checkins)
+    .where(
+      and(
+        eq(checkins.userId, userId),
+        eq(checkins.goalId, goal.id),
+        eq(checkins.localDate, localDate),
+      ),
+    )
+
+  let breakfast: number | null = null
+  let lunch: number | null = null
+  let dinner: number | null = null
+  const snacks: number[] = []
+
+  const rules = effectiveRules('diet', goal.refereeRules)
+  for (const r of dayRows) {
+    if (r.payload.module !== 'diet') continue
+    const s = r.score ?? (r.isValid ? rules.passScore + 0.5 : 0)
+    switch (r.payload.mealType) {
+      case 'breakfast':
+        breakfast = s
+        break
+      case 'lunch':
+        lunch = s
+        break
+      case 'dinner':
+        dinner = s
+        break
+      case 'snack':
+        snacks.push(s)
+        break
+    }
+  }
+
+  const dayEval = calcDietDayScore({ breakfast, lunch, dinner, snacks }, rules.passScore)
+  if (!dayEval.ready || dayEval.score === null) {
+    return currentRow
+  }
+
+  const dailyScore = dayEval.score
+  const dailyValid = dayEval.isValid
+  const passStr = rules.passScore.toFixed(1)
+
+  // 硬覆盖当日该饮食目标下所有记录的 isValid
+  await tx
+    .update(checkins)
+    .set({ isValid: dailyValid })
+    .where(
+      and(
+        eq(checkins.userId, userId),
+        eq(checkins.goalId, goal.id),
+        eq(checkins.localDate, localDate),
+      ),
+    )
+
+  if (currentRow.verdict) {
+    const nextVerdict: Verdict = {
+      ...currentRow.verdict,
+      isValid: dailyValid,
+      detail: dailyValid
+        ? `${currentRow.verdict.detail} · 全天总分 ${dailyScore.toFixed(1)} 分（达标）`
+        : `${currentRow.verdict.detail} · 全天总分 ${dailyScore.toFixed(1)} 分（未达 ${passStr} 分有效线）`,
+      metrics: {
+        ...currentRow.verdict.metrics,
+        dailyScore,
+      },
+    }
+    const [updated] = await tx
+      .update(checkins)
+      .set({ isValid: dailyValid, verdict: nextVerdict })
+      .where(and(eq(checkins.id, currentRow.id), eq(checkins.userId, userId)))
+      .returning(checkinColumns)
+    if (updated) return updated
+  }
+
+  return { ...currentRow, isValid: dailyValid }
+}
+
+/**
  * POST /goals/{goalId}/checkins（PRD 2.4、3、7.2）。
  * 打卡日 = localDateOf(occurredAt, 资料时区, 日切换时间)；补卡只能补昨天（isMakeup）。
- * 睡眠每天一条、一次 AI 识别只能确认一次：唯一索引冲突映射为 409 CHECKIN_EXISTS。
+ * 饮食同一天同一餐次再次提交时直接硬覆盖（Upsert）该餐记录，并触发全天总分结算与硬覆盖。
  */
 export async function createCheckin(
   db: typeof Database,
@@ -303,22 +408,89 @@ export async function createCheckin(
       const draft = await buildDraft(tx, userId, goal, input, clock, now)
       const verdict = await judgeCheckin(tx, userId, goal, input, clock)
       const localDate = localDateOf(draft.occurredAt, clock.timeZone, clock.dayStartHour)
-      const [row] = await tx
+
+      const isSkippedApproved = Boolean(input.skipReason?.trim()) && verdict.isValid
+      const effectiveCount =
+        isSkippedApproved && goal.targetKind === 'count' ? Math.max(1, goal.targetValue) : 1
+      const effectiveDuration =
+        isSkippedApproved && goal.targetKind === 'duration'
+          ? Math.max(draft.durationSeconds ?? 0, goal.targetValue)
+          : draft.durationSeconds
+
+      const noteVal = input.skipReason?.trim()
+        ? `[跳过打卡] ${input.skipReason.trim()}`
+        : (input.note ?? null)
+
+      // 饮食同日同餐次（或睡眠同日跳过/重记）直接硬覆盖已有行，避免唯一约束冲突或重复餐次
+      let existingRow: CheckinRow | undefined
+      if (input.module === 'diet' || input.module === 'sleep') {
+        const sameDayRows = await tx
+          .select(checkinColumns)
+          .from(checkins)
+          .where(
+            and(
+              eq(checkins.userId, userId),
+              eq(checkins.goalId, goalId),
+              eq(checkins.localDate, localDate),
+            ),
+          )
+        existingRow =
+          input.module === 'diet'
+            ? sameDayRows.find(
+                (r) => r.payload.module === 'diet' && r.payload.mealType === input.mealType,
+              )
+            : sameDayRows[0]
+      }
+
+      let row: CheckinRow | undefined
+      if (existingRow) {
+        const [updated] = await tx
+          .update(checkins)
+          .set({
+            ...draft,
+            durationSeconds: effectiveDuration,
+            count: effectiveCount,
+            note: noteVal,
+            score: verdict.score,
+            isValid: verdict.isValid,
+            verdict,
+          })
+          .where(and(eq(checkins.id, existingRow.id), eq(checkins.userId, userId)))
+          .returning(checkinColumns)
+        row = updated
+        if (!row) throw new Error('createCheckin：覆盖更新没有返回行')
+        row = await reconcileDailyDiet(tx, userId, goal, localDate, row)
+        const checkin = toCheckinDto(row)
+        await recordRevision(tx, {
+          userId,
+          action: 'update',
+          origin: input.origin,
+          reason: '同日餐次硬覆盖更新',
+          before: toCheckinDto(existingRow),
+          after: checkin,
+        })
+        const progress = await goalProgressOn(tx, userId, goal, localDate)
+        return { checkin, progress }
+      }
+
+      const [inserted] = await tx
         .insert(checkins)
         .values({
           ...draft,
+          durationSeconds: effectiveDuration,
           userId,
           goalId,
           localDate,
           isMakeup: input.isMakeup,
-          count: 1,
-          note: input.note ?? null,
+          count: effectiveCount,
+          note: noteVal,
           score: verdict.score,
           isValid: verdict.isValid,
           verdict,
         })
         .returning(checkinColumns)
-      if (!row) throw new Error('createCheckin：写入没有返回行')
+      if (!inserted) throw new Error('createCheckin：写入没有返回行')
+      row = await reconcileDailyDiet(tx, userId, goal, localDate, inserted)
       const checkin = toCheckinDto(row)
       await recordRevision(tx, {
         userId,

@@ -1,13 +1,16 @@
 'use client'
 
-import { useRef, type ChangeEvent } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { Badge, IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Icon } from '@/components/ui/icon'
+import { PhotoAlbumSheet } from '@/components/ui/photo-album-sheet'
+import { toast } from '@/components/ui/toast'
 import { moduleMeta } from '@/components/ui/tone'
 import { cn } from '@/lib/cn'
+import { captureNativeHighResPhoto, isNativeApp } from '@/lib/native'
 import { calendarDateOf, formatMonthDay } from '@/lib/time'
 import type { SmartHistoryRecord, SmartInputMode } from '../smart-handoff'
 import { SmartMagicTurnBanner } from './smart-magic-stream'
@@ -30,7 +33,7 @@ export interface SmartHistoryListViewProps {
   timeZone: string
   onSelectRecord: (record: SmartHistoryRecord) => void
   onDeleteRecord: (id: string) => void
-  onStartNewScan: (file: File, mode: SmartInputMode) => void
+  onStartNewScan: (file: File, mode: SmartInputMode, files?: File[]) => void
 }
 
 export function SmartHistoryListView({
@@ -43,17 +46,36 @@ export function SmartHistoryListView({
 }: SmartHistoryListViewProps) {
   const captureInputRef = useRef<HTMLInputElement>(null)
   const uploadInputRef = useRef<HTMLInputElement>(null)
+  const [albumOpen, setAlbumOpen] = useState(false)
 
   function handleCaptureChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (file) onStartNewScan(file, 'smart-capture')
+    if (file) onStartNewScan(file, 'smart-capture', [file])
   }
 
   function handleUploadChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+    const files = e.target.files ? Array.from(e.target.files) : []
     e.target.value = ''
-    if (file) onStartNewScan(file, 'smart-upload')
+    if (files[0]) onStartNewScan(files[0], 'smart-upload', files)
+  }
+
+  async function handleCaptureClick() {
+    if (isNativeApp()) {
+      try {
+        const file = await captureNativeHighResPhoto()
+        if (file) {
+          onStartNewScan(file, 'smart-capture', [file])
+          return
+        }
+      } catch {
+        toast.error('未开启相机权限，无法调用手机原生相机', {
+          description: '请前往「我的 → 权限管理」开启相机权限',
+        })
+        return
+      }
+    }
+    captureInputRef.current?.click()
   }
 
   return (
@@ -75,10 +97,19 @@ export function SmartHistoryListView({
         ref={uploadInputRef}
         type="file"
         accept={SMART_UPLOAD_ACCEPT}
+        multiple
         className="sr-only"
         tabIndex={-1}
         aria-hidden
         onChange={handleUploadChange}
+      />
+      <PhotoAlbumSheet
+        open={albumOpen}
+        onOpenChange={setAlbumOpen}
+        maxSelect={9}
+        onConfirm={(files) => {
+          if (files[0]) onStartNewScan(files[0], 'smart-upload', files)
+        }}
       />
 
       {/* 顶部概要与快捷操作卡片（上下分层，标题完整显示不截断） */}
@@ -104,7 +135,7 @@ export function SmartHistoryListView({
             variant="soft"
             icon="camera"
             className="h-9 w-full"
-            onClick={() => captureInputRef.current?.click()}
+            onClick={() => void handleCaptureClick()}
           >
             智能拍照
           </Button>
@@ -113,7 +144,7 @@ export function SmartHistoryListView({
             variant="secondary"
             icon="sparkles"
             className="h-9 w-full"
-            onClick={() => uploadInputRef.current?.click()}
+            onClick={() => setAlbumOpen(true)}
           >
             智能上传
           </Button>
@@ -150,7 +181,11 @@ export function SmartHistoryListView({
               {records.map((record) => {
                 const mod = record.result.draft.detectedModule
                 const isSelected = record.id === activeRecordId
-                const relPath = record.relativeImagePath ?? `captures/${record.fileName}`
+                const paths =
+                  record.relativeImagePaths && record.relativeImagePaths.length > 0
+                    ? record.relativeImagePaths
+                    : [record.relativeImagePath ?? `captures/${record.fileName}`]
+                const relPath = paths.join(' · ')
                 return (
                   <div
                     key={record.id}
@@ -243,7 +278,11 @@ export function SmartHistoryDetailView({
 }: SmartHistoryDetailViewProps) {
   const { draft } = record.result
   const mod = draft.detectedModule
-  const relPath = record.relativeImagePath ?? `captures/${record.fileName}`
+  const paths =
+    record.relativeImagePaths && record.relativeImagePaths.length > 0
+      ? record.relativeImagePaths
+      : [record.relativeImagePath ?? `captures/${record.fileName}`]
+  const relPath = paths.join(' · ')
   const detailRows = buildReadonlyDetailRows(record)
 
   return (
@@ -371,15 +410,19 @@ export function SmartHistoryDetailView({
 
 function buildReadonlyDetailRows(record: SmartHistoryRecord): { label: string; value: string }[] {
   const { draft } = record.result
+  const paths =
+    record.relativeImagePaths && record.relativeImagePaths.length > 0
+      ? record.relativeImagePaths
+      : [record.relativeImagePath ?? `captures/${record.fileName}`]
   const rows: { label: string; value: string }[] = [
     {
       label: '识别方式',
       value: record.mode === 'smart-capture' ? '智能拍照' : '智能上传',
     },
-    {
-      label: '图片相对路径',
-      value: record.relativeImagePath ?? `captures/${record.fileName}`,
-    },
+    ...paths.map((p, idx) => ({
+      label: paths.length > 1 ? `图片相对路径 (${idx + 1}/${paths.length})` : '图片相对路径',
+      value: p,
+    })),
   ]
 
   if (draft.exercise) {

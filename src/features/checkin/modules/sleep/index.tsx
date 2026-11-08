@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/field'
 import { NumberField } from '@/components/ui/number-field'
 import { Rating, type RatingValue } from '@/components/ui/rating'
 import type { RulesOf, Verdict } from '@/features/referee/schemas'
-import { formatDuration, sleepRangeForDay } from '@/lib/time'
+import { formatDuration, formatTime, sleepRangeForDay } from '@/lib/time'
 import type { CreateCheckinInput } from '../../schemas'
 import type { SmartRecognitionDraft } from '../../smart-schemas'
 import { InlineRow } from '../../flow/fields/inputs'
@@ -25,14 +25,26 @@ interface Adv {
   remPct: number | null
   hrvMs: number | null
 }
-const NO_ADV: Adv = { deepMin: null, lightMin: null, remPct: null, hrvMs: null }
 
-function useSleepForm({ clock, today }: ModuleFormProps): ModuleFormApi {
-  const [start, setStart] = useState('23:00')
-  const [end, setEnd] = useState('07:00')
-  const [quality, setQuality] = useState<RatingValue | null>(null)
-  const [note, setNote] = useState('')
-  const [adv, setAdv] = useState<Adv>(NO_ADV)
+function useSleepForm({ clock, today, todayCheckins }: ModuleFormProps): ModuleFormApi {
+  const savedLatest = todayCheckins?.find((c) => c.payload.module === 'sleep')
+  const savedSleep = savedLatest?.payload.module === 'sleep' ? savedLatest.payload : null
+  const [start, setStart] = useState(() =>
+    savedSleep ? formatTime(savedSleep.bedAt, clock.timeZone) : '23:00',
+  )
+  const [end, setEnd] = useState(() =>
+    savedSleep ? formatTime(savedSleep.wakeAt, clock.timeZone) : '07:00',
+  )
+  const [quality, setQuality] = useState<RatingValue | null>(
+    () => (savedSleep?.quality as RatingValue | undefined) ?? null,
+  )
+  const [note, setNote] = useState(savedLatest?.note ?? '')
+  const [adv, setAdv] = useState<Adv>(() => ({
+    deepMin: savedSleep?.advanced?.deepMin ?? null,
+    lightMin: savedSleep?.advanced?.lightMin ?? null,
+    remPct: savedSleep?.advanced?.remPct ?? null,
+    hrvMs: savedSleep?.advanced?.hrvMs ?? null,
+  }))
   const range = sleepRangeForDay(today, start, end, clock.timeZone, clock.dayStartHour)
   const minutes = range ? Math.round(range.durationSeconds / 60) : 0
   const durOk = minutes >= 30 && minutes <= 1200
@@ -139,6 +151,7 @@ function useSleepForm({ clock, today }: ModuleFormProps): ModuleFormApi {
     }
   }
   return {
+    note,
     sections,
     canSubmit: Boolean(range) && durOk && quality !== null,
     aiSummary: range ? `${start} → ${end} · ${formatDuration(range.durationSeconds)}` : '睡眠',

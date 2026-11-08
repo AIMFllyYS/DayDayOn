@@ -27,6 +27,8 @@ export interface RecognizeSmartInput {
   idempotencyKey: string
   /** multipart 字段 image（可选：当上传文本附件时可不传图片） */
   image?: unknown
+  /** multipart 字段 image2（可选第 2 张图片，支持双图协同识别） */
+  image2?: unknown
   fields: SmartRecognitionFields
   /** 测试注入 */
   goalsOverride?: readonly SmartGoalBrief[]
@@ -44,15 +46,18 @@ export async function recognizeSmart(input: RecognizeSmartInput): Promise<SmartR
   if (!isAiConfigured()) throw new ApiError('AI_PAUSED', 'DEEPSEEK_API_KEY 未配置')
 
   const hasImage = hasUploadedFile(input.image)
+  const hasImage2 = hasUploadedFile(input.image2)
   const hasText = Boolean(input.fields.textContent && input.fields.textContent.trim().length > 0)
 
-  if (!hasImage && !hasText) {
+  if (!hasImage && !hasImage2 && !hasText) {
     throw new ApiError('VALIDATION_FAILED', '请上传图片或文本附件内容', {
       fields: { image: ['请上传图片或文本附件内容'] },
     })
   }
 
   const filePart = hasImage ? await imageToFilePart(input.image) : null
+  const filePart2 = hasImage2 ? await imageToFilePart(input.image2) : null
+  const fileParts = [filePart, filePart2].filter((p): p is NonNullable<typeof p> => p !== null)
 
   const goals: readonly SmartGoalBrief[] =
     input.goalsOverride ??
@@ -66,7 +71,7 @@ export async function recognizeSmart(input: RecognizeSmartInput): Promise<SmartR
   const userText = buildSmartUserText({
     fields: input.fields,
     goals,
-    hasImage,
+    hasImage: fileParts.length > 0,
   })
 
   const result = await runAi({
@@ -77,9 +82,7 @@ export async function recognizeSmart(input: RecognizeSmartInput): Promise<SmartR
     messages: [
       {
         role: 'user',
-        content: filePart
-          ? [{ type: 'text', text: userText }, filePart]
-          : [{ type: 'text', text: userText }],
+        content: [{ type: 'text', text: userText }, ...fileParts],
       },
     ],
     model: input.model,
@@ -96,6 +99,7 @@ export async function recognizeSmart(input: RecognizeSmartInput): Promise<SmartR
     draft: normalizeSmartDraft(result.output, {
       hintModule: input.fields.hintModule,
       goalId: input.fields.goalId,
+      note: input.fields.note,
       goals,
     }),
     aiRunId: result.aiRunId,

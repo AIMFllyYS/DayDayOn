@@ -13,7 +13,7 @@ import { localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import type { db as Database, DbOrTx } from '@/server/db/client'
 import { checkins } from '@/server/db/schema'
-import { buildDraft, judgeCheckin } from './create'
+import { buildDraft, judgeCheckin, reconcileDailyDiet } from './create'
 import { loadClock } from './clock'
 import { checkinColumns, loadGoal, toCheckinDto, type CheckinRow, type GoalRow } from './goal'
 import { recordRevision } from './revisions'
@@ -159,7 +159,8 @@ export async function updateCheckin(
         .where(and(eq(checkins.id, checkinId), eq(checkins.userId, userId)))
         .returning(checkinColumns)
       if (!row) throw new ApiError('CHECKIN_NOT_FOUND', '打卡不存在')
-      const after = toCheckinDto(row)
+      const reconciled = await reconcileDailyDiet(tx, userId, goal, row.localDate, row)
+      const after = toCheckinDto(reconciled)
       await recordRevision(tx, {
         userId,
         action: 'update',

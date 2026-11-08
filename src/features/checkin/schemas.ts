@@ -200,6 +200,14 @@ const CreateBase = {
     .max(NOTE_MAX, { error: `备注最多 ${NOTE_MAX} 个字` })
     .nullable()
     .optional(),
+  /** 手动填写模式下「跳过本次打卡」的理由；经 Agent 核验合理后直接豁免为有效打卡 */
+  skipReason: z
+    .string()
+    .trim()
+    .min(1, { error: '请填写跳过理由' })
+    .max(NOTE_MAX, { error: `跳过理由最多 ${NOTE_MAX} 个字` })
+    .nullable()
+    .optional(),
   /** 数据来源：手动填写或 AI 智能识别草稿确认 */
   source: CheckinSourceSchema.default('manual'),
   /** source = 'ai' 时必填：识别接口返回的 aiRunId */

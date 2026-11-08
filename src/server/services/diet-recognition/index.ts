@@ -20,14 +20,22 @@ export interface RecognizeDietInput {
   idempotencyKey: string
   /** multipart 字段 image（未校验） */
   image: unknown
+  /** multipart 字段 image2（可选第 2 张图片） */
+  image2?: unknown
   fields: DietRecognitionFields
   /** 测试注入 MockLanguageModelV4 */
   model?: RunAiInput<'diet-recognition', typeof dietRecognitionPrompt.schema>['model']
   now?: Date
 }
 
+function hasSecondImage(image: unknown): boolean {
+  if (image === undefined || image === null || image === '') return false
+  if (image instanceof Blob) return image.size > 0
+  return true
+}
+
 /**
- * 识别一张餐食照片 → 201 { draft, aiRunId }。
+ * 识别最多两张餐食照片 → 201 { draft, aiRunId }。
  * - 没有 DEEPSEEK_API_KEY：503 AI_PAUSED（不读图片、不预占）；
  * - 图片不合法：400 VALIDATION_FAILED / 413 PAYLOAD_TOO_LARGE（imageToFilePart）；
  * - 模型输出校验失败、超时或调用失败：422 AI_RECOGNITION_FAILED（带 aiRunId，已产生的费用照常结算）；
@@ -37,6 +45,8 @@ export async function recognizeDiet(input: RecognizeDietInput): Promise<DietReco
   if (!isAiConfigured()) throw new ApiError('AI_PAUSED', 'DEEPSEEK_API_KEY 未配置')
 
   const filePart = await imageToFilePart(input.image)
+  const filePart2 = hasSecondImage(input.image2) ? await imageToFilePart(input.image2) : null
+  const fileParts = filePart2 ? [filePart, filePart2] : [filePart]
   const result = await runAi({
     prompt: dietRecognitionPrompt,
     userId: input.userId,
@@ -45,7 +55,7 @@ export async function recognizeDiet(input: RecognizeDietInput): Promise<DietReco
     messages: [
       {
         role: 'user',
-        content: [{ type: 'text', text: recognitionUserText(input.fields) }, filePart],
+        content: [{ type: 'text', text: recognitionUserText(input.fields) }, ...fileParts],
       },
     ],
     model: input.model,

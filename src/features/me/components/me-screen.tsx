@@ -19,6 +19,7 @@ import {
 } from '@/lib/api/queries/me'
 import { authClient } from '@/lib/auth-client'
 import { isThemeId, setTheme } from '@/lib/theme'
+import { syncNativeReminder } from '@/lib/native'
 import { useCheckUpdate } from '@/features/app-update/components/update-dialog'
 import { APP_VERSION } from '@/lib/app-version'
 import { MeView } from './me-view'
@@ -102,8 +103,12 @@ export function MeScreen() {
               if (remindDraft === null) return
               const r = LocalTimeSchema.safeParse(remindDraft)
               setRemindDraft(null)
-              if (r.success && r.data !== me.preferences.remindAt)
+              if (r.success && r.data !== me.preferences.remindAt) {
                 changePreferences({ remindAt: r.data })
+                if (me.preferences.remindMode === 'native') {
+                  void syncNativeReminder({ enabled: true, remindAt: r.data })
+                }
+              }
             }}
             hint="过了这个时间还有没打卡的目标，主页顶部会提示一下"
           />

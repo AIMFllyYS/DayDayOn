@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Icon, type IconName } from '@/components/ui/icon'
+import { PhotoAlbumSheet } from '@/components/ui/photo-album-sheet'
 import { toast } from '@/components/ui/toast'
 import { moduleMeta, moduleTones, softToneClass, type ModuleTone } from '@/components/ui/tone'
 import {
@@ -17,6 +18,7 @@ import { errorMessage, isApiError, newIdempotencyKey } from '@/lib/api'
 import { useRecognizeSmart } from '@/lib/api/queries/ai'
 import { cn } from '@/lib/cn'
 import { compressImage } from '@/lib/image'
+import { captureNativeHighResPhoto, isNativeApp } from '@/lib/native'
 import {
   buildRelativeMediaPath,
   consumePendingSmartCapture,
@@ -149,6 +151,8 @@ export interface SmartScannerLensProps {
   hintModule?: Module
   /** 已知目标 ID */
   goalId?: string
+  /** 用户在下方填写的备注（作为识别与判定的最高优先级补充上下文） */
+  note?: string
   /** 视觉主题色 */
   tone?: ModuleTone
   /** 开始扫描时的回调（通知父级展示「正在搜索哪个分区」懒加载动画） */
@@ -165,6 +169,7 @@ export function SmartScannerLens({
   mode = 'smart-capture',
   hintModule,
   goalId,
+  note,
   tone = 'exercise',
   onScanStart,
   onRecognized,
@@ -177,11 +182,14 @@ export function SmartScannerLens({
   const uploadInputRef = useRef<HTMLInputElement>(null)
 
   const [activeMode, setActiveMode] = useState<SmartInputMode>(mode)
+  const [albumOpen, setAlbumOpen] = useState(false)
   const [preview, setPreview] = useState<{
     kind: 'image' | 'text'
     imageUrl?: string
+    imageCount?: number
     textSnippet?: string
     relativePath?: string
+    relativePaths?: string[]
   } | null>(null)
   const [draft, setDraft] = useState<SmartRecognitionDraft | null>(null)
   const [errorText, setErrorText] = useState<string | null>(null)
@@ -189,16 +197,18 @@ export function SmartScannerLens({
 
   const pendingPayload = useRef<{
     image?: Blob
+    image2?: Blob
     textContent?: string
     key: string
     fileName: string
     mediaKind: 'image' | 'text'
     mode: SmartInputMode
     relativeImagePath: string | null
+    relativeImagePaths?: string[]
     textSnippet: string | null
   } | null>(null)
 
-  const processFileRef = useRef<(file: File, sourceMode: SmartInputMode) => Promise<void>>(
+  const processFilesRef = useRef<(files: File[], sourceMode: SmartInputMode) => Promise<void>>(
     async () => {},
   )
 
@@ -230,9 +240,11 @@ export function SmartScannerLens({
     recognize.mutate(
       {
         image: payload.image,
+        image2: payload.image2,
         textContent: payload.textContent,
         hintModule,
         goalId,
+        note: note?.trim() || undefined,
         idempotencyKey: payload.key,
       },
       {
@@ -243,6 +255,7 @@ export function SmartScannerLens({
             mediaKind: payload.mediaKind,
             fileName: payload.fileName,
             relativeImagePath: payload.relativeImagePath,
+            relativeImagePaths: payload.relativeImagePaths,
             textSnippet: payload.textSnippet,
             result: res,
           })
@@ -258,28 +271,47 @@ export function SmartScannerLens({
     )
   }
 
-  async function processFile(file: File, sourceMode: SmartInputMode) {
+  async function processFiles(files: File[], sourceMode: SmartInputMode) {
+    const first = files[0]
+    if (!first) return
     setActiveMode(sourceMode)
     setErrorText(null)
     setDraft(null)
     setActiveStepIdx(0)
-    const relPath = buildRelativeMediaPath(file.name, sourceMode)
 
-    if (file.type.startsWith('image/')) {
+    const imageFiles = files.filter((f) => f.type.startsWith('image/'))
+    if (imageFiles.length > 0) {
+      if (imageFiles.length > 2) {
+        toast.info(`已选 ${imageFiles.length} 张照片，单次识别最多同时上传前 2 张～`)
+      }
+      const pickedImages = imageFiles.slice(0, 2)
+      const firstImg = pickedImages[0]
+      if (!firstImg) return
+      const relPaths = pickedImages.map((f) => buildRelativeMediaPath(f.name, sourceMode))
       try {
-        const compressed = await compressImage(file)
-        const nextUrl = URL.createObjectURL(compressed.blob)
+        const compressed1 = await compressImage(firstImg)
+        const compressed2 = pickedImages[1] ? await compressImage(pickedImages[1]) : null
+        // 边界条件：前端默认只展示上传的第 1 张照片，但实际上传最多 2 张并保存 2 个相对路径
+        const nextUrl = URL.createObjectURL(compressed1.blob)
         setPreview((prev) => {
           if (prev?.imageUrl) URL.revokeObjectURL(prev.imageUrl)
-          return { kind: 'image', imageUrl: nextUrl, relativePath: relPath }
+          return {
+            kind: 'image',
+            imageUrl: nextUrl,
+            imageCount: pickedImages.length,
+            relativePath: relPaths[0],
+            relativePaths: relPaths,
+          }
         })
         pendingPayload.current = {
-          image: compressed.blob,
+          image: compressed1.blob,
+          image2: compressed2?.blob,
           key: newIdempotencyKey(),
-          fileName: file.name,
+          fileName: pickedImages.map((f) => f.name).join(', '),
           mediaKind: 'image',
           mode: sourceMode,
-          relativeImagePath: relPath,
+          relativeImagePath: relPaths[0] ?? null,
+          relativeImagePaths: relPaths,
           textSnippet: null,
         }
         runRecognition()
@@ -292,8 +324,9 @@ export function SmartScannerLens({
       return
     }
 
+    const relPath = buildRelativeMediaPath(first.name, sourceMode)
     try {
-      const raw = await file.text()
+      const raw = await first.text()
       const clean = extractCleanText(raw)
       if (!clean) {
         const msg = '文件内容为空或无法识别，请重新选择'
@@ -309,7 +342,7 @@ export function SmartScannerLens({
       pendingPayload.current = {
         textContent: clean,
         key: newIdempotencyKey(),
-        fileName: file.name,
+        fileName: first.name,
         mediaKind: 'text',
         mode: sourceMode,
         relativeImagePath: relPath,
@@ -324,7 +357,7 @@ export function SmartScannerLens({
   }
 
   useEffect(() => {
-    processFileRef.current = processFile
+    processFilesRef.current = processFiles
   })
 
   // 承接从打卡弹层点击「智能拍照」或「智能上传」直接选完文件传过来的内存交接槽，挂载即刻进入识别态
@@ -332,7 +365,8 @@ export function SmartScannerLens({
     const consumeIfAny = () => {
       const captured = consumePendingSmartCapture()
       if (captured) {
-        void processFileRef.current(captured.file, captured.mode)
+        const list = captured.files && captured.files.length > 0 ? captured.files : [captured.file]
+        void processFilesRef.current(list, captured.mode)
       }
     }
     consumeIfAny()
@@ -340,22 +374,41 @@ export function SmartScannerLens({
   }, [])
 
   function handleCaptureFileChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+    const list = e.target.files ? Array.from(e.target.files) : []
     e.target.value = ''
-    if (file) void processFile(file, 'smart-capture')
+    if (list.length > 0) void processFiles(list, 'smart-capture')
   }
 
   function handleUploadFileChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+    const list = e.target.files ? Array.from(e.target.files) : []
     e.target.value = ''
-    if (file) void processFile(file, 'smart-upload')
+    if (list.length > 0) void processFiles(list, 'smart-upload')
+  }
+
+  async function triggerNativeOrFallbackCamera() {
+    setActiveMode('smart-capture')
+    if (isNativeApp()) {
+      try {
+        const file = await captureNativeHighResPhoto()
+        if (file) {
+          await processFiles([file], 'smart-capture')
+          return
+        }
+      } catch {
+        toast.error('未开启相机权限，无法直接调用手机原生相机', {
+          description: '请前往「我的 → 权限管理」开启相机权限',
+        })
+        return
+      }
+    }
+    captureInputRef.current?.click()
   }
 
   function triggerPicker() {
     if (activeMode === 'smart-capture') {
-      captureInputRef.current?.click()
+      void triggerNativeOrFallbackCamera()
     } else {
-      uploadInputRef.current?.click()
+      setAlbumOpen(true)
     }
   }
 
@@ -400,10 +453,20 @@ export function SmartScannerLens({
         ref={uploadInputRef}
         type="file"
         accept={SMART_UPLOAD_ACCEPT}
+        multiple
         className="sr-only"
         tabIndex={-1}
         aria-hidden
         onChange={handleUploadFileChange}
+      />
+      <PhotoAlbumSheet
+        open={albumOpen}
+        onOpenChange={setAlbumOpen}
+        maxSelect={9}
+        hintText="点击右上角圆圈按 1、2、3 顺序多选照片（默认最多 9 张；单次识别自动上传前 2 张并默认展示首图）"
+        onConfirm={(files) => {
+          void processFiles(files, 'smart-upload')
+        }}
       />
 
       {/* 极简顶部栏：左状态 + 右唯一操作按钮 */}
@@ -468,16 +531,37 @@ export function SmartScannerLens({
 
         {preview?.kind === 'image' && preview.imageUrl ? (
           <div className="flex flex-col items-center justify-center gap-2 py-1">
-            {/* eslint-disable-next-line @next/next/no-img-element -- 内存压缩后的 Blob URL，不落盘 */}
-            <img
-              src={preview.imageUrl}
-              alt="待识别图片预览"
-              className="max-h-44 rounded-xl object-contain"
-            />
-            {preview.relativePath && (
-              <span className="text-tiny text-subtle max-w-full truncate font-mono">
-                {preview.relativePath}
-              </span>
+            <div className="relative inline-flex max-w-full items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element -- 内存压缩后的首张图片 Blob URL，不落盘 */}
+              <img
+                src={preview.imageUrl}
+                alt="待识别图片预览（默认展示首图）"
+                className="max-h-44 rounded-xl object-contain"
+              />
+              {(preview.imageCount ?? 1) > 1 && (
+                <span className="bg-foreground/75 text-on-primary text-tiny absolute top-2 right-2 rounded-full px-2.5 py-0.5 font-semibold backdrop-blur-xs">
+                  共 {preview.imageCount} 张 · 默认展示首图
+                </span>
+              )}
+            </div>
+            {preview.relativePaths && preview.relativePaths.length > 0 ? (
+              <div className="flex max-w-full flex-col items-center gap-0.5">
+                {preview.relativePaths.map((p, i) => (
+                  <span
+                    key={`${i}-${p}`}
+                    className="text-tiny text-subtle max-w-full truncate font-mono"
+                  >
+                    {preview.relativePaths && preview.relativePaths.length > 1 ? `[${i + 1}] ` : ''}
+                    {p}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              preview.relativePath && (
+                <span className="text-tiny text-subtle max-w-full truncate font-mono">
+                  {preview.relativePath}
+                </span>
+              )
             )}
           </div>
         ) : preview?.kind === 'text' ? (
@@ -497,16 +581,18 @@ export function SmartScannerLens({
               <p className="text-caption font-bold">
                 {activeMode === 'smart-capture'
                   ? '拍下餐盘、运动记录或睡眠截图'
-                  : '上传图片或 TXT / HTML 学习与打卡记录'}
+                  : '从多选相册挑选照片或上传 TXT / HTML 记录'}
               </p>
-              <p className="text-tiny text-muted">图片仅在内存压缩识别，只记录相对路径、不存原图</p>
+              <p className="text-tiny text-muted">
+                支持同时上传 2 张照片（默认展示首图，保存双路径），内存压缩不存原图
+              </p>
             </div>
             <div className="mt-1 flex flex-wrap justify-center gap-2">
               <Button
                 variant="soft"
                 size="sm"
                 icon="camera"
-                onClick={() => captureInputRef.current?.click()}
+                onClick={() => void triggerNativeOrFallbackCamera()}
               >
                 智能拍照
               </Button>
@@ -514,9 +600,23 @@ export function SmartScannerLens({
                 variant="secondary"
                 size="sm"
                 icon="sparkles"
-                onClick={() => uploadInputRef.current?.click()}
+                onClick={() => {
+                  setActiveMode('smart-upload')
+                  setAlbumOpen(true)
+                }}
               >
-                智能上传
+                相册多选
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="plus"
+                onClick={() => {
+                  setActiveMode('smart-upload')
+                  uploadInputRef.current?.click()
+                }}
+              >
+                文本附件
               </Button>
             </div>
           </div>

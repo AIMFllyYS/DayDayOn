@@ -18,6 +18,8 @@ export type SmartPageViewMode = 'scanner' | 'history' | 'history-detail'
 export interface PendingSmartPayload {
   id: string
   file: File
+  /** 支持同时交接最多 2 张图片（首张与 file 相同） */
+  files?: File[]
   mode: SmartInputMode
   createdAt: string
 }
@@ -27,8 +29,10 @@ export interface SmartHistoryRecord {
   mode: SmartInputMode
   mediaKind: 'image' | 'text'
   fileName: string
-  /** 仅存图片的相对路径（如 captures/2026-11-05/photo.jpg），不存真实图片 */
+  /** 仅存首张图片的相对路径（如 captures/2026-11-05/photo.jpg），不存真实图片 */
   relativeImagePath: string | null
+  /** 同时上传 2 张图片时保存两个相对路径（如 ['uploads/.../1.jpg', 'uploads/.../2.jpg']） */
+  relativeImagePaths?: string[]
   textSnippet: string | null
   createdAt: string
   confirmed: boolean
@@ -74,14 +78,16 @@ export function buildRelativeMediaPath(
 }
 
 export function setPendingSmartCapture(
-  input: File | { file: File; mode?: SmartInputMode },
+  input: File | { file: File; files?: File[]; mode?: SmartInputMode },
 ): PendingSmartPayload {
   const file = input instanceof File ? input : input.file
+  const files = input instanceof File ? [input] : (input.files ?? [input.file])
   const mode: SmartInputMode =
     input instanceof File ? 'smart-capture' : (input.mode ?? 'smart-capture')
   const payload: PendingSmartPayload = {
     id: `smart-${Date.now()}-${++handoffSeq}`,
     file,
+    files,
     mode,
     createdAt: new Date().toISOString(),
   }
@@ -314,6 +320,7 @@ export function saveSmartHistoryRecord(input: {
   mediaKind: 'image' | 'text'
   fileName: string
   relativeImagePath?: string | null
+  relativeImagePaths?: string[]
   textSnippet?: string | null
   result: SmartRecognitionResult
 }): SmartHistoryRecord {
@@ -324,6 +331,12 @@ export function saveSmartHistoryRecord(input: {
       : input.mediaKind === 'image'
         ? buildRelativeMediaPath(input.fileName, input.mode, now)
         : null
+  const relativeImagePaths =
+    input.relativeImagePaths && input.relativeImagePaths.length > 0
+      ? input.relativeImagePaths.slice(0, 2)
+      : relativeImagePath
+        ? [relativeImagePath]
+        : undefined
 
   const record: SmartHistoryRecord = {
     id: input.result.aiRunId,
@@ -331,6 +344,7 @@ export function saveSmartHistoryRecord(input: {
     mediaKind: input.mediaKind,
     fileName: input.fileName || (input.mode === 'smart-capture' ? 'camera.jpg' : 'upload.dat'),
     relativeImagePath,
+    relativeImagePaths,
     textSnippet: input.textSnippet ?? null,
     createdAt: now.toISOString(),
     confirmed: false,

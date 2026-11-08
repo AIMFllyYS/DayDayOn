@@ -7,7 +7,7 @@ import type { Insights } from '@/features/insights/schemas'
 import { FeedList } from '@/features/rank/components/feed-list'
 import type { DashboardToday } from '../schemas'
 import { LinkButton } from './link-button'
-import { MoodCard, WeightCard } from './metric-cards'
+import { MoodCard, StepsCard, WeightCard } from './metric-cards'
 import { ProgressCard } from './progress-card'
 import { ReminderBanner } from './reminder-banner'
 import { SummaryCard } from './summary-card'
@@ -27,6 +27,7 @@ export interface HomeDashboardProps {
   timeZone: string
   onOpenWeight: () => void
   onOpenMood: () => void
+  onOpenSteps?: () => void
   /** 查看好友仪表盘时开启只读模式 */
   readOnly?: boolean
   /** 顶部好友视角提示条 */
@@ -41,6 +42,7 @@ export function HomeDashboard({
   timeZone,
   onOpenWeight,
   onOpenMood,
+  onOpenSteps,
   readOnly = false,
   friendBanner,
   insights,
@@ -106,6 +108,10 @@ export function HomeDashboard({
         <div className="grid grid-cols-2 gap-3">
           <WeightCard weight={data.weight} onOpen={onOpenWeight} readOnly={readOnly} />
           <MoodCard mood={data.mood} onOpen={onOpenMood} readOnly={readOnly} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <StepsCard steps={data.steps} onOpen={onOpenSteps} readOnly={readOnly} />
         </div>
 
         <Card>

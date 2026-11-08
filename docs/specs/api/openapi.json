@@ -138,6 +138,9 @@
             ],
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
           },
+          "remindMode": {
+            "$ref": "#/components/schemas/RemindMode"
+          },
           "refereeTier": {
             "$ref": "#/components/schemas/RefereeTier"
           }
@@ -169,6 +172,15 @@
           "mian",
           "you"
         ]
+      },
+      "RemindMode": {
+        "type": "string",
+        "enum": [
+          "off",
+          "in-app",
+          "native"
+        ],
+        "default": "off"
       },
       "RefereeTier": {
         "type": "string",
@@ -614,6 +626,9 @@
               "null"
             ],
             "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "remindMode": {
+            "$ref": "#/components/schemas/RemindMode"
           },
           "refereeTier": {
             "$ref": "#/components/schemas/RefereeTier"
@@ -2167,6 +2182,25 @@
                       "type": "boolean",
                       "default": false
                     },
+                    "isFasting": {
+                      "type": "boolean"
+                    },
+                    "carbQuality": {
+                      "type": "string",
+                      "enum": [
+                        "refined",
+                        "complex",
+                        "none"
+                      ]
+                    },
+                    "fatQuality": {
+                      "type": "string",
+                      "enum": [
+                        "healthy",
+                        "unhealthy",
+                        "normal"
+                      ]
+                    },
                     "cooking": {
                       "type": "string",
                       "enum": [
@@ -2205,6 +2239,16 @@
                 },
                 "minItems": 1,
                 "maxItems": 20
+              },
+              "skipApproved": {
+                "type": "boolean"
+              },
+              "skipComment": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 120
               }
             },
             "required": [
@@ -2294,6 +2338,16 @@
                 ],
                 "minimum": 20,
                 "maximum": 300
+              },
+              "skipApproved": {
+                "type": "boolean"
+              },
+              "skipComment": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 120
               }
             },
             "required": [
@@ -2323,6 +2377,16 @@
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 14
+              },
+              "skipApproved": {
+                "type": "boolean"
+              },
+              "skipComment": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 120
               }
             },
             "required": [
@@ -2366,6 +2430,16 @@
                 "minimum": 0,
                 "maximum": 1440,
                 "default": 0
+              },
+              "skipApproved": {
+                "type": "boolean"
+              },
+              "skipComment": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 120
               }
             },
             "required": [
@@ -2391,6 +2465,16 @@
                 ]
               },
               "aiComment": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 120
+              },
+              "skipApproved": {
+                "type": "boolean"
+              },
+              "skipComment": {
                 "type": [
                   "string",
                   "null"
@@ -2457,6 +2541,14 @@
                   "string",
                   "null"
                 ],
+                "maxLength": 200
+              },
+              "skipReason": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
                 "maxLength": 200
               },
               "source": {
@@ -2559,6 +2651,14 @@
                 ],
                 "maxLength": 200
               },
+              "skipReason": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 200
+              },
               "source": {
                 "$ref": "#/components/schemas/CheckinSource"
               },
@@ -2656,6 +2756,14 @@
                 ],
                 "maxLength": 200
               },
+              "skipReason": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 200
+              },
               "source": {
                 "$ref": "#/components/schemas/CheckinSource"
               },
@@ -2749,6 +2857,14 @@
                   "string",
                   "null"
                 ],
+                "maxLength": 200
+              },
+              "skipReason": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
                 "maxLength": 200
               },
               "source": {
@@ -2845,6 +2961,14 @@
                   "string",
                   "null"
                 ],
+                "maxLength": 200
+              },
+              "skipReason": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
                 "maxLength": 200
               },
               "source": {
@@ -3346,6 +3470,81 @@
           "value"
         ]
       },
+      "StepEntry": {
+        "type": "object",
+        "properties": {
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "steps": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "measuredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "localDate",
+          "steps",
+          "measuredAt"
+        ]
+      },
+      "PutSteps": {
+        "type": "object",
+        "properties": {
+          "steps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 200000
+          }
+        },
+        "required": [
+          "steps"
+        ]
+      },
+      "StepTrend": {
+        "type": "object",
+        "properties": {
+          "todaySteps": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StepEntry"
+            }
+          },
+          "latest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StepEntry"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          },
+          "deltaSteps7d": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "todaySteps",
+          "entries",
+          "latest",
+          "deltaSteps7d"
+        ]
+      },
       "DashboardToday": {
         "type": "object",
         "properties": {
@@ -3394,6 +3593,9 @@
             ],
             "minimum": 1,
             "maximum": 5
+          },
+          "steps": {
+            "$ref": "#/components/schemas/StepTrend"
           },
           "heatmap": {
             "$ref": "#/components/schemas/WeekHeatmap"
@@ -6830,6 +7032,119 @@
         }
       }
     },
+    "/api/v1/metrics/steps": {
+      "put": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutSteps"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已记录今日步数",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepEntry"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 30
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "步数走势与今日步数（无记录恒为 0）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepTrend"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dashboard/today": {
       "get": {
         "tags": [
@@ -9159,7 +9474,7 @@
     },
     "/api/v1/ai/diet-recognitions": {
       "post": {
-        "summary": "饮食拍照识别（返回草稿，不入库）",
+        "summary": "饮食拍照识别（最多支持 2 张照片，返回草稿，不入库）",
         "parameters": [
           {
             "schema": {
@@ -9188,7 +9503,12 @@
                   "image": {
                     "type": "string",
                     "format": "binary",
-                    "description": "JPEG，≤ 4 MB"
+                    "description": "首张 JPEG，≤ 4 MB"
+                  },
+                  "image2": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "可选第 2 张 JPEG，≤ 4 MB"
                   }
                 }
               }
@@ -9301,7 +9621,7 @@
     },
     "/api/v1/ai/smart-recognitions": {
       "post": {
-        "summary": "全板块智能打卡识别（支持拍照/上传图片或 TXT/HTML 文本附件，自动判别板块并返回草稿）",
+        "summary": "全板块智能打卡识别（支持最多 2 张图片或 TXT/HTML 文本附件，自动判别板块并返回草稿）",
         "parameters": [
           {
             "schema": {
@@ -9338,7 +9658,12 @@
                   "image": {
                     "type": "string",
                     "format": "binary",
-                    "description": "可选 JPEG 图片，≤ 4 MB"
+                    "description": "可选首张 JPEG 图片，≤ 4 MB"
+                  },
+                  "image2": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "可选第 2 张 JPEG 图片，≤ 4 MB"
                   }
                 }
               }

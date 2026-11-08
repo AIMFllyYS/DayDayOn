@@ -21,8 +21,8 @@ import {
 /** 业务周期时区：额度周、全站日上限、排行周 / 月一律按北京时间 */
 export const BUSINESS_TIME_ZONE = 'Asia/Shanghai'
 
-/** 默认的日切换时间：凌晨 4 点前算前一天 */
-export const DEFAULT_DAY_START_HOUR = 4
+/** 默认的日切换时间：凌晨 0 点（零点换日刷新） */
+export const DEFAULT_DAY_START_HOUR = 0
 
 /** IANA 时区名是否可用（个人资料改时区时校验） */
 export function isValidTimeZone(timeZone: string): boolean {

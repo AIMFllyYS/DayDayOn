@@ -48,10 +48,12 @@ function display(field: FieldDef, v: FieldValue | undefined): string | null {
   return String(v)
 }
 
-function useCustomForm({ goal }: ModuleFormProps): ModuleFormApi {
+function useCustomForm({ goal, todayCheckins }: ModuleFormProps): ModuleFormApi {
   const fields = goal.fields ?? []
-  const [values, setValues] = useState<FieldValues>({})
-  const [note, setNote] = useState('')
+  const savedLatest = todayCheckins?.find((c) => c.payload.module === 'custom')
+  const savedCustom = savedLatest?.payload.module === 'custom' ? savedLatest.payload : null
+  const [values, setValues] = useState<FieldValues>(savedCustom?.values ?? {})
+  const [note, setNote] = useState(savedLatest?.note ?? '')
   const parsed = buildSchema(fields).safeParse(values)
   const filled = fields.filter((f) => values[f.key] !== undefined)
 
@@ -91,6 +93,7 @@ function useCustomForm({ goal }: ModuleFormProps): ModuleFormApi {
   ]
 
   return {
+    note,
     sections,
     canSubmit: goal.fieldVersion !== null && parsed.success && filled.length > 0,
     aiSummary: filled.map((f) => `${f.label} ${display(f, values[f.key])}`).join(' · '),

@@ -32,6 +32,7 @@ export function subjectOf(input: CreateCheckinInput, ctx: SubjectContext): Subje
             portion: i.portion ?? '',
             kcal: i.kcal,
           })),
+          note: input.note ?? null,
         },
       }
     case 'exercise': {
@@ -97,5 +98,9 @@ export function judgeInputOf(
   ctx: SubjectContext & Omit<JudgeInput, 'module' | 'subject'>,
 ): JudgeInput {
   const { timeZone, fields, ...rest } = ctx
-  return { ...subjectOf(input, { timeZone, fields }), ...rest } as JudgeInput
+  return {
+    ...subjectOf(input, { timeZone, fields }),
+    skipReason: input.skipReason ?? null,
+    ...rest,
+  } as JudgeInput
 }

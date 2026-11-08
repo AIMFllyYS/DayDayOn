@@ -10,7 +10,7 @@ import { InlineRow, PointsEditor } from '../../flow/fields/inputs'
 import { FavoritesSheet, TagRow, useFavorites } from '../../flow/fields/tags'
 import type { FillSectionSpec, FolderSpec, ReportSpec } from '../../flow/types'
 import { StudyRulesEditor } from '../rules-editors'
-import type { CheckinModuleDef, ModuleDocs, ModuleFormApi } from '../types'
+import type { CheckinModuleDef, ModuleDocs, ModuleFormApi, ModuleFormProps } from '../types'
 
 /*
  * 学一点（Playbook study-flow）：主题（输入 + 常学标签）→ 专注时长（单行）→ 要点逐条添加。
@@ -19,11 +19,15 @@ import type { CheckinModuleDef, ModuleDocs, ModuleFormApi } from '../types'
 
 const DEFAULT_FAVS = ['算法', '数学', '英语', '单词', '专业课', '阅读', '写作']
 
-function useStudyForm(): ModuleFormApi {
-  const [topic, setTopic] = useState('')
-  const [minutes, setMinutes] = useState<number | null>(null)
-  const [points, setPoints] = useState<string[]>([])
-  const [note, setNote] = useState('')
+function useStudyForm(props?: ModuleFormProps): ModuleFormApi {
+  const savedLatest = props?.todayCheckins?.find((c) => c.payload.module === 'study')
+  const savedStudy = savedLatest?.payload.module === 'study' ? savedLatest.payload : null
+  const [topic, setTopic] = useState(savedStudy?.what ?? '')
+  const [minutes, setMinutes] = useState<number | null>(
+    savedLatest?.durationSeconds ? Math.round(savedLatest.durationSeconds / 60) : null,
+  )
+  const [points, setPoints] = useState<string[]>(savedStudy?.points ?? [])
+  const [note, setNote] = useState(savedLatest?.note ?? '')
   const [sheet, setSheet] = useState(false)
   const { favs, setFavs, resetFavs } = useFavorites('study', DEFAULT_FAVS)
 
@@ -92,6 +96,7 @@ function useStudyForm(): ModuleFormApi {
   ]
 
   return {
+    note,
     sections,
     overlay: sheet ? (
       <FavoritesSheet

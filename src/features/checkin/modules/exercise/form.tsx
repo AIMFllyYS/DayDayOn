@@ -12,7 +12,7 @@ import type { CreateCheckinInput, ExerciseItemInput } from '../../schemas'
 import { InlineRow } from '../../flow/fields/inputs'
 import { FavoritesSheet, TagRow, useFavorites } from '../../flow/fields/tags'
 import type { FillSectionSpec } from '../../flow/types'
-import type { ModuleFormApi } from '../types'
+import type { ModuleFormApi, ModuleFormProps } from '../types'
 
 /*
  * 动一动的填写页（Playbook exercise-flow）：运动类型自填，一次可以加多项；
@@ -64,9 +64,39 @@ function summaryOf(it: Item): string {
   return parts.filter(Boolean).join(' · ')
 }
 
-export function useExerciseForm(): ModuleFormApi {
-  const [items, setItems] = useState<Item[]>(() => [blank()])
-  const [note, setNote] = useState('')
+export function useExerciseForm(props?: ModuleFormProps): ModuleFormApi {
+  const savedLatest = props?.todayCheckins?.find((c) => c.payload.module === 'exercise')
+  const [items, setItems] = useState<Item[]>(() => {
+    if (savedLatest?.payload.module === 'exercise') {
+      const p = savedLatest.payload
+      if (p.items && p.items.length > 0) {
+        return p.items.map((it) => ({
+          id: `ex-${++seq}`,
+          name: it.name,
+          calc: it.calc,
+          calcManual: true,
+          minutes: it.minutes,
+          km: it.km,
+          sets: it.sets,
+          effort: it.effort,
+          kcal: it.kcal,
+          heartRate: it.heartRate,
+          feel: it.feel,
+        }))
+      }
+      return [
+        {
+          ...blank(),
+          name: p.category,
+          minutes: savedLatest.durationSeconds
+            ? Math.round(savedLatest.durationSeconds / 60)
+            : null,
+        },
+      ]
+    }
+    return [blank()]
+  })
+  const [note, setNote] = useState(savedLatest?.note ?? '')
   const [sheet, setSheet] = useState(false)
   const [autoOpen, setAutoOpen] = useState<string | null>(null)
   const { favs, setFavs, resetFavs } = useFavorites('exercise', DEFAULT_FAVS)
@@ -121,6 +151,7 @@ export function useExerciseForm(): ModuleFormApi {
   ]
 
   return {
+    note,
     sections,
     autoOpen,
     afterSections:

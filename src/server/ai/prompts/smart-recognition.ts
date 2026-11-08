@@ -47,13 +47,16 @@ const SYSTEM = `你是 DayDayOn 的智能打卡识别助手「团团」。请根
    - custom（自定义）：
      - values：键值对象，键为用户自定义目标的字段 key，值为对应提取出的字符串、数字、布尔值或字符串数组；
      - note：简短备注（可填 null）。
-5. summary：一句温和精炼的中文总结（最多 100 字），概述识别出的打卡内容。
-6. confidence：0 到 1 之间的小数，表示识别把握度（模糊或不确定时低于 0.6）。
-7. 只输出一个合法的 JSON 对象，不要输出任何 Markdown 代码块或额外解释。所有文字使用简体中文。`
+5. 【备注第一优先级】：若用户消息中包含「用户补充说明（备注）」，必须以备注为第一核心优先级修正识别结果！例如：
+   - 若备注写「空腹」，则 diet.items 直接填 [{ name: "空腹", portion: "", kcal: 0 }]；
+   - 若照片里有米饭和菜，但备注写「我晚上没吃饭（只吃了菜）」，则不要把米饭放进 diet.items（或将其 kcal 设为 0），并将用户的备注保留在对应板块的 note 字段中。
+6. summary：一句温和精炼的中文总结（最多 100 字），概述识别出的打卡内容。
+7. confidence：0 到 1 之间的小数，表示识别把握度（模糊或不确定时低于 0.6）。
+8. 只输出一个合法的 JSON 对象，不要输出任何 Markdown 代码块或额外解释。所有文字使用简体中文。`
 
 export const smartRecognitionPrompt = {
   id: 'smart-recognition',
-  version: 1,
+  version: 2,
   system: SYSTEM,
   schema: SmartRecognitionDraftSchema,
   maxOutputTokens: 1000,

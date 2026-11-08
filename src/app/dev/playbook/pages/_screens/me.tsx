@@ -31,6 +31,7 @@ const DEMO: Me = {
     leaderboardOptIn: true,
     dayStartHour: 4,
     remindAt: '21:00',
+    remindMode: 'in-app',
   },
   streak: 12,
   createdAt: '2026-09-16T00:00:00.000Z',

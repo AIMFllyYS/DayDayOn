@@ -146,3 +146,19 @@ export const dailyRatings = pgTable(
     uniqueIndex('daily_ratings_user_id_local_date_scope_key').on(t.userId, t.localDate, t.scope),
   ],
 )
+
+/** 今日步数（每日指标，Issue #57）：每个打卡日一条，再记就覆盖；无记录时默认 0 步 */
+export const stepMetrics = pgTable(
+  'step_metrics',
+  {
+    ...id,
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    localDate: date({ mode: 'string' }).notNull(),
+    steps: integer().notNull().default(0),
+    measuredAt: timestamptz().notNull(),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('step_metrics_user_id_local_date_key').on(t.userId, t.localDate)],
+)
