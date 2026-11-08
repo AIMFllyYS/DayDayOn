@@ -32,6 +32,8 @@ export type JudgeInput = {
     /** 手动填写模式下的「跳过本次打卡」理由 */
     skipReason?: string | null
     extras?: RefereeExtras
+    /** 学习模块今日此前已累计的分钟数（离线裁判兜底用） */
+    priorMinutesToday?: number
   }
 }[Module]
 
@@ -85,7 +87,11 @@ export function judge(input: JudgeInput): Verdict {
     })
   }
 
-  const base = { tier: input.tier, extras: input.extras }
+  const base = {
+    tier: input.tier,
+    extras: input.extras,
+    priorMinutesToday: input.priorMinutesToday,
+  }
   switch (input.module) {
     case 'diet':
       return judgeDiet(input.subject, {

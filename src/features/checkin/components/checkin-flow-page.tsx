@@ -17,7 +17,7 @@ import {
 } from '@/lib/api/queries/checkins'
 import { CheckinFlow } from '../flow/checkin-flow'
 import { moduleDef } from '../modules/registry'
-import type { Checkin, CreateCheckinInput } from '../schemas'
+import type { Checkin, CreateCheckinInput, MealType } from '../schemas'
 import type { CheckinInputMode } from './smart-scanner'
 
 /*
@@ -39,9 +39,11 @@ function periodOf(validDays: number, startDate: string, deadline: string | null)
 export function CheckinFlowPage({
   goalId,
   initialMode,
+  initialMeal,
 }: {
   goalId: string
   initialMode: CheckinInputMode
+  initialMeal?: MealType
 }) {
   const router = useRouter()
   const goal = useQuery(checkinGoalQuery(goalId))
@@ -135,6 +137,7 @@ export function CheckinFlowPage({
       tier={me.data.preferences.refereeTier}
       period={periodOf(g.validDays, startDate, g.deadlineDate)}
       initialMode={initialMode}
+      initialMeal={initialMeal}
       onConfirm={confirm}
       onBack={() => (window.history.length > 1 ? router.back() : router.push('/'))}
     />

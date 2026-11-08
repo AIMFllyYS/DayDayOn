@@ -45,6 +45,21 @@ function useSleepForm({ clock, today, todayCheckins }: ModuleFormProps): ModuleF
     remPct: savedSleep?.advanced?.remPct ?? null,
     hrvMs: savedSleep?.advanced?.hrvMs ?? null,
   }))
+  const syncKey = `${savedLatest?.id ?? 'none'}`
+  const [seenSyncKey, setSeenSyncKey] = useState<string>(syncKey)
+  if (syncKey !== seenSyncKey) {
+    setSeenSyncKey(syncKey)
+    setStart(savedSleep ? formatTime(savedSleep.bedAt, clock.timeZone) : '23:00')
+    setEnd(savedSleep ? formatTime(savedSleep.wakeAt, clock.timeZone) : '07:00')
+    setQuality((savedSleep?.quality as RatingValue | undefined) ?? null)
+    setNote(savedLatest?.note ?? '')
+    setAdv({
+      deepMin: savedSleep?.advanced?.deepMin ?? null,
+      lightMin: savedSleep?.advanced?.lightMin ?? null,
+      remPct: savedSleep?.advanced?.remPct ?? null,
+      hrvMs: savedSleep?.advanced?.hrvMs ?? null,
+    })
+  }
   const range = sleepRangeForDay(today, start, end, clock.timeZone, clock.dayStartHour)
   const minutes = range ? Math.round(range.durationSeconds / 60) : 0
   const durOk = minutes >= 30 && minutes <= 1200

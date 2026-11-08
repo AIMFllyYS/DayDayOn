@@ -28,6 +28,8 @@ export const SmartExerciseDraftSchema = z
     durationMinutes: z.number().int().min(1).max(600),
     intensity: IntensitySchema,
     estimatedKcal: z.number().int().min(0).max(5000).nullable(),
+    km: z.number().min(0).max(200).nullable().optional(),
+    sets: z.number().int().min(1).max(100).nullable().optional(),
     note: z.string().max(NOTE_MAX).nullable(),
   })
   .meta({ id: 'SmartExerciseDraft' })

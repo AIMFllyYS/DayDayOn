@@ -5,7 +5,7 @@ import type { Module } from '@/features/shared/schemas'
 import type { DocGlance } from '../flow/doc-page'
 import type { DocPageSpec, FillSectionSpec, ReportSpec } from '../flow/types'
 import type { CheckinClock, CheckinGoal } from '../components/form-types'
-import type { Checkin, CreateCheckinInput } from '../schemas'
+import type { Checkin, CreateCheckinInput, MealType } from '../schemas'
 import type { SmartRecognitionDraft } from '../smart-schemas'
 
 /*
@@ -46,6 +46,8 @@ export interface ModuleFormProps {
   today: string
   /** 今天已入库的打卡记录（凌晨 0 点前重进页面或切换餐次时直接读取恢复状态） */
   todayCheckins?: readonly Checkin[]
+  /** 外部路由指定的初始餐次（如从全局智能打卡页跳转 ?meal=lunch） */
+  initialMeal?: MealType
 }
 
 export interface ModuleDocs {

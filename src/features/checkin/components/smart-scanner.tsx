@@ -211,6 +211,10 @@ export function SmartScannerLens({
   const processFilesRef = useRef<(files: File[], sourceMode: SmartInputMode) => Promise<void>>(
     async () => {},
   )
+  const callbacksRef = useRef({ onScanStart, onRecognized, onScanError })
+  useEffect(() => {
+    callbacksRef.current = { onScanStart, onRecognized, onScanError }
+  })
 
   useEffect(() => {
     return () => {
@@ -236,7 +240,7 @@ export function SmartScannerLens({
     if (!payload) return
     setErrorText(null)
     setActiveStepIdx(0)
-    onScanStart?.(payload.mode)
+    callbacksRef.current.onScanStart?.(payload.mode)
     recognize.mutate(
       {
         image: payload.image,
@@ -259,12 +263,12 @@ export function SmartScannerLens({
             textSnippet: payload.textSnippet,
             result: res,
           })
-          onRecognized(res, saved)
+          callbacksRef.current.onRecognized(res, saved)
         },
         onError: (err) => {
           const msg = isApiError(err) ? errorMessage(err.body) : errorMessage({ code: 'INTERNAL' })
           setErrorText(msg)
-          onScanError?.(msg)
+          callbacksRef.current.onScanError?.(msg)
           toast.error(msg)
         },
       },

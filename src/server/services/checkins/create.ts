@@ -10,12 +10,13 @@ import type {
 import { buildSchema } from '@/features/goal/build-schema'
 import { effectiveRules } from '@/features/referee/defaults'
 import { judge } from '@/features/referee/rules'
-import { calcDietDayScore } from '@/features/referee/rules/diet'
-import { estimateKcal, metOf } from '@/features/referee/rules/exercise'
-import type { Verdict } from '@/features/referee/schemas'
+import { calcDietDayScore, isFastingText, isJunkName } from '@/features/referee/rules/diet'
+import { detectCalc, estimateKcal, metOf } from '@/features/referee/rules/exercise'
+import type { DietDishFact, Facts, Verdict } from '@/features/referee/schemas'
 import { judgeInputOf } from '@/features/referee/subject'
 import type { LocalDate } from '@/features/shared/schemas'
 import { localDateOf, secondsBetween } from '@/lib/time'
+import { findFood } from '@/server/ai/referee/food-table'
 import { ApiError } from '@/server/api/errors'
 import type { db as Database, DbOrTx } from '@/server/db/client'
 import { aiRuns, checkins } from '@/server/db/schema'
@@ -88,6 +89,61 @@ function exerciseBurnKcal(
   return known ? total : null
 }
 
+function buildFallbackDietFacts(
+  items: Extract<CreateCheckin, { module: 'diet' }>['items'],
+): Extract<Facts, { module: 'diet' }> {
+  const dishes: DietDishFact[] = items.map((it) => {
+    const row = findFood(it.name)
+    if (row) {
+      const ratio = row.servingG / 100
+      return {
+        name: it.name,
+        portion: it.portion || `约 ${row.servingG}g`,
+        kcal: it.kcal ?? Math.round(row.kcal * ratio),
+        proteinG: Math.round(row.protein * ratio * 10) / 10,
+        carbG: Math.round(row.carb * ratio * 10) / 10,
+        fatG: Math.round(row.fat * ratio * 10) / 10,
+        fiberG: Math.round(row.fiber * ratio * 10) / 10,
+        sodiumMg: Math.round(row.sodium * ratio),
+        gi: row.gi,
+        junk: Boolean(row.junk || isJunkName(it.name)),
+        sweet: Boolean(row.sweet),
+        isFasting: isFastingText(it.name),
+        carbQuality:
+          row.gi >= 70
+            ? ('refined' as const)
+            : row.fiber >= 2
+              ? ('complex' as const)
+              : ('none' as const),
+        fatQuality: 'normal' as const,
+        cooking: 'other' as const,
+        source: 'table' as const,
+      }
+    }
+    const kcal = it.kcal ?? 180
+    const junk = isJunkName(it.name)
+    return {
+      name: it.name,
+      portion: it.portion || '1 份',
+      kcal,
+      proteinG: junk ? 8 : 10,
+      carbG: junk ? 25 : 18,
+      fatG: junk ? 15 : 7,
+      fiberG: junk ? 0.5 : 2,
+      sodiumMg: junk ? 600 : 350,
+      gi: junk ? 75 : 55,
+      junk,
+      sweet: false,
+      isFasting: isFastingText(it.name),
+      carbQuality: 'none' as const,
+      fatQuality: 'normal' as const,
+      cooking: 'other' as const,
+      source: 'estimate' as const,
+    }
+  })
+  return { module: 'diet', dishes }
+}
+
 /**
  * 裁判结论（checkin-modules.md 第 3.4 节）：用目标规则、个人体质和请求带来的事实重算，
  * 前端算好的结论一律不用。refereeRunId 必须是自己的裁判记录。
@@ -98,6 +154,7 @@ export async function judgeCheckin(
   goal: GoalRow,
   input: CreateCheckin,
   clock: Clock,
+  priorMinutesToday?: number,
 ): Promise<Verdict> {
   if (input.refereeRunId !== undefined) {
     const [run] = await db
@@ -117,13 +174,16 @@ export async function judgeCheckin(
     input.module === 'custom' && goal.fieldVersion !== null
       ? await loadFields(db, goal.id, goal.fieldVersion)
       : null
+  const facts: Facts | null =
+    input.facts ?? (input.module === 'diet' ? buildFallbackDietFacts(input.items) : null)
   return judge(
     judgeInputOf(input, {
       timeZone: clock.timeZone,
       fields,
       storedRules: goal.refereeRules,
-      facts: input.facts ?? null,
+      facts,
       tier: await loadRefereeTier(db, userId),
+      priorMinutesToday,
       extras: {
         refereeRunId: input.refereeRunId ?? null,
         citations: input.citations ?? [],
@@ -405,11 +465,91 @@ export async function createCheckin(
       if (goal.status !== 'active') throw invalid('goalId', '这个目标已经归档了')
       if (goal.module !== input.module) throw invalid('module', '板块和目标不一致')
       const clock = await loadClock(tx, userId)
-      const draft = await buildDraft(tx, userId, goal, input, clock, now)
-      const verdict = await judgeCheckin(tx, userId, goal, input, clock)
-      const localDate = localDateOf(draft.occurredAt, clock.timeZone, clock.dayStartHour)
+      const initialDraft = await buildDraft(tx, userId, goal, input, clock, now)
+      const localDate = localDateOf(initialDraft.occurredAt, clock.timeZone, clock.dayStartHour)
 
-      const isSkippedApproved = Boolean(input.skipReason?.trim()) && verdict.isValid
+      const sameDayRows = await tx
+        .select(checkinColumns)
+        .from(checkins)
+        .where(
+          and(
+            eq(checkins.userId, userId),
+            eq(checkins.goalId, goalId),
+            eq(checkins.localDate, localDate),
+          ),
+        )
+
+      // 运动模块：若来自全局智能识别（未携带完整历史 items）且今日已有运动记录，自动合并运动明细
+      let effectiveInput: CreateCheckin = input
+      if (
+        input.module === 'exercise' &&
+        input.source === 'ai' &&
+        (!input.items || input.items.length <= 1) &&
+        sameDayRows[0]?.payload.module === 'exercise'
+      ) {
+        const prevPayload = sameDayRows[0].payload
+        const prevItems =
+          prevPayload.items && prevPayload.items.length > 0
+            ? prevPayload.items
+            : [
+                {
+                  name: prevPayload.category,
+                  calc: detectCalc(prevPayload.category) ?? ('distance' as const),
+                  minutes: Math.max(1, Math.round((sameDayRows[0].durationSeconds ?? 1800) / 60)),
+                  km: null,
+                  sets: null,
+                  effort: '',
+                  kcal: sameDayRows[0].burnKcal,
+                  heartRate: null,
+                  feel: '',
+                },
+              ]
+        const incomingItems =
+          input.items && input.items.length > 0
+            ? input.items
+            : [
+                {
+                  name: input.category,
+                  calc: detectCalc(input.category) ?? ('distance' as const),
+                  minutes: Math.max(1, Math.round(input.durationSeconds / 60)),
+                  km: null,
+                  sets: null,
+                  effort: '',
+                  kcal: null,
+                  heartRate: null,
+                  feel: '',
+                },
+              ]
+        const mergedItems = [
+          ...prevItems.filter(
+            (p) => !incomingItems.some((n) => n.name === p.name && n.minutes === p.minutes),
+          ),
+          ...incomingItems,
+        ].slice(0, 10)
+        const totalMin = mergedItems.reduce((s, i) => s + i.minutes, 0)
+        effectiveInput = {
+          ...input,
+          category: mergedItems[0]?.name.slice(0, 10) ?? input.category,
+          durationSeconds: Math.max(60, Math.min(36_000, totalMin * 60)),
+          items: mergedItems,
+        }
+      }
+
+      const draft =
+        effectiveInput === input
+          ? initialDraft
+          : await buildDraft(tx, userId, goal, effectiveInput, clock, now)
+      const priorMinutesToday =
+        effectiveInput.module === 'study'
+          ? Math.round(
+              sameDayRows
+                .filter((r) => r.payload.module === 'study')
+                .reduce((sum, r) => sum + (r.durationSeconds ?? 0), 0) / 60,
+            )
+          : undefined
+      const verdict = await judgeCheckin(tx, userId, goal, effectiveInput, clock, priorMinutesToday)
+
+      const isSkippedApproved = Boolean(effectiveInput.skipReason?.trim()) && verdict.isValid
       const effectiveCount =
         isSkippedApproved && goal.targetKind === 'count' ? Math.max(1, goal.targetValue) : 1
       const effectiveDuration =
@@ -417,29 +557,22 @@ export async function createCheckin(
           ? Math.max(draft.durationSeconds ?? 0, goal.targetValue)
           : draft.durationSeconds
 
-      const noteVal = input.skipReason?.trim()
-        ? `[跳过打卡] ${input.skipReason.trim()}`
-        : (input.note ?? null)
+      const noteVal = effectiveInput.skipReason?.trim()
+        ? `[跳过打卡] ${effectiveInput.skipReason.trim()}`
+        : (effectiveInput.note ?? null)
 
-      // 饮食同日同餐次（或睡眠同日跳过/重记）直接硬覆盖已有行，避免唯一约束冲突或重复餐次
+      // 饮食同日同餐次、睡眠/自定义/运动同日单条直接硬覆盖（Upsert）已有行
       let existingRow: CheckinRow | undefined
-      if (input.module === 'diet' || input.module === 'sleep') {
-        const sameDayRows = await tx
-          .select(checkinColumns)
-          .from(checkins)
-          .where(
-            and(
-              eq(checkins.userId, userId),
-              eq(checkins.goalId, goalId),
-              eq(checkins.localDate, localDate),
-            ),
-          )
-        existingRow =
-          input.module === 'diet'
-            ? sameDayRows.find(
-                (r) => r.payload.module === 'diet' && r.payload.mealType === input.mealType,
-              )
-            : sameDayRows[0]
+      if (effectiveInput.module === 'diet') {
+        existingRow = sameDayRows.find(
+          (r) => r.payload.module === 'diet' && r.payload.mealType === effectiveInput.mealType,
+        )
+      } else if (
+        effectiveInput.module === 'sleep' ||
+        effectiveInput.module === 'custom' ||
+        effectiveInput.module === 'exercise'
+      ) {
+        existingRow = sameDayRows[0]
       }
 
       let row: CheckinRow | undefined
@@ -448,6 +581,7 @@ export async function createCheckin(
           .update(checkins)
           .set({
             ...draft,
+            aiRunId: draft.aiRunId ?? existingRow.aiRunId,
             durationSeconds: effectiveDuration,
             count: effectiveCount,
             note: noteVal,
@@ -464,8 +598,8 @@ export async function createCheckin(
         await recordRevision(tx, {
           userId,
           action: 'update',
-          origin: input.origin,
-          reason: '同日餐次硬覆盖更新',
+          origin: effectiveInput.origin,
+          reason: '同日记录硬覆盖更新',
           before: toCheckinDto(existingRow),
           after: checkin,
         })
@@ -481,7 +615,7 @@ export async function createCheckin(
           userId,
           goalId,
           localDate,
-          isMakeup: input.isMakeup,
+          isMakeup: effectiveInput.isMakeup,
           count: effectiveCount,
           note: noteVal,
           score: verdict.score,
@@ -490,12 +624,31 @@ export async function createCheckin(
         })
         .returning(checkinColumns)
       if (!inserted) throw new Error('createCheckin：写入没有返回行')
+
+      // 学习模块：当碎片化学习累加后本次达成有效，将当日此前暂存的碎片学习记录同步标记为有效，使全天累计时长完整计入进度
+      if (
+        effectiveInput.module === 'study' &&
+        verdict.isValid &&
+        sameDayRows.some((r) => !r.isValid)
+      ) {
+        await tx
+          .update(checkins)
+          .set({ isValid: true })
+          .where(
+            and(
+              eq(checkins.userId, userId),
+              eq(checkins.goalId, goalId),
+              eq(checkins.localDate, localDate),
+            ),
+          )
+      }
+
       row = await reconcileDailyDiet(tx, userId, goal, localDate, inserted)
       const checkin = toCheckinDto(row)
       await recordRevision(tx, {
         userId,
         action: 'create',
-        origin: input.origin,
+        origin: effectiveInput.origin,
         before: null,
         after: checkin,
       })

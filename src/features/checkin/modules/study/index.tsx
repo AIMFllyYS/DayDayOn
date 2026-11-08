@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Input } from '@/components/ui/field'
 import { NumberField } from '@/components/ui/number-field'
+import { effectiveRules } from '@/features/referee/defaults'
 import type { RulesOf, Verdict } from '@/features/referee/schemas'
 import type { CreateCheckinInput } from '../../schemas'
 import type { SmartRecognitionDraft } from '../../smart-schemas'
@@ -20,7 +21,22 @@ import type { CheckinModuleDef, ModuleDocs, ModuleFormApi, ModuleFormProps } fro
 const DEFAULT_FAVS = ['算法', '数学', '英语', '单词', '专业课', '阅读', '写作']
 
 function useStudyForm(props?: ModuleFormProps): ModuleFormApi {
-  const savedLatest = props?.todayCheckins?.find((c) => c.payload.module === 'study')
+  const studyRules = effectiveRules('study', props?.goal.refereeRules)
+  const goalTargetMin =
+    props?.goal.target.kind === 'duration' ? Math.round(props.goal.target.value / 60) : 0
+  const targetMinutes = Math.max(goalTargetMin, studyRules.minFocusMinutes)
+  const validSecondsToday = (props?.todayCheckins ?? [])
+    .filter((c) => c.payload.module === 'study' && c.isValid)
+    .reduce((sum, c) => sum + (c.durationSeconds ?? 0), 0)
+  const doneToday =
+    targetMinutes > 0
+      ? validSecondsToday >= targetMinutes * 60
+      : (props?.todayCheckins ?? []).some((c) => c.payload.module === 'study' && c.isValid)
+
+  // 今日累计尚未达标（碎片学习阶段）时，重进页面默认打开空白表单供继续累加；已达标时回显最新记录
+  const savedLatest = doneToday
+    ? props?.todayCheckins?.find((c) => c.payload.module === 'study')
+    : undefined
   const savedStudy = savedLatest?.payload.module === 'study' ? savedLatest.payload : null
   const [topic, setTopic] = useState(savedStudy?.what ?? '')
   const [minutes, setMinutes] = useState<number | null>(
@@ -30,6 +46,16 @@ function useStudyForm(props?: ModuleFormProps): ModuleFormApi {
   const [note, setNote] = useState(savedLatest?.note ?? '')
   const [sheet, setSheet] = useState(false)
   const { favs, setFavs, resetFavs } = useFavorites('study', DEFAULT_FAVS)
+
+  const syncKey = `${doneToday ? (savedLatest?.id ?? 'done') : 'fragment'}`
+  const [seenSyncKey, setSeenSyncKey] = useState<string>(syncKey)
+  if (syncKey !== seenSyncKey) {
+    setSeenSyncKey(syncKey)
+    setTopic(savedStudy?.what ?? '')
+    setMinutes(savedLatest?.durationSeconds ? Math.round(savedLatest.durationSeconds / 60) : null)
+    setPoints(savedStudy?.points ?? [])
+    setNote(savedLatest?.note ?? '')
+  }
 
   const sections: FillSectionSpec[] = [
     {
