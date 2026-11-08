@@ -2,8 +2,12 @@ import 'server-only'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import {
   PutRatingSchema,
+  PutStepsSchema,
   PutWeightSchema,
   RatingSchema,
+  StepEntrySchema,
+  StepTrendQuerySchema,
+  StepTrendSchema,
   WeightEntrySchema,
   WeightTrendQuerySchema,
   WeightTrendSchema,
@@ -53,6 +57,28 @@ const putRatingRoute = createRoute({
   },
 })
 
+const putStepsRoute = createRoute({
+  method: 'put',
+  path: '/metrics/steps',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: { body: { content: json(PutStepsSchema), required: true } },
+  responses: {
+    200: { content: json(StepEntrySchema), description: '已记录今日步数' },
+    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED'),
+  },
+})
+
+const stepTrendRoute = createRoute({
+  method: 'get',
+  path: '/metrics/steps',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: { query: StepTrendQuerySchema },
+  responses: {
+    200: { content: json(StepTrendSchema), description: '步数走势与今日步数（无记录恒为 0）' },
+    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED'),
+  },
+})
+
 export const metricRoutes = new OpenAPIHono<AppEnv>()
   .openapi(putWeightRoute, async (c) => {
     return c.json(
@@ -69,4 +95,14 @@ export const metricRoutes = new OpenAPIHono<AppEnv>()
       await metrics.putRating(db, c.get('user').id, c.req.valid('json'), new Date()),
       200,
     )
+  })
+  .openapi(putStepsRoute, async (c) => {
+    return c.json(
+      await metrics.putSteps(db, c.get('user').id, c.req.valid('json'), new Date()),
+      200,
+    )
+  })
+  .openapi(stepTrendRoute, async (c) => {
+    const { days } = c.req.valid('query')
+    return c.json(await metrics.stepTrend(db, c.get('user').id, days, new Date()), 200)
   })

@@ -28,6 +28,7 @@ export const keys = {
   metrics: {
     all: ['metrics'] as const,
     weight: (days: number) => ['metrics', 'weight', { days }] as const,
+    steps: (days: number) => ['metrics', 'steps', { days }] as const,
   },
   dashboard: {
     all: ['dashboard'] as const,

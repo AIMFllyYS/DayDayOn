@@ -3,8 +3,11 @@
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 import type {
   PutRating,
+  PutSteps,
   PutWeight,
   Rating,
+  StepEntry,
+  StepTrend,
   WeightEntry,
   WeightTrend,
 } from '@/features/metric/schemas'
@@ -59,6 +62,24 @@ export function usePutRating() {
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: keys.dashboard.all })
       void qc.invalidateQueries({ queryKey: keys.checkins.today() })
+    },
+  })
+}
+
+export const stepTrendQuery = (days = 30) =>
+  queryOptions({
+    queryKey: keys.metrics.steps(days),
+    queryFn: () => apiFetch<StepTrend>(`/metrics/steps?days=${days}`),
+  })
+
+export function usePutSteps() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: PutSteps) =>
+      apiFetch<StepEntry>('/metrics/steps', { method: 'PUT', json: input }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: keys.metrics.all })
+      void qc.invalidateQueries({ queryKey: keys.dashboard.all })
     },
   })
 }
