@@ -111,6 +111,7 @@ export function normalizeSmartDraft(
   const diet = draft.diet
     ? {
         ...draft.diet,
+        mealType: draft.diet.mealType === 'snack' ? ('lunch' as const) : draft.diet.mealType,
         note: userNote ?? draft.diet.note,
         items: draft.diet.items.map((i) => ({
           name: i.name.trim() || '未命名食物',

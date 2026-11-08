@@ -33,12 +33,14 @@ const DEFAULT_FAVS = [
   '水煮蛋',
 ]
 
-/** 按当前时刻猜餐次 */
-function guessMeal(hour: number): MealType {
-  if (hour >= 5 && hour < 10) return 'breakfast'
-  if (hour >= 10 && hour < 15) return 'lunch'
-  if (hour >= 17 && hour < 21) return 'dinner'
-  return 'snack'
+export type MainMealType = 'breakfast' | 'lunch' | 'dinner'
+export const MAIN_MEALS: readonly MainMealType[] = ['breakfast', 'lunch', 'dinner']
+
+/** 按当前本地时刻就近匹配早/中/晚三餐（加餐仅限用户手动点击选择，不参与自动默认） */
+export function guessMainMeal(hour: number): MainMealType {
+  if (hour < 10) return 'breakfast'
+  if (hour < 16) return 'lunch'
+  return 'dinner'
 }
 
 function nowHHMM(): string {
@@ -59,7 +61,8 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
     () => (enteredRef.current ??= nowHHMM()),
     () => '',
   )
-  const [meal, setMeal] = useState<MealType | null>(null)
+  const [meal, setMeal] = useState<MealType | null>(props?.initialMeal ?? null)
+  const [manualMeal, setManualMeal] = useState(Boolean(props?.initialMeal))
   const [text, setText] = useState('')
   const [note, setNote] = useState('')
   const [snackTime, setSnackTime] = useState('')
@@ -67,7 +70,15 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
   const [sheet, setSheet] = useState(false)
   const { favs, setFavs, resetFavs } = useFavorites('diet', DEFAULT_FAVS)
 
-  const mealType: MealType = meal ?? (clock ? guessMeal(Number(clock.slice(0, 2))) : 'lunch')
+  const timeMeal: MainMealType = clock ? guessMainMeal(Number(clock.slice(0, 2))) : 'lunch'
+  const mealType: MealType = meal ?? timeMeal
+
+  const checkedMeals = new Set<MealType>()
+  for (const c of props?.todayCheckins ?? []) {
+    if (c.payload.module === 'diet') {
+      checkedMeals.add(c.payload.mealType)
+    }
+  }
 
   // 凌晨 0 点前重进页面或切换餐次时，直接读取数据库已存的该餐次记录；切换到未打卡餐次时清空表单
   const savedMeal = props?.todayCheckins?.find(
@@ -87,6 +98,7 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
       setText(savedItems.map((i) => i.name).join('、'))
       setNote(savedMeal.note ?? '')
       if (savedMeal.payload.snackTime) setSnackTime(savedMeal.payload.snackTime)
+      setManualMeal(false)
     } else {
       setSmartItems(null)
       setText('')
@@ -162,12 +174,15 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
         size="sm"
         label="餐次"
         value={mealType}
-        onValueChange={(m) => setMeal(m)}
+        onValueChange={(m) => {
+          setMeal(m)
+          setManualMeal(true)
+        }}
         options={[
-          { value: 'breakfast', label: '早餐' },
-          { value: 'lunch', label: '午餐' },
-          { value: 'dinner', label: '晚餐' },
-          { value: 'snack', label: '加餐' },
+          { value: 'breakfast', label: checkedMeals.has('breakfast') ? '早餐 ✓' : '早餐' },
+          { value: 'lunch', label: checkedMeals.has('lunch') ? '午餐 ✓' : '午餐' },
+          { value: 'dinner', label: checkedMeals.has('dinner') ? '晚餐 ✓' : '晚餐' },
+          { value: 'snack', label: checkedMeals.has('snack') ? '加餐 ✓' : '加餐' },
         ]}
       />
     ),
@@ -203,20 +218,31 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
     applySmart: (draft: SmartRecognitionDraft) => {
       const d = draft.diet
       if (!d) return null
+      // 若用户已手动点击餐次（含加餐），严格锁定用户选定的餐次；
+      // 否则按 AI 识别的正餐（若该正餐今日已打卡，则自动顺延至下一个未打卡正餐，绝不自动落入加餐）
+      const aiMainMeal: MainMealType = d.mealType === 'snack' ? timeMeal : d.mealType
+      const targetMeal: MealType = manualMeal
+        ? mealType
+        : checkedMeals.has(aiMainMeal)
+          ? (MAIN_MEALS.find((m) => !checkedMeals.has(m)) ?? aiMainMeal)
+          : aiMainMeal
+
       const targetSaved = props?.todayCheckins?.find(
-        (c) => c.payload.module === 'diet' && c.payload.mealType === d.mealType,
+        (c) => c.payload.module === 'diet' && c.payload.mealType === targetMeal,
       )
-      setSeenSyncKey(`${d.mealType}:${targetSaved?.id ?? 'none'}`)
-      setMeal(d.mealType)
+      setSeenSyncKey(`${targetMeal}:${targetSaved?.id ?? 'none'}`)
+      setMeal(targetMeal)
       const list = d.items.map((i) => ({ name: i.name, portion: i.portion ?? '', kcal: i.kcal }))
       setSmartItems(list)
       setText(list.map((i) => i.name).join('、'))
-      if (d.note) setNote(d.note)
+      // 切换餐次或当前餐次为已打卡回显态时，不残留上一餐数据库的旧备注，也不把 AI 总结塞入备注框
+      const cleanNote = savedMeal ? (targetSaved?.note ?? '') : note
+      setNote(cleanNote)
       return dietInput({
-        mealType: d.mealType,
+        mealType: targetMeal,
         items: list,
         snackAt,
-        note: d.note ?? note,
+        note: cleanNote,
         photo: true,
       })
     },

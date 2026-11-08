@@ -270,4 +270,51 @@ describe('饮食 5 分制', () => {
     expect(afterBadSnack.isValid).toBe(false)
     expect(afterBadSnack.score).toBe(1.8)
   })
+
+  it('中式家常三餐（包子+鸡蛋+牛奶、白米饭+番茄炒蛋+炒青菜）温和评分达标（3.5 ~ 4.5 分）', () => {
+    const bun = dish('猪肉大包', {
+      kcal: 260,
+      proteinG: 9,
+      carbG: 42,
+      fatG: 6,
+      fiberG: 1.5,
+      gi: 70,
+      carbQuality: 'refined',
+    })
+    const boiledEgg = dish('水煮蛋', { kcal: 72, proteinG: 6.3, fatG: 4.8 })
+    const milk = dish('纯牛奶', { kcal: 135, proteinG: 8.2, carbG: 12, fatG: 8, gi: 28 })
+    const breakfastVerdict = judgeDiet(
+      {
+        mealType: 'breakfast',
+        items: [bun, boiledEgg, milk].map((d) => ({ name: d.name, portion: '', kcal: d.kcal })),
+      },
+      ctx([bun, boiledEgg, milk]),
+    )
+    expect(breakfastVerdict.isValid).toBe(true)
+    expect(breakfastVerdict.score).toBeGreaterThanOrEqual(3.5)
+
+    const whiteRice = dish('白米饭', {
+      kcal: 174,
+      proteinG: 3.9,
+      carbG: 38.9,
+      fatG: 0.5,
+      fiberG: 0.5,
+      gi: 83,
+      carbQuality: 'refined',
+    })
+    const greens = dish('炒青菜', {
+      kcal: 120,
+      proteinG: 3.6,
+      carbG: 7,
+      fatG: 8.6,
+      fiberG: 3.2,
+      gi: 15,
+    })
+    const lunchVerdict = judgeDiet(
+      subject('lunch', [whiteRice, egg, greens]),
+      ctx([whiteRice, egg, greens]),
+    )
+    expect(lunchVerdict.isValid).toBe(true)
+    expect(lunchVerdict.score).toBeGreaterThanOrEqual(3.5)
+  })
 })

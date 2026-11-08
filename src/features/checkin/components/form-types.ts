@@ -7,7 +7,9 @@ import type { SmartRecognitionDraft } from '../smart-schemas'
 export type CheckinGoal = Pick<
   GoalDetail,
   'id' | 'module' | 'title' | 'target' | 'fields' | 'fieldVersion'
->
+> & {
+  refereeRules?: unknown
+}
 
 /** 用户资料里的时区与日切换时间（睡眠组合时刻用） */
 export interface CheckinClock {

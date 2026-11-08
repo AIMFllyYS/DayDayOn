@@ -29,7 +29,7 @@ import {
 } from '../components/smart-scanner'
 import { analysisPrompt, checkinToInput } from '../format'
 import type { CheckinModuleDef } from '../modules/types'
-import type { Checkin, CreateCheckinInput } from '../schemas'
+import type { Checkin, CreateCheckinInput, MealType } from '../schemas'
 import { AgentDrawer, ReportDivider, SectionDivider } from './agent-drawer'
 import { DocBody, PageBar, TagChip } from './doc-page'
 import { FillSection } from './fill-section'
@@ -58,6 +58,8 @@ export interface CheckinFlowProps {
   /** 打卡周期：有效天数 / 周期总天数 */
   period: { done: number; total: number }
   initialMode: CheckinInputMode
+  /** 外部路由指定的初始餐次（如 ?meal=lunch） */
+  initialMeal?: MealType
   /** 确认入库；返回服务端重算后的记录 */
   onConfirm: (input: CreateCheckinInput) => Promise<Checkin>
   onBack: () => void
@@ -143,7 +145,13 @@ function useWide(ref: React.RefObject<HTMLElement | null>): boolean {
 export function CheckinFlow(props: CheckinFlowProps) {
   const { def, goal, clock, today, todayCheckins, tier, period } = props
   const tone = def.tone
-  const form = def.useForm({ goal, clock, today, todayCheckins })
+  const form = def.useForm({
+    goal,
+    clock,
+    today,
+    todayCheckins,
+    initialMeal: props.initialMeal,
+  })
   const referee = useRefereeRun(goal.id)
   const rules = effectiveRules(def.module, goal.refereeRules) as RulesOf<Module>
   const docs = useMemo(() => def.docs(rules as never, goal), [def, rules, goal])
@@ -157,8 +165,21 @@ export function CheckinFlow(props: CheckinFlowProps) {
         ) ?? null
       )
     }
+    if (goal.module === 'study') {
+      const studyRules = effectiveRules('study', goal.refereeRules)
+      const targetMin = goal.target.kind === 'duration' ? Math.round(goal.target.value / 60) : 0
+      const minMin = Math.max(targetMin, studyRules.minFocusMinutes)
+      const validSec = todayCheckins
+        .filter((c) => c.payload.module === 'study' && c.isValid)
+        .reduce((sum, c) => sum + (c.durationSeconds ?? 0), 0)
+      const doneToday =
+        minMin > 0
+          ? validSec >= minMin * 60
+          : todayCheckins.some((c) => c.payload.module === 'study' && c.isValid)
+      return doneToday ? (todayCheckins[0] ?? null) : null
+    }
     return todayCheckins[0] ?? null
-  }, [todayCheckins, goal.module, form.activeKey])
+  }, [todayCheckins, goal.module, goal.target, goal.refereeRules, form.activeKey])
 
   const [stack, setStack] = useState<Page[]>(['fill'])
   const [mode, setMode] = useState<CheckinInputMode>(props.initialMode)
@@ -204,6 +225,14 @@ export function CheckinFlow(props: CheckinFlowProps) {
   const push = (p: Page) => setStack((s) => [...s, p])
   const back = () => (stack.length > 1 ? setStack((s) => s.slice(0, -1)) : props.onBack())
 
+  const priorStudyMinutes = useMemo(() => {
+    if (goal.module !== 'study' || !todayCheckins) return 0
+    const sec = todayCheckins
+      .filter((c) => c.payload.module === 'study')
+      .reduce((sum, c) => sum + (c.durationSeconds ?? 0), 0)
+    return Math.round(sec / 60)
+  }, [goal.module, todayCheckins])
+
   // Agent 交卷就用 Agent 的结论；没交卷（额度不足、AI 暂停、模型没调 submitVerdict）就按规则离线判定
   const offlineVerdict = useMemo<Verdict | null>(() => {
     if (!subject || referee.status !== 'failed') return null
@@ -214,9 +243,18 @@ export function CheckinFlow(props: CheckinFlowProps) {
         storedRules: goal.refereeRules,
         facts: null,
         tier,
+        priorMinutesToday: priorStudyMinutes,
       }),
     )
-  }, [subject, referee.status, clock.timeZone, goal.fields, goal.refereeRules, tier])
+  }, [
+    subject,
+    referee.status,
+    clock.timeZone,
+    goal.fields,
+    goal.refereeRules,
+    tier,
+    priorStudyMinutes,
+  ])
   const verdict = saved?.verdict ?? referee.verdict ?? offlineVerdict
   const agent: 'none' | 'analyzing' | 'done' =
     subject === null ? 'none' : referee.status === 'running' || !verdict ? 'analyzing' : 'done'
@@ -306,7 +344,9 @@ export function CheckinFlow(props: CheckinFlowProps) {
         ...(verdict.citations.length > 0 ? { citations: verdict.citations } : {}),
         ...(verdict.advice.length > 0 ? { advice: verdict.advice.map((a) => a.slice(0, 80)) } : {}),
       })
-      setSeenSyncKey(`${form.activeKey ?? 'default'}:${result.id}`)
+      const savedKey =
+        result.payload.module === 'diet' ? result.payload.mealType : (form.activeKey ?? 'default')
+      setSeenSyncKey(`${savedKey}:${result.id}`)
       setSaved(result)
       if (result.isValid) setBonus((b) => b + 1)
       setPopup(true)
@@ -438,7 +478,9 @@ export function CheckinFlow(props: CheckinFlowProps) {
                   mode={mode}
                   hintModule={goal.module}
                   goalId={goal.id}
-                  note={form.note}
+                  note={
+                    savedFromDb && form.note === (savedFromDb.note ?? '') ? undefined : form.note
+                  }
                   tone={tone}
                   onScanStart={() => {
                     invalidateAnalysis()
@@ -448,9 +490,21 @@ export function CheckinFlow(props: CheckinFlowProps) {
                   onRecognized={(res) => {
                     setSmart(res)
                     setScanPhase('done')
-                    // 识别结果填进表单，同时直接交给 Agent 裁判
+                    // 识别结果填进表单，同时直接交给 Agent 裁判；提前对齐 seenSyncKey 防止切餐次时渲染期误触发 reset
                     const next = form.applySmart(res.draft)
-                    if (next) startAnalyze(next)
+                    if (next) {
+                      const nextKey =
+                        next.module === 'diet' ? next.mealType : (form.activeKey ?? 'default')
+                      const nextSaved =
+                        next.module === 'diet'
+                          ? (todayCheckins?.find(
+                              (c) =>
+                                c.payload.module === 'diet' && c.payload.mealType === next.mealType,
+                            ) ?? null)
+                          : savedFromDb
+                      setSeenSyncKey(`${nextKey}:${nextSaved?.id ?? 'none'}`)
+                      startAnalyze(next)
+                    }
                   }}
                   onScanError={() => setScanPhase('idle')}
                   onManualFallback={() => changeMode('manual')}

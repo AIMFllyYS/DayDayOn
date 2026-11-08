@@ -64,42 +64,52 @@ function summaryOf(it: Item): string {
   return parts.filter(Boolean).join(' · ')
 }
 
+function itemsFromSaved(
+  savedLatest: NonNullable<ModuleFormProps['todayCheckins']>[number] | undefined,
+): Item[] {
+  if (savedLatest?.payload.module === 'exercise') {
+    const p = savedLatest.payload
+    if (p.items && p.items.length > 0) {
+      return p.items.map((it) => ({
+        id: `ex-${++seq}`,
+        name: it.name,
+        calc: it.calc,
+        calcManual: true,
+        minutes: it.minutes,
+        km: it.km,
+        sets: it.sets,
+        effort: it.effort,
+        kcal: it.kcal,
+        heartRate: it.heartRate,
+        feel: it.feel,
+      }))
+    }
+    return [
+      {
+        ...blank(),
+        name: p.category,
+        minutes: savedLatest.durationSeconds ? Math.round(savedLatest.durationSeconds / 60) : null,
+      },
+    ]
+  }
+  return [blank()]
+}
+
 export function useExerciseForm(props?: ModuleFormProps): ModuleFormApi {
   const savedLatest = props?.todayCheckins?.find((c) => c.payload.module === 'exercise')
-  const [items, setItems] = useState<Item[]>(() => {
-    if (savedLatest?.payload.module === 'exercise') {
-      const p = savedLatest.payload
-      if (p.items && p.items.length > 0) {
-        return p.items.map((it) => ({
-          id: `ex-${++seq}`,
-          name: it.name,
-          calc: it.calc,
-          calcManual: true,
-          minutes: it.minutes,
-          km: it.km,
-          sets: it.sets,
-          effort: it.effort,
-          kcal: it.kcal,
-          heartRate: it.heartRate,
-          feel: it.feel,
-        }))
-      }
-      return [
-        {
-          ...blank(),
-          name: p.category,
-          minutes: savedLatest.durationSeconds
-            ? Math.round(savedLatest.durationSeconds / 60)
-            : null,
-        },
-      ]
-    }
-    return [blank()]
-  })
+  const [items, setItems] = useState<Item[]>(() => itemsFromSaved(savedLatest))
   const [note, setNote] = useState(savedLatest?.note ?? '')
   const [sheet, setSheet] = useState(false)
   const [autoOpen, setAutoOpen] = useState<string | null>(null)
   const { favs, setFavs, resetFavs } = useFavorites('exercise', DEFAULT_FAVS)
+
+  const syncKey = `${savedLatest?.id ?? 'none'}`
+  const [seenSyncKey, setSeenSyncKey] = useState<string>(syncKey)
+  if (syncKey !== seenSyncKey) {
+    setSeenSyncKey(syncKey)
+    setItems(itemsFromSaved(savedLatest))
+    setNote(savedLatest?.note ?? '')
+  }
 
   const patch = (id: string, p: Partial<Item>) =>
     setItems((list) =>
@@ -189,13 +199,29 @@ export function useExerciseForm(props?: ModuleFormProps): ModuleFormApi {
       if (!d) return null
       const it = blank()
       it.name = d.category
-      it.calc = detectCalc(d.category) ?? 'distance'
+      it.calc = d.sets != null && d.sets > 0 ? 'count' : (detectCalc(d.category) ?? 'distance')
+      it.calcManual = Boolean((d.sets != null && d.sets > 0) || (d.km != null && d.km > 0))
       it.minutes = d.durationMinutes
+      it.km = d.km ?? null
+      it.sets = d.sets ?? null
       it.kcal = d.estimatedKcal
       it.effort = d.intensity === 'hard' ? '高强度' : d.intensity === 'easy' ? '轻松' : '中等'
-      setItems([it])
-      if (d.note) setNote(d.note)
-      return exerciseInput([it], d.note ?? note)
+
+      const existingReady = items.filter((i) => i.name.trim() && (i.minutes ?? 0) > 0)
+      const merged =
+        existingReady.length > 0 && existingReady.length < MAX_ITEMS
+          ? [
+              ...existingReady.filter(
+                (x) => !(x.name.trim() === it.name.trim() && x.minutes === it.minutes),
+              ),
+              it,
+            ].slice(0, MAX_ITEMS)
+          : [it]
+
+      setItems(merged)
+      const nextNote = savedLatest ? note : (d.note ?? note)
+      setNote(nextNote)
+      return exerciseInput(merged, nextNote)
     },
   }
 }
