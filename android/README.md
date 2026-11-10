@@ -8,8 +8,9 @@
 
 | 模块 | Kotlin 实现文件 | 职责 |
 |---|---|---|
-| 主容器与流式拦截 | `MainActivity.kt` | 承载 `WebView`（追加 `DayDayOnApp/0.1.6` UA），拦截同源 `/__native__/media/*` 流式返回二进制图片，支持多选系统文件选择器 |
-| 权限管理 | `MainActivity.kt` | 统一查询与请求相机、相册（含 Android 14+ 部分照片授权）、计步、通知 4 项运行时权限，准确识别永久拒绝并引导跳转系统应用设置 |
+| 主容器与原生 0ms 开屏 | `MainActivity.kt` | 承载 `WebView`（追加 `DayDayOnApp/0.1.6` UA）与 0ms 原生开屏覆盖层 `nativeSplashOverlay`，拦截同源 `/__native__/media/...` 流式返回二进制图片，支持多选系统文件选择器 |
+| 应用内自更新与安装闭环 | `ApkUpdater.kt`、`CameraTempFileProvider.kt` | 后台线程池流式下载新版本 APK（同步推送应用内实时进度与系统通知栏进度），校验 SHA-256，自动检测并引导开启 `REQUEST_INSTALL_PACKAGES` 未知来源安装权限后拉起系统安装器 |
+| 权限管理 | `MainActivity.kt` | 统一查询与请求相机、相册（含 Android 14+ 部分照片授权）、计步、通知、应用安装权限，准确识别永久拒绝并引导跳转系统应用设置 |
 | 高清原生相机与缩略图缓存 | `NativeCameraHelper.kt`、`CameraTempFileProvider.kt` | 通过临时 ContentProvider 接收系统相机高清原图、自动读取 EXIF 摆正竖拍方向并在内存压缩后立即删除临时文件；提供系统 `loadThumbnail` + 8MB `LruCache` 毫秒级缩略图流 |
 | 高性能分页相册桥 | `MediaAlbumBridge.kt` | 毫秒级查询 `MediaStore` 分页元数据（`offset` + `limit` + `hasMore`），支撑前端 `PhotoAlbumSheet` 无限下滑流式缩略图与 1..9 顺序多选 |
 | 硬件计步器 | `StepCounterManager.kt` | 监听 `Sensor.TYPE_STEP_COUNTER` 计算当日步数；无传感器或未授权时安全返回 `0` |

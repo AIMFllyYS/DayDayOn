@@ -13,12 +13,15 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.Message
 import android.print.PrintAttributes
 import android.print.PrintManager
 import android.provider.MediaStore
 import android.provider.Settings
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
 import android.webkit.JavascriptInterface
@@ -32,25 +35,31 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.TextView
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.util.Calendar
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * DayDayOn 安卓客户端主 Activity（Kotlin 混合架构，v0.1.6）：
+ * DayDayOn 安卓客户端主 Activity（Kotlin 混合架构，v0.1.6 / versionCode 4）：
+ * - 冷启动 0ms 立即展示原生开屏覆盖层 `nativeSplashOverlay`（含时段问候与品牌微动效），后台并行初始化 WebView 并加载站点，水合完成后硬件加速平滑揭开；
  * - 在 WebView User-Agent 末尾追加 `DayDayOnApp/0.1.6`；
  * - 通过 `shouldInterceptRequest` 拦截同源虚拟路径 `/__native__/media/...`，在后台 IO 线程池流式返回系统硬件缩略图与高清内存字节流；
  * - 注入 `window.DayDayOnNative` (@JavascriptInterface)，提供：
- *   1. 权限管理：getPermissionsJson / requestPermission / reselectPhotos / openAppSettings（完整兼容 Android 14+ 部分照片授权与永久拒绝检测）
- *   2. 原生高分辨率相机：captureHighResPhoto（CameraTempFileProvider + EXIF 自动摆正 + 读完即删）
- *   3. 流式分页相册数据桥：getAlbumPhotosPageJson / getAlbumPhotosJson / readAlbumPhotoDataUrl
- *   4. 硬件计步器读取：getTodaySteps（无传感器或未授权安全返回 0）
- *   5. 手机端本地定时闹钟提醒：scheduleDailyReminder
- *   6. WebView 原生文件管理多选增强（EXTRA_ALLOW_MULTIPLE + clipData 多选解析，供 Agent 传图/传文档使用）
+ *   1. 原生开屏收尾：dismissSplash
+ *   2. 应用内自更新闭环：startApkUpdate / getApkUpdateStatusJson / installDownloadedApk / canInstallPackages
+ *   3. 权限管理：getPermissionsJson / requestPermission / reselectPhotos / openAppSettings（完整兼容 Android 14+ 部分照片授权与未知来源安装权限）
+ *   4. 原生高分辨率相机：captureHighResPhoto（CameraTempFileProvider + EXIF 自动摆正 + 读完即删）
+ *   5. 流式分页相册数据桥：getAlbumPhotosPageJson / getAlbumPhotosJson / readAlbumPhotoDataUrl
+ *   6. 硬件计步器读取：getTodaySteps（无传感器或未授权安全返回 0）
+ *   7. 手机端本地定时闹钟提醒：scheduleDailyReminder
+ *   8. WebView 原生文件管理多选增强（EXTRA_ALLOW_MULTIPLE + clipData 多选解析，供 Agent 传图/传文档使用）
  */
 class MainActivity : Activity() {
 
@@ -58,8 +67,12 @@ class MainActivity : Activity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var errorPanel: LinearLayout
     private lateinit var retryButton: Button
+    private lateinit var nativeSplashOverlay: LinearLayout
+    private lateinit var splashLogo: ImageView
+    private lateinit var splashGreeting: TextView
     private lateinit var stepCounterManager: StepCounterManager
     private lateinit var permPrefs: SharedPreferences
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private var pendingFileChooser: ValueCallback<Array<Uri>>? = null
     private var pendingCameraFile: File? = null
@@ -67,13 +80,25 @@ class MainActivity : Activity() {
     private var nextPermReqCode = REQ_RUNTIME_PERM_BASE
     private val ephemeralCameraBlobs = ConcurrentHashMap<String, ByteArray>()
     private var mainFrameLoadFailed = false
+    private var splashDismissed = false
+    private var splashCreatedAt = 0L
+
+    private val splashFailsafeRunnable = Runnable {
+        dismissNativeSplash()
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        nativeSplashOverlay = findViewById(R.id.nativeSplashOverlay)
+        splashLogo = findViewById(R.id.splashLogo)
+        splashGreeting = findViewById(R.id.splashGreeting)
+        setupNativeSplash()
+
         CameraTempFileProvider.cleanupStaleFiles(this)
+        ApkUpdater.attachHost(this)
         permPrefs = getSharedPreferences("daydayon_perms", MODE_PRIVATE)
 
         stepCounterManager = StepCounterManager(this)
@@ -109,7 +134,9 @@ class MainActivity : Activity() {
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 mainFrameLoadFailed = false
-                progressBar.visibility = View.VISIBLE
+                if (splashDismissed) {
+                    progressBar.visibility = View.VISIBLE
+                }
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -117,6 +144,7 @@ class MainActivity : Activity() {
                 if (!mainFrameLoadFailed) {
                     errorPanel.visibility = View.GONE
                 }
+                mainHandler.postDelayed({ dismissNativeSplash() }, 180L)
             }
 
             override fun onReceivedError(
@@ -127,6 +155,7 @@ class MainActivity : Activity() {
                 if (request != null && request.isForMainFrame) {
                     mainFrameLoadFailed = true
                     errorPanel.visibility = View.VISIBLE
+                    dismissNativeSplash()
                 }
             }
 
@@ -209,7 +238,11 @@ class MainActivity : Activity() {
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
                 progressBar.progress = newProgress
-                progressBar.visibility = if (newProgress in 1..99) View.VISIBLE else View.GONE
+                if (splashDismissed) {
+                    progressBar.visibility = if (newProgress in 1..99) View.VISIBLE else View.GONE
+                } else if (newProgress >= 85 && !mainFrameLoadFailed) {
+                    mainHandler.postDelayed({ dismissNativeSplash() }, 120L)
+                }
             }
 
             override fun onShowFileChooser(
@@ -238,26 +271,105 @@ class MainActivity : Activity() {
         }
 
         webView.setDownloadListener(
-            DownloadListener { url, _, _, _, _ ->
+            DownloadListener { url, _, _, mimeType, _ ->
                 if (!url.isNullOrBlank()) {
-                    try {
-                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    } catch (_: Throwable) {
-                        // ignore
+                    val isApk = url.endsWith(".apk", ignoreCase = true) ||
+                        url.contains("/download/DayDayOn.apk") ||
+                        mimeType == "application/vnd.android.package-archive"
+                    if (isApk) {
+                        ApkUpdater.startUpdate(this@MainActivity, url, "", "")
+                    } else {
+                        try {
+                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        } catch (_: Throwable) {
+                            // ignore
+                        }
                     }
                 }
             },
         )
 
         webView.loadUrl(getString(R.string.daydayon_url))
+        handleLaunchIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        if (intent != null) {
+            setIntent(intent)
+            handleLaunchIntent(intent)
+        }
+    }
+
+    private fun handleLaunchIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra("auto_install_apk", false) == true) {
+            intent.removeExtra("auto_install_apk")
+            ApkUpdater.installDownloadedApk(this)
+        }
+    }
+
+    private fun setupNativeSplash() {
+        splashCreatedAt = System.currentTimeMillis()
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        splashGreeting.text = when {
+            hour < 5 || hour >= 22 -> "这么晚还在呀，早点休息"
+            hour < 11 -> "早安，今天也一起加油"
+            else -> "欢迎回来，今天也一起加油"
+        }
+
+        splashLogo.scaleX = 0.88f
+        splashLogo.scaleY = 0.88f
+        splashLogo.alpha = 0f
+        splashLogo.animate()
+            .scaleX(1f)
+            .scaleY(1f)
+            .alpha(1f)
+            .setDuration(280L)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+
+        nativeSplashOverlay.setOnClickListener {
+            if (System.currentTimeMillis() - splashCreatedAt >= 350L) {
+                dismissNativeSplash()
+            }
+        }
+
+        mainHandler.postDelayed(splashFailsafeRunnable, 3200L)
+    }
+
+    fun dismissNativeSplash() {
+        if (splashDismissed) return
+        val elapsed = System.currentTimeMillis() - splashCreatedAt
+        if (elapsed < 320L && !mainFrameLoadFailed) {
+            mainHandler.postDelayed({ dismissNativeSplash() }, 320L - elapsed)
+            return
+        }
+        splashDismissed = true
+        mainHandler.removeCallbacks(splashFailsafeRunnable)
+        nativeSplashOverlay.isClickable = false
+        nativeSplashOverlay.isFocusable = false
+        nativeSplashOverlay.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        nativeSplashOverlay.animate()
+            .alpha(0f)
+            .scaleX(1.03f)
+            .scaleY(1.03f)
+            .setDuration(220L)
+            .setInterpolator(DecelerateInterpolator())
+            .withEndAction {
+                nativeSplashOverlay.setLayerType(View.LAYER_TYPE_NONE, null)
+                nativeSplashOverlay.visibility = View.GONE
+            }
+            .start()
     }
 
     override fun onResume() {
         super.onResume()
         stepCounterManager.startListening()
+        ApkUpdater.onHostResume(this)
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacksAndMessages(null)
         stepCounterManager.stopListening()
         CameraTempFileProvider.cleanupStaleFiles(this)
         ephemeralCameraBlobs.clear()
@@ -275,6 +387,18 @@ class MainActivity : Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == ApkUpdater.REQ_INSTALL_PERMISSION) {
+            ApkUpdater.onHostResume(this)
+            val state = if (ApkUpdater.canInstallPackages(this)) "granted" else "denied"
+            runOnUiThread {
+                webView.evaluateJavascript(
+                    "window.__ddoOnPermissionResult && window.__ddoOnPermissionResult('install', '$state');",
+                    null,
+                )
+            }
+            return
+        }
 
         if (requestCode == REQ_FILE_CHOOSER) {
             val callback = pendingFileChooser
@@ -358,6 +482,30 @@ class MainActivity : Activity() {
         }
     }
 
+    fun dispatchUpdateProgressToWeb(statusJson: String) {
+        runOnUiThread {
+            val escaped = JSONObject.quote(statusJson)
+            webView.evaluateJavascript(
+                "window.__ddoOnUpdateProgress && window.__ddoOnUpdateProgress(JSON.parse($escaped));",
+                null,
+            )
+        }
+    }
+
+    fun openAppSettingsInternal() {
+        try {
+            val intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", packageName, null),
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (_: Throwable) {
+            // ignore
+        }
+    }
+
     private fun isTrustedHost(host: String): Boolean {
         return host.endsWith("daydayon.husteread.com") || host == "localhost" || host == "127.0.0.1"
     }
@@ -438,6 +586,10 @@ class MainActivity : Activity() {
     }
 
     private fun checkMappedPermission(name: String): String {
+        if (name == "install") {
+            return if (ApkUpdater.canInstallPackages(this)) "granted" else "prompt"
+        }
+
         if (name == "photos") {
             if (isPhotoAccessGranted()) return "granted"
             val primaryPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -576,6 +728,33 @@ class MainActivity : Activity() {
     inner class DayDayOnAndroidBridge {
 
         @JavascriptInterface
+        fun dismissSplash() {
+            runOnUiThread {
+                dismissNativeSplash()
+            }
+        }
+
+        @JavascriptInterface
+        fun startApkUpdate(url: String, sha256: String, version: String): String {
+            return ApkUpdater.startUpdate(this@MainActivity, url, sha256, version)
+        }
+
+        @JavascriptInterface
+        fun getApkUpdateStatusJson(): String {
+            return ApkUpdater.getStatusJson(this@MainActivity)
+        }
+
+        @JavascriptInterface
+        fun installDownloadedApk(): Boolean {
+            return ApkUpdater.installDownloadedApk(this@MainActivity)
+        }
+
+        @JavascriptInterface
+        fun canInstallPackages(): Boolean {
+            return ApkUpdater.canInstallPackages(this@MainActivity)
+        }
+
+        @JavascriptInterface
         fun getPermissionsJson(): String {
             val obj = JSONObject().apply {
                 put("camera", checkMappedPermission("camera"))
@@ -583,12 +762,31 @@ class MainActivity : Activity() {
                 put("photosPartial", MediaAlbumBridge.isPartialPhotoAccess(this@MainActivity))
                 put("steps", checkMappedPermission("steps"))
                 put("notifications", checkMappedPermission("notifications"))
+                put("install", checkMappedPermission("install"))
             }
             return obj.toString()
         }
 
         @JavascriptInterface
         fun requestPermission(permission: String): String {
+            if (permission == "install") {
+                if (ApkUpdater.canInstallPackages(this@MainActivity)) return "granted"
+                runOnUiThread {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        try {
+                            val intent = Intent(
+                                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                Uri.parse("package:$packageName"),
+                            )
+                            startActivityForResult(intent, ApkUpdater.REQ_INSTALL_PERMISSION)
+                        } catch (_: Throwable) {
+                            openAppSettingsInternal()
+                        }
+                    }
+                }
+                return "prompt"
+            }
+
             val current = checkMappedPermission(permission)
             if (current == "granted") return "granted"
             val perms = permissionsArrayForRequest(permission) ?: return current
@@ -615,17 +813,7 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun openAppSettings() {
             runOnUiThread {
-                try {
-                    val intent = Intent(
-                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.fromParts("package", packageName, null),
-                    ).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    startActivity(intent)
-                } catch (_: Throwable) {
-                    // ignore
-                }
+                openAppSettingsInternal()
             }
         }
 

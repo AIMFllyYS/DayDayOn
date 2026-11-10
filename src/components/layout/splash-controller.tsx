@@ -1,16 +1,19 @@
 'use client'
 
 import { useEffect } from 'react'
+import { dismissNativeSplash } from '@/lib/native'
 
 /** 动画万一没触发 animationend（标签页在后台、浏览器省电），最晚这么久后也要移除开屏 */
 const FAILSAFE_MS = 2600
 
 /**
- * 开屏的收尾（ADR-0022）：播完移除 <html data-splash>；点一下开屏就跳过（淡出）。
- * 开屏是否出现由根布局的内联脚本在首帧前决定，这里只负责收尾，不渲染任何东西。
+ * 开屏的收尾（ADR-0022）：
+ * - 在 Android 原生壳内：首屏水合就绪时立即调用 `dismissNativeSplash()` 通知原生层揭开 0ms 开屏覆盖层；
+ * - 在已安装的手机 PWA 内：播完移除 <html data-splash>；点一下开屏就跳过（淡出）。
  */
 export function SplashController() {
   useEffect(() => {
+    dismissNativeSplash()
     const root = document.documentElement
     const el = document.getElementById('app-splash')
     if (!root.dataset.splash || !el) return

@@ -31,6 +31,8 @@ if [[ -f download/manifest.json ]]; then
   apk_out="$work/download/apk/$apk_file"
   if [[ -f "download/apk/$apk_file" ]]; then
     cp "download/apk/$apk_file" "$apk_out"
+  elif curl -fsSL --retry 2 -o "$apk_out" "https://daydayon.husteread.com/download/${apk_file}" && [[ "$(sha256sum "$apk_out" | cut -d' ' -f1)" == "$apk_sha" ]]; then
+    echo "已从自有服务器获取安装包 ${apk_file}"
   else
     curl -fsSL --retry 3 -o "$apk_out" "https://github.com/${repo}/releases/download/${apk_tag}/${apk_file}"
   fi

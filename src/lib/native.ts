@@ -69,7 +69,30 @@ export interface NativeAlbumPhotosPage {
   partialAccess: boolean
 }
 
+export type NativeApkUpdateState =
+  'idle' | 'downloading' | 'verifying' | 'permission' | 'ready' | 'error'
+
+export interface NativeApkUpdateStatus {
+  state: NativeApkUpdateState
+  percent: number
+  downloadedBytes: number
+  totalBytes: number
+  version: string
+  canInstall: boolean
+  error?: string
+}
+
 interface AndroidBridge {
+  /** 通知安卓原生层移除 0ms 冷启动开屏覆盖层 */
+  dismissSplash?: () => void
+  /** 启动或恢复后台 APK 更新下载，返回状态 JSON */
+  startApkUpdate?: (url: string, sha256: string, version: string) => string
+  /** 查询当前 APK 更新下载状态 JSON */
+  getApkUpdateStatusJson?: () => string
+  /** 调起系统安装器安装已下载好的更新包（未授权未知来源时自动引导去设置页开启） */
+  installDownloadedApk?: () => boolean
+  /** 当前是否已授予「安装未知应用」权限 */
+  canInstallPackages?: () => boolean
   /** 返回 JSON 字符串：Record<NativePermissionName, PermissionStateValue> & { photosPartial?: boolean } */
   getPermissionsJson?: () => string
   /** 触发安卓系统运行时权限弹窗；返回当前或请求后的状态，或通过回调返回 */
@@ -95,11 +118,15 @@ interface AndroidBridge {
 type PermListener = (perm: string, state: string) => void
 const permListeners = new Set<PermListener>()
 
+type UpdateProgressListener = (status: NativeApkUpdateStatus) => void
+const updateProgressListeners = new Set<UpdateProgressListener>()
+
 declare global {
   interface Window {
     DayDayOnNative?: AndroidBridge
     __ddoOnCameraResult?: (urlOrDataUrl: string | null, fileName?: string) => void
     __ddoOnPermissionResult?: (permission: string, state: string) => void
+    __ddoOnUpdateProgress?: (rawStatus: unknown) => void
   }
 }
 
@@ -541,5 +568,136 @@ export async function syncNativeReminder(config: {
     return Boolean(bridge.scheduleDailyReminder(config.remindAt ?? '21:00', config.enabled))
   } catch {
     return false
+  }
+}
+
+/** 通知 Android 原生层揭开 0ms 开屏覆盖层（网页首屏水合就绪时调用） */
+export function dismissNativeSplash(): void {
+  const bridge = getBridge()
+  if (!bridge?.dismissSplash) return
+  try {
+    bridge.dismissSplash()
+  } catch {
+    // ignore
+  }
+}
+
+const DEFAULT_APK_UPDATE_STATUS: NativeApkUpdateStatus = {
+  state: 'idle',
+  percent: 0,
+  downloadedBytes: 0,
+  totalBytes: 0,
+  version: '',
+  canInstall: true,
+}
+
+function normalizeApkUpdateState(val: unknown): NativeApkUpdateState {
+  if (
+    val === 'idle' ||
+    val === 'downloading' ||
+    val === 'verifying' ||
+    val === 'permission' ||
+    val === 'ready' ||
+    val === 'error'
+  ) {
+    return val
+  }
+  return 'idle'
+}
+
+function parseApkUpdateStatus(raw: unknown): NativeApkUpdateStatus {
+  if (!raw) return { ...DEFAULT_APK_UPDATE_STATUS }
+  try {
+    const obj = (typeof raw === 'string' ? JSON.parse(raw) : raw) as Partial<
+      Record<keyof NativeApkUpdateStatus, unknown>
+    >
+    const percent =
+      typeof obj.percent === 'number' && Number.isFinite(obj.percent)
+        ? Math.max(0, Math.min(100, Math.round(obj.percent)))
+        : 0
+    const downloadedBytes =
+      typeof obj.downloadedBytes === 'number' && Number.isFinite(obj.downloadedBytes)
+        ? Math.max(0, Math.trunc(obj.downloadedBytes))
+        : 0
+    const totalBytes =
+      typeof obj.totalBytes === 'number' && Number.isFinite(obj.totalBytes)
+        ? Math.max(0, Math.trunc(obj.totalBytes))
+        : 0
+    const error = typeof obj.error === 'string' && obj.error.trim() ? obj.error.trim() : undefined
+    return {
+      state: normalizeApkUpdateState(obj.state),
+      percent,
+      downloadedBytes,
+      totalBytes,
+      version: typeof obj.version === 'string' ? obj.version : '',
+      canInstall: obj.canInstall !== false,
+      ...(error ? { error } : {}),
+    }
+  } catch {
+    return { ...DEFAULT_APK_UPDATE_STATUS }
+  }
+}
+
+function ensureGlobalUpdateProgressDispatcher() {
+  if (typeof window === 'undefined') return
+  window.__ddoOnUpdateProgress = (rawStatus) => {
+    const status = parseApkUpdateStatus(rawStatus)
+    for (const listener of Array.from(updateProgressListeners)) {
+      listener(status)
+    }
+  }
+}
+
+/** 当前壳是否支持原生后台下载与自动安装 APK 闭环 */
+export function hasNativeApkUpdater(): boolean {
+  const bridge = getBridge()
+  return Boolean(bridge?.startApkUpdate && bridge?.getApkUpdateStatusJson)
+}
+
+/** 读取当前原生 APK 更新下载状态 */
+export function getNativeApkUpdateStatus(): NativeApkUpdateStatus {
+  const bridge = getBridge()
+  if (!bridge?.getApkUpdateStatusJson) return { ...DEFAULT_APK_UPDATE_STATUS }
+  try {
+    return parseApkUpdateStatus(bridge.getApkUpdateStatusJson())
+  } catch {
+    return { ...DEFAULT_APK_UPDATE_STATUS }
+  }
+}
+
+/** 启动或继续安卓原生后台 APK 下载（完成后自动校验 SHA-256 并拉起安装/未知来源授权） */
+export function startNativeApkUpdate(input: {
+  url: string
+  sha256: string
+  version: string
+}): NativeApkUpdateStatus {
+  ensureGlobalUpdateProgressDispatcher()
+  const bridge = getBridge()
+  if (!bridge?.startApkUpdate) return { ...DEFAULT_APK_UPDATE_STATUS }
+  try {
+    return parseApkUpdateStatus(bridge.startApkUpdate(input.url, input.sha256, input.version))
+  } catch {
+    return { ...DEFAULT_APK_UPDATE_STATUS, state: 'error', error: '无法启动更新下载' }
+  }
+}
+
+/** 直接调起系统安装器安装已下载好的 APK（若未授权未知来源安装，自动引导去系统设置开启） */
+export function installNativeDownloadedApk(): boolean {
+  ensureGlobalUpdateProgressDispatcher()
+  const bridge = getBridge()
+  if (!bridge?.installDownloadedApk) return false
+  try {
+    return Boolean(bridge.installDownloadedApk())
+  } catch {
+    return false
+  }
+}
+
+/** 订阅原生后台 APK 下载与安装状态流 */
+export function subscribeNativeApkUpdateProgress(listener: UpdateProgressListener): () => void {
+  ensureGlobalUpdateProgressDispatcher()
+  updateProgressListeners.add(listener)
+  return () => {
+    updateProgressListeners.delete(listener)
   }
 }

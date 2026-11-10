@@ -2,13 +2,19 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   dataUrlToFile,
   detectPlatform,
+  dismissNativeSplash,
+  getNativeApkUpdateStatus,
   getNativePermissions,
   getNativeTodaySteps,
+  hasNativeApkUpdater,
+  installNativeDownloadedApk,
   isNativePhotosPartialAccess,
   isNativeShellUA,
   listNativeAlbumPhotos,
   listNativeAlbumPhotosPage,
   requestNativePermission,
+  startNativeApkUpdate,
+  subscribeNativeApkUpdateProgress,
   syncNativeReminder,
 } from './native'
 
@@ -199,5 +205,81 @@ describe('getNativePermissions & requestNativePermission & dataUrlToFile', () =>
     expect(file).not.toBeNull()
     expect(file?.name).toBe('shot.jpg')
     expect(file?.type).toBe('image/jpeg')
+  })
+
+  it('原生 0ms 开屏收尾与应用内 APK 更新闭环桥接正常运作', () => {
+    const g = globalThis as unknown as { window?: Window }
+    const prevWindow = g.window
+    let splashDismissed = false
+    let installedTriggered = false
+
+    g.window = {
+      DayDayOnNative: {
+        dismissSplash: () => {
+          splashDismissed = true
+        },
+        startApkUpdate: (url: string, sha256: string, version: string) =>
+          JSON.stringify({
+            state: 'downloading',
+            percent: 25,
+            downloadedBytes: 210_000,
+            totalBytes: 840_000,
+            version,
+            canInstall: true,
+            url,
+            sha256,
+          }),
+        getApkUpdateStatusJson: () =>
+          JSON.stringify({
+            state: 'ready',
+            percent: 100,
+            downloadedBytes: 840_000,
+            totalBytes: 840_000,
+            version: '0.1.6',
+            canInstall: true,
+          }),
+        installDownloadedApk: () => {
+          installedTriggered = true
+          return true
+        },
+      },
+    } as unknown as Window
+
+    try {
+      dismissNativeSplash()
+      expect(splashDismissed).toBe(true)
+      expect(hasNativeApkUpdater()).toBe(true)
+
+      const started = startNativeApkUpdate({
+        url: '/download/DayDayOn.apk',
+        sha256: 'a'.repeat(64),
+        version: '0.1.6',
+      })
+      expect(started.state).toBe('downloading')
+      expect(started.percent).toBe(25)
+
+      let streamedPercent = 0
+      const unsub = subscribeNativeApkUpdateProgress((s) => {
+        streamedPercent = s.percent
+      })
+      g.window.__ddoOnUpdateProgress?.({
+        state: 'downloading',
+        percent: 78,
+        downloadedBytes: 650_000,
+        totalBytes: 840_000,
+        version: '0.1.6',
+        canInstall: true,
+      })
+      expect(streamedPercent).toBe(78)
+      unsub()
+
+      const ready = getNativeApkUpdateStatus()
+      expect(ready.state).toBe('ready')
+      expect(ready.percent).toBe(100)
+      expect(installNativeDownloadedApk()).toBe(true)
+      expect(installedTriggered).toBe(true)
+    } finally {
+      g.window = prevWindow
+    }
   })
 })
