@@ -9,12 +9,14 @@ import { Input } from '@/components/ui/field'
 import { Icon } from '@/components/ui/icon'
 import { ProgressRing } from '@/components/ui/progress'
 import { Stamp } from '@/components/ui/stamp'
+import { toast } from '@/components/ui/toast'
 import { moduleMeta } from '@/components/ui/tone'
 import { useAgentUi } from '@/features/agent/agent-store'
 import { useBindPet, usePetIdentity } from '@/features/agent/pet-binding'
 import { useRefereeRun } from '@/features/agent/use-referee-run'
 import { effectiveRules } from '@/features/referee/defaults'
 import { judge } from '@/features/referee/rules'
+import type { PriorDietMeal } from '@/features/referee/rules/common'
 import type { RefereeTier, RulesOf, Verdict } from '@/features/referee/schemas'
 import { judgeInputOf } from '@/features/referee/subject'
 import type { Module } from '@/features/shared/schemas'
@@ -201,7 +203,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState<Checkin | null>(savedFromDb)
   const [popup, setPopup] = useState(false)
-  const [bonus, setBonus] = useState(0)
+  const [initiallyValidToday] = useState(() => Boolean(todayCheckins?.some((c) => c.isValid)))
   const [skipReason, setSkipReason] = useState('')
 
   // 切换子维度（如从早餐切到午餐）或初始数据库记录到位时，同步当前子维度的已入库状态
@@ -211,6 +213,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
     setSeenSyncKey(activeSyncKey)
     setSaved(savedFromDb)
     setSubject(savedFromDb ? checkinToInput(savedFromDb) : null)
+    setOpenId(!savedFromDb && mode === 'manual' ? (form.sections[0]?.id ?? null) : null)
     setSkipReason('')
     referee.reset()
   }
@@ -233,6 +236,27 @@ export function CheckinFlow(props: CheckinFlowProps) {
     return Math.round(sec / 60)
   }, [goal.module, todayCheckins])
 
+  const priorDietMeals = useMemo<PriorDietMeal[]>(() => {
+    if (goal.module !== 'diet' || !todayCheckins) return []
+    const currentMeal = subject?.module === 'diet' ? subject.mealType : null
+    return todayCheckins.flatMap((c) =>
+      c.payload.module === 'diet' && c.payload.mealType !== currentMeal
+        ? [
+            {
+              mealType: c.payload.mealType,
+              items: c.payload.items.map((i) => ({
+                name: i.name,
+                portion: i.portion ?? '',
+                kcal: i.kcal,
+              })),
+              note: c.note,
+              dishes: c.verdict?.facts?.module === 'diet' ? c.verdict.facts.dishes : null,
+            },
+          ]
+        : [],
+    )
+  }, [goal.module, todayCheckins, subject])
+
   // Agent 交卷就用 Agent 的结论；没交卷（额度不足、AI 暂停、模型没调 submitVerdict）就按规则离线判定
   const offlineVerdict = useMemo<Verdict | null>(() => {
     if (!subject || referee.status !== 'failed') return null
@@ -244,6 +268,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
         facts: null,
         tier,
         priorMinutesToday: priorStudyMinutes,
+        priorDietMeals,
       }),
     )
   }, [
@@ -254,6 +279,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
     goal.refereeRules,
     tier,
     priorStudyMinutes,
+    priorDietMeals,
   ])
   const verdict = saved?.verdict ?? referee.verdict ?? offlineVerdict
   const agent: 'none' | 'analyzing' | 'done' =
@@ -348,8 +374,20 @@ export function CheckinFlow(props: CheckinFlowProps) {
         result.payload.module === 'diet' ? result.payload.mealType : (form.activeKey ?? 'default')
       setSeenSyncKey(`${savedKey}:${result.id}`)
       setSaved(result)
-      if (result.isValid) setBonus((b) => b + 1)
-      setPopup(true)
+      if (result.verdict?.settlement === 'pending') {
+        setAgentOpen(false)
+        const logged =
+          typeof result.verdict.metrics.mealsLogged === 'number'
+            ? result.verdict.metrics.mealsLogged
+            : 1
+        const req =
+          typeof result.verdict.metrics.mealsRequired === 'number'
+            ? result.verdict.metrics.mealsRequired
+            : 3
+        toast.success(`本餐已记录（今日 ${logged}/${req} 正餐），集齐三餐后统一结算总分`)
+      } else {
+        setPopup(true)
+      }
     } catch {
       // 错误提示由 onConfirm 负责
     } finally {
@@ -401,7 +439,17 @@ export function CheckinFlow(props: CheckinFlowProps) {
 
   const canSubmit = form.canSubmit || (!isSmart && skipReason.trim().length > 0)
   const report = verdict && subject ? def.buildReport(verdict, subject, goal) : null
+  const activeVerdict = saved?.verdict ?? verdict
+  const isPendingSettlement = activeVerdict?.settlement === 'pending'
   const savedValid = saved?.isValid ?? verdict?.isValid ?? false
+  const currentlyValidToday = saved ? saved.isValid : Boolean(todayCheckins?.some((c) => c.isValid))
+  const dayDelta = (currentlyValidToday ? 1 : 0) - (initiallyValidToday ? 1 : 0)
+  const effectiveDoneDays = Math.max(0, Math.min(period.done + dayDelta, period.total))
+  const hasDailySummary =
+    !isPendingSettlement &&
+    activeVerdict !== null &&
+    activeVerdict.score !== null &&
+    typeof activeVerdict.metrics.dailyKcal === 'number'
 
   return (
     <div ref={rootRef} className="relative flex h-full min-h-0 w-full flex-1 overflow-hidden">
@@ -431,18 +479,18 @@ export function CheckinFlow(props: CheckinFlowProps) {
                   </div>
                 </div>
                 <ProgressRing
-                  value={Math.min(period.done + bonus, period.total)}
+                  value={effectiveDoneDays}
                   max={period.total}
                   tone={tone}
                   size={52}
                   thickness={5}
-                  label={`打卡周期 ${period.done + bonus}/${period.total} 天`}
+                  label={`打卡周期 ${effectiveDoneDays}/${period.total} 天`}
                   className="shrink-0"
                 >
                   <span className="flex flex-col items-center gap-0.5">
                     <span className="text-tiny font-display leading-none font-bold">DAY</span>
                     <span className="text-tiny font-display leading-none font-bold whitespace-nowrap tabular-nums">
-                      {period.done + bonus}/{period.total}
+                      {effectiveDoneDays}/{period.total}
                     </span>
                   </span>
                 </ProgressRing>
@@ -454,6 +502,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
             <div className="flex shrink-0 flex-col gap-2.5 px-4">
               <CheckinModeTabs value={mode} onValueChange={changeMode} />
               {form.selector}
+              {form.statusBanner}
             </div>
 
             <div
@@ -586,13 +635,43 @@ export function CheckinFlow(props: CheckinFlowProps) {
                     Agent 解析中…
                   </Button>
                 ) : saved ? (
+                  saved.verdict?.settlement === 'pending' && form.nextPendingAction ? (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="soft"
+                        icon="chart"
+                        className="flex-1"
+                        onClick={() => push('report')}
+                      >
+                        本餐解析
+                      </Button>
+                      <Button
+                        icon="plus"
+                        className="flex-1"
+                        onClick={form.nextPendingAction.activate}
+                      >
+                        {form.nextPendingAction.label}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="soft"
+                      icon="chart"
+                      className="w-full"
+                      onClick={() => push('report')}
+                    >
+                      {hasDailySummary ? '查看今日总报告' : '查看分析'}
+                    </Button>
+                  )
+                ) : verdict?.settlement === 'pending' ? (
                   <Button
-                    variant="soft"
-                    icon="chart"
+                    variant="primary"
+                    icon="check"
                     className="w-full"
-                    onClick={() => push('report')}
+                    loading={saving}
+                    onClick={() => void confirm()}
                   >
-                    查看分析
+                    {`保存本餐记录（今日 ${String(verdict.metrics.mealsLogged ?? 1)}/${String(verdict.metrics.mealsRequired ?? 3)}）`}
                   </Button>
                 ) : (
                   <Button
@@ -602,7 +681,11 @@ export function CheckinFlow(props: CheckinFlowProps) {
                     loading={saving}
                     onClick={() => void confirm()}
                   >
-                    {verdict?.isValid ? '确认有效打卡' : '仅保存记录（不计有效打卡）'}
+                    {verdict?.isValid
+                      ? verdict.score !== null
+                        ? `确认完成今日打卡（总分 ${verdict.score.toFixed(1)} 分）`
+                        : '确认有效打卡'
+                      : '仅保存记录（不计有效打卡）'}
                   </Button>
                 )}
               </div>
@@ -631,12 +714,23 @@ export function CheckinFlow(props: CheckinFlowProps) {
               <div
                 className={cn(
                   'text-tiny mb-1 flex items-center gap-2 rounded-2xl px-3 py-2.5 font-semibold',
-                  verdict.isValid
-                    ? 'bg-success-soft text-success-ink'
-                    : 'bg-warning-soft text-warning-ink',
+                  verdict.settlement === 'pending'
+                    ? 'bg-diet-soft text-diet-ink'
+                    : verdict.isValid
+                      ? 'bg-success-soft text-success-ink'
+                      : 'bg-warning-soft text-warning-ink',
                 )}
               >
-                <Icon name={verdict.isValid ? 'check-double' : 'alert'} size={16} />
+                <Icon
+                  name={
+                    verdict.settlement === 'pending'
+                      ? 'clock'
+                      : verdict.isValid
+                        ? 'check-double'
+                        : 'alert'
+                  }
+                  size={16}
+                />
                 {verdict.detail}
               </div>
               {report.folders.map((f, i) => (
@@ -706,8 +800,57 @@ export function CheckinFlow(props: CheckinFlowProps) {
               )}
             </div>
             <p className="text-subhead font-bold">
-              {savedValid ? '打卡成功，连击 +1' : '已存档，今天先不盖章'}
+              {hasDailySummary
+                ? savedValid
+                  ? '今日三餐集齐！打卡成功，连击 +1'
+                  : '今日三餐已汇总存档，暂未达有效线'
+                : savedValid
+                  ? '打卡成功，连击 +1'
+                  : '已存档，今天先不盖章'}
             </p>
+            {hasDailySummary && activeVerdict && activeVerdict.score !== null && (
+              <div className="border-border bg-surface-sunken/80 flex w-full flex-col gap-2.5 rounded-2xl border p-3 text-left">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-caption font-bold">今日饮食全天总分</span>
+                  <span
+                    className={cn(
+                      'font-display text-heading font-bold tabular-nums',
+                      savedValid ? 'text-success-ink' : 'text-warning-ink',
+                    )}
+                  >
+                    {activeVerdict.score.toFixed(1)}
+                    <span className="text-tiny text-muted ml-1 font-semibold">/ 5.0 分</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 text-center">
+                  {[
+                    { label: '早餐', val: activeVerdict.metrics.breakfastKcal },
+                    { label: '午餐', val: activeVerdict.metrics.lunchKcal },
+                    { label: '晚餐', val: activeVerdict.metrics.dinnerKcal },
+                  ].map((m) => (
+                    <div
+                      key={m.label}
+                      className="border-border bg-surface flex flex-col rounded-xl border px-2 py-1.5"
+                    >
+                      <span className="text-tiny text-muted">{m.label}</span>
+                      <span className="text-tiny font-display font-bold tabular-nums">
+                        {typeof m.val === 'number' ? (m.val === 0 ? '空腹' : `${m.val} kcal`) : '—'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {typeof activeVerdict.metrics.snackKcal === 'number' && (
+                  <p className="text-tiny text-muted text-center">
+                    含加餐 {activeVerdict.metrics.snackKcal} kcal
+                  </p>
+                )}
+                <p className="text-tiny text-muted border-border border-t pt-2 text-center">
+                  全天合计 {String(activeVerdict.metrics.dailyKcal ?? 0)} kcal · 蛋白质{' '}
+                  {String(activeVerdict.metrics.dailyProtein ?? 0)}g · 膳食纤维{' '}
+                  {String(activeVerdict.metrics.dailyFiber ?? 0)}g
+                </p>
+              </div>
+            )}
             <div className="flex w-full flex-col gap-2">
               <Button
                 icon="chart"
@@ -717,7 +860,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
                   push('report')
                 }}
               >
-                查看分析
+                {hasDailySummary ? '查看今日总报告' : '查看分析'}
               </Button>
               {/* 「完成」只收起结果弹层，留在打卡页；回哪里由用户自己点返回 */}
               <Button variant="ghost" className="w-full" onClick={() => setPopup(false)}>

@@ -82,7 +82,9 @@ export async function planReplace(
     parsedText: current.parsedText ?? undefined,
   }
   const draft = await buildDraft(db, userId, goal, replace, clock, now)
-  const verdict = await judgeCheckin(db, userId, goal, replace, clock)
+  const verdict = await judgeCheckin(db, userId, goal, replace, clock, {
+    localDate: current.localDate,
+  })
   const set: Partial<typeof checkins.$inferInsert> = {
     payload: draft.payload,
     durationSeconds: draft.durationSeconds,
@@ -144,7 +146,9 @@ export async function updateCheckin(
       } else if (input.items !== undefined) {
         if (current.payload.module !== 'diet') throw invalid('items', '只有饮食打卡能改条目')
         const replay = dietReplay(current, input.items)
-        const verdict = await judgeCheckin(tx, userId, goal, replay, clock)
+        const verdict = await judgeCheckin(tx, userId, goal, replay, clock, {
+          localDate: current.localDate,
+        })
         set.payload = { ...current.payload, items: input.items }
         set.intakeKcal = intakeKcalOf(input.items)
         set.score = verdict.score
@@ -159,7 +163,7 @@ export async function updateCheckin(
         .where(and(eq(checkins.id, checkinId), eq(checkins.userId, userId)))
         .returning(checkinColumns)
       if (!row) throw new ApiError('CHECKIN_NOT_FOUND', '打卡不存在')
-      const reconciled = await reconcileDailyDiet(tx, userId, goal, row.localDate, row)
+      const reconciled = (await reconcileDailyDiet(tx, userId, goal, row.localDate, row)) ?? row
       const after = toCheckinDto(reconciled)
       await recordRevision(tx, {
         userId,
@@ -190,6 +194,10 @@ export async function deleteCheckin(
     const clock = await loadClock(tx, userId)
     assertWindow(query.origin, current.localDate, clock, now)
     await tx.delete(checkins).where(and(eq(checkins.id, checkinId), eq(checkins.userId, userId)))
+    if (current.module === 'diet') {
+      const goal = await loadGoal(tx, userId, current.goalId)
+      await reconcileDailyDiet(tx, userId, goal, current.localDate, null)
+    }
     await recordRevision(tx, {
       userId,
       action: 'delete',

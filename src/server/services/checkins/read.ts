@@ -34,6 +34,7 @@ const statColumns = {
   payload: checkins.payload,
   occurredAt: checkins.occurredAt,
   isValid: checkins.isValid,
+  verdict: checkins.verdict,
 }
 
 /** GET /goals/{goalId}/checkins：按打卡日、id 倒序的游标分页 */

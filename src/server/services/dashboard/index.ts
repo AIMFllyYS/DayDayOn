@@ -45,6 +45,11 @@ function mealTypeOf(payload: unknown): string | null {
   return typeof v === 'string' ? v : null
 }
 
+function isPendingVerdict(verdict: unknown): boolean {
+  if (typeof verdict !== 'object' || verdict === null) return false
+  return (verdict as { settlement?: unknown }).settlement === 'pending'
+}
+
 function weightDto(r: { localDate: string; weightGrams: number; measuredAt: Date }): WeightEntry {
   return {
     localDate: r.localDate,
@@ -125,6 +130,7 @@ async function loadWeekCheckins(
       payload: checkins.payload,
       occurredAt: checkins.occurredAt,
       isValid: checkins.isValid,
+      verdict: checkins.verdict,
     })
     .from(checkins)
     .where(
@@ -146,6 +152,7 @@ async function loadWeekCheckins(
     mealType: mealTypeOf(r.payload),
     occurredAt: r.occurredAt.toISOString(),
     isValid: r.isValid,
+    ...(isPendingVerdict(r.verdict) ? { pending: true } : {}),
   }))
 }
 

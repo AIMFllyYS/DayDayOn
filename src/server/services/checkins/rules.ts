@@ -110,6 +110,7 @@ export function toStatCheckin(row: {
   payload: CheckinPayload
   occurredAt: Date
   isValid: boolean
+  verdict?: { settlement?: string } | null
 }): StatCheckin {
   return {
     localDate: row.localDate,
@@ -119,6 +120,7 @@ export function toStatCheckin(row: {
     mealType: row.payload.module === 'diet' ? row.payload.mealType : null,
     occurredAt: row.occurredAt.toISOString(),
     isValid: row.isValid,
+    ...(row.verdict?.settlement === 'pending' ? { pending: true } : {}),
   }
 }
 
@@ -137,7 +139,7 @@ export function calendarDays(
       count: list.length,
       done: goalDayProgress(targetFor(localDate), module, list).done,
       makeupOnly: list.every((c) => c.isMakeup),
-      archivedOnly: list.every((c) => !c.isValid),
+      archivedOnly: list.every((c) => !c.isValid && !c.pending),
     }))
 }
 

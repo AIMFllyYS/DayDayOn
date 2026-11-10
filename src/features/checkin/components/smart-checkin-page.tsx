@@ -120,6 +120,9 @@ export function SmartCheckinPage({
     module: Module
     targetKind: 'duration' | 'count'
     mealType?: MealType
+    isValid: boolean
+    pending: boolean
+    score: number | null
   } | null>(null)
   const [key, setKey] = useState(newIdempotencyKey)
   const [lastBody, setLastBody] = useState<string | null>(null)
@@ -235,6 +238,9 @@ export function SmartCheckinPage({
         module: activeGoal.module,
         targetKind: activeGoal.target.kind,
         mealType: input.module === 'diet' ? input.mealType : undefined,
+        isValid: result.checkin.isValid,
+        pending: result.checkin.verdict?.settlement === 'pending',
+        score: result.checkin.score,
       })
     } catch (e) {
       if (isApiError(e) && e.fields) {
@@ -288,25 +294,37 @@ export function SmartCheckinPage({
 
   if (done) {
     const [, mm, dd] = done.localDate.split('-')
+    const stamped = !done.pending && done.isValid && done.progress.done
     return (
       <div className="flex flex-col items-center gap-3 py-10 text-center" aria-live="polite">
         <div className="relative">
-          <Mascot mood="cheer" size={120} />
-          <Stamp
-            caption={`${mm}.${dd}`}
-            tone={done.module}
-            animate
-            size={72}
-            className="absolute -top-2 -right-12"
+          <Mascot
+            mood={stamped ? 'cheer' : done.pending ? 'happy' : done.isValid ? 'happy' : 'sleepy'}
+            size={120}
           />
+          {stamped && (
+            <Stamp
+              caption={`${mm}.${dd}`}
+              tone={done.module}
+              animate
+              size={72}
+              className="absolute -top-2 -right-12"
+            />
+          )}
         </div>
         <p className="text-heading font-bold">
-          {done.goalTitle}
-          {done.mealType ? `（${mealLabel[done.mealType]}）` : ''}记好啦
+          {done.pending
+            ? `${done.goalTitle}${done.mealType ? `（${mealLabel[done.mealType]}）` : ''}已记录`
+            : stamped
+              ? `${done.goalTitle}今日打卡完成！`
+              : `${done.goalTitle}${done.mealType ? `（${mealLabel[done.mealType]}）` : ''}已存档`}
         </p>
         <p className="text-caption text-muted">
-          今天{done.progress.done ? '已经完成目标' : '的进度'} ·{' '}
-          {progressText(done.targetKind, done.progress)}
+          {done.pending
+            ? `今日正餐进度 ${progressText(done.targetKind, done.progress)} · 集齐早午晚三餐后统一结算总分`
+            : done.score !== null
+              ? `今日总分 ${done.score.toFixed(1)} / 5.0 分 · ${done.isValid ? '已达标盖章' : '未达有效线'}`
+              : `今天${done.progress.done ? '已经完成目标' : '的进度'} · ${progressText(done.targetKind, done.progress)}`}
         </p>
         <ProgressBar
           value={done.progress.value}
