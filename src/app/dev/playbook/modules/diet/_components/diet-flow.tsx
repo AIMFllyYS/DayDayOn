@@ -5,20 +5,29 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Input } from '@/components/ui/field'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
+import { dietDocs } from '@/features/checkin/modules/diet/docs'
+import { buildDietReport } from '@/features/checkin/modules/diet/report'
+import { DEFAULT_RULES } from '@/features/referee/defaults'
+import type { PriorDietMeal } from '@/features/referee/rules/common'
+import { judgeDiet } from '@/features/referee/rules/diet'
+import type { DietDishFact, RefereeTier } from '@/features/referee/schemas'
 import { cn } from '@/lib/cn'
 import { FlowStage } from '../../_components/flow/flow-stage'
 import type {
   FillSectionSpec,
-  FlowMode,
   FlowScenario,
-  FolderSpec,
   PhoneFlowConfig,
-  ReportSpec,
   Verdict,
 } from '../../_components/flow/flow-types'
 import { PhoneFlow } from '../../_components/flow/phone-flow'
 import { DietRefereeScenariosMatrix, DietConstitutionAndRuleSection } from './diet-demos'
 import { TimePicker } from '../../_components/flow/time-picker'
+
+/*
+ * Playbook 饮食整页沙盒：
+ * 严禁在此处复制独立算分函数！直接调用生产环境的 judgeDiet、dietDocs 与 buildDietReport，
+ * 确保 Playbook 演示与正式版规则 100% 同源。
+ */
 
 type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 const MEAL_LABEL: Record<Meal, string> = {
@@ -28,134 +37,189 @@ const MEAL_LABEL: Record<Meal, string> = {
   snack: '加餐',
 }
 
-interface Dish {
-  id: string
-  name: string
-  portion: string
-  kcal: number
-  gi: number
-  protein: number
-  carb: number
-  fat: number
-  fiber: number
-  /** mg */
-  sodium: number
-  /** 一票否决 */
-  junk?: boolean
-  /** 不在常见库里，由 Agent 联网检索估算 */
-  web?: boolean
-}
-
-const DISHES: Dish[] = [
+const DISH_LIBRARY: DietDishFact[] = [
   {
-    id: 'rice',
+    name: '水煮蛋',
+    portion: '1颗（约60g）',
+    kcal: 85,
+    proteinG: 7,
+    carbG: 0.6,
+    fatG: 5.5,
+    fiberG: 0,
+    sodiumMg: 70,
+    gi: 0,
+    junk: false,
+    sweet: false,
+    carbQuality: 'none',
+    fatQuality: 'normal',
+    cooking: 'boiled',
+    source: 'table',
+  },
+  {
+    name: '纯牛奶',
+    portion: '250ml',
+    kcal: 135,
+    proteinG: 8,
+    carbG: 12,
+    fatG: 8,
+    fiberG: 0,
+    sodiumMg: 100,
+    gi: 28,
+    junk: false,
+    sweet: false,
+    carbQuality: 'none',
+    fatQuality: 'normal',
+    cooking: 'other',
+    source: 'table',
+  },
+  {
     name: '糙米杂粮饭',
     portion: '130g',
     kcal: 150,
+    proteinG: 3.2,
+    carbG: 31,
+    fatG: 1.2,
+    fiberG: 2.4,
+    sodiumMg: 3,
     gi: 55,
-    protein: 3.2,
-    carb: 31,
-    fat: 1.2,
-    fiber: 2.4,
-    sodium: 3,
+    junk: false,
+    sweet: false,
+    carbQuality: 'complex',
+    fatQuality: 'normal',
+    cooking: 'steamed',
+    source: 'table',
   },
   {
-    id: 'fish',
     name: '清蒸鲈鱼',
     portion: '160g',
     kcal: 140,
+    proteinG: 27,
+    carbG: 0,
+    fatG: 3,
+    fiberG: 0,
+    sodiumMg: 180,
     gi: 0,
-    protein: 27,
-    carb: 0,
-    fat: 3,
-    fiber: 0,
-    sodium: 180,
+    junk: false,
+    sweet: false,
+    carbQuality: 'none',
+    fatQuality: 'healthy',
+    cooking: 'steamed',
+    source: 'table',
   },
   {
-    id: 'broccoli',
     name: '蒜蓉西兰花',
     portion: '180g',
     kcal: 95,
+    proteinG: 5,
+    carbG: 10,
+    fatG: 4,
+    fiberG: 4.5,
+    sodiumMg: 220,
     gi: 15,
-    protein: 5,
-    carb: 10,
-    fat: 4,
-    fiber: 4.5,
-    sodium: 220,
+    junk: false,
+    sweet: false,
+    carbQuality: 'none',
+    fatQuality: 'normal',
+    cooking: 'boiled',
+    source: 'table',
   },
   {
-    id: 'egg',
     name: '番茄炒蛋',
     portion: '150g',
     kcal: 160,
+    proteinG: 10,
+    carbG: 6,
+    fatG: 11,
+    fiberG: 1,
+    sodiumMg: 380,
     gi: 30,
-    protein: 10,
-    carb: 6,
-    fat: 11,
-    fiber: 1,
-    sodium: 380,
+    junk: false,
+    sweet: false,
+    carbQuality: 'none',
+    fatQuality: 'normal',
+    cooking: 'stir-fried',
+    source: 'table',
   },
   {
-    id: 'icecream',
-    name: '小冰淇淋',
-    portion: '80g',
-    kcal: 160,
-    gi: 62,
-    protein: 3,
-    carb: 20,
-    fat: 8,
-    fiber: 0,
-    sodium: 50,
+    name: '甜玉米',
+    portion: '1根',
+    kcal: 190,
+    proteinG: 5,
+    carbG: 38,
+    fatG: 2,
+    fiberG: 4,
+    sodiumMg: 15,
+    gi: 55,
+    junk: false,
+    sweet: false,
+    carbQuality: 'complex',
+    fatQuality: 'normal',
+    cooking: 'boiled',
+    source: 'table',
   },
   {
-    id: 'noodle',
-    name: '红油牛肉面',
-    portion: '600g',
-    kcal: 640,
-    gi: 80,
-    protein: 26,
-    carb: 92,
-    fat: 20,
-    fiber: 3,
-    sodium: 2100,
+    name: '香煎鸡胸肉',
+    portion: '150g',
+    kcal: 210,
+    proteinG: 32,
+    carbG: 1,
+    fatG: 6,
+    fiberG: 0,
+    sodiumMg: 320,
+    gi: 0,
+    junk: false,
+    sweet: false,
+    carbQuality: 'none',
+    fatQuality: 'normal',
+    cooking: 'grilled',
+    source: 'table',
   },
   {
-    id: 'chicken',
     name: '炸鸡腿',
     portion: '120g',
     kcal: 330,
+    proteinG: 20,
+    carbG: 15,
+    fatG: 21,
+    fiberG: 0.5,
+    sodiumMg: 620,
     gi: 70,
-    protein: 20,
-    carb: 15,
-    fat: 21,
-    fiber: 0.5,
-    sodium: 620,
     junk: true,
+    sweet: false,
+    carbQuality: 'refined',
+    fatQuality: 'unhealthy',
+    cooking: 'fried',
+    source: 'table',
   },
   {
-    id: 'cola',
     name: '冰镇含糖可乐',
     portion: '330ml',
     kcal: 140,
+    proteinG: 0,
+    carbG: 35,
+    fatG: 0,
+    fiberG: 0,
+    sodiumMg: 10,
     gi: 63,
-    protein: 0,
-    carb: 35,
-    fat: 0,
-    fiber: 0,
-    sodium: 10,
     junk: true,
+    sweet: true,
+    carbQuality: 'refined',
+    fatQuality: 'normal',
+    cooking: 'other',
+    source: 'table',
   },
 ]
 
 interface Data {
-  /** 输入框里的文字，用顿号分隔；Agent 按它解析 */
   text: string
   meal: Meal
   snackTime: string
   note: string
+  tier: RefereeTier
+  priorMeals: PriorDietMeal[]
 }
 
-const DEFAULT_FAVS = ['糙米杂粮饭', '清蒸鲈鱼', '蒜蓉西兰花', '番茄炒蛋', '小冰淇淋', '红油牛肉面']
+const DEFAULT_FAVS = ['空腹', '水煮蛋', '纯牛奶', '糙米杂粮饭', '清蒸鲈鱼', '蒜蓉西兰花', '甜玉米']
 
 function splitNames(text: string): string[] {
   return text
@@ -164,333 +228,150 @@ function splitNames(text: string): string[] {
     .filter(Boolean)
 }
 
-/** 输入文字 → 菜品：常见库里有就用，没有就当作「联网检索估算」 */
-function parseDishes(text: string): Dish[] {
+function parseDishes(text: string): DietDishFact[] {
   const seen = new Set<string>()
-  const out: Dish[] = []
+  const out: DietDishFact[] = []
   for (const n of splitNames(text)) {
-    const hit = DISHES.find((d) => d.name === n || d.name.includes(n) || n.includes(d.name))
-    const dish: Dish = hit ?? {
-      id: `web-${n}`,
+    if (/空腹|断食/.test(n)) {
+      out.push({
+        name: '空腹',
+        portion: '',
+        kcal: 0,
+        proteinG: 0,
+        carbG: 0,
+        fatG: 0,
+        fiberG: 0,
+        sodiumMg: 0,
+        gi: 0,
+        junk: false,
+        sweet: false,
+        isFasting: true,
+        carbQuality: 'none',
+        fatQuality: 'normal',
+        cooking: 'other',
+        source: 'table',
+      })
+      continue
+    }
+    const hit = DISH_LIBRARY.find((d) => d.name === n || d.name.includes(n) || n.includes(d.name))
+    const dish: DietDishFact = hit ?? {
       name: n,
       portion: '1 份',
       kcal: 220,
-      gi: 50,
-      protein: 8,
-      carb: 28,
-      fat: 8,
-      fiber: 2,
-      sodium: 400,
-      web: true,
+      proteinG: 12,
+      carbG: 24,
+      fatG: 8,
+      fiberG: 2,
+      sodiumMg: 380,
+      gi: 52,
+      junk: false,
+      sweet: false,
+      carbQuality: 'none',
+      fatQuality: 'normal',
+      cooking: 'other',
+      source: 'web',
     }
-    if (seen.has(dish.id)) continue
-    seen.add(dish.id)
+    if (seen.has(dish.name)) continue
+    seen.add(dish.name)
     out.push(dish)
   }
   return out
+}
+
+function mealOf(mealType: Meal, names: string[]): PriorDietMeal {
+  const dishes = parseDishes(names.join('、'))
+  return {
+    mealType,
+    items: dishes.map((d) => ({ name: d.name, portion: d.portion, kcal: d.kcal })),
+    note: null,
+    dishes,
+  }
 }
 
 const SCENARIOS: (FlowScenario & { data: Data })[] = [
   {
     id: 'a',
     code: 'A',
-    title: '清洁午餐',
-    description: '糙米饭 + 清蒸鲈鱼 + 蒜蓉西兰花：蛋白、纤维都够，综合 GI 低。',
+    title: '减脂三餐集齐（含 85kcal 轻晚餐）',
+    description: '早午已打卡，晚餐吃 1 颗水煮蛋控卡：不扣分反加分，弹出三餐庆祝总分卡。',
     passed: true,
-    data: { text: '糙米杂粮饭、清蒸鲈鱼、蒜蓉西兰花', meal: 'lunch', snackTime: '', note: '' },
+    data: {
+      text: '水煮蛋',
+      meal: 'dinner',
+      snackTime: '',
+      note: '',
+      tier: 'strict-fat-loss',
+      priorMeals: [
+        mealOf('breakfast', ['纯牛奶', '水煮蛋']),
+        mealOf('lunch', ['糙米杂粮饭', '清蒸鲈鱼', '蒜蓉西兰花']),
+      ],
+    },
   },
   {
     id: 'b',
     code: 'B',
-    title: '炸鸡配可乐',
-    description: '触发一票否决，本餐 0 分，只记热量不盖章。',
-    passed: false,
-    data: { text: '炸鸡腿、冰镇含糖可乐', meal: 'dinner', snackTime: '', note: '' },
+    title: '仅打第 1 餐（1/3 待汇总态）',
+    description: '只记早餐纯牛奶：解析营养但不打单餐分、不判死刑、不提前弹盖章窗。',
+    passed: true,
+    data: {
+      text: '纯牛奶',
+      meal: 'breakfast',
+      snackTime: '',
+      note: '',
+      tier: 'strict-fat-loss',
+      priorMeals: [],
+    },
   },
   {
     id: 'c',
     code: 'C',
-    title: '饭后小冰淇淋',
-    description: '正餐不错，加了一个冰淇淋，擦线及格。',
+    title: '零膳食纤维三餐（不扣纤维分）',
+    description: '早牛奶鸡蛋、午鲈鱼、晚鸡胸肉（全天 0g 纤维）：缺纤维绝不扣分，稳稳高分达标。',
     passed: true,
-    data: { text: '糙米杂粮饭、番茄炒蛋、小冰淇淋', meal: 'lunch', snackTime: '', note: '' },
+    data: {
+      text: '香煎鸡胸肉',
+      meal: 'dinner',
+      snackTime: '',
+      note: '',
+      tier: 'balanced-glycemic',
+      priorMeals: [mealOf('breakfast', ['纯牛奶', '水煮蛋']), mealOf('lunch', ['清蒸鲈鱼'])],
+    },
   },
   {
     id: 'd',
     code: 'D',
-    title: '红油牛肉面',
-    description: '钠和碳水偏高，晚餐高 GI 再扣分，不及格。',
+    title: '三餐达标后夜宵炸鸡可乐（硬覆盖）',
+    description: '早午晚原本已达标，加餐吃炸鸡配可乐：触发一票否决，全天总分硬覆盖为 0.0 分。',
     passed: false,
-    data: { text: '红油牛肉面、藤椒鸡胗', meal: 'dinner', snackTime: '', note: '' },
+    data: {
+      text: '炸鸡腿、冰镇含糖可乐',
+      meal: 'snack',
+      snackTime: '22:30',
+      note: '',
+      tier: 'strict-fat-loss',
+      priorMeals: [
+        mealOf('breakfast', ['纯牛奶', '水煮蛋']),
+        mealOf('lunch', ['糙米杂粮饭', '番茄炒蛋']),
+        mealOf('dinner', ['甜玉米', '清蒸鲈鱼']),
+      ],
+    },
   },
 ]
 
-function totals(ds: Dish[]) {
-  const sum = (k: 'kcal' | 'protein' | 'carb' | 'fat' | 'fiber' | 'sodium') =>
-    ds.reduce((a, d) => a + d[k], 0)
-  const carb = sum('carb')
-  const gi = carb > 0 ? Math.round(ds.reduce((a, d) => a + d.gi * d.carb, 0) / carb) : 0
-  return {
-    kcal: sum('kcal'),
-    protein: sum('protein'),
-    carb,
-    fat: sum('fat'),
-    fiber: sum('fiber'),
-    sodium: sum('sodium'),
-    gi,
-  }
-}
-
-/** 单道菜的质量评价与一句分析 */
-function dishQuality(d: Dish): {
-  text: string
-  tone: 'success' | 'warning' | 'danger'
-  note: string
-} {
-  if (d.junk) {
-    return {
-      text: '不推荐',
-      tone: 'danger',
-      note: '一票否决项：油炸或含糖饮料，会让整餐直接 0 分。',
-    }
-  }
-  if (d.sodium > 1500) {
-    return {
-      text: '偏咸',
-      tone: 'warning',
-      note: `钠含量很高（约 ${d.sodium} mg），建议少喝汤、少放红油。`,
-    }
-  }
-  if (d.gi >= 70) {
-    return { text: '升糖快', tone: 'warning', note: '升糖较快，晚间尤其要控制份量。' }
-  }
-  if (d.protein >= 20) {
-    return { text: '优质', tone: 'success', note: '优质蛋白来源，有利于饱腹和肌肉维持。' }
-  }
-  if (d.fiber >= 4) {
-    return { text: '优质', tone: 'success', note: '膳食纤维丰富，有助于延缓升糖。' }
-  }
-  return { text: '良好', tone: 'success', note: '营养均衡，适量即可。' }
-}
-
-function giLabel(gi: number): { text: string; tone: 'success' | 'warning' | 'danger' } {
-  if (gi <= 55) return { text: '低 GI', tone: 'success' }
-  if (gi < 70) return { text: '中 GI', tone: 'warning' }
-  return { text: '高 GI', tone: 'danger' }
-}
-
-/** 5 分制：一票否决 → 0；否则基础 2.0 + 蛋白 + 纤维 + GI + 热量走廊 − 钠 − 晚间高 GI */
-function score(ds: Dish[], meal: Meal): number {
-  if (ds.length === 0 || ds.some((d) => d.junk)) return 0
-  const t = totals(ds)
-  let s = 2
-  if (t.protein >= 15) s += 0.5
-  if (t.protein >= 25) s += 0.5
-  if (t.fiber >= 5) s += 0.8
-  if (t.gi <= 55) s += 0.6
-  if (t.kcal >= 350 && t.kcal <= 800) s += 0.4
-  if (t.sodium > 1500) s -= 0.8
-  if (meal === 'dinner' && t.gi >= 70) s -= 0.6
-  return Math.max(0, Math.min(5, Math.round(s * 10) / 10))
-}
+const DOCS = dietDocs(DEFAULT_RULES.diet)
 
 const CONFIG: PhoneFlowConfig = {
   tone: 'diet',
   title: '科学饮食打卡',
   progress: { done: 12, total: 30 },
   agentSteps: [
-    '解析你输入的每一道菜',
-    '联网搜索每道菜的热量、升糖指数和营养成分',
-    '估算份量并核对烹饪方式',
-    '生成分析结果与评分',
+    '解析当前餐次的每一道菜',
+    '查询营养表并核对备注上下文',
+    '关联今日已打卡餐次进度',
+    '按全天三餐统一规则生成结论',
   ],
-  rulesDoc: {
-    title: '达标规则',
-    sections: [
-      {
-        heading: '有效打卡线',
-        items: [
-          'AI 评分 > 3.0 分才盖有效章',
-          '5.0 分制，综合热量、蛋白质、膳食纤维、升糖指数、钠和烹饪方式',
-          '未达标照常保存，只是不计入连击',
-        ],
-      },
-      {
-        heading: '一票否决',
-        items: ['炸鸡、汉堡、薯条、含糖碳酸饮料：本餐直接 0 分', '热量仍会记入饮食账本'],
-      },
-      {
-        heading: '按体质分档',
-        items: [
-          '减脂严管：晚间碳水与油脂扣分更重',
-          '控糖均衡：对标膳食指南',
-          '增肌温和：放宽干净复合碳水，重点看蛋白质',
-        ],
-      },
-    ],
-  },
-  basisDoc: {
-    title: '评判依据',
-    sections: [
-      {
-        heading: '营养标准',
-        items: [
-          '《中国居民膳食指南（2022）》',
-          '每餐蛋白质 ≥ 15g 加分，≥ 25g 再加分',
-          '膳食纤维 ≥ 5g 加分；钠 > 1500mg 扣分',
-        ],
-      },
-      {
-        heading: '升糖节律',
-        items: [
-          '按碳水加权计算综合 GI：≤ 55 低，56–69 中，≥ 70 高',
-          '晚餐高 GI 额外扣分，早餐防空腹高 GI',
-        ],
-      },
-      {
-        heading: '联网核验',
-        items: [
-          '联网检索权威资料，核对食物成分与烹饪方式',
-          '识别结果会先让你确认，确认后才保存',
-          '你的照片只用于识别，不会被保存',
-        ],
-      },
-    ],
-  },
-}
-
-function buildReport(ds: Dish[], meal: Meal): ReportSpec {
-  const t = totals(ds)
-  const sc = score(ds, meal)
-  const gl = giLabel(t.gi)
-  const hasJunk = ds.some((d) => d.junk)
-  const nutrition: FolderSpec = {
-    id: 'nutrition',
-    title: '营养物质',
-    icon: 'heart',
-    tone: 'diet',
-    headline: `蛋白质 ${t.protein.toFixed(0)}g · 碳水 ${t.carb.toFixed(0)}g · 脂肪 ${t.fat.toFixed(0)}g`,
-    rows: [
-      {
-        label: '蛋白质',
-        value: `${t.protein.toFixed(1)} g`,
-        ratio: t.protein / 25,
-        tone: 'success',
-        sub: '本餐参考 25g',
-      },
-      {
-        label: '碳水化合物',
-        value: `${t.carb.toFixed(1)} g`,
-        ratio: t.carb / 80,
-        tone: t.carb > 100 ? 'warning' : 'primary',
-      },
-      {
-        label: '脂肪',
-        value: `${t.fat.toFixed(1)} g`,
-        ratio: t.fat / 25,
-        tone: t.fat > 25 ? 'warning' : 'primary',
-      },
-      {
-        label: '膳食纤维',
-        value: `${t.fiber.toFixed(1)} g`,
-        ratio: t.fiber / 8,
-        tone: 'success',
-        sub: '本餐参考 8g',
-      },
-      {
-        label: '钠',
-        value: `${t.sodium} mg`,
-        ratio: t.sodium / 800,
-        tone: t.sodium > 1500 ? 'danger' : 'primary',
-        sub: '本餐参考 800mg',
-      },
-    ],
-  }
-  const dishFolder: FolderSpec = {
-    id: 'dishes',
-    defaultOpen: true,
-    title: '逐菜分析',
-    icon: 'diet',
-    tone: 'study',
-    headline: `${ds.length} 道菜 · 综合 GI ${t.gi}`,
-    badge: { text: gl.text, tone: gl.tone },
-    children: ds.map((d) => {
-      const l = giLabel(d.gi)
-      const q = dishQuality(d)
-      return {
-        id: `dish-${d.id}`,
-        title: d.name,
-        icon: 'diet' as const,
-        headline: `${d.portion} · GI ${d.gi} · ${d.kcal} kcal`,
-        badge: { text: q.text, tone: q.tone },
-        rows: [
-          { label: '升糖指数', value: `GI ${d.gi} · ${l.text}`, ratio: d.gi / 100, tone: l.tone },
-          {
-            label: '热量',
-            value: `${d.kcal} kcal`,
-            ratio: d.kcal / 700,
-            tone: 'exercise' as const,
-          },
-          { label: '蛋白质', value: `${d.protein} g` },
-          { label: '碳水', value: `${d.carb} g` },
-          { label: '脂肪', value: `${d.fat} g` },
-          { label: '膳食纤维', value: `${d.fiber} g` },
-          { label: '钠', value: `${d.sodium} mg` },
-        ],
-        note: d.web ? `联网检索估算，仅供参考；${q.note}` : q.note,
-      }
-    }),
-    note: '点开每道菜看质量与各项指标；综合 GI 按各菜碳水克数加权。',
-  }
-  const energy: FolderSpec = {
-    id: 'energy',
-    title: '热量消耗',
-    icon: 'flame',
-    tone: 'exercise',
-    headline: `${t.kcal} kcal · ${t.kcal >= 350 && t.kcal <= 800 ? '在本餐走廊内' : t.kcal < 350 ? '低于本餐走廊' : '高于本餐走廊'}`,
-    rows: [
-      {
-        label: '本餐热量',
-        value: `${t.kcal} kcal`,
-        ratio: t.kcal / 800,
-        tone: t.kcal > 800 ? 'warning' : 'exercise',
-        sub: '本餐走廊 350–800 kcal',
-      },
-      {
-        label: '占全天推荐',
-        value: `${Math.round((t.kcal / 1800) * 100)}%`,
-        ratio: t.kcal / 1800,
-        tone: 'exercise',
-        sub: '按身高体重估算，约 1800 kcal',
-      },
-    ],
-  }
-  const checks: FolderSpec = {
-    id: 'checks',
-    title: '校验清单',
-    icon: 'shield',
-    tone: 'primary',
-    headline: '',
-    checks: [
-      { text: '没有一票否决食物', ok: !hasJunk },
-      { text: '热量在本餐走廊内（350–800 kcal）', ok: t.kcal >= 350 && t.kcal <= 800 },
-      { text: '优质蛋白 ≥ 15g', ok: t.protein >= 15 },
-      { text: '膳食纤维 ≥ 5g', ok: t.fiber >= 5 },
-      { text: '钠 ≤ 1500mg', ok: t.sodium <= 1500 },
-      {
-        text: '联网核验食物成分',
-        ok: true,
-        source: '《中国居民膳食指南（2022）》· 中国食物成分表',
-      },
-    ],
-  }
-  const okCount = checks.checks?.filter((c) => c.ok).length ?? 0
-  checks.headline = `${okCount}/${checks.checks?.length ?? 0} 项通过`
-  checks.badge = { text: sc > 3 ? '达标' : '未达标', tone: sc > 3 ? 'success' : 'warning' }
-  return {
-    title: `${MEAL_LABEL[meal]}分析 · ${sc.toFixed(1)} 分`,
-    folders: [nutrition, energy, dishFolder, checks],
-  }
+  rulesDoc: DOCS.rulesDoc,
+  basisDoc: DOCS.basisDoc,
 }
 
 export function DietFlowSandbox() {
@@ -499,7 +380,6 @@ export function DietFlowSandbox() {
   const [data, setData] = useState<Data>(SCENARIOS[0]!.data)
   const [favs, setFavs] = useState<string[]>(DEFAULT_FAVS)
   const [sheet, setSheet] = useState<null | 'favs'>(null)
-  // 默认加餐时间 = 进入页面时的当前时间（服务端渲染时为空，客户端取一次后固定）
   const enteredRef = useRef<string | null>(null)
   const clock = useSyncExternalStore(
     () => () => undefined,
@@ -509,19 +389,47 @@ export function DietFlowSandbox() {
   const snackAt = data.snackTime || clock || '12:00'
   const [draftFav, setDraftFav] = useState('')
 
-  const ds = parseDishes(data.text)
-  const sc = score(ds, data.meal)
-  const hasJunk = ds.some((d) => d.junk)
+  const dishes = parseDishes(data.text)
+  const input = {
+    module: 'diet' as const,
+    method: 'manual' as const,
+    mealType: data.meal,
+    items: dishes.map((d) => ({ name: d.name, portion: d.portion, kcal: d.kcal })),
+    ...(data.meal === 'snack' ? { snackTime: snackAt } : {}),
+    note: data.note || null,
+  }
+  const realVerdict = judgeDiet(
+    { mealType: data.meal, items: input.items, note: input.note },
+    {
+      rules: DEFAULT_RULES.diet,
+      facts: dishes.length > 0 ? { module: 'diet', dishes } : null,
+      tier: data.tier,
+      priorDietMeals: data.priorMeals.filter((m) => m.mealType !== data.meal),
+    },
+  )
+  const isPending = realVerdict.settlement === 'pending'
+  const kcalText = (v: unknown) => (typeof v === 'number' ? (v === 0 ? '空腹' : `${v} kcal`) : '—')
+
   const verdict: Verdict = {
-    passed: sc > 3,
-    score: sc.toFixed(1),
-    scoreHint: '/ 5.0 · 线 3.0',
-    detail:
-      sc > 3
-        ? `本餐 ${sc.toFixed(1)} 分，超过 3.0 分有效线`
-        : hasJunk
-          ? '含炸鸡或含糖饮料，一票否决，本餐 0 分'
-          : `本餐 ${sc.toFixed(1)} 分，未达 3.0 分有效线`,
+    passed: realVerdict.isValid,
+    pending: isPending,
+    score: isPending
+      ? `${String(realVerdict.metrics.mealsLogged ?? 1)}/3`
+      : realVerdict.score !== null
+        ? realVerdict.score.toFixed(1)
+        : undefined,
+    scoreHint: isPending ? '三餐齐备算总分' : '/ 5.0 · 线 3.0',
+    detail: realVerdict.detail,
+    dailySummary:
+      !isPending && realVerdict.score !== null
+        ? {
+            totalScore: realVerdict.score.toFixed(1),
+            breakfastKcal: kcalText(realVerdict.metrics.breakfastKcal),
+            lunchKcal: kcalText(realVerdict.metrics.lunchKcal),
+            dinnerKcal: kcalText(realVerdict.metrics.dinnerKcal),
+            footer: `全天共 ${String(realVerdict.metrics.dailyKcal ?? 0)} kcal · 蛋白 ${String(realVerdict.metrics.dailyProtein ?? 0)}g · 纤维 ${String(realVerdict.metrics.dailyFiber ?? 0)}g`,
+          }
+        : undefined,
   }
 
   function toggleTag(name: string) {
@@ -533,13 +441,14 @@ export function DietFlowSandbox() {
   }
 
   const names = splitNames(data.text)
+  const mealKcal = dishes.reduce((s, d) => s + d.kcal, 0)
   const sections: FillSectionSpec[] = [
     {
       id: 'dishes',
       label: '吃了什么',
       icon: 'diet',
-      filled: ds.length > 0,
-      summary: ds.length ? `${ds.length} 道 · ${totals(ds).kcal} kcal` : '输入或点选你吃的东西',
+      filled: dishes.length > 0,
+      summary: dishes.length ? `${dishes.length} 道 · ${mealKcal} kcal` : '输入或点选你吃的东西',
       onLongPress: () => setSheet('favs'),
       content: (
         <>
@@ -587,7 +496,7 @@ export function DietFlowSandbox() {
         <Input
           aria-label="备注"
           value={data.note}
-          placeholder="例如：外卖、少油"
+          placeholder="例如：晚上没吃饭只吃菜、空腹"
           onChange={(e) => setData((d) => ({ ...d, note: e.target.value }))}
         />
       ),
@@ -613,8 +522,7 @@ export function DietFlowSandbox() {
         }
       : null
 
-  // 手动填写：输入框里默认就有字（假数据），提交时 Agent 直接解析它
-  function onModeChange(_mode: FlowMode) {
+  function onModeChange() {
     setData(scenario.data)
   }
 
@@ -623,6 +531,7 @@ export function DietFlowSandbox() {
     setData(SCENARIOS.find((s) => s.id === id)?.data ?? SCENARIOS[0]!.data)
   }
 
+  const checkedSet = new Set(data.priorMeals.map((m) => m.mealType))
   const selector = (
     <SegmentedControl
       size="sm"
@@ -630,10 +539,10 @@ export function DietFlowSandbox() {
       value={data.meal}
       onValueChange={(meal) => setData((d) => ({ ...d, meal }))}
       options={[
-        { value: 'breakfast', label: '早餐' },
-        { value: 'lunch', label: '午餐' },
-        { value: 'dinner', label: '晚餐' },
-        { value: 'snack', label: '加餐' },
+        { value: 'breakfast', label: checkedSet.has('breakfast') ? '早餐 ✓' : '早餐' },
+        { value: 'lunch', label: checkedSet.has('lunch') ? '午餐 ✓' : '午餐' },
+        { value: 'dinner', label: checkedSet.has('dinner') ? '晚餐 ✓' : '晚餐' },
+        { value: 'snack', label: checkedSet.has('snack') ? '加餐 ✓' : '加餐' },
       ]}
     />
   )
@@ -717,10 +626,10 @@ export function DietFlowSandbox() {
           basisPage={<DietRefereeScenariosMatrix />}
           selector={selector}
           sections={sections}
-          aiSummary={`${MEAL_LABEL[data.meal]}${data.meal === 'snack' ? ` ${snackAt}` : ''} · ${ds.length} 道菜`}
+          aiSummary={`${MEAL_LABEL[data.meal]}${data.meal === 'snack' ? ` ${snackAt}` : ''} · ${dishes.length} 道菜`}
           verdict={verdict}
-          canSubmit={ds.length > 0}
-          report={buildReport(ds, data.meal)}
+          canSubmit={dishes.length > 0}
+          report={buildDietReport(realVerdict, input)}
           onModeChange={onModeChange}
           overlay={overlay}
           leadSection={leadSection}

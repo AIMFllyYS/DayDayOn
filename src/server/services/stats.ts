@@ -21,6 +21,8 @@ export interface StatCheckin {
   occurredAt: string
   /** false = 未达标仅存档：不计进度、完成度、连续天数与排行（checkin-modules.md 第 3.4 节） */
   isValid: boolean
+  /** true = 多阶段打卡尚未集齐（如饮食 1/3、2/3 待三餐汇总）：计入当日阶段进度，但不算完成（done=false）且非未达标存档 */
+  pending?: boolean
 }
 
 export interface GoalWithProgress {
@@ -79,6 +81,19 @@ export function goalDayProgress(
   checkinsOfDay: readonly StatCheckin[],
 ): GoalProgress {
   const valid = checkinsOfDay.filter((c) => c.isValid)
+  if (module === 'diet' && valid.length === 0) {
+    const pendingMainMeals = new Set(
+      checkinsOfDay.flatMap((c) =>
+        c.pending &&
+        (c.mealType === 'breakfast' || c.mealType === 'lunch' || c.mealType === 'dinner')
+          ? [c.mealType]
+          : [],
+      ),
+    ).size
+    if (pendingMainMeals > 0) {
+      return { value: pendingMainMeals, target: Math.max(3, target.value), done: false }
+    }
+  }
   const value =
     target.kind === 'duration' ? durationValue(module, valid) : countValue(module, valid)
   return { value, target: target.value, done: value >= target.value }

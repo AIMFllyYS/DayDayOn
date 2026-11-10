@@ -24,12 +24,23 @@ export interface DocPageSpec {
 
 export interface Verdict {
   passed: boolean
-  /** 底部一行说明：「本餐 4.8 分，超过 3.0 分有效线」 */
+  /** pending = 分餐已记录待三餐汇总；缺省 = 终判 */
+  pending?: boolean
+  /** 底部一行说明：「今日三餐打卡完成！全天总分 4.8 分」 */
   detail: string
-  /** 评分结论卡右侧的大数字，例如「4.8」；没有分数的板块不传 */
+  /** 评分结论卡右侧的大数字，例如「4.8」或「2/3」；没有分数的板块不传 */
   score?: string
   /** 分数下方的小字，例如「/ 5.0」 */
   scoreHint?: string
+  /** 三餐集齐庆祝弹窗里的每日总分与三餐热量回显 */
+  dailySummary?: {
+    totalScore: string
+    breakfastKcal: string
+    lunchKcal: string
+    dinnerKcal: string
+    snackKcal?: string
+    footer: string
+  }
 }
 
 export interface FolderRow {

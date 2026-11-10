@@ -11,8 +11,14 @@ import type { DraftField, DraftItem, DraftSnapshot, DraftVerdict } from './schem
  */
 
 export function verdictPreview(v: Verdict): DraftVerdict {
+  const mealsLogged = typeof v.metrics.mealsLogged === 'number' ? v.metrics.mealsLogged : undefined
+  const mealsRequired =
+    typeof v.metrics.mealsRequired === 'number' ? v.metrics.mealsRequired : undefined
   return {
     isValid: v.isValid,
+    ...(v.settlement ? { settlement: v.settlement } : {}),
+    ...(mealsLogged !== undefined ? { mealsLogged } : {}),
+    ...(mealsRequired !== undefined ? { mealsRequired } : {}),
     score: v.score,
     scoreMax: v.scoreMax,
     detail: v.detail,

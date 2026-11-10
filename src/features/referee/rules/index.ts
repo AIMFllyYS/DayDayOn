@@ -1,7 +1,7 @@
 import type { Module } from '@/features/shared/schemas'
 import { effectiveRules } from '../defaults'
 import type { Facts, FactsOf, RefereeTier, Verdict } from '../schemas'
-import { buildVerdict, type RefereeExtras } from './common'
+import { buildVerdict, type PriorDietMeal, type RefereeExtras } from './common'
 import { judgeCustom, type CustomSubject } from './custom'
 import { judgeDiet, type DietSubject } from './diet'
 import { judgeExercise, type ExerciseSubject } from './exercise'
@@ -34,6 +34,8 @@ export type JudgeInput = {
     extras?: RefereeExtras
     /** 学习模块今日此前已累计的分钟数（离线裁判兜底用） */
     priorMinutesToday?: number
+    /** 饮食模块今日已打卡的其他餐次（用于判断三餐是否集齐并计算全天总分） */
+    priorDietMeals?: readonly PriorDietMeal[]
   }
 }[Module]
 
@@ -49,6 +51,7 @@ export function judge(input: JudgeInput): Verdict {
     const comment = input.facts?.skipComment ?? null
     return buildVerdict({
       isValid: approved,
+      settlement: 'settled',
       score: input.module === 'diet' ? (approved ? 4.0 : 0) : null,
       scoreMax: input.module === 'diet' ? 5 : null,
       detail: approved
@@ -73,9 +76,11 @@ export function judge(input: JudgeInput): Verdict {
               sodium: 0,
               gi: 0,
               dishes: 0,
-              kcalMin: 300,
-              kcalMax: 700,
+              kcalMin: 0,
+              kcalMax: 1800,
               passScore: 3,
+              mealsLogged: 3,
+              mealsRequired: 3,
             }
           : {}),
       },
@@ -84,6 +89,7 @@ export function judge(input: JudgeInput): Verdict {
         ? ['好好休息调整状态，准备好后再继续打卡']
         : ['请填写具体客观的跳过理由（如身体不适、生病、外出赶路等）'],
       extras: input.extras,
+      offline: false,
     })
   }
 
@@ -91,6 +97,7 @@ export function judge(input: JudgeInput): Verdict {
     tier: input.tier,
     extras: input.extras,
     priorMinutesToday: input.priorMinutesToday,
+    priorDietMeals: input.priorDietMeals,
   }
   switch (input.module) {
     case 'diet':

@@ -1,8 +1,11 @@
 'use client'
 
 import { useRef, useState, useSyncExternalStore } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/field'
+import { Icon } from '@/components/ui/icon'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { cn } from '@/lib/cn'
 import type { CreateCheckinInput, MealType } from '../../schemas'
 import type { SmartRecognitionDraft } from '../../smart-schemas'
 import { FavoritesSheet, splitNames, TagRow, useFavorites } from '../../flow/fields/tags'
@@ -79,6 +82,14 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
       checkedMeals.add(c.payload.mealType)
     }
   }
+  const loggedMainCount = MAIN_MEALS.filter((m) => checkedMeals.has(m)).length
+  const nextUncheckedMain = MAIN_MEALS.find((m) => m !== mealType && !checkedMeals.has(m)) ?? null
+  const settledRow =
+    loggedMainCount === 3
+      ? (props?.todayCheckins?.find(
+          (c) => c.payload.module === 'diet' && c.verdict?.settlement !== 'pending',
+        ) ?? null)
+      : null
 
   // 凌晨 0 点前重进页面或切换餐次时，直接读取数据库已存的该餐次记录；切换到未打卡餐次时清空表单
   const savedMeal = props?.todayCheckins?.find(
@@ -169,6 +180,48 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
   return {
     activeKey: mealType,
     note,
+    nextPendingAction: nextUncheckedMain
+      ? {
+          label: `继续记${MEAL_LABEL[nextUncheckedMain]}`,
+          activate: () => {
+            setMeal(nextUncheckedMain)
+            setManualMeal(true)
+          },
+        }
+      : null,
+    statusBanner: settledRow ? (
+      <div
+        className={cn(
+          'text-tiny flex items-center justify-between gap-2 rounded-xl border px-3 py-2 font-semibold',
+          settledRow.isValid
+            ? 'border-success/35 bg-success-soft/80 text-success-ink'
+            : 'border-warning/35 bg-warning-soft/80 text-warning-ink',
+        )}
+      >
+        <span className="flex min-w-0 items-center gap-1.5 truncate">
+          <Icon
+            name={settledRow.isValid ? 'check-double' : 'alert'}
+            size={15}
+            className="shrink-0"
+          />
+          <span className="truncate">
+            今日早午晚三餐已集齐
+            {settledRow.score !== null ? ` · 全天总分 ${settledRow.score.toFixed(1)} 分` : ''}
+          </span>
+        </span>
+        <Badge tone={settledRow.isValid ? 'success' : 'warning'} className="shrink-0">
+          {settledRow.isValid ? '已达标盖章' : '未达有效线'}
+        </Badge>
+      </div>
+    ) : loggedMainCount > 0 ? (
+      <div className="border-diet/30 bg-diet-soft/60 text-diet-ink text-tiny flex items-center justify-between gap-2 rounded-xl border px-3 py-1.5 font-semibold">
+        <span className="flex min-w-0 items-center gap-1.5 truncate">
+          <Icon name="clock" size={14} className="shrink-0" />
+          <span className="truncate">早、午、晚三餐打齐后统一结算今日总分</span>
+        </span>
+        <span className="font-display shrink-0 tabular-nums">{loggedMainCount} / 3 正餐</span>
+      </div>
+    ) : null,
     selector: (
       <SegmentedControl
         size="sm"

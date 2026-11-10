@@ -227,11 +227,16 @@ export const CitationSchema = z.object({
 })
 export type Citation = z.infer<typeof CitationSchema>
 
+export const SettlementStageSchema = z.enum(['pending', 'settled']).meta({ id: 'SettlementStage' })
+export type SettlementStage = z.infer<typeof SettlementStageSchema>
+
 export const VerdictSchema = z
   .object({
     version: z.literal(1),
     isValid: z.boolean(),
-    /** 只有评分制板块（饮食）有 */
+    /** 结算阶段：pending = 分餐已记录待集齐三餐汇总评分；缺省或 settled = 已完成达标终判 */
+    settlement: SettlementStageSchema.optional(),
+    /** 只有评分制板块（饮食全天结算后）有；未集齐三餐时为 null */
     score: z.number().min(0).max(5).nullable(),
     scoreMax: z.number().nullable(),
     detail: z.string(),

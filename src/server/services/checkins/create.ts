@@ -10,7 +10,13 @@ import type {
 import { buildSchema } from '@/features/goal/build-schema'
 import { effectiveRules } from '@/features/referee/defaults'
 import { judge } from '@/features/referee/rules'
-import { calcDietDayScore, isFastingText, isJunkName } from '@/features/referee/rules/diet'
+import type { PriorDietMeal } from '@/features/referee/rules/common'
+import {
+  isFastingSubject,
+  isFastingText,
+  isJunkName,
+  judgeDiet,
+} from '@/features/referee/rules/diet'
 import { detectCalc, estimateKcal, metOf } from '@/features/referee/rules/exercise'
 import type { DietDishFact, Facts, Verdict } from '@/features/referee/schemas'
 import { judgeInputOf } from '@/features/referee/subject'
@@ -21,6 +27,7 @@ import { ApiError } from '@/server/api/errors'
 import type { db as Database, DbOrTx } from '@/server/db/client'
 import { aiRuns, checkins } from '@/server/db/schema'
 import { loadRefereeTier } from '@/server/services/referee/context'
+import { todayDietMeals } from '@/server/services/referee/read'
 import { goalDayProgress } from '@/server/services/stats'
 import { latestWeightGrams } from '../metrics/weight'
 import { loadClock } from './clock'
@@ -144,6 +151,12 @@ function buildFallbackDietFacts(
   return { module: 'diet', dishes }
 }
 
+export interface JudgeCheckinOptions {
+  priorMinutesToday?: number
+  localDate?: LocalDate
+  priorDietMeals?: readonly PriorDietMeal[]
+}
+
 /**
  * 裁判结论（checkin-modules.md 第 3.4 节）：用目标规则、个人体质和请求带来的事实重算，
  * 前端算好的结论一律不用。refereeRunId 必须是自己的裁判记录。
@@ -154,7 +167,7 @@ export async function judgeCheckin(
   goal: GoalRow,
   input: CreateCheckin,
   clock: Clock,
-  priorMinutesToday?: number,
+  options?: JudgeCheckinOptions,
 ): Promise<Verdict> {
   if (input.refereeRunId !== undefined) {
     const [run] = await db
@@ -175,7 +188,15 @@ export async function judgeCheckin(
       ? await loadFields(db, goal.id, goal.fieldVersion)
       : null
   const facts: Facts | null =
-    input.facts ?? (input.module === 'diet' ? buildFallbackDietFacts(input.items) : null)
+    input.facts ??
+    (input.module === 'diet' && !isFastingSubject(input)
+      ? buildFallbackDietFacts(input.items)
+      : null)
+  let priorDietMeals = options?.priorDietMeals
+  if (input.module === 'diet' && priorDietMeals === undefined && options?.localDate) {
+    const existing = await todayDietMeals(db, userId, goal.id, options.localDate)
+    priorDietMeals = existing.filter((m) => m.mealType !== input.mealType)
+  }
   return judge(
     judgeInputOf(input, {
       timeZone: clock.timeZone,
@@ -183,7 +204,8 @@ export async function judgeCheckin(
       storedRules: goal.refereeRules,
       facts,
       tier: await loadRefereeTier(db, userId),
-      priorMinutesToday,
+      priorMinutesToday: options?.priorMinutesToday,
+      priorDietMeals,
       extras: {
         refereeRunId: input.refereeRunId ?? null,
         citations: input.citations ?? [],
@@ -330,6 +352,7 @@ export async function goalProgressOn(
         payload: checkins.payload,
         occurredAt: checkins.occurredAt,
         isValid: checkins.isValid,
+        verdict: checkins.verdict,
       })
       .from(checkins)
       .where(
@@ -350,20 +373,19 @@ export async function goalProgressOn(
 }
 
 /**
- * 饮食全天结算与加餐硬覆盖（reconcileDailyDiet）：
- * - 当天早、午、晚三餐全部打卡后，按全天总分（含加餐修正）判定当日饮食是否有效（isValid）。
- * - 若后续有加餐（或修改某餐），重新计算全天总分并直接硬覆盖（Hard Overwrite）当日所有饮食记录的 isValid，不做软覆盖、不设回退。
+ * 饮食全天结算与加餐/删改硬覆盖（reconcileDailyDiet）：
+ * - 当天早、午、晚三餐集齐时，按 evaluateDietDay 统一计算全天总分，并将当日该目标下所有饮食记录同步写回全天 score、isValid 与 settled verdict。
+ * - 若后续有加餐、修改某餐或删除某餐（如删掉加餐恢复达标，或删掉一顿正餐退回 2/3 pending 态），实时重算并硬覆盖当日全部记录。
  */
 export async function reconcileDailyDiet(
   tx: DbOrTx,
   userId: string,
   goal: GoalRow,
   localDate: LocalDate,
-  currentRow: CheckinRow,
-): Promise<CheckinRow> {
+  currentRow: CheckinRow | null,
+): Promise<CheckinRow | null> {
   if (goal.module !== 'diet') return currentRow
-  // 若本次是通过「跳过本次打卡」整天豁免，不按单餐重算覆盖
-  if (currentRow.verdict?.metrics?.skipped === 1 && currentRow.isValid) {
+  if (currentRow?.verdict?.metrics?.skipped === 1 && currentRow.isValid) {
     return currentRow
   }
 
@@ -377,74 +399,71 @@ export async function reconcileDailyDiet(
         eq(checkins.localDate, localDate),
       ),
     )
-
-  let breakfast: number | null = null
-  let lunch: number | null = null
-  let dinner: number | null = null
-  const snacks: number[] = []
-
-  const rules = effectiveRules('diet', goal.refereeRules)
-  for (const r of dayRows) {
-    if (r.payload.module !== 'diet') continue
-    const s = r.score ?? (r.isValid ? rules.passScore + 0.5 : 0)
-    switch (r.payload.mealType) {
-      case 'breakfast':
-        breakfast = s
-        break
-      case 'lunch':
-        lunch = s
-        break
-      case 'dinner':
-        dinner = s
-        break
-      case 'snack':
-        snacks.push(s)
-        break
-    }
-  }
-
-  const dayEval = calcDietDayScore({ breakfast, lunch, dinner, snacks }, rules.passScore)
-  if (!dayEval.ready || dayEval.score === null) {
+  if (dayRows.length === 0) return currentRow
+  if (dayRows.some((r) => r.verdict?.metrics?.skipped === 1 && r.isValid)) {
     return currentRow
   }
 
-  const dailyScore = dayEval.score
-  const dailyValid = dayEval.isValid
-  const passStr = rules.passScore.toFixed(1)
+  const [tier, rules] = [
+    await loadRefereeTier(tx, userId),
+    effectiveRules('diet', goal.refereeRules),
+  ]
 
-  // 硬覆盖当日该饮食目标下所有记录的 isValid
-  await tx
-    .update(checkins)
-    .set({ isValid: dailyValid })
-    .where(
-      and(
-        eq(checkins.userId, userId),
-        eq(checkins.goalId, goal.id),
-        eq(checkins.localDate, localDate),
-      ),
-    )
-
-  if (currentRow.verdict) {
-    const nextVerdict: Verdict = {
-      ...currentRow.verdict,
-      isValid: dailyValid,
-      detail: dailyValid
-        ? `${currentRow.verdict.detail} · 全天总分 ${dailyScore.toFixed(1)} 分（达标）`
-        : `${currentRow.verdict.detail} · 全天总分 ${dailyScore.toFixed(1)} 分（未达 ${passStr} 分有效线）`,
-      metrics: {
-        ...currentRow.verdict.metrics,
-        dailyScore,
-      },
+  const entries = dayRows.flatMap((r) => {
+    if (r.payload.module !== 'diet') return []
+    const items = r.payload.items.map((i) => ({
+      name: i.name,
+      portion: i.portion ?? '',
+      kcal: i.kcal,
+    }))
+    const storedFacts = r.verdict?.facts?.module === 'diet' ? r.verdict.facts : null
+    const fasting = isFastingSubject({ items, note: r.note }, storedFacts?.dishes)
+    const facts = storedFacts ?? (fasting ? null : buildFallbackDietFacts(r.payload.items))
+    const meal: PriorDietMeal = {
+      mealType: r.payload.mealType,
+      items,
+      note: r.note,
+      dishes: facts ? facts.dishes : null,
     }
+    return [{ row: r, meal, facts }]
+  })
+
+  let updatedCurrent: CheckinRow | null = currentRow
+  for (const entry of entries) {
+    const otherMeals = entries.filter((e) => e.row.id !== entry.row.id).map((e) => e.meal)
+    const nextVerdict = judgeDiet(
+      {
+        mealType: entry.meal.mealType,
+        items: entry.meal.items,
+        note: entry.meal.note,
+      },
+      {
+        rules,
+        facts: entry.facts,
+        tier,
+        priorDietMeals: otherMeals,
+        extras: {
+          refereeRunId: entry.row.verdict?.refereeRunId ?? null,
+          citations: entry.row.verdict?.citations ?? [],
+          advice: entry.row.verdict?.advice ?? [],
+        },
+      },
+    )
     const [updated] = await tx
       .update(checkins)
-      .set({ isValid: dailyValid, verdict: nextVerdict })
-      .where(and(eq(checkins.id, currentRow.id), eq(checkins.userId, userId)))
+      .set({
+        score: nextVerdict.score,
+        isValid: nextVerdict.isValid,
+        verdict: nextVerdict,
+      })
+      .where(and(eq(checkins.id, entry.row.id), eq(checkins.userId, userId)))
       .returning(checkinColumns)
-    if (updated) return updated
+    if (updated && currentRow && entry.row.id === currentRow.id) {
+      updatedCurrent = updated
+    }
   }
 
-  return { ...currentRow, isValid: dailyValid }
+  return updatedCurrent
 }
 
 /**
@@ -547,7 +566,10 @@ export async function createCheckin(
                 .reduce((sum, r) => sum + (r.durationSeconds ?? 0), 0) / 60,
             )
           : undefined
-      const verdict = await judgeCheckin(tx, userId, goal, effectiveInput, clock, priorMinutesToday)
+      const verdict = await judgeCheckin(tx, userId, goal, effectiveInput, clock, {
+        priorMinutesToday,
+        localDate,
+      })
 
       const isSkippedApproved = Boolean(effectiveInput.skipReason?.trim()) && verdict.isValid
       const effectiveCount =
@@ -593,7 +615,7 @@ export async function createCheckin(
           .returning(checkinColumns)
         row = updated
         if (!row) throw new Error('createCheckin：覆盖更新没有返回行')
-        row = await reconcileDailyDiet(tx, userId, goal, localDate, row)
+        row = (await reconcileDailyDiet(tx, userId, goal, localDate, row)) ?? row
         const checkin = toCheckinDto(row)
         await recordRevision(tx, {
           userId,
@@ -643,7 +665,7 @@ export async function createCheckin(
           )
       }
 
-      row = await reconcileDailyDiet(tx, userId, goal, localDate, inserted)
+      row = (await reconcileDailyDiet(tx, userId, goal, localDate, inserted)) ?? inserted
       const checkin = toCheckinDto(row)
       await recordRevision(tx, {
         userId,

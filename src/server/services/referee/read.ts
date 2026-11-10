@@ -2,6 +2,7 @@ import 'server-only'
 import { and, desc, eq, gte } from 'drizzle-orm'
 import type { LocalDate } from '@/features/shared/schemas'
 import { addDays, localTimeOf } from '@/lib/time'
+import type { PriorDietMeal } from '@/features/referee/rules/common'
 import { bedtimeAxis } from '@/features/referee/rules/sleep'
 import type { DbOrTx } from '@/server/db/client'
 import { checkins } from '@/server/db/schema'
@@ -72,6 +73,46 @@ export async function todayStudyMinutes(
     )
     .limit(50)
   return Math.round(rows.reduce((s, r) => s + (r.seconds ?? 0), 0) / 60)
+}
+
+/** 某天这个饮食目标已入库的各餐次快照（供三餐汇总结算） */
+export async function todayDietMeals(
+  db: DbOrTx,
+  userId: string,
+  goalId: string,
+  localDate: LocalDate,
+): Promise<PriorDietMeal[]> {
+  const rows = await db
+    .select({
+      payload: checkins.payload,
+      note: checkins.note,
+      verdict: checkins.verdict,
+    })
+    .from(checkins)
+    .where(
+      and(
+        eq(checkins.userId, userId),
+        eq(checkins.goalId, goalId),
+        eq(checkins.localDate, localDate),
+      ),
+    )
+    .limit(20)
+  return rows.flatMap((r) =>
+    r.payload.module === 'diet'
+      ? [
+          {
+            mealType: r.payload.mealType,
+            items: r.payload.items.map((i) => ({
+              name: i.name,
+              portion: i.portion ?? '',
+              kcal: i.kcal,
+            })),
+            note: r.note,
+            dishes: r.verdict?.facts?.module === 'diet' ? r.verdict.facts.dishes : null,
+          },
+        ]
+      : [],
+  )
 }
 
 /** 这个目标最近的记录：日期、是否达标、一句话结论 */

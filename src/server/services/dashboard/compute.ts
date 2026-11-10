@@ -62,6 +62,8 @@ export interface GoalDay extends GoalWithProgress {
   target: { kind: TodayGoal['target']['kind']; value: number }
   /** 当天有没有打卡记录 */
   hasCheckins: boolean
+  /** 当天有打卡且全部属于已终判未达标（非待汇总 pending 态） */
+  archivedOnly: boolean
 }
 
 /**
@@ -81,6 +83,7 @@ export function goalDay(goal: DashboardGoal, date: LocalDate, index: CheckinInde
     progress: goalDayProgress(target, goal.module, ofDay),
     target: { kind: target.kind, value: target.value },
     hasCheckins: ofDay.length > 0,
+    archivedOnly: ofDay.length > 0 && ofDay.every((c) => !c.isValid && !c.pending),
   }
 }
 
@@ -146,7 +149,7 @@ export function buildHeatmap(
         states,
         states.map((s) => s.progress),
       )
-      archived.push(cell === 0 && states.some((s) => s.hasCheckins))
+      archived.push(cell === 0 && states.some((s) => s.archivedOnly))
       return cell
     })
     return { module, cells, archived }

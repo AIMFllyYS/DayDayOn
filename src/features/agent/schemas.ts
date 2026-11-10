@@ -1,4 +1,5 @@
 import * as z from 'zod'
+import { SettlementStageSchema } from '@/features/referee/schemas'
 import { IdSchema, InstantSchema, ModuleSchema } from '@/features/shared/schemas'
 
 /*
@@ -36,6 +37,9 @@ export type DraftItem = z.infer<typeof DraftItemSchema>
 export const DraftVerdictSchema = z
   .object({
     isValid: z.boolean(),
+    settlement: SettlementStageSchema.optional(),
+    mealsLogged: z.number().int().optional(),
+    mealsRequired: z.number().int().optional(),
     score: z.number().nullable(),
     scoreMax: z.number().nullable(),
     detail: z.string(),

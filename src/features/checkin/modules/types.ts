@@ -17,6 +17,10 @@ import type { SmartRecognitionDraft } from '../smart-schemas'
 export interface ModuleFormApi {
   /** Tab 栏下面常驻的主选择器（饮食的餐次） */
   selector?: ReactNode
+  /** 主选择器下方的当日周期汇总条（饮食三餐进度或全天总分回显） */
+  statusBanner?: ReactNode
+  /** 当日尚有未打卡子维度时的快捷切换动作（如「继续记午餐」） */
+  nextPendingAction?: { label: string; activate: () => void } | null
   /** 当前激活的子维度键值（饮食的 mealType），切换时用于同步该子维度的已入库状态 */
   activeKey?: string
   /** 当前填写的备注文本（供智能拍照/智能上传扫描镜共享上下文） */

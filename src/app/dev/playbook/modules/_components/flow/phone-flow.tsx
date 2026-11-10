@@ -174,7 +174,11 @@ export function PhoneFlow({
   }
 
   function confirm() {
-    if (verdict.passed) setBonus((b) => b + 1)
+    if (verdict.pending) {
+      resetAfterDone()
+      return
+    }
+    if (verdict.passed) setBonus(1)
     setPopup(true)
   }
 
@@ -335,16 +339,22 @@ export function PhoneFlow({
                 </Button>
               ) : (
                 <Button
-                  variant={agent === 'done' && !verdict.passed ? 'secondary' : 'primary'}
-                  icon={agent === 'done' && !verdict.passed ? 'alert' : 'check'}
+                  variant={
+                    agent === 'done' && !verdict.passed && !verdict.pending
+                      ? 'secondary'
+                      : 'primary'
+                  }
+                  icon={agent === 'done' && !verdict.passed && !verdict.pending ? 'alert' : 'check'}
                   className="w-full"
                   disabled={agent !== 'done'}
                   onClick={confirm}
                   data-ann="playbook.modules.flow.submit"
                 >
-                  {agent === 'done' && !verdict.passed
-                    ? '仅保存记录（不计有效打卡）'
-                    : '确认有效打卡'}
+                  {verdict.pending
+                    ? `保存本餐记录（${verdict.score ?? '待汇总'}）`
+                    : agent === 'done' && !verdict.passed
+                      ? '仅保存记录（不计有效打卡）'
+                      : '确认有效打卡'}
                 </Button>
               )}
             </div>
@@ -426,9 +436,44 @@ export function PhoneFlow({
             </div>
             <div>
               <p className="text-subhead font-bold">
-                {verdict.passed ? '打卡成功，连击 +1' : '已存档，今天先不盖章'}
+                {verdict.dailySummary
+                  ? verdict.passed
+                    ? '今日三餐集齐！打卡成功，连击 +1'
+                    : '今日三餐已汇总存档，暂未达有效线'
+                  : verdict.passed
+                    ? '打卡成功，连击 +1'
+                    : '已存档，今天先不盖章'}
               </p>
             </div>
+            {verdict.dailySummary && (
+              <div className="border-border bg-surface-sunken/80 flex w-full flex-col gap-2 rounded-2xl border p-3 text-left">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-caption font-bold">今日饮食全天总分</span>
+                  <span className="font-display text-heading font-bold tabular-nums">
+                    {verdict.dailySummary.totalScore}
+                    <span className="text-tiny text-muted ml-1 font-semibold">/ 5.0 分</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 text-center">
+                  {[
+                    { label: '早餐', val: verdict.dailySummary.breakfastKcal },
+                    { label: '午餐', val: verdict.dailySummary.lunchKcal },
+                    { label: '晚餐', val: verdict.dailySummary.dinnerKcal },
+                  ].map((m) => (
+                    <div
+                      key={m.label}
+                      className="border-border bg-surface flex flex-col rounded-xl border px-2 py-1.5"
+                    >
+                      <span className="text-tiny text-muted">{m.label}</span>
+                      <span className="text-tiny font-display font-bold tabular-nums">{m.val}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-tiny text-muted border-border border-t pt-1.5 text-center">
+                  {verdict.dailySummary.footer}
+                </p>
+              </div>
+            )}
             <div className="flex w-full flex-col gap-2">
               <Button
                 icon="chart"
@@ -625,6 +670,31 @@ function ReportDivider() {
 
 /** 评分结论卡：达标 = 绿，未达标 = 红；有分数时右侧放大显示 */
 function VerdictCard({ verdict }: { verdict: Verdict }) {
+  if (verdict.pending) {
+    return (
+      <div
+        role="status"
+        data-ann="playbook.modules.flow.verdict"
+        className="border-diet/40 bg-diet-soft text-diet-ink flex items-center gap-3 rounded-xl border px-3 py-2.5"
+      >
+        <span className="bg-diet text-on-primary grid size-8 shrink-0 place-items-center rounded-full">
+          <Icon name="clock" size={16} lineOnly strokeWidth={2.4} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="text-caption font-bold">本餐已解析 · 待三餐汇总</span>
+          <span className="text-tiny leading-snug opacity-90">{verdict.detail}</span>
+        </span>
+        {verdict.score && (
+          <span className="font-display flex shrink-0 flex-col items-end leading-none font-bold">
+            <span className="text-subhead tabular-nums">{verdict.score}</span>
+            {verdict.scoreHint && (
+              <span className="text-tiny mt-1 font-semibold opacity-80">{verdict.scoreHint}</span>
+            )}
+          </span>
+        )}
+      </div>
+    )
+  }
   return (
     <div
       role="status"
