@@ -1,5 +1,6 @@
 import 'server-only'
 import { Hono } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import { createRoute, OpenAPIHono, type z } from '@hono/zod-openapi'
 import * as zz from 'zod'
 import {
@@ -8,6 +9,7 @@ import {
   ConversationIdParamSchema,
   RenameConversationSchema,
 } from '@/features/agent/schemas'
+import { validateInlineJpegDataUrl } from '@/server/ai/image'
 import { loadConversationMessages, streamAgentChat } from '@/server/ai/run-agent'
 import {
   deleteConversation,
@@ -16,6 +18,7 @@ import {
   renameConversation,
 } from '@/server/services/agent/conversations'
 import type { AppEnv } from '../app'
+import { ApiError } from '../errors'
 import { requireOnboarded, requireUser } from '../middleware/auth'
 import { rateLimit } from '../middleware/rate-limit'
 import { AUTH_ERRORS, errorResponses } from '../schemas'
@@ -99,11 +102,42 @@ const deleteRoute = createRoute({
   },
 })
 
+const AGENT_CHAT_MAX_BODY_BYTES = 11 * 1024 * 1024
+const chatTooLarge = new ApiError(
+  'PAYLOAD_TOO_LARGE',
+  '对话附件体积超过上限（最多 2 张图片，单张不超过 4 MB）',
+)
+
+function validateChatMessageFileParts(parts: readonly unknown[]): void {
+  let imageCount = 0
+  for (const part of parts) {
+    if (typeof part !== 'object' || part === null) continue
+    const rec = part as { type?: unknown; mediaType?: unknown; url?: unknown }
+    if (rec.type !== 'file') continue
+    imageCount += 1
+    if (imageCount > 2) {
+      throw new ApiError('VALIDATION_FAILED', '单次对话最多同时上传 2 张图片', {
+        fields: { message: ['单次对话最多同时上传 2 张图片'] },
+      })
+    }
+    if (rec.mediaType !== 'image/jpeg') {
+      throw new ApiError('VALIDATION_FAILED', '只接受 image/jpeg 图片', {
+        fields: { message: ['图片格式不对，请重新选择'] },
+      })
+    }
+    validateInlineJpegDataUrl(rec.url)
+  }
+}
+
 /** 流式接口单独挂：`.post()` 会丢失 OpenAPIHono 的类型，合并到 OpenAPI 子应用里 */
 const agentChat = new Hono<AppEnv>().post(
   '/agent/chat',
   requireUser,
   requireOnboarded,
+  bodyLimit({
+    maxSize: AGENT_CHAT_MAX_BODY_BYTES,
+    onError: (c) => c.json(chatTooLarge.toBody(), chatTooLarge.status),
+  }),
   rateLimit({ rule: { name: 'agent-chat-minute', windowSeconds: 60, max: 6 }, by: 'user' }),
   async (c) => {
     const raw = await c.req.json().catch(() => null)
@@ -119,6 +153,7 @@ const agentChat = new Hono<AppEnv>().post(
       )
     }
     const { id, message, deepThink, idempotencyKey } = parsed.data
+    validateChatMessageFileParts(message.parts)
     const previous = await loadConversationMessages(c.get('user').id, id, { allowMissing: true })
     const history = previous.filter((m) => m.id !== message.id)
     type ChatMessage = Parameters<typeof streamAgentChat>[0]['messages'][number]

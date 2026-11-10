@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { FileUIPart } from 'ai'
 import { Icon } from '@/components/ui/icon'
-import { PhotoAlbumSheet } from '@/components/ui/photo-album-sheet'
 import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/cn'
 import { newIdempotencyKey } from '@/lib/api/fetcher'
@@ -14,18 +13,20 @@ import { useAgentChat } from '../chat-context'
 
 /*
  * Agent 输入框：
- * - 单行设计：左侧小拍摄按钮、中间输入文字、右侧小发送按钮。
- * - 默认展示 1 行（约 24px），超出后自动平滑扩展至最多 5 行（约 120px），再超出滚动。
- * - 「深度思考」按钮悬浮于输入框之上，AI 输出中自动隐藏。
- * - 图片走现有压缩管线（内存压缩 JPEG 发送，不落盘）；Enter 发送、Shift+Enter 换行。
+ * - 单行设计：左侧「上传图片或文件」按钮、中间自适应输入框、右侧发送/停止按钮。
+ * - 双端统一直接调用系统原生文件管理器（<input type="file" multiple>），支持同时选择图片（最多 2 张）与 .txt/.md/.csv 文本附件，
+ *   不再错误弹出纯相册组件 PhotoAlbumSheet。
+ * - 选完图片后在输入框上方展示真实圆角缩略图（支持单张独立移除）；发送后在当次对话气泡内直接渲染预览（内存压缩，绝不落盘）。
  */
 
 const TEXT_FILE_MAX = 50_000
+const AGENT_FILE_ACCEPT = 'image/*,text/plain,text/markdown,text/csv,.txt,.md,.csv'
 
 interface Attachment {
   id: string
   kind: 'image' | 'text'
   label: string
+  previewUrl?: string
   file?: FileUIPart
   text?: string
 }
@@ -52,7 +53,6 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
   const [input, setInput] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [attachError, setAttachError] = useState<string | null>(null)
-  const [albumOpen, setAlbumOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputRowRef = useRef<HTMLDivElement>(null)
@@ -94,11 +94,12 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
     if (!files || files.length === 0) return
     setAttachError(null)
     const rawArray = Array.from(files)
-    const imageFiles = rawArray.filter((f) => f.type.startsWith('image/'))
-    if (imageFiles.length > 2) {
-      toast.info(`已选 ${imageFiles.length} 张照片，单次最多同时上传前 2 张～`)
+    const existingImageCount = attachments.filter((x) => x.kind === 'image').length
+    const incomingImages = rawArray.filter((f) => f.type.startsWith('image/'))
+    if (existingImageCount + incomingImages.length > 2) {
+      toast.info('单次对话最多同时附带 2 张图片～')
     }
-    let imageQuota = 2
+    let imageQuota = Math.max(0, 2 - existingImageCount)
     const next: Attachment[] = []
     for (const file of rawArray) {
       try {
@@ -111,6 +112,7 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
             id: crypto.randomUUID(),
             kind: 'image',
             label: file.name || '图片',
+            previewUrl: url,
             file: { type: 'file', mediaType: 'image/jpeg', url, filename: 'image.jpg' },
           })
         } else {
@@ -166,25 +168,22 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
     }
   }
 
+  const imageAtts = attachments.filter((a) => a.kind === 'image')
+  const textAtts = attachments.filter((a) => a.kind !== 'image')
+
   return (
     <div className={cn('relative flex flex-col gap-1.5', className)}>
       <input
         ref={fileRef}
         type="file"
-        accept="image/*,text/plain,text/markdown,.txt,.md,.csv"
+        accept={AGENT_FILE_ACCEPT}
         multiple
-        hidden
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
         onChange={(e) => {
           void onPick(e.target.files)
           e.target.value = ''
-        }}
-      />
-      <PhotoAlbumSheet
-        open={albumOpen}
-        onOpenChange={setAlbumOpen}
-        maxSelect={9}
-        onConfirm={(files) => {
-          void onPick(files)
         }}
       />
 
@@ -213,69 +212,61 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
         </button>
       </div>
 
-      {attachments.length > 0 &&
-        (() => {
-          const imageAtts = attachments.filter((a) => a.kind === 'image')
-          const firstImage = imageAtts[0]
-          const textAtts = attachments.filter((a) => a.kind !== 'image')
-          return (
-            <ul className="pointer-events-auto flex flex-wrap gap-1.5 px-1">
-              {firstImage && (
-                <li
-                  key={firstImage.id}
-                  className="bg-surface-sunken text-tiny text-muted flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1"
-                >
-                  <Icon name="camera" size={12} lineOnly />
-                  <span className="truncate">{firstImage.label}</span>
-                  {imageAtts.length > 1 && (
-                    <span className="bg-primary-soft text-primary-ink rounded-full px-1.5 py-0.5 font-semibold">
-                      共 {imageAtts.length} 张 · 默认展示首图
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    aria-label="移除已选图片"
-                    onClick={() => setAttachments((prev) => prev.filter((x) => x.kind !== 'image'))}
-                  >
-                    <Icon name="x" size={12} className="text-subtle" />
-                  </button>
-                </li>
-              )}
-              {textAtts.map((a) => (
-                <li
-                  key={a.id}
-                  className="bg-surface-sunken text-tiny text-muted flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1"
-                >
-                  <Icon name="copy" size={12} lineOnly />
-                  <span className="truncate">{a.label}</span>
-                  <button
-                    type="button"
-                    aria-label={`移除 ${a.label}`}
-                    onClick={() => setAttachments((prev) => prev.filter((x) => x.id !== a.id))}
-                  >
-                    <Icon name="x" size={12} className="text-subtle" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )
-        })()}
+      {(imageAtts.length > 0 || textAtts.length > 0) && (
+        <ul className="pointer-events-auto flex flex-wrap items-center gap-2 px-1">
+          {imageAtts.map((img) => (
+            <li key={img.id} className="relative">
+              <div className="border-border bg-surface-sunken shadow-soft size-12 overflow-hidden rounded-xl border">
+                {img.previewUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element -- 待发送内存压缩图片缩略图
+                  <img src={img.previewUrl} alt={img.label} className="size-full object-cover" />
+                )}
+              </div>
+              <button
+                type="button"
+                aria-label={`移除图片 ${img.label}`}
+                onClick={() => setAttachments((prev) => prev.filter((x) => x.id !== img.id))}
+                className="bg-foreground/80 text-on-primary absolute -top-1.5 -right-1.5 flex size-4.5 items-center justify-center rounded-full shadow-xs transition-transform active:scale-90"
+              >
+                <Icon name="x" size={10} lineOnly />
+              </button>
+            </li>
+          ))}
+          {textAtts.map((a) => (
+            <li
+              key={a.id}
+              className="bg-surface-sunken text-tiny text-muted flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1"
+            >
+              <Icon name="copy" size={12} lineOnly />
+              <span className="truncate">{a.label}</span>
+              <button
+                type="button"
+                aria-label={`移除 ${a.label}`}
+                onClick={() => setAttachments((prev) => prev.filter((x) => x.id !== a.id))}
+              >
+                <Icon name="x" size={12} className="text-subtle" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {attachError && (
         <p className="text-tiny text-danger-ink pointer-events-auto px-1">{attachError}</p>
       )}
 
-      {/* 单行输入框主体：左侧小拍摄按钮、中间输入文字、右侧小发送按钮 */}
+      {/* 单行输入框主体：左侧原生文件管理上传按钮、中间文字输入、右侧发送按钮 */}
       <div
         ref={inputRowRef}
         className="border-border bg-surface shadow-soft pointer-events-auto flex items-center gap-1.5 rounded-2xl border px-2 py-1"
       >
         <button
           type="button"
-          aria-label="添加图片或文件"
-          onClick={() => setAlbumOpen(true)}
-          className="text-muted hover:text-foreground hover:bg-surface-sunken flex size-7 shrink-0 items-center justify-center rounded-full transition-colors active:scale-95"
+          aria-label="上传图片或文件"
+          disabled={busy}
+          onClick={() => fileRef.current?.click()}
+          className="text-muted hover:text-foreground hover:bg-surface-sunken flex size-7 shrink-0 items-center justify-center rounded-full transition-colors active:scale-95 disabled:opacity-40"
         >
-          <Icon name="camera" size={15} lineOnly />
+          <Icon name="plus" size={16} lineOnly />
         </button>
 
         <textarea
@@ -287,8 +278,8 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
           style={{ height: '24px' }}
           placeholder={
             variant === 'panel'
-              ? `和${pet.name}说点什么…`
-              : `和${pet.name}说点什么，比如「我今天跑了 3 公里」`
+              ? `和${pet.name}说点什么，或点左侧传图…`
+              : `和${pet.name}说点什么，或上传餐盘/运动照片…`
           }
           className="text-body text-foreground placeholder:text-subtle max-h-[7.5rem] min-h-[1.5rem] w-full min-w-0 flex-1 resize-none bg-transparent px-1 py-0 leading-6 outline-none"
         />

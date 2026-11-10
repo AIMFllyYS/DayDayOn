@@ -157,10 +157,16 @@ export function AgentChatProvider({
   const send = useCallback<AgentChat['send']>(
     (text, files, options) => {
       clearError()
-      void sendMessage(
-        { text, files },
-        { body: { deepThink: options.deepThink, idempotencyKey: options.idempotencyKey } },
-      )
+      const trimmed = text.trim()
+      const payload =
+        files && files.length > 0
+          ? trimmed.length > 0
+            ? { text: trimmed, files }
+            : { files }
+          : { text: trimmed }
+      void sendMessage(payload, {
+        body: { deepThink: options.deepThink, idempotencyKey: options.idempotencyKey },
+      })
     },
     [clearError, sendMessage],
   )
