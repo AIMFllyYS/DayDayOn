@@ -9,10 +9,14 @@ import {
 
 export const metadata: Metadata = { title: '智能识别' }
 
-/** 全局智能识别与历史拍摄记录页（支持智能拍照、智能上传图片/TXT/HTML 附件与历史记录回看） */
+/**
+ * 全局智能识别与历史拍摄记录页：
+ * - 开启 fitViewport + flush，保留顶栏「智能识别」返回键与右上角历史记录按钮；
+ * - 扫描识别出所属板块与目标后，下方原地挂载唯一核心引擎 CheckinFlow（共享表单、报告折页、团团裁判与庆祝弹窗）。
+ */
 export default function Page({ searchParams }: PageProps<'/checkin/smart'>) {
   return (
-    <AppPage title="智能识别" backHref="/" actions={<SmartTopBarActions />}>
+    <AppPage title="智能识别" backHref="/" fitViewport flush actions={<SmartTopBarActions />}>
       <Suspense fallback={<PageSkeleton />}>
         <SmartCheckinRoute searchParams={searchParams} />
       </Suspense>

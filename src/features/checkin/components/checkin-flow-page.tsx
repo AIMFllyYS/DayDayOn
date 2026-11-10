@@ -28,7 +28,7 @@ import type { CheckinInputMode } from './smart-scanner'
 const MILESTONES = [7, 14, 21, 30, 60, 100, 200, 365]
 
 /** 周期环：设了截止日期按 起始 → 截止；没设就取下一个里程碑（7、14、21、30…天） */
-function periodOf(validDays: number, startDate: string, deadline: string | null) {
+export function periodOf(validDays: number, startDate: string, deadline: string | null) {
   if (deadline && deadline >= startDate) {
     return { done: validDays, total: Math.max(1, daysBetween(startDate, deadline) + 1) }
   }

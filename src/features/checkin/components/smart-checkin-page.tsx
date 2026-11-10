@@ -1,29 +1,32 @@
 'use client'
 
-import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { Mascot } from '@/components/mascot/mascot'
-import { Badge, IconTile } from '@/components/ui/badge'
-import { Button, IconButton } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Input } from '@/components/ui/field'
-import type { FormErrors } from '@/components/ui/form'
-import { ProgressBar } from '@/components/ui/progress'
+import { IconButton } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Stamp } from '@/components/ui/stamp'
 import { toast } from '@/components/ui/toast'
 import { moduleMeta } from '@/components/ui/tone'
 import { GoalLinkButton } from '@/features/goal/components/goal-link-button'
 import type { Module } from '@/features/shared/schemas'
 import { errorMessage, isApiError, newIdempotencyKey, useQuery } from '@/lib/api'
-import { checkinMeQuery, checkinTodayQuery, useCreateCheckin } from '@/lib/api/queries/checkins'
+import {
+  checkinDayQuery,
+  checkinGoalQuery,
+  checkinMeQuery,
+  checkinTodayQuery,
+  useCreateCheckin,
+} from '@/lib/api/queries/checkins'
 import { goalListQuery } from '@/lib/api/queries/goals'
 import { cn } from '@/lib/cn'
 import { BUSINESS_TIME_ZONE } from '@/lib/time'
-import { mealLabel, progressText, targetText } from '../format'
-import type { CreateCheckinInput, GoalProgress, MealType } from '../schemas'
+import { CheckinFlow } from '../flow/checkin-flow'
+import { FillSection } from '../flow/fill-section'
+import { moduleDef } from '../modules/registry'
+import type { Checkin, CreateCheckinInput } from '../schemas'
 import {
   deleteSmartHistoryRecord,
   getSmartHistoryRecord,
@@ -40,29 +43,20 @@ import {
   type SmartInputMode,
 } from '../smart-handoff'
 import type { SmartRecognitionResult } from '../smart-schemas'
-import { DietForm } from './diet-form'
-import type { ModuleFormProps, SmartFillContext } from './form-types'
-import { CustomForm, ExerciseForm, SleepForm, StudyForm } from './module-forms'
+import { periodOf } from './checkin-flow-page'
 import { SmartHistoryDetailView, SmartHistoryListView } from './smart-history-view'
-import {
-  SmartMagicTurnBanner,
-  SmartPartitionSearchLoader,
-  useMagicStreamFill,
-} from './smart-magic-stream'
-import { SmartModuleDetector, SmartScannerLens } from './smart-scanner'
-import { FillSection } from '../flow/fill-section'
+import { SmartPartitionSearchLoader } from './smart-magic-stream'
+import { SmartModuleDetector, SmartScannerLens, type SmartScannerSnapshot } from './smart-scanner'
 
 /*
- * 全局智能识别与历史记录页（/checkin/smart）：
- * 1. 实时扫描视图（scanner）：
- *    - 未扫描前（idle）：只展示 SmartScannerLens 扫描镜；
- *    - 扫描进行中（scanning）：扫描条上下往返 + 1/2/3 步骤转圈 + SmartPartitionSearchLoader 分区搜索动画；
- *    - 识别完成后（done）：锁定识别分区 + Agent 流式魔法输出摘要 + 表单各字段按序流式填入；
- *    - 未确认记录直接退出时，触发二次确认弹窗并提示可在右上角查看历史拍摄记录。
- * 2. 历史记录列表视图（history）：
- *    - 顶部概要与双栏操作卡 + 下方触底类表格容器（SmartHistoryListView）。
- * 3. 历史记录只读详情视图（history-detail）：
- *    - 从历史列表点选进入纯只读模式（SmartHistoryDetailView），点击返回直接回退到历史列表，绝不弹确认退出框。
+ * 全局智能识别与历史记录页（/checkin/smart · 方案 A 唯一核心复用）：
+ * 1. 待扫描 / 扫描进行中（idle / scanning）：
+ *    - 展示统一的 SmartScannerLens（网页端直接拉系统多选文件管理器，安卓端走流式缩略图相册或原生高清相机）+ 备注框 + 分区搜索动画；
+ * 2. 识别完成后（done / manual）：
+ *    - 顶部保留一行 SmartModuleDetector 5 板块切换胶囊条（防误判秒切）+ 同板块多目标切换；
+ *    - 下方原地直接挂载与 /goals/[goalId]/checkin 100% 同源的 <CheckinFlow>！
+ *      完整复用对应打卡板块的折叠表单、今日已打记录回填、FolderCard 分析报告折页、团团流式裁判抽屉与庆祝盖章弹窗。
+ * 3. 历史记录列表与只读详情（history / history-detail）：只读回看历史识别快照。
  */
 
 export function SmartTopBarActions() {
@@ -88,6 +82,7 @@ export function SmartCheckinPage({
   initialView?: 'scanner' | 'history'
   initialRecordId?: string
 }) {
+  const router = useRouter()
   const goals = useQuery(goalListQuery('active'))
   const today = useQuery(checkinTodayQuery())
   const me = useQuery(checkinMeQuery())
@@ -107,25 +102,23 @@ export function SmartCheckinPage({
   const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(initialRecord?.id ?? null)
   const [selectedModule, setSelectedModule] = useState<Module>('diet')
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
-  const [smartContext, setSmartContext] = useState<SmartFillContext | null>(null)
+  const [smartSnapshot, setSmartSnapshot] = useState<{
+    result: SmartRecognitionResult
+    preview?: SmartScannerSnapshot | null
+  } | null>(null)
+  const [confirmedCurrent, setConfirmedCurrent] = useState(false)
   const [scanNote, setScanNote] = useState('')
   const [noteOpen, setNoteOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [errors, setErrors] = useState<FormErrors>()
-  const [done, setDone] = useState<{
-    goalId: string
-    localDate: string
-    progress: GoalProgress
-    goalTitle: string
-    module: Module
-    targetKind: 'duration' | 'count'
-    mealType?: MealType
-    isValid: boolean
-    pending: boolean
-    score: number | null
-  } | null>(null)
-  const [key, setKey] = useState(newIdempotencyKey)
-  const [lastBody, setLastBody] = useState<string | null>(null)
+
+  const subPageBackRef = useRef<(() => boolean) | null>(null)
+  const registerSubPageBack = useCallback((handler: () => boolean) => {
+    subPageBackRef.current = handler
+    return () => {
+      if (subPageBackRef.current === handler) {
+        subPageBackRef.current = null
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (initialRecordId && getSmartHistoryRecord(initialRecordId)) {
@@ -135,10 +128,12 @@ export function SmartCheckinPage({
     }
   }, [initialView, initialRecordId])
 
-  // 注册顶栏左上角返回键拦截器：
-  // 处于只读历史详情（history-detail）时，点击返回直接回退到历史记录列表（history），绝不弹退出确认弹窗
+  // 顶栏返回键拦截：先响应 CheckinFlow 内部二级页（达标规则/评判依据/完整报告），其次响应历史只读详情返回列表
   useEffect(() => {
     return registerSmartBackHandler(() => {
+      if (getSmartPageViewMode() === 'scanner' && subPageBackRef.current?.()) {
+        return true
+      }
       if (getSmartPageViewMode() === 'history-detail') {
         setSmartPageViewMode('history')
         return true
@@ -147,15 +142,8 @@ export function SmartCheckinPage({
     })
   }, [])
 
-  const viewingHistoryRecord = viewingHistoryId
-    ? (historyRecords.find((r) => r.id === viewingHistoryId) ?? null)
-    : null
-
-  const magic = useMagicStreamFill(viewMode === 'scanner' ? smartContext : null)
-
-  // 未确认记录退出守卫：仅当处于实时扫描视图（scanner）且刚识别出结果尚未确认入库时才激活
   const shouldGuardExit = Boolean(
-    viewMode === 'scanner' && scanPhase === 'done' && smartContext && !done,
+    viewMode === 'scanner' && scanPhase === 'done' && smartSnapshot && !confirmedCurrent,
   )
 
   useEffect(() => {
@@ -165,6 +153,22 @@ export function SmartCheckinPage({
     }
   }, [shouldGuardExit])
 
+  const allGoals = goals.data?.items ?? []
+  const moduleGoals = allGoals.filter((g) => g.module === selectedModule)
+  const activeGoalBrief = moduleGoals.find((g) => g.id === selectedGoalId) ?? moduleGoals[0] ?? null
+  const localDate = today.data?.localDate ?? ''
+  const showWorkspace =
+    viewMode === 'scanner' && (scanPhase === 'done' || scanPhase === 'manual') && activeGoalBrief
+
+  const goalDetail = useQuery({
+    ...checkinGoalQuery(activeGoalBrief?.id ?? ''),
+    enabled: Boolean(showWorkspace && activeGoalBrief?.id),
+  })
+  const dayCheckins = useQuery({
+    ...checkinDayQuery(activeGoalBrief?.id ?? '', localDate),
+    enabled: Boolean(showWorkspace && activeGoalBrief?.id && localDate),
+  })
+
   if (goals.isPending || today.isPending || me.isPending) {
     return <SmartCheckinSkeleton />
   }
@@ -172,90 +176,41 @@ export function SmartCheckinPage({
   const error = goals.error ?? today.error ?? me.error
   if (error || !goals.data || !today.data || !me.data) {
     return (
-      <ErrorState
-        title="智能识别页没加载出来"
-        message={isApiError(error) ? errorMessage(error) : undefined}
-        retrying={goals.isRefetching || today.isRefetching || me.isRefetching}
-        onRetry={() => {
-          void goals.refetch()
-          void today.refetch()
-          void me.refetch()
-        }}
-      />
+      <div className="px-4 pt-6">
+        <ErrorState
+          title="智能识别页没加载出来"
+          message={isApiError(error) ? errorMessage(error) : undefined}
+          retrying={goals.isRefetching || today.isRefetching || me.isRefetching}
+          onRetry={() => {
+            void goals.refetch()
+            void today.refetch()
+            void me.refetch()
+          }}
+        />
+      </div>
     )
   }
 
   const timeZone = me.data.profile.timeZone ?? BUSINESS_TIME_ZONE
-  const allGoals = goals.data.items
-  const moduleGoals = allGoals.filter((g) => g.module === selectedModule)
-  const activeGoal = moduleGoals.find((g) => g.id === selectedGoalId) ?? moduleGoals[0] ?? null
+  const viewingHistoryRecord = viewingHistoryId
+    ? (historyRecords.find((r) => r.id === viewingHistoryId) ?? null)
+    : null
 
-  function handleRecognized(res: SmartRecognitionResult, savedRecord: SmartHistoryRecord) {
+  function handleRecognized(
+    res: SmartRecognitionResult,
+    savedRecord: SmartHistoryRecord,
+    preview?: SmartScannerSnapshot,
+  ) {
     setViewingHistoryId(null)
     setActiveMode(savedRecord.mode)
-    setSmartContext(res)
+    setSmartSnapshot({ result: res, preview })
     setSelectedModule(res.draft.detectedModule)
     setSelectedGoalId(res.draft.matchedGoalId)
+    setConfirmedCurrent(false)
     setScanPhase('done')
-    setErrors(undefined)
-    setDone(null)
   }
 
-  function handleSelectHistoryRecord(record: SmartHistoryRecord) {
-    setViewingHistoryId(record.id)
-    setSmartPageViewMode('history-detail')
-  }
-
-  async function handleSubmit(input: CreateCheckinInput) {
-    if (!activeGoal || submitting) return
-    magic.finishImmediately()
-    setSubmitting(true)
-    setErrors(undefined)
-    try {
-      const bodyStr = JSON.stringify(input)
-      let k = key
-      if (lastBody !== null && lastBody !== bodyStr) {
-        k = newIdempotencyKey()
-        setKey(k)
-      }
-      setLastBody(bodyStr)
-      const result = await create.mutateAsync({
-        goalId: activeGoal.id,
-        input,
-        idempotencyKey: k,
-      })
-      if (smartContext) {
-        markSmartHistoryConfirmed(smartContext.aiRunId, activeGoal.title)
-      }
-      setUnconfirmedSmartRecord(false)
-      setKey(newIdempotencyKey())
-      setLastBody(null)
-      setDone({
-        goalId: activeGoal.id,
-        localDate: result.checkin.localDate,
-        progress: result.progress,
-        goalTitle: activeGoal.title,
-        module: activeGoal.module,
-        targetKind: activeGoal.target.kind,
-        mealType: input.module === 'diet' ? input.mealType : undefined,
-        isValid: result.checkin.isValid,
-        pending: result.checkin.verdict?.settlement === 'pending',
-        score: result.checkin.score,
-      })
-    } catch (e) {
-      if (isApiError(e) && e.fields) {
-        setErrors(e.fields)
-        const firstMsg = Object.values(e.fields).flat().find(Boolean)
-        toast.error(firstMsg ?? errorMessage(e))
-      } else {
-        toast.error(isApiError(e) ? errorMessage(e) : '出了点小状况，稍后再试试')
-      }
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  // 1. 历史记录只读详情视图：点选历史记录后进入纯只读模式，退出直接回退历史列表
+  // 1. 历史记录只读详情视图
   if (viewMode === 'history-detail' && viewingHistoryRecord) {
     return (
       <SmartHistoryDetailView
@@ -266,14 +221,17 @@ export function SmartCheckinPage({
     )
   }
 
-  // 2. 历史记录单页列表视图：顶部操作卡片 + 下方触底表格容器
+  // 2. 历史记录单页列表视图
   if (viewMode === 'history' || (viewMode === 'history-detail' && !viewingHistoryRecord)) {
     return (
       <SmartHistoryListView
         records={historyRecords}
         activeRecordId={viewingHistoryId}
         timeZone={timeZone}
-        onSelectRecord={handleSelectHistoryRecord}
+        onSelectRecord={(record) => {
+          setViewingHistoryId(record.id)
+          setSmartPageViewMode('history-detail')
+        }}
         onDeleteRecord={(id) => {
           deleteSmartHistoryRecord(id)
           if (viewingHistoryId === id) {
@@ -284,7 +242,9 @@ export function SmartCheckinPage({
         onStartNewScan={(file, mode, files) => {
           setViewingHistoryId(null)
           setActiveMode(mode)
-          setDone(null)
+          setConfirmedCurrent(false)
+          setSmartSnapshot(null)
+          setScanPhase('scanning')
           setPendingSmartCapture({ file, files, mode })
           setSmartPageViewMode('scanner')
         }}
@@ -292,125 +252,148 @@ export function SmartCheckinPage({
     )
   }
 
-  if (done) {
-    const [, mm, dd] = done.localDate.split('-')
-    const stamped = !done.pending && done.isValid && done.progress.done
-    return (
-      <div className="flex flex-col items-center gap-3 py-10 text-center" aria-live="polite">
-        <div className="relative">
-          <Mascot
-            mood={stamped ? 'cheer' : done.pending ? 'happy' : done.isValid ? 'happy' : 'sleepy'}
-            size={120}
-          />
-          {stamped && (
-            <Stamp
-              caption={`${mm}.${dd}`}
-              tone={done.module}
-              animate
-              size={72}
-              className="absolute -top-2 -right-12"
+  const switcherSlot = (
+    <div className="flex flex-col gap-2">
+      <SmartModuleDetector
+        selectedModule={selectedModule}
+        onSelectModule={(m) => {
+          setSelectedModule(m)
+          setSelectedGoalId(null)
+        }}
+      />
+      {moduleGoals.length > 1 && activeGoalBrief && (
+        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="选择具体目标">
+          {moduleGoals.map((g) => {
+            const isSelected = g.id === activeGoalBrief.id
+            return (
+              <button
+                key={g.id}
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
+                onClick={() => setSelectedGoalId(g.id)}
+                className={cn(
+                  'text-tiny rounded-full px-2.5 py-1 font-semibold transition-colors',
+                  isSelected
+                    ? 'bg-primary-soft text-primary-ink font-bold'
+                    : 'bg-surface-sunken text-muted hover:text-foreground',
+                )}
+              >
+                {g.title}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+
+  // 3. 识别完成后（方案 A）：原地直接挂载对应板块的唯一核心引擎 CheckinFlow
+  if (scanPhase === 'done' || scanPhase === 'manual') {
+    if (!activeGoalBrief) {
+      return (
+        <div className="mx-auto flex w-full max-w-lg min-w-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pt-2 pb-8">
+          {switcherSlot}
+          <Card className="animate-fade-up w-full min-w-0 overflow-hidden p-4">
+            <EmptyState
+              size="compact"
+              title={`还没有「${moduleMeta[selectedModule].label}」板块的目标`}
+              description="先创建一个该板块的小目标，就能把识别结果记进去啦"
+              action={<GoalLinkButton href="/goals/new">去新建目标</GoalLinkButton>}
             />
-          )}
+          </Card>
         </div>
-        <p className="text-heading font-bold">
-          {done.pending
-            ? `${done.goalTitle}${done.mealType ? `（${mealLabel[done.mealType]}）` : ''}已记录`
-            : stamped
-              ? `${done.goalTitle}今日打卡完成！`
-              : `${done.goalTitle}${done.mealType ? `（${mealLabel[done.mealType]}）` : ''}已存档`}
-        </p>
-        <p className="text-caption text-muted">
-          {done.pending
-            ? `今日正餐进度 ${progressText(done.targetKind, done.progress)} · 集齐早午晚三餐后统一结算总分`
-            : done.score !== null
-              ? `今日总分 ${done.score.toFixed(1)} / 5.0 分 · ${done.isValid ? '已达标盖章' : '未达有效线'}`
-              : `今天${done.progress.done ? '已经完成目标' : '的进度'} · ${progressText(done.targetKind, done.progress)}`}
-        </p>
-        <ProgressBar
-          value={done.progress.value}
-          max={done.progress.target}
-          tone={done.module}
-          label="进度"
-          className="max-w-xs"
-        />
-        <div className="mt-2 flex flex-wrap justify-center gap-2">
-          <GoalLinkButton
-            href={`/goals/${done.goalId}/checkin${done.mealType ? `?meal=${done.mealType}` : ''}`}
-          >
-            查看打卡详情
-          </GoalLinkButton>
-          <Button
-            variant="soft"
-            onClick={() => {
-              setDone(null)
-              setViewingHistoryId(null)
-              setSmartContext(null)
-              setScanPhase('idle')
-            }}
-          >
-            {activeMode === 'smart-upload' ? '继续上传' : '继续拍摄'}
-          </Button>
-          <Link
-            href="/"
-            className="text-foreground hover:bg-surface-sunken flex h-11 items-center rounded-full px-5 font-semibold"
-          >
-            回主页
-          </Link>
+      )
+    }
+
+    if (goalDetail.isPending || dayCheckins.isPending || !goalDetail.data) {
+      return (
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-3 px-4 pt-2">
+          {switcherSlot}
+          <Skeleton className="h-16 w-full rounded-2xl" />
+          <Skeleton className="h-36 w-full rounded-2xl" />
+          <Skeleton className="h-14 w-full rounded-2xl" />
         </div>
-      </div>
+      )
+    }
+
+    const g = goalDetail.data
+    const def = moduleDef(g.module)
+    const clock = {
+      timeZone: me.data.profile.timeZone,
+      dayStartHour: 0,
+    }
+
+    async function handleConfirmCheckin(input: CreateCheckinInput): Promise<Checkin> {
+      try {
+        const result = await create.mutateAsync({
+          goalId: g.id,
+          input,
+          idempotencyKey: newIdempotencyKey(),
+        })
+        if (smartSnapshot?.result) {
+          markSmartHistoryConfirmed(smartSnapshot.result.aiRunId, g.title)
+        }
+        setConfirmedCurrent(true)
+        setUnconfirmedSmartRecord(false)
+        return result.checkin
+      } catch (e) {
+        if (isApiError(e) && e.fields) {
+          const first = Object.values(e.fields).flat().find(Boolean)
+          toast.error(first ?? errorMessage(e))
+        } else {
+          toast.error(isApiError(e) ? errorMessage(e) : '出了点小状况，稍后再试试')
+        }
+        throw e
+      }
+    }
+
+    return (
+      <CheckinFlow
+        key={`${g.id}:${smartSnapshot?.result.aiRunId ?? 'manual'}`}
+        def={def}
+        goal={g}
+        clock={clock}
+        today={today.data.localDate}
+        todayCheckins={dayCheckins.data?.items ?? []}
+        tier={me.data.preferences.refereeTier}
+        period={periodOf(g.validDays, g.createdAt.slice(0, 10), g.deadlineDate)}
+        initialMode={scanPhase === 'manual' ? 'manual' : activeMode}
+        hidePageBar
+        topSlot={switcherSlot}
+        initialSmart={smartSnapshot}
+        onSmartRecognized={handleRecognized}
+        registerSubPageBack={registerSubPageBack}
+        onConfirm={handleConfirmCheckin}
+        onBack={() => (window.history.length > 1 ? router.back() : router.push('/'))}
+      />
     )
   }
 
-  const todayRow = activeGoal ? today.data.goals.find((x) => x.goalId === activeGoal.id) : undefined
-  const progress: GoalProgress = activeGoal
-    ? (todayRow?.progress ?? { value: 0, target: activeGoal.target.value, done: false })
-    : { value: 0, target: 1, done: false }
-
-  const formProps: ModuleFormProps | null = activeGoal
-    ? {
-        goal: activeGoal,
-        day: today.data.localDate,
-        isMakeup: false,
-        clock: {
-          timeZone: me.data.profile.timeZone,
-          dayStartHour: me.data.preferences.dayStartHour,
-        },
-        submitting,
-        errors,
-        smartContext,
-        streamedContext: magic.streamedContext,
-        magicStreaming: magic.isMagicStreaming,
-        magicStage: magic.magicStage,
-        onSubmit: (input) => void handleSubmit(input),
-      }
-    : null
-
-  const showResultSection = scanPhase === 'done' || scanPhase === 'manual'
-
+  // 4. 待扫描 / 扫描中初始态
   return (
-    <div className="mx-auto flex w-full max-w-lg min-w-0 flex-col gap-2.5 pt-1.5 pb-6">
-      {/* 1. 极简扫描镜 */}
-      <SmartScannerLens
-        mode={activeMode}
-        tone={selectedModule}
-        note={scanNote}
-        onScanStart={(nextMode) => {
-          setViewingHistoryId(null)
-          setActiveMode(nextMode)
-          setSmartContext(null)
-          setScanPhase('scanning')
-        }}
-        onRecognized={handleRecognized}
-        onScanError={() => {
-          setScanPhase('idle')
-        }}
-        onManualFallback={() => {
-          setScanPhase('manual')
-        }}
-      />
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-4">
+      <div className="mx-auto flex w-full max-w-lg min-w-0 flex-col gap-2.5 pt-1.5 pb-8">
+        <SmartScannerLens
+          mode={activeMode}
+          tone={selectedModule}
+          note={scanNote}
+          onScanStart={(nextMode) => {
+            setViewingHistoryId(null)
+            setActiveMode(nextMode)
+            setSmartSnapshot(null)
+            setConfirmedCurrent(false)
+            setScanPhase('scanning')
+          }}
+          onRecognized={handleRecognized}
+          onScanError={() => {
+            setScanPhase('idle')
+          }}
+          onManualFallback={() => {
+            setScanPhase('manual')
+          }}
+        />
 
-      {/* 复用前端备注组件：作为拍照/上传识别与 Agent 判定的最高优先级补充上下文 */}
-      {!showResultSection && (
         <FillSection
           spec={{
             id: 'note',
@@ -433,107 +416,9 @@ export function SmartCheckinPage({
           ai={false}
           onToggle={() => setNoteOpen((v) => !v)}
         />
-      )}
 
-      {/* 2. 扫描进行中：展示「正在搜索哪个打卡分区」自定义懒加载动画 */}
-      {scanPhase === 'scanning' && <SmartPartitionSearchLoader />}
-
-      {/* 3. 识别出结果后（或点击手动填写兜底后）：展示一行识别方向条 + 流式魔法填充表单 */}
-      {showResultSection && (
-        <>
-          <SmartModuleDetector
-            selectedModule={selectedModule}
-            magicHighlight={magic.isMagicStreaming}
-            onSelectModule={(m) => {
-              magic.finishImmediately()
-              setSelectedModule(m)
-              setSelectedGoalId(null)
-              setErrors(undefined)
-            }}
-          />
-
-          {smartContext && (
-            <SmartMagicTurnBanner
-              tone={selectedModule}
-              summary={magic.streamedSummary}
-              streaming={magic.isMagicStreaming}
-              magicStage={magic.magicStage}
-            />
-          )}
-
-          {!activeGoal || !formProps ? (
-            <Card className="animate-fade-up w-full min-w-0 overflow-hidden p-3.5 md:p-4">
-              <EmptyState
-                size="compact"
-                title={`还没有「${moduleMeta[selectedModule].label}」板块的目标`}
-                description="先创建一个该板块的小目标，就能把识别结果记进去啦"
-                action={<GoalLinkButton href="/goals/new">去新建目标</GoalLinkButton>}
-              />
-            </Card>
-          ) : (
-            <Card
-              key={`${activeGoal.id}-${smartContext?.aiRunId ?? 'init'}`}
-              onPointerDown={() => magic.finishImmediately()}
-              className="animate-fade-up flex w-full min-w-0 flex-col gap-2.5 overflow-hidden p-3.5 md:p-4"
-            >
-              <div className="flex min-w-0 items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                  <IconTile
-                    icon={moduleMeta[selectedModule].icon}
-                    tone={selectedModule}
-                    size="sm"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-caption truncate font-bold">{activeGoal.title}</p>
-                    <p className="text-tiny text-muted truncate">
-                      {targetText(activeGoal.target)} · 今天{' '}
-                      {progressText(activeGoal.target.kind, progress)}
-                    </p>
-                  </div>
-                </div>
-                <Badge tone={selectedModule} className="shrink-0">
-                  {magic.isMagicStreaming
-                    ? '魔法写入中…'
-                    : smartContext
-                      ? 'AI 已预填'
-                      : moduleMeta[selectedModule].label}
-                </Badge>
-              </div>
-
-              {moduleGoals.length > 1 && (
-                <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="选择具体目标">
-                  {moduleGoals.map((g) => {
-                    const isSelected = g.id === activeGoal.id
-                    return (
-                      <button
-                        key={g.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={isSelected}
-                        onClick={() => setSelectedGoalId(g.id)}
-                        className={cn(
-                          'text-tiny rounded-full px-2.5 py-1 font-semibold transition-colors',
-                          isSelected
-                            ? 'bg-primary-soft text-primary-ink font-bold'
-                            : 'bg-surface-sunken text-muted hover:text-foreground',
-                        )}
-                      >
-                        {g.title}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-
-              {selectedModule === 'exercise' && <ExerciseForm {...formProps} />}
-              {selectedModule === 'diet' && <DietForm {...formProps} />}
-              {selectedModule === 'sleep' && <SleepForm {...formProps} />}
-              {selectedModule === 'study' && <StudyForm {...formProps} />}
-              {selectedModule === 'custom' && <CustomForm {...formProps} />}
-            </Card>
-          )}
-        </>
-      )}
+        {scanPhase === 'scanning' && <SmartPartitionSearchLoader />}
+      </div>
     </div>
   )
 }
@@ -543,7 +428,7 @@ function SmartCheckinSkeleton() {
     <div
       role="status"
       aria-label="加载中"
-      className="mx-auto flex w-full max-w-lg min-w-0 flex-col gap-2.5 pt-1.5"
+      className="mx-auto flex w-full max-w-lg min-w-0 flex-col gap-2.5 px-4 pt-2"
     >
       <Skeleton className="h-52 w-full rounded-2xl" />
     </div>

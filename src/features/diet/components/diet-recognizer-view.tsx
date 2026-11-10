@@ -25,7 +25,7 @@ export interface DietRecognizerViewProps {
   phase: RecognizerPhase
   /** 压缩函数：正式代码用 src/lib/image 的 compressImage，Playbook 可以传一个假的 */
   compress: (file: File) => Promise<Blob>
-  onImage: (image: Blob) => void
+  onImage: (image: Blob, image2?: Blob) => void
   onClear: () => void
   /** 识别耗时（毫秒），完成后显示在活动条上 */
   durationMs?: number

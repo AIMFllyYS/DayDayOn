@@ -54,7 +54,7 @@ export function DietRecognizer({ goalId, mealType, onConfirmed, onManual }: Diet
   const [failure, setFailure] = useState<{ text: string; retryable: boolean }>()
   const [durationMs, setDurationMs] = useState<number>()
   // 同一张图重试复用同一个键；换图换键
-  const pending = useRef<{ image: Blob; key: string } | null>(null)
+  const pending = useRef<{ image: Blob; image2?: Blob; key: string } | null>(null)
   // 只处理最后一次请求的结果
   const seq = useRef(0)
   const confirmKey = useRef<string | null>(null)
@@ -80,7 +80,7 @@ export function DietRecognizer({ goalId, mealType, onConfirmed, onManual }: Diet
     setPhase('recognizing')
     setFailure(undefined)
     recognize.mutate(
-      { image: job.image, mealType, idempotencyKey: job.key },
+      { image: job.image, image2: job.image2, mealType, idempotencyKey: job.key },
       {
         onSuccess: (r) => {
           if (mine !== seq.current) return
@@ -105,8 +105,8 @@ export function DietRecognizer({ goalId, mealType, onConfirmed, onManual }: Diet
     )
   }
 
-  function handleImage(image: Blob) {
-    pending.current = { image, key: newIdempotencyKey() }
+  function handleImage(image: Blob, image2?: Blob) {
+    pending.current = { image, image2, key: newIdempotencyKey() }
     run()
   }
 
