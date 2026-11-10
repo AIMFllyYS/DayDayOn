@@ -82,15 +82,59 @@ function StatsBlock({ data }: { data: Insights }) {
   )
 }
 
-function userText(message: UIMessage): string {
-  return (message.parts as Array<Record<string, unknown> & { type?: string }>)
-    .filter((p) => p.type === 'text')
-    .map((p) => String(p.text ?? ''))
-    .join('\n')
+const STRIPPED_FILE_NOTE_RE = /^\d+\s*张照片（识别后不保存）$/
+
+// 仅保存在当前浏览器页面内存中的消息图片预览表（切换会话再切回仍可见，关闭标签页即释放，绝不落盘）
+const sessionMessageImages = new Map<string, string[]>()
+
+function userImageUrls(message: UIMessage): string[] {
+  const inlineUrls = (message.parts as Array<{ type?: string; mediaType?: string; url?: string }>)
+    .filter(
+      (p) =>
+        p.type === 'file' &&
+        typeof p.url === 'string' &&
+        p.url.length > 0 &&
+        (!p.mediaType || p.mediaType.startsWith('image/')),
+    )
+    .map((p) => p.url as string)
+
+  if (inlineUrls.length > 0) {
+    sessionMessageImages.set(message.id, inlineUrls)
+    return inlineUrls
+  }
+  return sessionMessageImages.get(message.id) ?? []
 }
 
-function userFileCount(message: UIMessage): number {
-  return (message.parts as Array<{ type?: string }>).filter((p) => p.type === 'file').length
+function userExtractedContent(
+  message: UIMessage,
+  hasLiveImages: boolean,
+): {
+  text: string
+  attachmentNote?: string
+} {
+  const rawTexts = (message.parts as Array<Record<string, unknown> & { type?: string }>)
+    .filter((p) => p.type === 'text')
+    .map((p) => String(p.text ?? ''))
+
+  const strippedNotes = rawTexts.filter((t) => STRIPPED_FILE_NOTE_RE.test(t.trim()))
+  const bodyTexts = rawTexts.filter((t) => !STRIPPED_FILE_NOTE_RE.test(t.trim()))
+  const filePartCount = (message.parts as Array<{ type?: string }>).filter(
+    (p) => p.type === 'file',
+  ).length
+
+  if (filePartCount > 0) {
+    return {
+      text: bodyTexts.join('\n').trim(),
+      attachmentNote: `${filePartCount} 张照片（识别后不保存）`,
+    }
+  }
+  if (strippedNotes.length > 0) {
+    return {
+      text: hasLiveImages ? bodyTexts.join('\n').trim() : rawTexts.join('\n').trim(),
+      attachmentNote: hasLiveImages ? strippedNotes[0] : undefined,
+    }
+  }
+  return { text: rawTexts.join('\n').trim() }
 }
 
 function turnStatusFor(
@@ -173,13 +217,11 @@ export function AgentMessages({
     <div className="flex w-full max-w-full min-w-0 flex-col gap-4">
       {messages.map((m, i) => {
         if (m.role === 'user') {
-          const files = userFileCount(m)
+          const images = userImageUrls(m)
+          const { text, attachmentNote } = userExtractedContent(m, images.length > 0)
           return (
-            <UserMessage
-              key={m.id}
-              attachments={files > 0 ? `${files} 张照片（识别后不保存）` : undefined}
-            >
-              {userText(m)}
+            <UserMessage key={m.id} imageUrls={images} attachments={attachmentNote}>
+              {text}
             </UserMessage>
           )
         }

@@ -7,6 +7,7 @@ import { DateField } from '@/components/ui/date-field'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { ImagePicker } from '@/components/ui/image-picker'
+import { PhotoAlbumSheet, type AlbumGridItem } from '@/components/ui/photo-album-sheet'
 import { Rating, type RatingValue } from '@/components/ui/rating'
 import { TimeField } from '@/components/ui/time-field'
 import { TimeRangeField } from '@/components/ui/time-range-field'
@@ -212,14 +213,18 @@ export function ImagePickerDemo() {
     [],
   )
 
-  function onImage(blob: Blob) {
+  function onImage(blob: Blob, blob2?: Blob) {
     setError(null)
     setResult(null)
     setRecognizing(true)
     timer.current = window.setTimeout(() => {
       setRecognizing(false)
       if (failNext) setError('这次没认出来，可以重拍，或者手动填写')
-      else setResult(`识别好了（压缩后 ${Math.round(blob.size / 1024)} KB），草稿卡会出现在这里`)
+      else {
+        const totalKb = Math.round((blob.size + (blob2?.size ?? 0)) / 1024)
+        const countLabel = blob2 ? '共 2 张' : '1 张'
+        setResult(`识别好了（${countLabel}，压缩后共 ${totalKb} KB），草稿卡会出现在这里`)
+      }
     }, 1500)
   }
 
@@ -249,6 +254,58 @@ export function ImagePickerDemo() {
         下一次识别模拟失败
       </label>
       {result && <p className="text-caption text-success-ink">{result}</p>}
+    </div>
+  )
+}
+
+function makePlaybookAlbumItems(): AlbumGridItem[] {
+  const presets = [
+    { id: 'pb-1', title: '减脂午餐便当', bg: '#FFF4EC', accent: '#F28B50', name: 'lunch_01.jpg' },
+    { id: 'pb-2', title: '傍晚慢跑 5km', bg: '#EEF8F3', accent: '#3FA67A', name: 'run_02.jpg' },
+    { id: 'pb-3', title: '全麦三明治', bg: '#FFF9EB', accent: '#E5A93C', name: 'toast_03.jpg' },
+    { id: 'pb-4', title: '睡眠监测报告', bg: '#F2F0FC', accent: '#7A6AD8', name: 'sleep_04.jpg' },
+    { id: 'pb-5', title: '复习笔记打卡', bg: '#E7F5FF', accent: '#339AF0', name: 'study_05.jpg' },
+    { id: 'pb-6', title: '无糖酸奶水果碗', bg: '#FFF0F6', accent: '#F06595', name: 'berry_06.jpg' },
+  ]
+  return presets.map((p, idx) => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320"><rect width="320" height="320" rx="28" fill="${p.bg}"/><circle cx="250" cy="76" r="40" fill="${p.accent}" opacity="0.28"/><text x="28" y="176" font-family="sans-serif" font-size="24" font-weight="bold" fill="#2c2623">${p.title}</text></svg>`
+    const blob = new Blob([svg], { type: 'image/svg+xml' })
+    return {
+      id: p.id,
+      fileName: p.name,
+      previewUrl: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
+      createdAt: `2026-11-02T0${idx}:00:00.000Z`,
+      file: new File([blob], p.name, { type: 'image/svg+xml' }),
+    }
+  })
+}
+
+const PLAYBOOK_ALBUM_ITEMS = makePlaybookAlbumItems()
+
+export function PhotoAlbumSheetDemo() {
+  const [open, setOpen] = useState(false)
+  const [pickedSummary, setPickedSummary] = useState<string | null>(null)
+
+  return (
+    <div className="flex flex-col items-start gap-2.5">
+      <Button variant="soft" icon="sparkles" onClick={() => setOpen(true)}>
+        预览安卓流式多选相册（仅壳内生效）
+      </Button>
+      <p className="text-tiny text-muted">
+        网页端严禁弹出此抽屉（直接调系统多选文件管理器）；此演示通过 Playbook 专属 demoItems
+        注入，正式生产代码零假图。
+      </p>
+      {pickedSummary && <p className="text-caption text-success-ink">{pickedSummary}</p>}
+      <PhotoAlbumSheet
+        open={open}
+        onOpenChange={setOpen}
+        demoItems={PLAYBOOK_ALBUM_ITEMS}
+        onConfirm={(files) => {
+          setPickedSummary(
+            `已按顺序选定 ${files.length} 张：${files.map((f) => f.name).join(' → ')}`,
+          )
+        }}
+      />
     </div>
   )
 }

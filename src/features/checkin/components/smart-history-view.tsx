@@ -1,20 +1,17 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent } from 'react'
 import { Badge, IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Icon } from '@/components/ui/icon'
-import { PhotoAlbumSheet } from '@/components/ui/photo-album-sheet'
-import { toast } from '@/components/ui/toast'
+import { useMediaPicker } from '@/components/ui/use-media-picker'
 import { moduleMeta } from '@/components/ui/tone'
 import { cn } from '@/lib/cn'
-import { captureNativeHighResPhoto, isNativeApp } from '@/lib/native'
 import { calendarDateOf, formatMonthDay } from '@/lib/time'
 import type { SmartHistoryRecord, SmartInputMode } from '../smart-handoff'
 import { SmartMagicTurnBanner } from './smart-magic-stream'
-import { SMART_IMAGE_ACCEPT, SMART_UPLOAD_ACCEPT } from './smart-scanner'
+import { SMART_UPLOAD_ACCEPT } from './smart-scanner'
 
 /*
  * 历史识别记录与打卡历史模块（/checkin/smart 历史列表与只读详情）：
@@ -44,73 +41,22 @@ export function SmartHistoryListView({
   onDeleteRecord,
   onStartNewScan,
 }: SmartHistoryListViewProps) {
-  const captureInputRef = useRef<HTMLInputElement>(null)
-  const uploadInputRef = useRef<HTMLInputElement>(null)
-  const [albumOpen, setAlbumOpen] = useState(false)
-
-  function handleCaptureChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (file) onStartNewScan(file, 'smart-capture', [file])
-  }
-
-  function handleUploadChange(e: ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files ? Array.from(e.target.files) : []
-    e.target.value = ''
-    if (files[0]) onStartNewScan(files[0], 'smart-upload', files)
-  }
-
-  async function handleCaptureClick() {
-    if (isNativeApp()) {
-      try {
-        const file = await captureNativeHighResPhoto()
-        if (file) {
-          onStartNewScan(file, 'smart-capture', [file])
-          return
-        }
-      } catch {
-        toast.error('未开启相机权限，无法调用手机原生相机', {
-          description: '请前往「我的 → 权限管理」开启相机权限',
-        })
-        return
-      }
-    }
-    captureInputRef.current?.click()
-  }
+  const mediaPicker = useMediaPicker({
+    uploadAccept: SMART_UPLOAD_ACCEPT,
+    maxSelect: 9,
+    onFiles: (files, source) => {
+      const first = files[0]
+      if (!first) return
+      onStartNewScan(first, source === 'capture' ? 'smart-capture' : 'smart-upload', files)
+    },
+  })
 
   return (
     <div
       data-testid="smart-history-list-page"
-      className="mx-auto -mb-[calc(var(--safe-bottom)+6.5rem)] flex h-[calc(100dvh-2.75rem-var(--safe-top,0px))] w-full max-w-lg min-w-0 flex-1 flex-col gap-3 overflow-hidden pt-1.5 md:-mb-8 md:h-[calc(100dvh-4.25rem)]"
+      className="mx-auto flex min-h-0 w-full max-w-lg min-w-0 flex-1 flex-col gap-3 overflow-hidden px-4 pt-1.5"
     >
-      <input
-        ref={captureInputRef}
-        type="file"
-        accept={SMART_IMAGE_ACCEPT}
-        capture="environment"
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        onChange={handleCaptureChange}
-      />
-      <input
-        ref={uploadInputRef}
-        type="file"
-        accept={SMART_UPLOAD_ACCEPT}
-        multiple
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        onChange={handleUploadChange}
-      />
-      <PhotoAlbumSheet
-        open={albumOpen}
-        onOpenChange={setAlbumOpen}
-        maxSelect={9}
-        onConfirm={(files) => {
-          if (files[0]) onStartNewScan(files[0], 'smart-upload', files)
-        }}
-      />
+      {mediaPicker.pickerNode}
 
       {/* 顶部概要与快捷操作卡片（上下分层，标题完整显示不截断） */}
       <Card className="flex shrink-0 flex-col gap-3 p-3.5">
@@ -135,7 +81,7 @@ export function SmartHistoryListView({
             variant="soft"
             icon="camera"
             className="h-9 w-full"
-            onClick={() => void handleCaptureClick()}
+            onClick={mediaPicker.openCapture}
           >
             智能拍照
           </Button>
@@ -144,7 +90,7 @@ export function SmartHistoryListView({
             variant="secondary"
             icon="sparkles"
             className="h-9 w-full"
-            onClick={() => setAlbumOpen(true)}
+            onClick={mediaPicker.openUpload}
           >
             智能上传
           </Button>
@@ -286,124 +232,126 @@ export function SmartHistoryDetailView({
   const detailRows = buildReadonlyDetailRows(record)
 
   return (
-    <div
-      data-testid="smart-history-detail-view"
-      className="mx-auto flex w-full max-w-lg min-w-0 flex-col gap-2.5 pt-1.5 pb-6"
-    >
-      {/* 顶部返回历史列表快捷导航条 */}
-      <div className="bg-surface-sunken/75 flex min-w-0 items-center justify-between gap-2 rounded-full px-3 py-1.5">
-        <button
-          type="button"
-          onClick={onBackToList}
-          className="text-primary-ink text-tiny inline-flex items-center gap-1 font-semibold hover:underline"
-        >
-          <Icon name="chevron-left" size={14} lineOnly />
-          <span>返回历史记录列表</span>
-        </button>
-        <div className="flex min-w-0 items-center gap-1.5">
-          <Badge tone="neutral">只读模式</Badge>
-          <span className="text-tiny text-muted truncate">
-            {formatMonthDay(calendarDateOf(record.createdAt, timeZone))} ·{' '}
-            {record.mode === 'smart-capture' ? '智能拍照' : '智能上传'}
-          </span>
-        </div>
-      </div>
-
-      {/* 1. 只读扫描快照卡片（展示图片相对路径 + 无原图小提示 + 1/2/3 步骤） */}
-      <Card className="flex w-full min-w-0 flex-col gap-2.5 overflow-hidden p-3.5">
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="bg-success size-2 shrink-0 rounded-full" />
-            <span className="text-caption truncate font-bold">
-              {record.mode === 'smart-capture' ? '历史拍摄记录回看' : '历史上传记录回看'}
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-4">
+      <div
+        data-testid="smart-history-detail-view"
+        className="mx-auto flex w-full max-w-lg min-w-0 flex-col gap-2.5 pt-1.5 pb-[calc(var(--safe-bottom)+1.5rem)]"
+      >
+        {/* 顶部返回历史列表快捷导航条 */}
+        <div className="bg-surface-sunken/75 flex min-w-0 items-center justify-between gap-2 rounded-full px-3 py-1.5">
+          <button
+            type="button"
+            onClick={onBackToList}
+            className="text-primary-ink text-tiny inline-flex items-center gap-1 font-semibold hover:underline"
+          >
+            <Icon name="chevron-left" size={14} lineOnly />
+            <span>返回历史记录列表</span>
+          </button>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Badge tone="neutral">只读模式</Badge>
+            <span className="text-tiny text-muted truncate">
+              {formatMonthDay(calendarDateOf(record.createdAt, timeZone))} ·{' '}
+              {record.mode === 'smart-capture' ? '智能拍照' : '智能上传'}
             </span>
           </div>
-          <Badge tone={record.confirmed ? 'success' : 'neutral'} className="shrink-0">
-            {record.confirmed
-              ? `已记录${record.confirmedGoalTitle ? ` · ${record.confirmedGoalTitle}` : ''}`
-              : '历史识别快照'}
-          </Badge>
         </div>
 
-        <div className="bg-surface-sunken border-border-strong relative flex min-w-0 flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border p-4 text-center">
-          <IconTile
-            icon={record.mode === 'smart-capture' ? 'camera' : moduleMeta[mod].icon}
-            tone={mod}
-            size="sm"
-          />
-          <div className="max-w-full min-w-0 space-y-1">
-            <div className="bg-surface border-border mx-auto inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1">
-              <Icon
-                name={record.mode === 'smart-capture' ? 'camera' : 'sparkles'}
-                size={12}
-                className="text-primary shrink-0"
-              />
-              <span className="text-tiny text-foreground truncate font-mono">{relPath}</span>
+        {/* 1. 只读扫描快照卡片（展示图片相对路径 + 无原图小提示 + 1/2/3 步骤） */}
+        <Card className="flex w-full min-w-0 flex-col gap-2.5 overflow-hidden p-3.5">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="bg-success size-2 shrink-0 rounded-full" />
+              <span className="text-caption truncate font-bold">
+                {record.mode === 'smart-capture' ? '历史拍摄记录回看' : '历史上传记录回看'}
+              </span>
             </div>
-            {record.textSnippet ? (
-              <p className="text-tiny text-muted line-clamp-3 pt-1 font-mono break-words">
-                {record.textSnippet}
-              </p>
-            ) : (
-              <p className="text-tiny text-muted pt-0.5">
-                小提示：为保护隐私仅存储图片的相对路径，未真实保存原图文件
-              </p>
-            )}
+            <Badge tone={record.confirmed ? 'success' : 'neutral'} className="shrink-0">
+              {record.confirmed
+                ? `已记录${record.confirmedGoalTitle ? ` · ${record.confirmedGoalTitle}` : ''}`
+                : '历史识别快照'}
+            </Badge>
           </div>
-        </div>
 
-        <ol className="bg-surface-sunken/60 flex min-w-0 flex-col gap-1.5 rounded-xl px-3 py-2">
-          {draft.scanSteps.map((step, idx) => (
-            <li key={`${idx}-${step}`} className="flex min-w-0 items-center gap-2">
-              <Icon name="check" size={14} strokeWidth={2.5} className="text-success shrink-0" />
-              <span className="font-display text-tiny bg-success-soft text-success-ink flex size-5 shrink-0 items-center justify-center rounded-full font-bold">
-                {idx + 1}
-              </span>
-              <span className="text-tiny text-foreground min-w-0 flex-1 truncate font-semibold">
-                {step}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </Card>
-
-      {/* 2. AI 识别摘要条 */}
-      <SmartMagicTurnBanner tone={mod} summary={draft.summary} streaming={false} magicStage={4} />
-
-      {/* 3. 只读结构化识别明细卡片 */}
-      <Card className="flex w-full min-w-0 flex-col gap-3 overflow-hidden p-3.5 md:p-4">
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <IconTile icon={moduleMeta[mod].icon} tone={mod} size="sm" />
-            <div className="min-w-0">
-              <p className="text-caption font-bold">{moduleMeta[mod].label} · 识别结果明细</p>
-              <p className="text-tiny text-muted">只读查看当时识别出的结构化内容</p>
+          <div className="bg-surface-sunken border-border-strong relative flex min-w-0 flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border p-4 text-center">
+            <IconTile
+              icon={record.mode === 'smart-capture' ? 'camera' : moduleMeta[mod].icon}
+              tone={mod}
+              size="sm"
+            />
+            <div className="max-w-full min-w-0 space-y-1">
+              <div className="bg-surface border-border mx-auto inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1">
+                <Icon
+                  name={record.mode === 'smart-capture' ? 'camera' : 'sparkles'}
+                  size={12}
+                  className="text-primary shrink-0"
+                />
+                <span className="text-tiny text-foreground truncate font-mono">{relPath}</span>
+              </div>
+              {record.textSnippet ? (
+                <p className="text-tiny text-muted line-clamp-3 pt-1 font-mono break-words">
+                  {record.textSnippet}
+                </p>
+              ) : (
+                <p className="text-tiny text-muted pt-0.5">
+                  小提示：为保护隐私仅存储图片的相对路径，未真实保存原图文件
+                </p>
+              )}
             </div>
           </div>
-          <Badge tone={mod}>{moduleMeta[mod].label}</Badge>
-        </div>
 
-        <dl className="divide-border bg-surface-sunken/55 divide-y rounded-2xl px-3.5 py-1">
-          {detailRows.map((row) => (
-            <div
-              key={row.label}
-              className="flex min-w-0 items-start justify-between gap-3 py-2.5 text-left"
-            >
-              <dt className="text-tiny text-muted shrink-0 font-medium">{row.label}</dt>
-              <dd className="text-caption text-foreground min-w-0 text-right font-semibold break-words">
-                {row.value}
-              </dd>
+          <ol className="bg-surface-sunken/60 flex min-w-0 flex-col gap-1.5 rounded-xl px-3 py-2">
+            {draft.scanSteps.map((step, idx) => (
+              <li key={`${idx}-${step}`} className="flex min-w-0 items-center gap-2">
+                <Icon name="check" size={14} strokeWidth={2.5} className="text-success shrink-0" />
+                <span className="font-display text-tiny bg-success-soft text-success-ink flex size-5 shrink-0 items-center justify-center rounded-full font-bold">
+                  {idx + 1}
+                </span>
+                <span className="text-tiny text-foreground min-w-0 flex-1 truncate font-semibold">
+                  {step}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </Card>
+
+        {/* 2. AI 识别摘要条 */}
+        <SmartMagicTurnBanner tone={mod} summary={draft.summary} streaming={false} magicStage={4} />
+
+        {/* 3. 只读结构化识别明细卡片 */}
+        <Card className="flex w-full min-w-0 flex-col gap-3 overflow-hidden p-3.5 md:p-4">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <IconTile icon={moduleMeta[mod].icon} tone={mod} size="sm" />
+              <div className="min-w-0">
+                <p className="text-caption font-bold">{moduleMeta[mod].label} · 识别结果明细</p>
+                <p className="text-tiny text-muted">只读查看当时识别出的结构化内容</p>
+              </div>
             </div>
-          ))}
-        </dl>
+            <Badge tone={mod}>{moduleMeta[mod].label}</Badge>
+          </div>
 
-        <div className="flex items-center justify-between gap-2 pt-1">
-          <span className="text-tiny text-subtle">只读历史记录 · 退出将直接返回历史列表</span>
-          <Button variant="secondary" size="sm" onClick={onBackToList}>
-            返回历史列表
-          </Button>
-        </div>
-      </Card>
+          <dl className="divide-border bg-surface-sunken/55 divide-y rounded-2xl px-3.5 py-1">
+            {detailRows.map((row) => (
+              <div
+                key={row.label}
+                className="flex min-w-0 items-start justify-between gap-3 py-2.5 text-left"
+              >
+                <dt className="text-tiny text-muted shrink-0 font-medium">{row.label}</dt>
+                <dd className="text-caption text-foreground min-w-0 text-right font-semibold break-words">
+                  {row.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <span className="text-tiny text-subtle">只读历史记录 · 退出将直接返回历史列表</span>
+            <Button variant="secondary" size="sm" onClick={onBackToList}>
+              返回历史列表
+            </Button>
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }

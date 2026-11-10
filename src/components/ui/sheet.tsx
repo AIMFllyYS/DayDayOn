@@ -105,7 +105,7 @@ function DrawerSheet({
                 aria-hidden
                 className="bg-border-strong mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full"
               />
-              <Drawer.Content className="flex min-h-0 flex-1 flex-col">
+              <Drawer.Content className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <SheetHeader
                   title={<Drawer.Title className="text-heading font-bold">{title}</Drawer.Title>}
                   description={

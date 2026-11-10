@@ -58,17 +58,50 @@ export interface ReservedAgentRun {
   dayKey: string
 }
 
-/** 粗略估计输入 tokens：字符数 / 2 + 每步工具结果余量。宁可高估（预占安全，结算多退） */
+const ESTIMATED_TOKENS_PER_IMAGE = 1600
+const IMAGE_ONLY_DEFAULT_PROMPT =
+  '请查看并识别我上传的照片内容；如果是饮食、运动、睡眠、学习等打卡相关内容，请查好对应事实并生成打卡草稿供我确认。'
+
+/** 粗略估计输入 tokens：字符数 / 2 + 图片视觉余量 + 每步工具结果余量。宁可高估（预占安全，结算多退） */
 export function estimateAgentInputTokens(messages: readonly UIMessage[]): number {
   let chars = 0
+  let imageTokens = 0
   for (const m of messages) {
     for (const p of m.parts) {
-      if (typeof p === 'object' && p !== null && 'text' in p && typeof p.text === 'string') {
-        chars += p.text.length
+      if (typeof p === 'object' && p !== null) {
+        if ('text' in p && typeof p.text === 'string') {
+          chars += p.text.length
+        } else if ('type' in p && (p as { type?: unknown }).type === 'file') {
+          imageTokens += ESTIMATED_TOKENS_PER_IMAGE
+        }
       }
     }
   }
-  return Math.ceil(chars / 2) + MAX_STEPS * 2000
+  return Math.ceil(chars / 2) + imageTokens + MAX_STEPS * 2000
+}
+
+/** 当用户仅发送图片未输入任何文字时，仅在发往模型的消息副本中补一句识图引导语（不写入数据库） */
+export function withImageFallbackPrompt(messages: readonly UIMessage[]): UIMessage[] {
+  return messages.map((m) => {
+    if (m.role !== 'user') return m
+    const hasFile = m.parts.some(
+      (p) => typeof p === 'object' && p !== null && (p as { type?: unknown }).type === 'file',
+    )
+    if (!hasFile) return m
+    const hasNonEmptyText = m.parts.some(
+      (p) =>
+        typeof p === 'object' &&
+        p !== null &&
+        p.type === 'text' &&
+        typeof (p as { text?: unknown }).text === 'string' &&
+        (p as { text: string }).text.trim().length > 0,
+    )
+    if (hasNonEmptyText) return m
+    return {
+      ...m,
+      parts: [...m.parts, { type: 'text', text: IMAGE_ONLY_DEFAULT_PROMPT }],
+    }
+  })
 }
 
 export async function reserveAgentRun(input: {
@@ -217,8 +250,9 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
   })
 
   const startedAt = Date.now()
+  const modelInputMessages = withImageFallbackPrompt(input.messages)
   const result = await agent.stream({
-    messages: await convertToModelMessages(input.messages, { tools: agent.tools }),
+    messages: await convertToModelMessages(modelInputMessages, { tools: agent.tools }),
   })
   // 客户端断开也不影响模型跑完与结算（ai-and-quota.md：流式中断按已产生用量结算）
   result.consumeStream()
@@ -291,15 +325,25 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
   return response
 }
 
-/** 取第一条用户消息的纯文本（生成会话标题用） */
+/** 取第一条用户消息的纯文本（生成会话标题用；纯发图时记为「图片打卡识别」） */
 function firstUserTextOf(messages: readonly UIMessage[]): string {
   for (const m of messages) {
     if (m.role !== 'user') continue
     for (const p of m.parts) {
-      if (typeof p === 'object' && p !== null && p.type === 'text' && typeof p.text === 'string') {
+      if (
+        typeof p === 'object' &&
+        p !== null &&
+        p.type === 'text' &&
+        typeof p.text === 'string' &&
+        p.text.trim().length > 0
+      ) {
         return p.text
       }
     }
+    const hasImage = m.parts.some(
+      (p) => typeof p === 'object' && p !== null && (p as { type?: unknown }).type === 'file',
+    )
+    if (hasImage) return '图片打卡识别'
   }
   return ''
 }

@@ -1,6 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { Mascot } from '@/components/mascot/mascot'
 import { IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,10 +36,13 @@ import {
   CheckinModeTabs,
   SmartScannerLens,
   type CheckinInputMode,
+  type SmartScannerSnapshot,
 } from '../components/smart-scanner'
 import { analysisPrompt, checkinToInput } from '../format'
 import type { CheckinModuleDef } from '../modules/types'
 import type { Checkin, CreateCheckinInput, MealType } from '../schemas'
+import type { SmartHistoryRecord } from '../smart-handoff'
+import type { SmartRecognitionResult } from '../smart-schemas'
 import { AgentDrawer, ReportDivider, SectionDivider } from './agent-drawer'
 import { DocBody, PageBar, TagChip } from './doc-page'
 import { FillSection } from './fill-section'
@@ -62,6 +73,23 @@ export interface CheckinFlowProps {
   initialMode: CheckinInputMode
   /** 外部路由指定的初始餐次（如 ?meal=lunch） */
   initialMeal?: MealType
+  /** 外层已有统一顶栏（如 /checkin/smart）时，在主填写视图隐藏内部 PageBar */
+  hidePageBar?: boolean
+  /** 头部区域上方的组合扩展位（如 /checkin/smart 的一行 5 板块切换胶囊条与目标切换条） */
+  topSlot?: ReactNode
+  /** 预识别结果快照（从 /checkin/smart 识别完成后原地挂载时自动填表并启动团团裁判） */
+  initialSmart?: {
+    result: SmartRecognitionResult
+    preview?: SmartScannerSnapshot | null
+  } | null
+  /** 扫描镜重新识别出结果时的可选通知（如在 /checkin/smart 内重新传图识别到了另一板块） */
+  onSmartRecognized?: (
+    result: SmartRecognitionResult,
+    savedRecord: SmartHistoryRecord,
+    preview?: SmartScannerSnapshot,
+  ) => void
+  /** 将二级页（rules/basis/report）返回动作桥接到外层顶栏返回键 */
+  registerSubPageBack?: (handler: () => boolean) => () => void
   /** 确认入库；返回服务端重算后的记录 */
   onConfirm: (input: CreateCheckinInput) => Promise<Checkin>
   onBack: () => void
@@ -194,8 +222,12 @@ export function CheckinFlow(props: CheckinFlowProps) {
     setSeenAutoOpen(form.autoOpen)
     setOpenId(form.autoOpen ?? null)
   }
-  const [scanPhase, setScanPhase] = useState<'idle' | 'scanning' | 'done'>('idle')
-  const [smart, setSmart] = useState<SmartFillContext | null>(null)
+  const [scanPhase, setScanPhase] = useState<'idle' | 'scanning' | 'done'>(() =>
+    props.initialSmart ? 'done' : 'idle',
+  )
+  const [smart, setSmart] = useState<SmartFillContext | null>(
+    () => props.initialSmart?.result ?? null,
+  )
   const [subject, setSubject] = useState<CreateCheckinInput | null>(() =>
     savedFromDb ? checkinToInput(savedFromDb) : null,
   )
@@ -227,6 +259,22 @@ export function CheckinFlow(props: CheckinFlowProps) {
   const isSmart = mode !== 'manual'
   const push = (p: Page) => setStack((s) => [...s, p])
   const back = () => (stack.length > 1 ? setStack((s) => s.slice(0, -1)) : props.onBack())
+
+  const stackLenRef = useRef(stack.length)
+  useEffect(() => {
+    stackLenRef.current = stack.length
+  }, [stack.length])
+  const { registerSubPageBack } = props
+  useEffect(() => {
+    if (!registerSubPageBack) return
+    return registerSubPageBack(() => {
+      if (stackLenRef.current > 1) {
+        setStack((s) => s.slice(0, -1))
+        return true
+      }
+      return false
+    })
+  }, [registerSubPageBack])
 
   const priorStudyMinutes = useMemo(() => {
     if (goal.module !== 'study' || !todayCheckins) return 0
@@ -411,6 +459,41 @@ export function CheckinFlow(props: CheckinFlowProps) {
     }
   })
 
+  // 承接来自 /checkin/smart 的预识别结果：自动填入对应板块表单并立即启动团团科学裁判与统一报告渲染
+  const appliedInitialSmartRef = useRef<string | null>(null)
+  const initialSmartBridgeRef = useRef({ form, todayCheckins, savedFromDb, startAnalyze })
+  useEffect(() => {
+    initialSmartBridgeRef.current = { form, todayCheckins, savedFromDb, startAnalyze }
+  })
+  const initialSmartResult = props.initialSmart?.result ?? null
+  useEffect(() => {
+    if (!initialSmartResult) return
+    const token = `${goal.id}:${initialSmartResult.aiRunId}`
+    if (appliedInitialSmartRef.current === token) return
+    const timer = window.setTimeout(() => {
+      if (appliedInitialSmartRef.current === token) return
+      appliedInitialSmartRef.current = token
+      const cur = initialSmartBridgeRef.current
+      setSmart(initialSmartResult)
+      setScanPhase('done')
+      const next = cur.form.applySmart(initialSmartResult.draft)
+      if (next) {
+        const nextKey = next.module === 'diet' ? next.mealType : (cur.form.activeKey ?? 'default')
+        const nextSaved =
+          next.module === 'diet'
+            ? (cur.todayCheckins?.find(
+                (c) => c.payload.module === 'diet' && c.payload.mealType === next.mealType,
+              ) ?? null)
+            : cur.savedFromDb
+        setSeenSyncKey(`${nextKey}:${nextSaved?.id ?? 'none'}`)
+        cur.startAnalyze(next)
+      } else {
+        setOpenId(cur.form.sections[0]?.id ?? null)
+      }
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [goal.id, initialSmartResult])
+
   const noteSection = form.sections.find((s) => s.id === 'note') ?? null
   const skipSection: FillSectionSpec = {
     id: 'skip',
@@ -456,7 +539,10 @@ export function CheckinFlow(props: CheckinFlowProps) {
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {page === 'fill' && (
           <>
-            <PageBar title={`${moduleMeta[tone].label}打卡`} onBack={back} />
+            {!props.hidePageBar && (
+              <PageBar title={`${moduleMeta[tone].label}打卡`} onBack={back} />
+            )}
+            {props.topSlot && <div className="shrink-0 px-4 pt-1.5 pb-1">{props.topSlot}</div>}
 
             <div className="shrink-0 px-4 pt-1">
               <Card className="flex items-center gap-3 px-3 py-2">
@@ -531,12 +617,14 @@ export function CheckinFlow(props: CheckinFlowProps) {
                     savedFromDb && form.note === (savedFromDb.note ?? '') ? undefined : form.note
                   }
                   tone={tone}
+                  initialSnapshot={props.initialSmart}
                   onScanStart={() => {
                     invalidateAnalysis()
                     setSmart(null)
                     setScanPhase('scanning')
                   }}
-                  onRecognized={(res) => {
+                  onRecognized={(res, savedRecord, previewSnap) => {
+                    props.onSmartRecognized?.(res, savedRecord, previewSnap)
                     setSmart(res)
                     setScanPhase('done')
                     // 识别结果填进表单，同时直接交给 Agent 裁判；提前对齐 seenSyncKey 防止切餐次时渲染期误触发 reset
