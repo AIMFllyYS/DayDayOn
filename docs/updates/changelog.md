@@ -4,6 +4,22 @@
 
 ---
 
+## [v0.1.7] - 2026-11-11（智能打卡切手动 409 修复、跨页缓存同步与焦点无障碍优化）
+
+### 🛠️ 打卡链路断层修复与无障碍加固
+- **单次智能识别会话隔离（修复 `409 CHECKIN_EXISTS`）**：新增 `smart-session.ts`，在切回「手动填写」Tab、子维度顺延（如继续记午餐/晚餐）、跨板块切换及单次确认入库后立即清理已消费的 `smart.aiRunId` 与 `method: 'photo'` 标记，杜绝手动或续记请求复用旧 `ai_runs.id` 触发唯一索引冲突。
+- **跨页首帧缓存同步与未确认退出守卫**：`useCreateCheckin` 成功后同步更新当日 `checkinDayQuery` 缓存与目标详情 `validDays` 增量，补齐 `invalidationMap.afterCheckinChange` 的 `goals.all` 失效；将手动裁判未确认状态接入 `/checkin/smart` 返回拦截弹窗。
+- **悬浮宠物焦点卸载与 `inert` 改造**：`FloatingPet` 在隐藏前通过 `useLayoutEffect` 同步 `blur()` 卸载焦点并改用原生 `inert` 属性，彻底消除浏览器 `Blocked aria-hidden on an element because its descendant retained focus` 警告，同时补齐键盘激活回调。
+
+---
+
+## [v0.1.6] - 2026-11-11（原生 0ms 开屏、落地页闭环、自托管 APK 应用内更新与智能打卡重构）
+
+- **安卓原生 0ms 开屏与自托管 APK 更新闭环**：新增原生开屏覆盖层 `nativeSplashOverlay`、武汉服务器独立持久化 `/www/wwwroot/daydayon/releases/` 直出目录、固定签名证书与应用内实时进度下载/校验/安装器自动拉起闭环。
+- **双端选图分流与饮食三餐全天结算**：网页端直调原生多选文件框，安卓壳采用流式缩略图分页相册；`/checkin/smart` 原地复用真实 `<CheckinFlow>`，饮食三餐集齐（3/3）后统一计算全天总分并弹出盖章庆祝。
+
+---
+
 ## [v0.1.5] - 2026-11-09（饮食三餐智能识别、温和评分与五大模块同日读写协议统一）
 
 ### 🍱 饮食三餐智能识别与状态机修复
