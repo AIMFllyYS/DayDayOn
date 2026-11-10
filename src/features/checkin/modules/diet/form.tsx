@@ -119,11 +119,11 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
 
   const snackAt = snackTime || clock || '12:00'
   const names = splitNames(text)
-  // 识别出来的条目带份量和热量；用户改了文字就以文字为准
+  // 识别出来的条目带份量和热量；用户改了文字就以文字为准，且记录方式回落为手动
+  const matchedSmartItems =
+    smartItems && smartItems.map((i) => i.name).join('、') === names.join('、') ? smartItems : null
   const items =
-    smartItems && smartItems.map((i) => i.name).join('、') === names.join('、')
-      ? smartItems
-      : names.map((name) => ({ name: name.slice(0, 30), portion: '', kcal: null }))
+    matchedSmartItems ?? names.map((name) => ({ name: name.slice(0, 30), portion: '', kcal: null }))
 
   function toggleTag(name: string) {
     const next = names.includes(name) ? names.filter((x) => x !== name) : [...names, name]
@@ -267,7 +267,7 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
     ) : null,
     canSubmit: names.length > 0 && names.length <= 20,
     aiSummary: `${MEAL_LABEL[mealType]}${mealType === 'snack' ? ` ${snackAt}` : ''} · ${names.length} 道菜`,
-    toInput: () => dietInput({ mealType, items, snackAt, note, photo: smartItems !== null }),
+    toInput: () => dietInput({ mealType, items, snackAt, note, photo: matchedSmartItems !== null }),
     applySmart: (draft: SmartRecognitionDraft) => {
       const d = draft.diet
       if (!d) return null

@@ -25,6 +25,7 @@ import { cn } from '@/lib/cn'
 import { BUSINESS_TIME_ZONE } from '@/lib/time'
 import { CheckinFlow } from '../flow/checkin-flow'
 import { FillSection } from '../flow/fill-section'
+import { resolveInitialSmartForGoal } from '../flow/smart-session'
 import { moduleDef } from '../modules/registry'
 import type { Checkin, CreateCheckinInput } from '../schemas'
 import {
@@ -107,6 +108,7 @@ export function SmartCheckinPage({
     preview?: SmartScannerSnapshot | null
   } | null>(null)
   const [confirmedCurrent, setConfirmedCurrent] = useState(false)
+  const [flowUnconfirmed, setFlowUnconfirmed] = useState(false)
   const [scanNote, setScanNote] = useState('')
   const [noteOpen, setNoteOpen] = useState(false)
 
@@ -142,17 +144,6 @@ export function SmartCheckinPage({
     })
   }, [])
 
-  const shouldGuardExit = Boolean(
-    viewMode === 'scanner' && scanPhase === 'done' && smartSnapshot && !confirmedCurrent,
-  )
-
-  useEffect(() => {
-    setUnconfirmedSmartRecord(shouldGuardExit)
-    return () => {
-      setUnconfirmedSmartRecord(false)
-    }
-  }, [shouldGuardExit])
-
   const allGoals = goals.data?.items ?? []
   const moduleGoals = allGoals.filter((g) => g.module === selectedModule)
   const activeGoalBrief = moduleGoals.find((g) => g.id === selectedGoalId) ?? moduleGoals[0] ?? null
@@ -168,6 +159,23 @@ export function SmartCheckinPage({
     ...checkinDayQuery(activeGoalBrief?.id ?? '', localDate),
     enabled: Boolean(showWorkspace && activeGoalBrief?.id && localDate),
   })
+
+  const workspaceMounted = Boolean(
+    showWorkspace && goalDetail.data && !goalDetail.isPending && !dayCheckins.isPending,
+  )
+  const shouldGuardExit = Boolean(
+    viewMode === 'scanner' &&
+    (workspaceMounted
+      ? flowUnconfirmed
+      : scanPhase === 'done' && smartSnapshot && !confirmedCurrent),
+  )
+
+  useEffect(() => {
+    setUnconfirmedSmartRecord(shouldGuardExit)
+    return () => {
+      setUnconfirmedSmartRecord(false)
+    }
+  }, [shouldGuardExit])
 
   if (goals.isPending || today.isPending || me.isPending) {
     return <SmartCheckinSkeleton />
@@ -207,6 +215,7 @@ export function SmartCheckinPage({
     setSelectedModule(res.draft.detectedModule)
     setSelectedGoalId(res.draft.matchedGoalId)
     setConfirmedCurrent(false)
+    setFlowUnconfirmed(true)
     setScanPhase('done')
   }
 
@@ -243,6 +252,7 @@ export function SmartCheckinPage({
           setViewingHistoryId(null)
           setActiveMode(mode)
           setConfirmedCurrent(false)
+          setFlowUnconfirmed(false)
           setSmartSnapshot(null)
           setScanPhase('scanning')
           setPendingSmartCapture({ file, files, mode })
@@ -259,6 +269,7 @@ export function SmartCheckinPage({
         onSelectModule={(m) => {
           setSelectedModule(m)
           setSelectedGoalId(null)
+          setFlowUnconfirmed(false)
         }}
       />
       {moduleGoals.length > 1 && activeGoalBrief && (
@@ -271,7 +282,10 @@ export function SmartCheckinPage({
                 type="button"
                 role="radio"
                 aria-checked={isSelected}
-                onClick={() => setSelectedGoalId(g.id)}
+                onClick={() => {
+                  setSelectedGoalId(g.id)
+                  setFlowUnconfirmed(false)
+                }}
                 className={cn(
                   'text-tiny rounded-full px-2.5 py-1 font-semibold transition-colors',
                   isSelected
@@ -324,6 +338,12 @@ export function SmartCheckinPage({
       dayStartHour: 0,
     }
 
+    const effectiveInitialSmart = resolveInitialSmartForGoal({
+      snapshot: smartSnapshot,
+      confirmedCurrent,
+      goalModule: g.module,
+    })
+
     async function handleConfirmCheckin(input: CreateCheckinInput): Promise<Checkin> {
       try {
         const result = await create.mutateAsync({
@@ -331,10 +351,15 @@ export function SmartCheckinPage({
           input,
           idempotencyKey: newIdempotencyKey(),
         })
-        if (smartSnapshot?.result) {
+        if (
+          input.source === 'ai' &&
+          smartSnapshot?.result &&
+          input.aiRunId === smartSnapshot.result.aiRunId
+        ) {
           markSmartHistoryConfirmed(smartSnapshot.result.aiRunId, g.title)
+          setConfirmedCurrent(true)
         }
-        setConfirmedCurrent(true)
+        setFlowUnconfirmed(false)
         setUnconfirmedSmartRecord(false)
         return result.checkin
       } catch (e) {
@@ -361,9 +386,10 @@ export function SmartCheckinPage({
         initialMode={scanPhase === 'manual' ? 'manual' : activeMode}
         hidePageBar
         topSlot={switcherSlot}
-        initialSmart={smartSnapshot}
+        initialSmart={effectiveInitialSmart}
         onSmartRecognized={handleRecognized}
         registerSubPageBack={registerSubPageBack}
+        onUnconfirmedChange={setFlowUnconfirmed}
         onConfirm={handleConfirmCheckin}
         onBack={() => (window.history.length > 1 ? router.back() : router.push('/'))}
       />
@@ -383,6 +409,7 @@ export function SmartCheckinPage({
             setActiveMode(nextMode)
             setSmartSnapshot(null)
             setConfirmedCurrent(false)
+            setFlowUnconfirmed(false)
             setScanPhase('scanning')
           }}
           onRecognized={handleRecognized}

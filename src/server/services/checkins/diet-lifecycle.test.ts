@@ -1,8 +1,10 @@
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
+import { buildConfirmPayload } from '@/features/checkin/flow/smart-session'
+import { CreateCheckinSchema } from '@/features/checkin/schemas'
 import { DEFAULT_GOALS } from '@/features/goal/defaults'
 import { db } from '@/server/db/client'
-import { profiles, user } from '@/server/db/schema'
+import { aiRuns, profiles, user } from '@/server/db/schema'
 import { createGoal } from '@/server/services/goals/create'
 import { createCheckin } from './create'
 import { deleteCheckin } from './mutate'
@@ -156,6 +158,134 @@ describe.runIf(hasDb)('真实数据库集成：饮食三餐两阶段结算、加
       const dietToday2 = todayAfterDeleteDinner.goals.find((g) => g.goalId === dietGoal.id)
       expect(dietToday2?.progress).toEqual({ value: 2, target: 3, done: false })
     } finally {
+      await db.delete(user).where(eq(user.id, userId))
+    }
+  })
+
+  it('智能拍照确认后同页切手动填写或记下一餐：剥离已消费 aiRunId 后正常入库，不再触发 409 CHECKIN_EXISTS', async () => {
+    const userId = `test_smart_manual_${crypto.randomUUID()}`
+    const now = new Date('2026-11-10T04:00:00.000Z')
+
+    await db.insert(user).values({
+      id: userId,
+      name: 'Smart Manual User',
+      email: `${userId}@test.local`,
+      createdAt: now,
+      updatedAt: now,
+    })
+    await db.insert(profiles).values({
+      userId,
+      nickname: '拍照切手动测试员',
+      timeZone: 'Asia/Shanghai',
+      dayStartHour: 0,
+      refereeTier: 'balanced-glycemic',
+      onboardedAt: now,
+    })
+
+    const [aiRun] = await db
+      .insert(aiRuns)
+      .values({
+        userId,
+        ip: '127.0.0.1',
+        purpose: 'smart-recognition',
+        promptVersion: 1,
+        status: 'succeeded',
+        dayKey: '2026-11-10',
+      })
+      .returning({ id: aiRuns.id })
+    const aiRunId = aiRun!.id
+
+    try {
+      const dietGoal = await db.transaction((tx) =>
+        createGoal(tx, userId, DEFAULT_GOALS.diet, { today: '2026-11-10' }),
+      )
+
+      // 1. 首餐通过智能拍照确认入库，占用 aiRunId
+      const r1 = await createCheckin(
+        db,
+        userId,
+        dietGoal.id,
+        {
+          module: 'diet',
+          method: 'photo',
+          mealType: 'breakfast',
+          items: [{ name: '水煮蛋', portion: '2颗', kcal: 150 }],
+          isMakeup: false,
+          source: 'ai',
+          aiRunId,
+          parsedText: '两颗水煮蛋',
+          origin: 'manual',
+        },
+        now,
+      )
+      expect(r1.checkin.source).toBe('ai')
+
+      // 2. 若旧逻辑把已消费的 aiRunId 残留带入午餐提交，必然触发唯一索引冲突 409 CHECKIN_EXISTS
+      await expect(
+        createCheckin(
+          db,
+          userId,
+          dietGoal.id,
+          {
+            module: 'diet',
+            method: 'manual',
+            mealType: 'lunch',
+            items: [{ name: '糙米饭', portion: '1碗', kcal: 200 }],
+            isMakeup: false,
+            source: 'ai',
+            aiRunId,
+            origin: 'manual',
+          },
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'CHECKIN_EXISTS' })
+
+      // 3. 修复后切手动填写（或首餐消费后 smart=null）：buildConfirmPayload 剥离残留 aiRunId，午餐顺利入库
+      const manualPayload = CreateCheckinSchema.parse(
+        buildConfirmPayload({
+          subject: {
+            module: 'diet',
+            method: 'photo',
+            mealType: 'lunch',
+            items: [{ name: '糙米饭', portion: '', kcal: null }],
+            note: null,
+          },
+          mode: 'manual',
+          smart: {
+            aiRunId,
+            draft: {
+              detectedModule: 'diet',
+              matchedGoalId: dietGoal.id,
+              confidence: 0.9,
+              summary: '两颗水煮蛋',
+              scanSteps: ['1', '2', '3'],
+              exercise: null,
+              diet: {
+                mealType: 'breakfast',
+                items: [{ name: '水煮蛋', portion: '2颗', kcal: 150 }],
+                note: null,
+              },
+              sleep: null,
+              study: null,
+              custom: null,
+            },
+          },
+          verdict: r1.checkin.verdict!,
+        }),
+      )
+
+      const r2 = await createCheckin(db, userId, dietGoal.id, manualPayload, now)
+      expect(r2.checkin.source).toBe('manual')
+      expect(r2.checkin.payload.module === 'diet' && r2.checkin.payload.method).toBe('manual')
+
+      const stored = await listCheckins(db, userId, dietGoal.id, {
+        from: '2026-11-10',
+        to: '2026-11-10',
+        limit: 20,
+      })
+      expect(stored.items).toHaveLength(2)
+    } finally {
+      await db.delete(aiRuns).where(eq(aiRuns.id, aiRunId))
       await db.delete(user).where(eq(user.id, userId))
     }
   })
