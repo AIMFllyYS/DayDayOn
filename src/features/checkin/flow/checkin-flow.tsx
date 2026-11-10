@@ -47,6 +47,12 @@ import { AgentDrawer, ReportDivider, SectionDivider } from './agent-drawer'
 import { DocBody, PageBar, TagChip } from './doc-page'
 import { FillSection } from './fill-section'
 import { FolderCard } from './folder-card'
+import {
+  buildConfirmPayload,
+  computeFlowUnconfirmed,
+  hasDraftForModule,
+  normalizeManualSubject,
+} from './smart-session'
 import type { FillSectionSpec } from './types'
 
 /*
@@ -90,6 +96,8 @@ export interface CheckinFlowProps {
   ) => void
   /** 将二级页（rules/basis/report）返回动作桥接到外层顶栏返回键 */
   registerSubPageBack?: (handler: () => boolean) => () => void
+  /** 当前是否存在未确认入库的草稿或裁判结论（供外层顶栏返回守卫同步状态） */
+  onUnconfirmedChange?: (unconfirmed: boolean) => void
   /** 确认入库；返回服务端重算后的记录 */
   onConfirm: (input: CreateCheckinInput) => Promise<Checkin>
   onBack: () => void
@@ -222,12 +230,16 @@ export function CheckinFlow(props: CheckinFlowProps) {
     setSeenAutoOpen(form.autoOpen)
     setOpenId(form.autoOpen ?? null)
   }
+  const initialHasDraft = Boolean(
+    props.initialSmart && hasDraftForModule(props.initialSmart.result.draft, goal.module),
+  )
   const [scanPhase, setScanPhase] = useState<'idle' | 'scanning' | 'done'>(() =>
-    props.initialSmart ? 'done' : 'idle',
+    initialHasDraft ? 'done' : 'idle',
   )
-  const [smart, setSmart] = useState<SmartFillContext | null>(
-    () => props.initialSmart?.result ?? null,
+  const [smart, setSmart] = useState<SmartFillContext | null>(() =>
+    initialHasDraft ? (props.initialSmart?.result ?? null) : null,
   )
+  const [lensVersion, setLensVersion] = useState(0)
   const [subject, setSubject] = useState<CreateCheckinInput | null>(() =>
     savedFromDb ? checkinToInput(savedFromDb) : null,
   )
@@ -235,16 +247,18 @@ export function CheckinFlow(props: CheckinFlowProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState<Checkin | null>(savedFromDb)
   const [popup, setPopup] = useState(false)
-  const [initiallyValidToday] = useState(() => Boolean(todayCheckins?.some((c) => c.isValid)))
   const [skipReason, setSkipReason] = useState('')
 
-  // 切换子维度（如从早餐切到午餐）或初始数据库记录到位时，同步当前子维度的已入库状态
+  // 切换子维度（如从早餐切到午餐）或初始数据库记录到位时，同步当前子维度的已入库状态并清理旧识别上下文
   const activeSyncKey = `${form.activeKey ?? 'default'}:${savedFromDb?.id ?? 'none'}`
   const [seenSyncKey, setSeenSyncKey] = useState<string>(activeSyncKey)
-  if (activeSyncKey !== seenSyncKey) {
+  if (!saving && activeSyncKey !== seenSyncKey) {
     setSeenSyncKey(activeSyncKey)
     setSaved(savedFromDb)
     setSubject(savedFromDb ? checkinToInput(savedFromDb) : null)
+    setSmart(null)
+    setScanPhase('idle')
+    setLensVersion((v) => v + 1)
     setOpenId(!savedFromDb && mode === 'manual' ? (form.sections[0]?.id ?? null) : null)
     setSkipReason('')
     referee.reset()
@@ -358,9 +372,10 @@ export function CheckinFlow(props: CheckinFlowProps) {
       form.toInput() ??
       (trimmedSkip ? buildSkipFallbackInput(goal, clock, today, form.activeKey, form.note) : null)
     if (!rawInput) return
+    const normalizedInput = normalizeManualSubject(rawInput, mode)
     const input: CreateCheckinInput = trimmedSkip
-      ? { ...rawInput, skipReason: trimmedSkip }
-      : rawInput
+      ? { ...normalizedInput, skipReason: trimmedSkip }
+      : normalizedInput
     setOpenId(null)
     setIndOpen(
       Object.fromEntries(form.sections.filter((s) => s.independent).map((s) => [s.id, false])),
@@ -388,6 +403,8 @@ export function CheckinFlow(props: CheckinFlowProps) {
     setOpenId(next === 'manual' ? (form.sections[0]?.id ?? null) : null)
     setIndOpen({})
     setScanPhase('idle')
+    setSmart(null)
+    setLensVersion((v) => v + 1)
     invalidateAnalysis()
   }
 
@@ -404,23 +421,11 @@ export function CheckinFlow(props: CheckinFlowProps) {
     if (!subject || !verdict || saving) return
     setSaving(true)
     try {
-      const result = await props.onConfirm({
-        ...subject,
-        ...(smart
-          ? {
-              source: 'ai' as const,
-              aiRunId: smart.aiRunId,
-              parsedText: smart.draft.summary.slice(0, 500),
-            }
-          : {}),
-        ...(verdict.facts ? { facts: verdict.facts } : {}),
-        ...(verdict.refereeRunId ? { refereeRunId: verdict.refereeRunId } : {}),
-        ...(verdict.citations.length > 0 ? { citations: verdict.citations } : {}),
-        ...(verdict.advice.length > 0 ? { advice: verdict.advice.map((a) => a.slice(0, 80)) } : {}),
-      })
+      const result = await props.onConfirm(buildConfirmPayload({ subject, mode, smart, verdict }))
       const savedKey =
         result.payload.module === 'diet' ? result.payload.mealType : (form.activeKey ?? 'default')
       setSeenSyncKey(`${savedKey}:${result.id}`)
+      setSmart(null)
       setSaved(result)
       if (result.verdict?.settlement === 'pending') {
         setAgentOpen(false)
@@ -474,6 +479,12 @@ export function CheckinFlow(props: CheckinFlowProps) {
       if (appliedInitialSmartRef.current === token) return
       appliedInitialSmartRef.current = token
       const cur = initialSmartBridgeRef.current
+      if (!hasDraftForModule(initialSmartResult.draft, goal.module)) {
+        setSmart(null)
+        setScanPhase('idle')
+        setOpenId(cur.form.sections[0]?.id ?? null)
+        return
+      }
       setSmart(initialSmartResult)
       setScanPhase('done')
       const next = cur.form.applySmart(initialSmartResult.draft)
@@ -492,7 +503,13 @@ export function CheckinFlow(props: CheckinFlowProps) {
       }
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [goal.id, initialSmartResult])
+  }, [goal.id, goal.module, initialSmartResult])
+
+  const flowUnconfirmed = computeFlowUnconfirmed({ saved, subject, mode, smart })
+  const { onUnconfirmedChange } = props
+  useEffect(() => {
+    onUnconfirmedChange?.(flowUnconfirmed)
+  }, [onUnconfirmedChange, flowUnconfirmed])
 
   const noteSection = form.sections.find((s) => s.id === 'note') ?? null
   const skipSection: FillSectionSpec = {
@@ -525,8 +542,9 @@ export function CheckinFlow(props: CheckinFlowProps) {
   const activeVerdict = saved?.verdict ?? verdict
   const isPendingSettlement = activeVerdict?.settlement === 'pending'
   const savedValid = saved?.isValid ?? verdict?.isValid ?? false
-  const currentlyValidToday = saved ? saved.isValid : Boolean(todayCheckins?.some((c) => c.isValid))
-  const dayDelta = (currentlyValidToday ? 1 : 0) - (initiallyValidToday ? 1 : 0)
+  const dbValidToday = Boolean(todayCheckins?.some((c) => c.isValid))
+  const currentlyValidToday = saved ? saved.isValid : dbValidToday
+  const dayDelta = (currentlyValidToday ? 1 : 0) - (dbValidToday ? 1 : 0)
   const effectiveDoneDays = Math.max(0, Math.min(period.done + dayDelta, period.total))
   const hasDailySummary =
     !isPendingSettlement &&
@@ -610,6 +628,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
               )}
               {isSmart && (
                 <SmartScannerLens
+                  key={lensVersion}
                   mode={mode}
                   hintModule={goal.module}
                   goalId={goal.id}
@@ -617,7 +636,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
                     savedFromDb && form.note === (savedFromDb.note ?? '') ? undefined : form.note
                   }
                   tone={tone}
-                  initialSnapshot={props.initialSmart}
+                  initialSnapshot={lensVersion === 0 ? props.initialSmart : null}
                   onScanStart={() => {
                     invalidateAnalysis()
                     setSmart(null)
@@ -625,10 +644,11 @@ export function CheckinFlow(props: CheckinFlowProps) {
                   }}
                   onRecognized={(res, savedRecord, previewSnap) => {
                     props.onSmartRecognized?.(res, savedRecord, previewSnap)
-                    setSmart(res)
-                    setScanPhase('done')
+                    const hasDraft = hasDraftForModule(res.draft, goal.module)
+                    setSmart(hasDraft ? res : null)
+                    setScanPhase(hasDraft ? 'done' : 'idle')
                     // 识别结果填进表单，同时直接交给 Agent 裁判；提前对齐 seenSyncKey 防止切餐次时渲染期误触发 reset
-                    const next = form.applySmart(res.draft)
+                    const next = hasDraft ? form.applySmart(res.draft) : null
                     if (next) {
                       const nextKey =
                         next.module === 'diet' ? next.mealType : (form.activeKey ?? 'default')
@@ -641,6 +661,8 @@ export function CheckinFlow(props: CheckinFlowProps) {
                           : savedFromDb
                       setSeenSyncKey(`${nextKey}:${nextSaved?.id ?? 'none'}`)
                       startAnalyze(next)
+                    } else if (hasDraft) {
+                      setOpenId(form.sections[0]?.id ?? null)
                     }
                   }}
                   onScanError={() => setScanPhase('idle')}
