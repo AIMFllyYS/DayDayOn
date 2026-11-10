@@ -84,6 +84,7 @@ export const keys = {
  */
 export const afterCheckinChange = [
   keys.checkins.all,
+  keys.goals.all,
   keys.dashboard.all,
   keys.rank.all,
   keys.me.detail(),

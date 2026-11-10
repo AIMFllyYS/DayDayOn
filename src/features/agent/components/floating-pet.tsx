@@ -1,5 +1,6 @@
 'use client'
 
+import { useLayoutEffect, useRef } from 'react'
 import { cn } from '@/lib/cn'
 import { useAgentUi } from '../agent-store'
 import { usePetBindingState, usePetIdentity } from '../pet-binding'
@@ -26,22 +27,36 @@ export function FloatingPet({ className }: { className?: string }) {
   const { character, name } = usePetIdentity()
   const binding = usePetBindingState()
 
+  const handleActivate = () => (binding?.onTap ? binding.onTap() : ui.openPanel())
+
   const pet = usePetDrag({
     size: PET_SIZE,
     bottomInset: dockInset,
     storageKey: STORAGE_KEY,
-    onTap: () => (binding?.onTap ? binding.onTap() : ui.openPanel()),
+    onTap: handleActivate,
   })
 
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const status = binding?.status ?? null
   const hidden = binding?.hidden ?? false
 
+  // 隐藏前若自身仍持有焦点，先同步移除焦点再交由 inert 接管，避免浏览器报 Blocked aria-hidden 警告
+  useLayoutEffect(() => {
+    if (hidden && buttonRef.current && document.activeElement === buttonRef.current) {
+      buttonRef.current.blur()
+    }
+  }, [hidden])
+
   return (
     <button
+      ref={buttonRef}
       type="button"
       aria-label={binding?.label ?? `打开${name}对话`}
-      aria-hidden={hidden || undefined}
-      tabIndex={hidden ? -1 : undefined}
+      inert={hidden || undefined}
+      onClick={(e) => {
+        // 指针点按由 usePetDrag 区分单击/双击；键盘回车/空格或辅助技术触发 click（detail === 0）时走这里
+        if (e.detail === 0 && !hidden) handleActivate()
+      }}
       className={cn(
         'fixed z-40 flex touch-none items-center justify-center transition-opacity duration-(--dur-fast) outline-none select-none',
         (!pet.ready || hidden) && 'pointer-events-none opacity-0',
