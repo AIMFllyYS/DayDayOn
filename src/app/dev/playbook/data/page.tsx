@@ -15,6 +15,7 @@ import {
   DateTimeFieldsDemo,
   DEMO_TODAY,
   ImagePickerDemo,
+  PhotoAlbumSheetDemo,
   RatingFeedbackDemo,
   ReadonlyCalendarDemo,
   StatesDemo,
@@ -357,16 +358,25 @@ export default function DataPage() {
 
       <Section
         ann="playbook.data.image"
-        title="图片选择 ImagePicker"
-        description="拍照（后置摄像头）或从相册选 → 压缩 → 交给调用方识别。预览只用内存里的 object URL，换图和卸载时释放；识别后不保存原图。"
+        title="图片选择与平台自适应媒体器"
+        description="网页端直接拉起浏览器原生多选文件管理器；安卓客户端壳内使用流式缩略图无限下滑多选相册与原生高清相机。所有预览仅存在于内存，识别后不保存原图。"
       >
-        <Specimen
-          ann="playbook.data.image.picker"
-          label="ImagePicker"
-          note="compress 由调用方传入（src/lib/image）；状态 idle / compressing / recognizing / error"
-        >
-          <ImagePickerDemo />
-        </Specimen>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Specimen
+            ann="playbook.data.image.picker"
+            label="ImagePicker（双端自适应）"
+            note="网页端点击上传图片直接打开系统多选框；支持最多同时上传 2 张"
+          >
+            <ImagePickerDemo />
+          </Specimen>
+          <Specimen
+            ann="playbook.data.image.album"
+            label="PhotoAlbumSheet（安卓壳内专属）"
+            note="MediaStore 毫秒分页元数据 + 系统硬件缩略图流 + 触底无限下滑 + 1..9 顺序多选"
+          >
+            <PhotoAlbumSheetDemo />
+          </Specimen>
+        </div>
       </Section>
 
       <Section

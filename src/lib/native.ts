@@ -1,9 +1,9 @@
 /*
  * 运行环境识别与安卓原生桥接唯一入口（ADR-0022、Issue #57）：
  * - APK 壳在 WebView 的 User-Agent 末尾追加 `DayDayOnApp/<版本号>`，网页靠它识别自己跑在壳里。
- * - 原生桥接（Kotlin 组件：权限管理、原生高清相机、微信式多选相册、硬件计步器、手机本地定时提醒）
+ * - 原生桥接（Kotlin 组件：权限管理、原生高清相机、流式缩略图分页相册、硬件计步器、手机本地定时提醒）
  *   全部收口在本文件，业务代码严禁直接读取 UA 或 window.DayDayOnNative。
- * - 边界条件保证：当处于纯网页端（无 APK 壳）时，所有桥接函数均零报错降级（如今日步数固定返回 0）。
+ * - 边界条件保证：当处于纯网页端（无 APK 壳）时，所有桥接函数均零报错降级，且绝不在生产代码返回任何假演示照片。
  */
 
 /** APK 壳追加在 User-Agent 里的标识，Kotlin 侧必须保持一致 */
@@ -52,25 +52,39 @@ export type NativePermissionsMap = Record<NativePermissionName, PermissionStateV
 export interface NativeAlbumPhotoItem {
   id: string
   name: string
-  /** 预览用 data URL 或 object URL（仅存在于内存） */
+  /** 同源流式缩略图路径（/__native__/media/thumb/{id}）或内存预览 URL */
   previewUrl: string
+  /** 同源高清压缩图流路径（/__native__/media/full/{id}） */
+  fullUrl?: string
   createdAt: string
   width: number
   height: number
 }
 
+export interface NativeAlbumPhotosPage {
+  items: NativeAlbumPhotoItem[]
+  hasMore: boolean
+  nextOffset: number
+  /** Android 14+ 用户是否处于「仅允许访问选定的照片」部分授权态 */
+  partialAccess: boolean
+}
+
 interface AndroidBridge {
-  /** 返回 JSON 字符串：Record<NativePermissionName, PermissionStateValue> */
+  /** 返回 JSON 字符串：Record<NativePermissionName, PermissionStateValue> & { photosPartial?: boolean } */
   getPermissionsJson?: () => string
   /** 触发安卓系统运行时权限弹窗；返回当前或请求后的状态，或通过回调返回 */
   requestPermission?: (permission: string) => string
+  /** Android 14+ 部分照片授权下，重新拉起系统选图授权窗增选可访问照片 */
+  reselectPhotos?: () => string
   /** 打开安卓系统当前应用详情设置页（Settings.ACTION_APPLICATION_DETAILS_SETTINGS） */
   openAppSettings?: () => void
-  /** 直接拉起安卓系统原生相机拍摄高清原图（返回回调或 dataUrl JSON） */
+  /** 直接拉起安卓系统原生相机拍摄高清原图（返回同源流式地址或 dataUrl） */
   captureHighResPhoto?: () => void
-  /** 读取手机相册最近照片缩略列表 JSON */
+  /** 分页读取手机相册照片元数据列表 JSON（< 5ms，不含大图解码） */
+  getAlbumPhotosPageJson?: (offset: number, limit: number) => string
+  /** 兼容旧版：读取手机相册最近照片列表 JSON */
   getAlbumPhotosJson?: (limit: number) => string
-  /** 按相册照片 ID 读取高清压缩后的 JPEG dataUrl */
+  /** 兼容旧版：按相册照片 ID 读取高清压缩后的 JPEG dataUrl */
   readAlbumPhotoDataUrl?: (photoId: string) => string
   /** 读取硬件计步传感器（TYPE_STEP_COUNTER）计算的今日步数 */
   getTodaySteps?: () => number
@@ -78,10 +92,13 @@ interface AndroidBridge {
   scheduleDailyReminder?: (remindAt: string, enabled: boolean) => boolean
 }
 
+type PermListener = (perm: string, state: string) => void
+const permListeners = new Set<PermListener>()
+
 declare global {
   interface Window {
     DayDayOnNative?: AndroidBridge
-    __ddoOnCameraResult?: (dataUrl: string | null, fileName?: string) => void
+    __ddoOnCameraResult?: (urlOrDataUrl: string | null, fileName?: string) => void
     __ddoOnPermissionResult?: (permission: string, state: string) => void
   }
 }
@@ -98,6 +115,15 @@ const DEFAULT_PERMISSIONS: NativePermissionsMap = {
 function getBridge(): AndroidBridge | null {
   if (typeof window === 'undefined') return null
   return window.DayDayOnNative ?? null
+}
+
+function ensureGlobalPermissionDispatcher() {
+  if (typeof window === 'undefined') return
+  window.__ddoOnPermissionResult = (perm, state) => {
+    for (const listener of Array.from(permListeners)) {
+      listener(perm, state)
+    }
+  }
 }
 
 /** 是否存在真实的安卓原生桥对象或处于 APK 壳内 */
@@ -121,8 +147,8 @@ function readWebStoredPermissions(): NativePermissionsMap {
     const parsed = JSON.parse(raw) as Partial<Record<NativePermissionName, unknown>>
     return {
       camera: normalizePermState(parsed.camera),
-      photos: normalizePermState(parsed.photos),
-      steps: normalizePermState(parsed.steps),
+      photos: 'prompt',
+      steps: 'prompt',
       notifications: normalizePermState(parsed.notifications),
     }
   } catch {
@@ -130,7 +156,7 @@ function readWebStoredPermissions(): NativePermissionsMap {
   }
 }
 
-function writeWebStoredPermission(name: NativePermissionName, state: PermissionStateValue) {
+function writeWebStoredPermission(name: 'camera' | 'notifications', state: PermissionStateValue) {
   if (typeof window === 'undefined') return
   try {
     const current = readWebStoredPermissions()
@@ -143,8 +169,8 @@ function writeWebStoredPermission(name: NativePermissionName, state: PermissionS
 
 /**
  * 查询全部 4 项核心权限的当前状态（相机、相册、计步、通知）。
- * - APK 壳内：直接读取 Kotlin 侧 ContextCompat.checkSelfPermission 的真实状态；
- * - 网页端：结合浏览器 Permissions API / Notification.permission 与本地状态，绝不抛错。
+ * - APK 壳内：直接读取 Kotlin 侧真实状态（含永久拒绝 denied 检测与 Android 14 部分授权）；
+ * - 网页端：仅映射浏览器真实支持的 camera / notifications 状态，绝不伪造 photos / steps 授权。
  */
 export async function getNativePermissions(): Promise<NativePermissionsMap> {
   const bridge = getBridge()
@@ -187,34 +213,64 @@ export async function getNativePermissions(): Promise<NativePermissionsMap> {
   return base
 }
 
+/** Android 14+ 是否处于「仅允许访问选定的照片」部分授权模式 */
+export function isNativePhotosPartialAccess(): boolean {
+  const bridge = getBridge()
+  if (!bridge?.getPermissionsJson) return false
+  try {
+    const parsed = JSON.parse(bridge.getPermissionsJson()) as { photosPartial?: unknown }
+    return parsed.photosPartial === true
+  } catch {
+    return false
+  }
+}
+
+function createPermWaiter(expectedPerm: NativePermissionName): {
+  promise: Promise<PermissionStateValue>
+  cancel: () => void
+} {
+  ensureGlobalPermissionDispatcher()
+  let cleanup = () => {}
+  const promise = new Promise<PermissionStateValue>((resolve) => {
+    const timer = setTimeout(() => {
+      permListeners.delete(onResult)
+      resolve('prompt')
+    }, 15_000)
+    function onResult(perm: string, state: string) {
+      if (perm !== expectedPerm) return
+      clearTimeout(timer)
+      permListeners.delete(onResult)
+      resolve(normalizePermState(state))
+    }
+    cleanup = () => {
+      clearTimeout(timer)
+      permListeners.delete(onResult)
+    }
+    permListeners.add(onResult)
+  })
+  return { promise, cancel: cleanup }
+}
+
 /**
  * 真实请求某项权限：
- * - APK 壳内：调用 Kotlin ActivityCompat.requestPermissions 拉起安卓系统授权框；
- * - 浏览器内：camera 真实调起 getUserMedia 请求摄像头权限；notifications 真实调起 Notification.requestPermission。
+ * - APK 壳内：调用 Kotlin Activity.requestPermissions 拉起安卓系统授权框（支持并发监听器防覆盖）；
+ * - 浏览器内：仅 camera 与 notifications 调用标准 Web API，photos 与 steps 不存在前置权限，保持 'prompt'。
  */
 export async function requestNativePermission(
   name: NativePermissionName,
 ): Promise<PermissionStateValue> {
   const bridge = getBridge()
   if (bridge?.requestPermission) {
+    const waiter = createPermWaiter(name)
     try {
       const immediate = bridge.requestPermission(name)
       if (immediate === 'granted' || immediate === 'denied') {
-        writeWebStoredPermission(name, immediate)
+        waiter.cancel()
         return immediate
       }
-      // 等待原生异步权限回调（最长 15 秒超时）
-      const asyncState = await new Promise<PermissionStateValue>((resolve) => {
-        const timer = window.setTimeout(() => resolve('prompt'), 15_000)
-        window.__ddoOnPermissionResult = (perm, state) => {
-          if (perm !== name) return
-          window.clearTimeout(timer)
-          resolve(normalizePermState(state))
-        }
-      })
-      writeWebStoredPermission(name, asyncState)
-      return asyncState
+      return await waiter.promise
     } catch {
+      waiter.cancel()
       return 'denied'
     }
   }
@@ -249,9 +305,27 @@ export async function requestNativePermission(
     }
   }
 
-  // 相册与计步在模拟器或手动授权下记录为已开启
-  writeWebStoredPermission(name, 'granted')
-  return 'granted'
+  return 'prompt'
+}
+
+/** Android 14+ 部分照片授权下，重新调起系统照片选择器增选照片 */
+export async function reselectNativePhotos(): Promise<PermissionStateValue> {
+  const bridge = getBridge()
+  if (bridge?.reselectPhotos) {
+    const waiter = createPermWaiter('photos')
+    try {
+      const immediate = bridge.reselectPhotos()
+      if (immediate === 'granted' || immediate === 'denied') {
+        waiter.cancel()
+        return immediate
+      }
+      return await waiter.promise
+    } catch {
+      waiter.cancel()
+      return 'denied'
+    }
+  }
+  return requestNativePermission('photos')
 }
 
 /** 打开安卓系统的应用权限设置页 */
@@ -288,64 +362,131 @@ export function dataUrlToFile(dataUrl: string, fileName: string): File | null {
   }
 }
 
+async function mediaUrlOrDataUrlToFile(
+  urlOrDataUrl: string,
+  fileName: string,
+): Promise<File | null> {
+  if (urlOrDataUrl.startsWith('data:')) {
+    return dataUrlToFile(urlOrDataUrl, fileName)
+  }
+  try {
+    const res = await fetch(urlOrDataUrl)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    if (blob.size <= 0) return null
+    return new File([blob], fileName, { type: blob.type || 'image/jpeg' })
+  } catch {
+    return null
+  }
+}
+
 /**
- * 直接调用手机原生相机拍摄高分辨率照片（先真实请求相机权限）。
- * - 在 APK 壳内：拉起系统原生相机，拍摄高清图并在内存中转为 File 返回；
- * - 不在 APK 壳内（或无原生相机桥）：返回 null，由调用方回退到 `<input type="file" capture="environment">`。
+ * 直接调用手机原生相机拍摄高分辨率照片（仅在 APK 壳内调用）。
+ * - 在 APK 壳内：拉起系统原生高清相机（CameraTempFileProvider + EXIF 自动旋转），在内存中转为 File 返回；
+ * - 不在 APK 壳内（或无原生相机桥）：直接返回 null，由调用方触发 `<input type="file" capture="environment">`。
  */
 export async function captureNativeHighResPhoto(): Promise<File | null> {
-  const perm = await requestNativePermission('camera')
-  if (perm === 'denied') {
-    throw new Error('CAMERA_PERMISSION_DENIED')
-  }
-
   const bridge = getBridge()
   if (!bridge?.captureHighResPhoto) {
     return null
   }
 
+  const perm = await requestNativePermission('camera')
+  if (perm === 'denied') {
+    throw new Error('CAMERA_PERMISSION_DENIED')
+  }
+
   return new Promise<File | null>((resolve) => {
-    const timer = window.setTimeout(() => resolve(null), 60_000)
-    window.__ddoOnCameraResult = (dataUrl, fileName) => {
-      window.clearTimeout(timer)
-      if (!dataUrl) {
+    const timer = setTimeout(() => resolve(null), 60_000)
+    window.__ddoOnCameraResult = (urlOrDataUrl, fileName) => {
+      clearTimeout(timer)
+      if (!urlOrDataUrl) {
         resolve(null)
         return
       }
-      resolve(dataUrlToFile(dataUrl, fileName || `camera_${Date.now()}.jpg`))
+      const safeName = fileName || `camera_${Date.now()}.jpg`
+      void mediaUrlOrDataUrlToFile(urlOrDataUrl, safeName).then(resolve)
     }
     try {
       bridge.captureHighResPhoto?.()
     } catch {
-      window.clearTimeout(timer)
+      clearTimeout(timer)
       resolve(null)
     }
   })
 }
 
 /**
- * 读取手机相册照片列表（用于微信式多选相册组件）。
- * - 在 APK 壳内：先请求相册权限，再从 MediaStore 读取真实照片缩略图；
- * - 网页端/Playbook：返回内置的治愈手账演示相册照片（纯内存 SVG/Canvas 转 JPEG），支持直接点选体验 1..9 多选流程。
+ * 分页读取手机相册照片元数据列表（用于流式缩略图无限下滑相册组件）。
+ * - 在 APK 壳内：毫秒级查询 MediaStore 分页元数据（缩略图走 `/__native__/media/thumb/{id}` 异步流）；
+ * - 兼容旧版 0.1.3 APK 壳：自动回退单页 `getAlbumPhotosJson`；
+ * - 在纯网页端：**固定返回空页，绝不生成或返回任何内置演示假图**。
  */
-export async function listNativeAlbumPhotos(limit = 24): Promise<NativeAlbumPhotoItem[]> {
+export async function listNativeAlbumPhotosPage(
+  offset = 0,
+  limit = 30,
+): Promise<NativeAlbumPhotosPage> {
   const bridge = getBridge()
-  if (bridge?.getAlbumPhotosJson) {
-    const perm = await requestNativePermission('photos')
-    if (perm === 'denied') return []
+  const empty: NativeAlbumPhotosPage = {
+    items: [],
+    hasMore: false,
+    nextOffset: offset,
+    partialAccess: false,
+  }
+  if (!bridge) return empty
+
+  const perm = await requestNativePermission('photos')
+  if (perm === 'denied') return empty
+
+  if (bridge.getAlbumPhotosPageJson) {
+    try {
+      const raw = bridge.getAlbumPhotosPageJson(offset, limit)
+      const parsed = JSON.parse(raw) as Partial<NativeAlbumPhotosPage>
+      const items = Array.isArray(parsed.items) ? parsed.items : []
+      return {
+        items,
+        hasMore: Boolean(parsed.hasMore),
+        nextOffset:
+          typeof parsed.nextOffset === 'number' ? parsed.nextOffset : offset + items.length,
+        partialAccess: Boolean(parsed.partialAccess),
+      }
+    } catch {
+      // 解析失败时尝试旧版接口
+    }
+  }
+
+  if (bridge.getAlbumPhotosJson && offset === 0) {
     try {
       const raw = bridge.getAlbumPhotosJson(limit)
       const parsed = JSON.parse(raw) as NativeAlbumPhotoItem[]
-      if (Array.isArray(parsed)) return parsed
+      if (Array.isArray(parsed)) {
+        return {
+          items: parsed,
+          hasMore: false,
+          nextOffset: parsed.length,
+          partialAccess: isNativePhotosPartialAccess(),
+        }
+      }
     } catch {
-      // 回退到内置列表
+      // ignore
     }
   }
-  return buildDemoAlbumPhotos()
+
+  return empty
+}
+
+/** 兼容单次读取调用 */
+export async function listNativeAlbumPhotos(limit = 30): Promise<NativeAlbumPhotoItem[]> {
+  const page = await listNativeAlbumPhotosPage(0, limit)
+  return page.items
 }
 
 /** 按照片项导出真实可上传的内存 JPEG File */
 export async function resolveAlbumPhotoToFile(item: NativeAlbumPhotoItem): Promise<File | null> {
+  if (item.fullUrl) {
+    const streamed = await mediaUrlOrDataUrlToFile(item.fullUrl, item.name)
+    if (streamed) return streamed
+  }
   const bridge = getBridge()
   if (bridge?.readAlbumPhotoDataUrl && !item.previewUrl.startsWith('data:')) {
     try {
@@ -355,16 +496,7 @@ export async function resolveAlbumPhotoToFile(item: NativeAlbumPhotoItem): Promi
       // ignore
     }
   }
-  if (item.previewUrl.startsWith('data:')) {
-    return dataUrlToFile(item.previewUrl, item.name)
-  }
-  try {
-    const res = await fetch(item.previewUrl)
-    const blob = await res.blob()
-    return new File([blob], item.name, { type: blob.type || 'image/jpeg' })
-  } catch {
-    return null
-  }
+  return mediaUrlOrDataUrlToFile(item.previewUrl, item.name)
 }
 
 /**
@@ -410,118 +542,4 @@ export async function syncNativeReminder(config: {
   } catch {
     return false
   }
-}
-
-// ---------------------------------------------------------------------------
-// 内置相册生成（内存 Canvas 生成有效 JPEG DataURL，确保通过服务端 FF D8 FF JPEG 校验）
-// ---------------------------------------------------------------------------
-
-let cachedDemoPhotos: NativeAlbumPhotoItem[] | null = null
-
-function createSolidJpegDataUrl(bgHex: string, accentHex: string, title: string): string {
-  if (typeof document === 'undefined') return ''
-  try {
-    const canvas = document.createElement('canvas')
-    canvas.width = 360
-    canvas.height = 360
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return ''
-    ctx.fillStyle = bgHex
-    ctx.fillRect(0, 0, 360, 360)
-    ctx.fillStyle = accentHex
-    ctx.beginPath()
-    ctx.arc(180, 150, 72, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.fillStyle = '#4a3b32'
-    ctx.font = 'bold 24px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(title, 180, 285)
-    return canvas.toDataURL('image/jpeg', 0.85)
-  } catch {
-    return ''
-  }
-}
-
-function buildDemoAlbumPhotos(): NativeAlbumPhotoItem[] {
-  if (cachedDemoPhotos && cachedDemoPhotos.length > 0 && cachedDemoPhotos[0]?.previewUrl) {
-    return cachedDemoPhotos
-  }
-  const presets = [
-    {
-      id: 'album-1',
-      name: 'lunch_salad_bowl.jpg',
-      title: '轻食鸡胸肉沙拉',
-      bg: '#fff3e6',
-      accent: '#f4a261',
-    },
-    {
-      id: 'album-2',
-      name: 'oat_milk_latte.jpg',
-      title: '燕麦拿铁与全麦包',
-      bg: '#fefae0',
-      accent: '#d4a373',
-    },
-    {
-      id: 'album-3',
-      name: 'evening_run_5km.jpg',
-      title: '操场慢跑 5 公里',
-      bg: '#e9f5ef',
-      accent: '#52b788',
-    },
-    {
-      id: 'album-4',
-      name: 'sleep_record_ring.jpg',
-      title: '昨晚睡眠 7.5 小时',
-      bg: '#eef0ff',
-      accent: '#748ffc',
-    },
-    {
-      id: 'album-5',
-      name: 'study_notes_math.jpg',
-      title: '高等数学复习笔记',
-      bg: '#fff0f6',
-      accent: '#f06595',
-    },
-    {
-      id: 'album-6',
-      name: 'homemade_tomato_egg.jpg',
-      title: '番茄炒蛋配杂粮饭',
-      bg: '#fff4e6',
-      accent: '#ff922b',
-    },
-    {
-      id: 'album-7',
-      name: 'gym_dumbbell_sets.jpg',
-      title: '哑铃力量训练 4 组',
-      bg: '#e6fcf5',
-      accent: '#20c997',
-    },
-    {
-      id: 'album-8',
-      name: 'fruit_yogurt_cup.jpg',
-      title: '蓝莓无糖酸奶碗',
-      bg: '#f3f0ff',
-      accent: '#845ef7',
-    },
-    {
-      id: 'album-9',
-      name: 'reading_chapter_3.jpg',
-      title: '英语文献精读打卡',
-      bg: '#e7f5ff',
-      accent: '#339af0',
-    },
-  ]
-  const now = new Date()
-  const list = presets.map((p, idx) => ({
-    id: p.id,
-    name: p.name,
-    previewUrl: createSolidJpegDataUrl(p.bg, p.accent, p.title),
-    createdAt: new Date(now.getTime() - idx * 3600_000).toISOString(),
-    width: 1080,
-    height: 1080,
-  }))
-  if (list[0]?.previewUrl) {
-    cachedDemoPhotos = list
-  }
-  return list
 }
