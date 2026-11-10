@@ -18,6 +18,10 @@ export default function Page() {
         <Link href="/privacy" className="text-primary-ink mx-1 font-semibold underline">
           隐私说明
         </Link>
+        ·
+        <Link href="/welcome" className="text-primary-ink ml-1 font-semibold underline">
+          了解 DayDayOn 介绍
+        </Link>
       </p>
     </>
   )
