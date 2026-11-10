@@ -38,6 +38,8 @@ interface ConfirmDialogProps {
   centered?: boolean
   /** md：内容较多时（如更新说明）加宽到 max-w-md；默认 sm */
   size?: 'sm' | 'md'
+  /** 确认成功后是否自动关闭弹窗（默认 true；应用内更新下载等需保持打开展示进度的场景传 false） */
+  closeOnConfirm?: boolean
   /** 返回 Promise 时等待完成后关闭；抛错时保持打开，由调用方提示错误 */
   onConfirm: () => void | Promise<unknown>
 }
@@ -54,6 +56,7 @@ export function ConfirmDialog({
   buttonLayout = 'responsive',
   centered = false,
   size = 'sm',
+  closeOnConfirm = true,
   onConfirm,
 }: ConfirmDialogProps) {
   const [pending, setPending] = useState(false)
@@ -63,7 +66,7 @@ export function ConfirmDialog({
     setPending(true)
     try {
       await onConfirm()
-      onOpenChange(false)
+      if (closeOnConfirm) onOpenChange(false)
     } catch {
       // 保持打开；错误提示由调用方负责（通常是 toast.error）
     } finally {

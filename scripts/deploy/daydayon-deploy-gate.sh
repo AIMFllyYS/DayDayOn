@@ -105,7 +105,22 @@ else
   log "pre-deploy db backup skipped or failed (check permissions/docker)"
 fi
 
-# 5. 切换
+# 5. 同步版本清单与安装包到独立持久化目录 releases/，并切换当前运行版本
+RELEASES="$ROOT/releases"
+install -d -m 0755 "$RELEASES" "$RELEASES/apk"
+if [[ -f "$stage/download/manifest.json" ]]; then
+  cp -f "$stage/download/manifest.json" "$RELEASES/manifest.json"
+  chmod 0644 "$RELEASES/manifest.json"
+fi
+if [[ -f "$stage/download/CHANGELOG.md" ]]; then
+  cp -f "$stage/download/CHANGELOG.md" "$RELEASES/CHANGELOG.md"
+  chmod 0644 "$RELEASES/CHANGELOG.md"
+fi
+if [[ -f "$stage/download/apk/DayDayOn.apk" ]]; then
+  cp -f "$stage/download/apk/DayDayOn.apk" "$RELEASES/apk/DayDayOn.apk"
+  chmod 0644 "$RELEASES/apk/DayDayOn.apk"
+fi
+
 if [[ -d "$CUR" ]]; then
   rm -rf -- "$PREV"
   mv -- "$CUR" "$PREV"

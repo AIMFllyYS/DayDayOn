@@ -30,7 +30,7 @@ fi
 chown daydayon:daydayon "$ROOT"
 install -d -m 0750 -o daydayon -g daydayon "$ROOT/home" "$ROOT/logs"
 install -d -m 0700 -o daydayon -g daydayon "$ROOT/home/.ssh"
-install -d -m 0755 -o daydayon -g daydayon "$ROOT/webroot"
+install -d -m 0755 -o daydayon -g daydayon "$ROOT/webroot" "$ROOT/releases" "$ROOT/releases/apk"
 touch "$ROOT/home/.ssh/authorized_keys"
 chown daydayon:daydayon "$ROOT/home/.ssh/authorized_keys"
 chmod 0600 "$ROOT/home/.ssh/authorized_keys"

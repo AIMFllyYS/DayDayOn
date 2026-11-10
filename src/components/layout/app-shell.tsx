@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { Suspense, type ReactNode } from 'react'
+import { AutoUpdateChecker } from '@/features/app-update/components/update-dialog'
 import { CheckinLauncher } from '@/features/checkin/components/checkin-launcher'
 import { useCheckinLauncher, useCheckinLauncherState } from '@/features/checkin/launcher-store'
 import { cn } from '@/lib/cn'
@@ -148,6 +149,7 @@ export function AppShell({ children, sidebarFooter }: AppShellProps) {
         {children}
       </AppShellFrame>
       <CheckinLauncher />
+      <AutoUpdateChecker />
     </>
   )
 }
