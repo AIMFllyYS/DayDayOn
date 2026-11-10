@@ -91,7 +91,7 @@ export function useCreateCheckin() {
         idempotencyKey,
       }),
     onSuccess: (result, { goalId }) => {
-      // 先把弹层里这一行的进度写成最新值，再整体失效刷新
+      // 先把弹层、当日打卡与目标有效天数写成最新值，消除跨页返回时的旧缓存闪烁
       qc.setQueryData<CheckinToday>(keys.checkins.today(), (old) => {
         if (!old || result.checkin.localDate !== old.localDate) return old
         const goals = old.goals.map((g) =>
@@ -103,6 +103,44 @@ export function useCreateCheckin() {
           completion: { ...old.completion, done: goals.filter((g) => g.progress.done).length },
         }
       })
+
+      const dayKey = checkinDayQuery(goalId, result.checkin.localDate).queryKey
+      const prevDay = qc.getQueryData<CheckinHistory>(dayKey)
+      if (prevDay) {
+        const wasValidToday = prevDay.items.some((c) => c.isValid)
+        const idx = prevDay.items.findIndex(
+          (c) =>
+            c.id === result.checkin.id ||
+            (c.payload.module === 'diet' &&
+              result.checkin.payload.module === 'diet' &&
+              c.payload.mealType === result.checkin.payload.mealType),
+        )
+        const rawItems =
+          idx >= 0
+            ? prevDay.items.map((c, i) => (i === idx ? result.checkin : c))
+            : [result.checkin, ...prevDay.items]
+        const nextItems =
+          result.checkin.payload.module === 'diet' &&
+          result.checkin.verdict?.settlement === 'settled'
+            ? rawItems.map((c) =>
+                c.payload.module === 'diet'
+                  ? { ...c, isValid: result.checkin.isValid, score: result.checkin.score }
+                  : c,
+              )
+            : rawItems
+        const nowValidToday = nextItems.some((c) => c.isValid)
+        qc.setQueryData<CheckinHistory>(dayKey, { ...prevDay, items: nextItems })
+        if (wasValidToday !== nowValidToday) {
+          qc.setQueryData<GoalDetail>(keys.goals.detail(goalId), (oldGoal) =>
+            oldGoal
+              ? {
+                  ...oldGoal,
+                  validDays: Math.max(0, oldGoal.validDays + (nowValidToday ? 1 : -1)),
+                }
+              : oldGoal,
+          )
+        }
+      }
     },
     onSettled: () => invalidateAfterCheckin(qc),
   })
