@@ -100,6 +100,13 @@ export function GoalCheckinHistory({ goalId }: GoalCheckinHistoryProps) {
                       </p>
                       {c.note && <p className="text-tiny text-muted truncate">{c.note}</p>}
                     </div>
+                    {c.verdict?.settlement === 'pending' ? (
+                      <Badge tone="diet">待三餐汇总</Badge>
+                    ) : c.score !== null ? (
+                      <Badge tone={c.isValid ? 'success' : 'warning'}>{c.score.toFixed(1)}分</Badge>
+                    ) : !c.isValid ? (
+                      <Badge tone="warning">未达标</Badge>
+                    ) : null}
                     {c.isMakeup && <Badge>补卡</Badge>}
                     {c.source === 'ai' && <Badge tone="primary">AI</Badge>}
                     <IconButton icon="trash" label="删除这条打卡" onClick={() => setPending(c)} />

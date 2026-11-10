@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '@/server/api/errors'
-import { IMAGE_MAX_BYTES, imageToFilePart } from './image'
+import { IMAGE_MAX_BYTES, imageToFilePart, validateInlineJpegDataUrl } from './image'
 
 const jpeg = (size = 16) => {
   const bytes = new Uint8Array(size)
@@ -43,5 +43,16 @@ describe('imageToFilePart', () => {
 
   it('超过 4 MB：PAYLOAD_TOO_LARGE', async () => {
     expect(await codeOf(imageToFilePart(jpeg(IMAGE_MAX_BYTES + 1)))).toBe('PAYLOAD_TOO_LARGE')
+  })
+})
+
+describe('validateInlineJpegDataUrl', () => {
+  it('接受合法 JPEG dataURL，拒绝非 JPEG 文件头或非 dataURL', () => {
+    const valid = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]).toString('base64')}`
+    expect(() => validateInlineJpegDataUrl(valid)).not.toThrow()
+
+    const badMagic = `data:image/jpeg;base64,${Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString('base64')}`
+    expect(() => validateInlineJpegDataUrl(badMagic)).toThrowError(ApiError)
+    expect(() => validateInlineJpegDataUrl('https://example.com/a.jpg')).toThrowError(ApiError)
   })
 })

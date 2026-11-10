@@ -8,7 +8,7 @@ import { BrandMark, BrandWordmark } from '@/components/layout/brand'
 export default function AuthLayout({ children }: LayoutProps<'/'>) {
   return (
     <div className="flex min-h-dvh flex-col items-center px-4 pt-[calc(var(--safe-top)+1.5rem)] pb-[calc(var(--safe-bottom)+1.5rem)]">
-      <Link href="/" className="flex items-center gap-2.5" aria-label="DayDayOn 主页">
+      <Link href="/welcome" className="flex items-center gap-2.5" aria-label="DayDayOn 介绍页">
         <BrandMark size={32} />
         <BrandWordmark />
       </Link>

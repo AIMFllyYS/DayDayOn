@@ -1,19 +1,19 @@
 'use client'
 
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/cn'
-import { captureNativeHighResPhoto, isNativeApp } from '@/lib/native'
 import { Button } from './button'
 import { Icon } from './icon'
-import { PhotoAlbumSheet } from './photo-album-sheet'
 import { toast } from './toast'
+import { useMediaPicker } from './use-media-picker'
 
 /*
- * 图片选择：拍照（优先直接调用安卓原生高分辨率相机，兜底 capture="environment"）或从自定义多选相册选，压缩后交给调用方上传识别（PRD 2.6）。
- * - 支持同时上传 2 张图片（相册默认支持 9 张多选，选超过 2 张时自动取前 2 张并提示）；
- * - 边界条件：前端默认只显示上传的第 1 张照片（附角标「共 2 张 · 默认展示首图」），但实际上传两张；
- * - 预览只在内存里：用压缩后的 Blob 生成 object URL，换图或卸载时立即 revoke。
- *   图片不落盘、不进任何缓存（ADR-0002 第 4 节）。
+ * 图片选择：拍照或选图，压缩后交给调用方上传识别（PRD 2.6）。
+ * - 接入全站统一 useMediaPicker：
+ *   - 网页端：直接同步拉起操作系统/浏览器多选文件管理器（绝不弹出安卓专属相册）；
+ *   - 安卓客户端：拍照走原生高分辨率相机，从相册选走流式缩略图无限下滑多选相册；
+ * - 支持同时上传 2 张图片（多选超过 2 张时自动取前 2 张并提示）；
+ * - 预览只在内存里：用压缩后的 Blob 生成 object URL，换图或卸载时立即 revoke（ADR-0002 第 4 节）。
  */
 
 export type ImagePickerStatus = 'idle' | 'compressing' | 'recognizing' | 'error'
@@ -44,14 +44,11 @@ export function ImagePicker({
   decodeErrorText = '这张图打不开，换一张或截个图试试',
   className,
 }: ImagePickerProps) {
-  const cameraRef = useRef<HTMLInputElement>(null)
-  const albumRef = useRef<HTMLInputElement>(null)
   const urlRef = useRef<string | null>(null)
   // 只处理最后一次选择的结果：连续选两张时，先选的那张压缩完成也丢弃
   const pickSeq = useRef(0)
   const [preview, setPreview] = useState<string | null>(null)
   const [imageCount, setImageCount] = useState(1)
-  const [albumOpen, setAlbumOpen] = useState(false)
   const [compressing, setCompressing] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
@@ -86,7 +83,6 @@ export function ImagePicker({
       const blob1 = await compress(first)
       const blob2 = picked[1] ? await compress(picked[1]) : undefined
       if (seq !== pickSeq.current) return
-      // 前端默认只显示上传的第一张照片
       replacePreview(URL.createObjectURL(blob1), picked.length)
       onImage(blob1, blob2)
     } catch {
@@ -97,30 +93,13 @@ export function ImagePicker({
     }
   }
 
-  async function handleChange(e: ChangeEvent<HTMLInputElement>) {
-    const list = e.target.files ? Array.from(e.target.files) : []
-    // 清空 value，同一张图可以再次选择
-    e.target.value = ''
-    await handleFiles(list)
-  }
-
-  async function handleCameraClick() {
-    if (isNativeApp()) {
-      try {
-        const file = await captureNativeHighResPhoto()
-        if (file) {
-          await handleFiles([file])
-          return
-        }
-      } catch {
-        toast.error('未开启相机权限，无法调用手机原生相机', {
-          description: '请前往「我的 → 权限管理」开启相机权限',
-        })
-        return
-      }
-    }
-    cameraRef.current?.click()
-  }
+  const mediaPicker = useMediaPicker({
+    uploadAccept: 'image/*',
+    maxSelect: 9,
+    onFiles: (files) => {
+      void handleFiles(files)
+    },
+  })
 
   function clear() {
     pickSeq.current++
@@ -144,34 +123,7 @@ export function ImagePicker({
 
   return (
     <div className={cn('flex flex-col gap-3', className)} data-status={status}>
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        onChange={handleChange}
-      />
-      <input
-        ref={albumRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        onChange={handleChange}
-      />
-      <PhotoAlbumSheet
-        open={albumOpen}
-        onOpenChange={setAlbumOpen}
-        maxSelect={9}
-        onConfirm={(files) => {
-          void handleFiles(files)
-        }}
-      />
+      {mediaPicker.pickerNode}
 
       <div
         className={cn(
@@ -192,7 +144,7 @@ export function ImagePicker({
         ) : (
           <div className="text-muted flex flex-col items-center gap-2 px-6 text-center">
             <Icon name="camera" size={36} />
-            <p className="text-caption">拍一张或从相册多选照片，团团帮你估算热量</p>
+            <p className="text-caption">拍一张或从本地多选照片，团团帮你估算热量</p>
             <p className="text-tiny">支持同时上传 2 张照片（默认展示首图），识别后不保存原图</p>
           </div>
         )}
@@ -220,7 +172,7 @@ export function ImagePicker({
           variant={preview ? 'soft' : 'primary'}
           className="flex-1"
           disabled={disabled || busy}
-          onClick={() => void handleCameraClick()}
+          onClick={mediaPicker.openCapture}
         >
           {preview ? '重拍' : '拍照'}
         </Button>
@@ -228,9 +180,9 @@ export function ImagePicker({
           variant="secondary"
           className="flex-1"
           disabled={disabled || busy}
-          onClick={() => setAlbumOpen(true)}
+          onClick={mediaPicker.openUpload}
         >
-          从相册选
+          上传图片
         </Button>
         {(preview || message) && onClear && (
           <Button variant="ghost" icon="x" disabled={status === 'compressing'} onClick={clear}>

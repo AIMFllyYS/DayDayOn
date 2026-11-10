@@ -199,4 +199,51 @@ describe('/api/v1/agent 会话与流式对话闭环', () => {
     expect(await res.json()).toMatchObject({ code: 'VALIDATION_FAILED' })
     expect(mocks.runAgent.streamAgentChat).not.toHaveBeenCalled()
   })
+
+  it('POST /agent/chat 支持最多 2 张合法压缩 JPEG 图片，超过 2 张或非 JPEG 返回 400 VALIDATION_FAILED', async () => {
+    const validJpegDataUrl = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]).toString('base64')}`
+    mocks.runAgent.loadConversationMessages.mockResolvedValue([])
+    mocks.runAgent.streamAgentChat.mockResolvedValue(
+      new Response('data: [DONE]\n\n', {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      }),
+    )
+
+    const okRes = await app.request(
+      '/api/v1/agent/chat',
+      jsonInit('POST', {
+        id: CONV_ID,
+        message: {
+          id: 'm-img-ok',
+          role: 'user',
+          parts: [
+            { type: 'file', mediaType: 'image/jpeg', url: validJpegDataUrl },
+            { type: 'file', mediaType: 'image/jpeg', url: validJpegDataUrl },
+          ],
+        },
+        idempotencyKey: IDEM_KEY,
+      }),
+    )
+    expect(okRes.status).toBe(200)
+
+    const tooManyRes = await app.request(
+      '/api/v1/agent/chat',
+      jsonInit('POST', {
+        id: CONV_ID,
+        message: {
+          id: 'm-img-3',
+          role: 'user',
+          parts: [
+            { type: 'file', mediaType: 'image/jpeg', url: validJpegDataUrl },
+            { type: 'file', mediaType: 'image/jpeg', url: validJpegDataUrl },
+            { type: 'file', mediaType: 'image/jpeg', url: validJpegDataUrl },
+          ],
+        },
+        idempotencyKey: IDEM_KEY,
+      }),
+    )
+    expect(tooManyRes.status).toBe(400)
+    expect(await tooManyRes.json()).toMatchObject({ code: 'VALIDATION_FAILED' })
+  })
 })

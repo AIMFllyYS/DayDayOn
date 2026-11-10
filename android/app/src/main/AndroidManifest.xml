@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.husteread.daydayon"
-    android:versionCode="2"
-    android:versionName="0.1.3">
+    android:versionCode="4"
+    android:versionName="0.1.6">
 
     <uses-sdk
         android:minSdkVersion="26"
@@ -17,8 +17,9 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
-    <!-- 2. 相册与媒体读取权限（自定义微信式多选相册） -->
+    <!-- 2. 相册与媒体读取权限（流式缩略图多选相册 + Android 14+ 部分照片授权兼容） -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -36,6 +37,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- 5. 应用内自更新下载完成后调起系统安装器权限（Android 8.0+） -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="false"
@@ -59,11 +63,12 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name="com.husteread.daydayon.CustomGalleryActivity"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+        <!-- 原生高清相机单次拍摄临时文件通道（仅暴露 cacheDir/camera_shots，读入内存后立即删除） -->
+        <provider
+            android:name="com.husteread.daydayon.CameraTempFileProvider"
+            android:authorities="com.husteread.daydayon.cameraprovider"
             android:exported="false"
-            android:label="选择照片" />
+            android:grantUriPermissions="true" />
 
         <receiver
             android:name="com.husteread.daydayon.ReminderReceiver"

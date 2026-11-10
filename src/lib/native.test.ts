@@ -2,9 +2,19 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   dataUrlToFile,
   detectPlatform,
+  dismissNativeSplash,
+  getNativeApkUpdateStatus,
   getNativePermissions,
   getNativeTodaySteps,
+  hasNativeApkUpdater,
+  installNativeDownloadedApk,
+  isNativePhotosPartialAccess,
   isNativeShellUA,
+  listNativeAlbumPhotos,
+  listNativeAlbumPhotosPage,
+  requestNativePermission,
+  startNativeApkUpdate,
+  subscribeNativeApkUpdateProgress,
   syncNativeReminder,
 } from './native'
 
@@ -23,14 +33,14 @@ afterEach(() => {
 
 describe('isNativeShellUA', () => {
   it('UA 里带 DayDayOnApp/ 才算 APK 壳', () => {
-    expect(isNativeShellUA(`${ANDROID_CHROME} DayDayOnApp/1.0.0`)).toBe(true)
+    expect(isNativeShellUA(`${ANDROID_CHROME} DayDayOnApp/0.1.6`)).toBe(true)
     expect(isNativeShellUA(ANDROID_CHROME)).toBe(false)
   })
 })
 
 describe('detectPlatform', () => {
   it('APK 壳优先于其他判断', () => {
-    expect(detectPlatform(`${ANDROID_CHROME} DayDayOnApp/1.0.0`, true)).toBe('native')
+    expect(detectPlatform(`${ANDROID_CHROME} DayDayOnApp/0.1.6`, true)).toBe('native')
   })
 
   it('已安装的 PWA 记为 standalone', () => {
@@ -81,8 +91,103 @@ describe('getNativeTodaySteps 边界条件', () => {
   })
 })
 
-describe('getNativePermissions & syncNativeReminder & dataUrlToFile', () => {
-  it('无原生桥时返回默认权限状态与 false 提醒同步结果', async () => {
+describe('相册分页与网页端零假数据隔离边界', () => {
+  it('纯网页环境绝不返回任何内置演示假图', async () => {
+    const page = await listNativeAlbumPhotosPage(0, 30)
+    expect(page).toEqual({
+      items: [],
+      hasMore: false,
+      nextOffset: 0,
+      partialAccess: false,
+    })
+    expect(await listNativeAlbumPhotos(30)).toEqual([])
+  })
+
+  it('APK 壳内支持分页元数据解析与 Android 14+ 部分授权标识', async () => {
+    const g = globalThis as unknown as { window?: Window }
+    const prevWindow = g.window
+    g.window = {
+      DayDayOnNative: {
+        requestPermission: () => 'granted',
+        getPermissionsJson: () =>
+          JSON.stringify({
+            camera: 'granted',
+            photos: 'granted',
+            photosPartial: true,
+            steps: 'denied',
+            notifications: 'granted',
+          }),
+        getAlbumPhotosPageJson: (offset: number, limit: number) =>
+          JSON.stringify({
+            items: Array.from({ length: limit }, (_, idx) => ({
+              id: String(offset + idx + 1),
+              name: `IMG_${offset + idx + 1}.jpg`,
+              previewUrl: `/__native__/media/thumb/${offset + idx + 1}`,
+              fullUrl: `/__native__/media/full/${offset + idx + 1}`,
+              createdAt: '2026-11-10T04:00:00.000Z',
+              width: 1080,
+              height: 1440,
+            })),
+            hasMore: offset + limit < 75,
+            nextOffset: offset + limit,
+            partialAccess: true,
+          }),
+      },
+    } as unknown as Window
+
+    try {
+      expect(isNativePhotosPartialAccess()).toBe(true)
+      const perms = await getNativePermissions()
+      expect(perms.steps).toBe('denied')
+
+      const p1 = await listNativeAlbumPhotosPage(0, 30)
+      expect(p1.items).toHaveLength(30)
+      expect(p1.items[0]?.previewUrl).toBe('/__native__/media/thumb/1')
+      expect(p1.hasMore).toBe(true)
+      expect(p1.nextOffset).toBe(30)
+      expect(p1.partialAccess).toBe(true)
+
+      const p3 = await listNativeAlbumPhotosPage(60, 30)
+      expect(p3.hasMore).toBe(false)
+      expect(p3.nextOffset).toBe(90)
+    } finally {
+      g.window = prevWindow
+    }
+  })
+
+  it('旧版 0.1.3 APK 壳无分页方法时向下兼容 getAlbumPhotosJson', async () => {
+    const g = globalThis as unknown as { window?: Window }
+    const prevWindow = g.window
+    g.window = {
+      DayDayOnNative: {
+        requestPermission: () => 'granted',
+        getAlbumPhotosJson: () =>
+          JSON.stringify([
+            {
+              id: '99',
+              name: 'legacy.jpg',
+              previewUrl: 'data:image/jpeg;base64,/9j/4AAQ',
+              createdAt: '2026-11-08T00:00:00.000Z',
+              width: 800,
+              height: 800,
+            },
+          ]),
+      },
+    } as unknown as Window
+
+    try {
+      const p = await listNativeAlbumPhotosPage(0, 30)
+      expect(p.items).toHaveLength(1)
+      expect(p.items[0]?.id).toBe('99')
+      expect(p.hasMore).toBe(false)
+    } finally {
+      g.window = prevWindow
+    }
+  })
+})
+
+describe('getNativePermissions & requestNativePermission & dataUrlToFile', () => {
+  it('无原生桥时返回默认权限状态，且请求 photos/steps 不伪造 granted', async () => {
     const perms = await getNativePermissions()
     expect(perms).toEqual({
       camera: 'prompt',
@@ -90,6 +195,8 @@ describe('getNativePermissions & syncNativeReminder & dataUrlToFile', () => {
       steps: 'prompt',
       notifications: 'prompt',
     })
+    expect(await requestNativePermission('photos')).toBe('prompt')
+    expect(await requestNativePermission('steps')).toBe('prompt')
     expect(await syncNativeReminder({ enabled: true, remindAt: '21:00' })).toBe(false)
   })
 
@@ -98,5 +205,81 @@ describe('getNativePermissions & syncNativeReminder & dataUrlToFile', () => {
     expect(file).not.toBeNull()
     expect(file?.name).toBe('shot.jpg')
     expect(file?.type).toBe('image/jpeg')
+  })
+
+  it('原生 0ms 开屏收尾与应用内 APK 更新闭环桥接正常运作', () => {
+    const g = globalThis as unknown as { window?: Window }
+    const prevWindow = g.window
+    let splashDismissed = false
+    let installedTriggered = false
+
+    g.window = {
+      DayDayOnNative: {
+        dismissSplash: () => {
+          splashDismissed = true
+        },
+        startApkUpdate: (url: string, sha256: string, version: string) =>
+          JSON.stringify({
+            state: 'downloading',
+            percent: 25,
+            downloadedBytes: 210_000,
+            totalBytes: 840_000,
+            version,
+            canInstall: true,
+            url,
+            sha256,
+          }),
+        getApkUpdateStatusJson: () =>
+          JSON.stringify({
+            state: 'ready',
+            percent: 100,
+            downloadedBytes: 840_000,
+            totalBytes: 840_000,
+            version: '0.1.6',
+            canInstall: true,
+          }),
+        installDownloadedApk: () => {
+          installedTriggered = true
+          return true
+        },
+      },
+    } as unknown as Window
+
+    try {
+      dismissNativeSplash()
+      expect(splashDismissed).toBe(true)
+      expect(hasNativeApkUpdater()).toBe(true)
+
+      const started = startNativeApkUpdate({
+        url: '/download/DayDayOn.apk',
+        sha256: 'a'.repeat(64),
+        version: '0.1.6',
+      })
+      expect(started.state).toBe('downloading')
+      expect(started.percent).toBe(25)
+
+      let streamedPercent = 0
+      const unsub = subscribeNativeApkUpdateProgress((s) => {
+        streamedPercent = s.percent
+      })
+      g.window.__ddoOnUpdateProgress?.({
+        state: 'downloading',
+        percent: 78,
+        downloadedBytes: 650_000,
+        totalBytes: 840_000,
+        version: '0.1.6',
+        canInstall: true,
+      })
+      expect(streamedPercent).toBe(78)
+      unsub()
+
+      const ready = getNativeApkUpdateStatus()
+      expect(ready.state).toBe('ready')
+      expect(ready.percent).toBe(100)
+      expect(installNativeDownloadedApk()).toBe(true)
+      expect(installedTriggered).toBe(true)
+    } finally {
+      g.window = prevWindow
+    }
   })
 })

@@ -61,8 +61,8 @@ export async function previewCreate(
   const input = parsed.data
   const clock = await loadClock(db, userId)
   const draft = await buildDraft(db, userId, goal, input, clock, now)
-  const verdict = await judgeCheckin(db, userId, goal, input, clock)
   const localDate = localDateOf(draft.occurredAt, clock.timeZone, clock.dayStartHour)
+  const verdict = await judgeCheckin(db, userId, goal, input, clock, { localDate })
   if (goal.module === 'sleep') {
     const [exists] = await db
       .select({ id: checkins.id })

@@ -19,7 +19,7 @@ import {
 } from '@/lib/api/queries/me'
 import { authClient } from '@/lib/auth-client'
 import { isThemeId, setTheme } from '@/lib/theme'
-import { syncNativeReminder } from '@/lib/native'
+import { nativeShellVersion, syncNativeReminder } from '@/lib/native'
 import { useCheckUpdate } from '@/features/app-update/components/update-dialog'
 import { APP_VERSION } from '@/lib/app-version'
 import { MeView } from './me-view'
@@ -38,11 +38,11 @@ function failToast(e: unknown) {
   toast.error(isApiError(e) ? errorMessage(e) : '网络好像不太稳，稍后再试试')
 }
 
-/** 退出登录：清会话 cookie、清内存里的查询缓存，再整页跳到登录页 */
+/** 退出登录：清会话 cookie、清内存里的查询缓存，再整页回到落地页 /welcome */
 async function signOutAndLeave(clear: () => void) {
   await authClient.signOut().catch(() => undefined)
   clear()
-  window.location.replace('/login')
+  window.location.replace('/welcome')
 }
 
 export function MeScreen() {
@@ -82,6 +82,9 @@ export function MeScreen() {
   }
 
   const remindValue = remindDraft ?? me.preferences.remindAt ?? ''
+  const shellVersion =
+    typeof window !== 'undefined' ? nativeShellVersion(window.navigator.userAgent) : null
+  const displayVersion = shellVersion ? `${APP_VERSION} · 客户端 v${shellVersion}` : APP_VERSION
 
   return (
     <>
@@ -90,7 +93,7 @@ export function MeScreen() {
         me={me}
         onCheckUpdate={() => void updates.check()}
         checkingUpdate={updates.checking}
-        appVersion={APP_VERSION}
+        appVersion={displayVersion}
         quota={<QuotaCard />}
         onPreferencesChange={changePreferences}
         remindControl={

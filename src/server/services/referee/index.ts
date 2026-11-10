@@ -8,9 +8,11 @@ import { streamReferee, type RefereeConversation } from '@/server/ai/referee'
 import { db } from '@/server/db/client'
 import { loadClock } from '@/server/services/checkins/clock'
 import { loadFields, loadGoal } from '@/server/services/checkins/goal'
+import { targetDayOf } from '@/server/services/checkins/rules'
 import { latestWeightGrams } from '@/server/services/metrics/weight'
 import { loadPetName } from '@/server/services/agent/pet-name'
 import { loadRefereeTier } from './context'
+import { todayDietMeals } from './read'
 
 /*
  * POST /goals/{goalId}/referee：对一条还没入库的打卡做 Agent 裁判，流式返回。
@@ -57,6 +59,14 @@ export async function startReferee(input: {
   const subject = subjectOf(input.checkin, { timeZone: clock.timeZone, fields })
   const rules = effectiveRules(goal.module, goal.refereeRules)
   const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
+  const targetDay = targetDayOf(now, clock, input.checkin.isMakeup)
+  const currentMeal = input.checkin.module === 'diet' ? input.checkin.mealType : null
+  const priorDietMeals =
+    currentMeal !== null
+      ? (await todayDietMeals(db, input.userId, goal.id, targetDay)).filter(
+          (m) => m.mealType !== currentMeal,
+        )
+      : undefined
 
   return streamReferee({
     db,
@@ -73,6 +83,7 @@ export async function startReferee(input: {
       storedRules: goal.refereeRules,
       tier,
       skipReason: input.checkin.skipReason ?? null,
+      ...(priorDietMeals ? { priorDietMeals } : {}),
     },
     petName,
     conversation: input.conversation
@@ -85,6 +96,14 @@ export async function startReferee(input: {
       个人体质: TIER_LABEL[tier],
       达标规则: rules,
       待裁判的记录: subject.subject,
+      ...(priorDietMeals && priorDietMeals.length > 0
+        ? {
+            今日已打卡其他餐次: priorDietMeals.map((m) => ({
+              mealType: m.mealType,
+              items: m.items.map((i) => i.name),
+            })),
+          }
+        : {}),
       ...(input.checkin.note ? { 备注_最高优先级上下文: input.checkin.note } : {}),
       ...(input.checkin.skipReason ? { 跳过本次打卡理由: input.checkin.skipReason } : {}),
     },

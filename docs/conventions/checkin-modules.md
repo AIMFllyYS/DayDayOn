@@ -82,17 +82,18 @@ src/server/api/routes/referee.ts      POST /goals/{goalId}/referee（流式，�
 ```ts
 interface Verdict {
   version: 1
-  isValid: boolean          // 是否计入有效打卡
-  score: number | null      // 只有评分制板块有（饮食 0.0–5.0）
+  isValid: boolean                     // 是否计入有效打卡（多餐周期未集齐时恒为 false）
+  settlement?: 'pending' | 'settled'   // pending = 分餐已记录待集齐三餐汇总；缺省或 settled = 终判
+  score: number | null                 // 评分制板块全天结算后的总分（0.0–5.0）；pending 阶段为 null
   scoreMax: number | null
-  detail: string            // 一句话：「本餐 4.4 分，超过 3.0 分有效线」
-  checks: Check[]           // 逐项核验：{ id, text, ok, source? }
+  detail: string                       // 一句话阶段说明或全天结算结论
+  checks: Check[]                      // 逐项核验：{ id, text, ok, source? }
   metrics: Record<string, number | string | null>   // 报告用的数（板块自定键）
-  facts: Facts              // 当时依据的事实
+  facts: Facts                         // 当时依据的事实
   citations: { title: string; url: string }[]       // 联网核验来源
-  advice: string[]          // 改进建议（最多 3 条）
+  advice: string[]                     // 改进建议（最多 3 条）
   refereeRunId: string | null                        // 裁判那次 ai_runs.id；离线判定为 null
-  offline: boolean          // true = 没经过 Agent，只按规则判定
+  offline: boolean                     // true = 没经过 Agent，只按规则判定
 }
 ```
 
@@ -114,7 +115,7 @@ interface Verdict {
 
 | 板块 | 服务端入库（`createCheckin`） | 前端回显与连续打卡（`useForm` + `CheckinFlow`） |
 |---|---|---|
-| diet | 按 `mealType`（早/午/晚/加餐）同日同餐次 Upsert；三餐齐备或有加餐时触发 `reconcileDailyDiet` 硬覆盖当日所有饮食记录的 `isValid`；未传 `facts` 时按内置营养表补齐兜底事实 | 默认按本地时刻就近匹配早/午/晚正餐（加餐仅限手动点选）；手动点选餐次后锁定该餐次，未手动锁定时连续智能拍照自动顺延至下一未打卡正餐；切换餐次时同步 `seenSyncKey` 并隔离上一餐数据库备注 |
+| diet | 按 `mealType`（早/午/晚/加餐）同日同餐次 Upsert；未集齐早/午/晚三顿正餐时写为 `settlement = 'pending'`（`score = null, isValid = false`）；集齐三餐或有加餐、修改、删除时一律通过 `reconcileDailyDiet` 统一重算全天总分并同步写回当日全部记录的 `score`、`isValid` 与 `verdict` | 默认按本地时刻就近匹配早/午/晚正餐；第 1、2 餐保存时不弹终判盖章弹窗，提供「继续记下一餐」快捷切换；第 3 餐集齐时当场弹出庆祝盖章弹窗与全天总分成绩单 |
 | exercise | 同日单条聚合 Upsert，自动合并同日多次智能识别或手动录入的运动明细并重算总时长、总消耗与 `verdict` | 进页面回显今日已打卡运动项；同日再次智能拍照时在已有列表上追加/去重合并运动项（保留 `km` 与 `sets`） |
 | study | 每次提交新增一条碎片学习记录；当累计时长 + 要点达成 `isValid` 时，将当日此前暂存的碎片记录同步更新为 `isValid = true` | 今日累计时长未达标时重进默认打开空白表单供继续累加（注入 `priorMinutesToday`）；已达标时回显最新记录 |
 | sleep | 同日单条 Upsert | 进页面完整回显今日睡眠记录，修改后直接更新当日记录 |
@@ -165,7 +166,9 @@ interface Verdict {
 
 ## 8. 禁止
 
-- 不要在页面、路由或 Hono handler 里写达标判据（分数线、分钟数、红线时刻）；只能出现在 `features/referee/rules/` 和 `defaults.ts`。
+- 不要在页面、路由、Hono handler 或 `/dev/playbook` 沙盒里另写一套达标判据或 `score()` 函数；Playbook 必须直接调用 `features/referee/rules/` 的真实纯函数，修改规则时必须同步更新 `modules/<module>/docs.ts`。
+- 评分制规则的干净无违规基础分必须**高于**默认 `passScore`（如饮食干净底分 3.8 > 3.0），禁止设置低于及格线的起评分导致「缺可选加分项（如膳食纤维）变相不及格」；热量走廊下限必须区分人群体质方向（减脂档低热量为加分项，仅增肌档对热量不足扣分）。
+- 多阶段周期板块（如饮食三餐）在未集齐结算条件时，`isValid` 必须为 `false`、`settlement` 为 `'pending'`，前端禁止提前弹出盖章庆祝弹窗或累加 `DAY` 周期环；`createCheckin`、`updateCheckin`、`deleteCheckin` 三条写路径都必须调用同日聚合重算函数。
 - 不要信任前端传来的 `isValid` / `score`；schema 里不收这两个字段。
 - 不要因为未达标拒绝保存（不返回 4xx），也不要删掉未达标记录。
 - 不要给某个板块单独复制一套打卡页骨架、报告卡片或 Agent 抽屉；要差异就给 `CheckinFlow` 加一个可选插槽。

@@ -2000,6 +2000,9 @@
           "isValid": {
             "type": "boolean"
           },
+          "settlement": {
+            "$ref": "#/components/schemas/SettlementStage"
+          },
           "score": {
             "type": [
               "number",
@@ -2112,6 +2115,13 @@
           "advice",
           "refereeRunId",
           "offline"
+        ]
+      },
+      "SettlementStage": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "settled"
         ]
       },
       "RefereeFacts": {

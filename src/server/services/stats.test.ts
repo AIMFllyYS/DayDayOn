@@ -117,6 +117,35 @@ describe('goalDayProgress', () => {
     expect(three.done).toBe(true)
   })
 
+  it('饮食两阶段：未集齐三餐（pending）展示 1/3、2/3 进度但 done=false；集齐失败为 0/3', () => {
+    const target: TargetOnDay = { kind: 'count', value: 3, weekdays: EVERY_DAY }
+    const onePending = goalDayProgress(target, 'diet', [
+      checkin({ mealType: 'breakfast', isValid: false, pending: true }),
+    ])
+    expect(onePending).toEqual({ value: 1, target: 3, done: false })
+
+    const twoPending = goalDayProgress(target, 'diet', [
+      checkin({ mealType: 'breakfast', isValid: false, pending: true }),
+      checkin({ mealType: 'lunch', isValid: false, pending: true }),
+    ])
+    expect(twoPending).toEqual({ value: 2, target: 3, done: false })
+
+    // 即使老目标把 target.value 设成 1，pending 阶段也绝不提前算完成
+    expect(
+      goalDayProgress({ kind: 'count', value: 1, weekdays: EVERY_DAY }, 'diet', [
+        checkin({ mealType: 'breakfast', isValid: false, pending: true }),
+      ]),
+    ).toEqual({ value: 1, target: 3, done: false })
+
+    // 三餐集齐但总分不及格（isValid=false, pending=false）：0/3 未完成
+    const settledFailed = goalDayProgress(target, 'diet', [
+      checkin({ mealType: 'breakfast', isValid: false }),
+      checkin({ mealType: 'lunch', isValid: false }),
+      checkin({ mealType: 'dinner', isValid: false }),
+    ])
+    expect(settledFailed).toEqual({ value: 0, target: 3, done: false })
+  })
+
   it('睡眠：取当天那条的时长，不累加', () => {
     const target: TargetOnDay = { kind: 'duration', value: 28_800, weekdays: EVERY_DAY }
     expect(goalDayProgress(target, 'sleep', [checkin({ durationSeconds: 27_000 })])).toEqual({

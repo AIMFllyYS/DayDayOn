@@ -20,22 +20,37 @@ export function VerdictStrip({
   verdict: DraftVerdict
   className?: string
 }) {
+  const pending = verdict.settlement === 'pending'
   const score = scoreText(verdict)
   const misses = verdict.checks.filter((c) => !c.ok).slice(0, 2)
+  const progressBadge =
+    pending && verdict.mealsLogged !== undefined
+      ? `${verdict.mealsLogged} / ${verdict.mealsRequired ?? 3} 餐`
+      : score
   return (
     <div
       className={cn(
         'rounded-xl px-3 py-2.5',
-        verdict.isValid ? 'bg-success-soft text-success-ink' : 'bg-warning-soft text-warning-ink',
+        pending
+          ? 'bg-diet-soft text-diet-ink'
+          : verdict.isValid
+            ? 'bg-success-soft text-success-ink'
+            : 'bg-warning-soft text-warning-ink',
         className,
       )}
     >
       <div className="flex items-center gap-2">
-        <Icon name={verdict.isValid ? 'shield' : 'alert'} size={16} />
+        <Icon name={pending ? 'clock' : verdict.isValid ? 'shield' : 'alert'} size={16} />
         <p className="min-w-0 flex-1 font-semibold">
-          {verdict.isValid ? '达标 · 计入进度' : '未达标 · 只存档'}
+          {pending
+            ? '本餐已解析 · 待三餐汇总评分'
+            : verdict.isValid
+              ? '达标 · 计入进度'
+              : '未达标 · 只存档'}
         </p>
-        {score && <span className="font-display font-semibold tabular-nums">{score}</span>}
+        {progressBadge && (
+          <span className="font-display font-semibold tabular-nums">{progressBadge}</span>
+        )}
       </div>
       <p className="text-tiny mt-1 break-words">{verdict.detail}</p>
       {misses.length > 0 && (

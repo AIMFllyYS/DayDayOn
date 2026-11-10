@@ -21,6 +21,15 @@
 - 错误响应体是否为 `{ code, detail }`
 - 请求体、AI 输出是否经过 zod 校验
 
+## 领域状态机与裁判规则（打卡与评分必查）
+
+- 修改 `src/features/referee/rules/` 时，是否同步更新了二级说明页 `modules/<module>/docs.ts` 与 `/dev/playbook/modules/<module>`；Playbook 是否直接调用真实规则函数（严禁在 Playbook 里复制第二套 `score()`）
+- 评分制规则的干净无违规基础分是否**高于**默认 `passScore`（严禁把起评分设在及格线以下，造成缺膳食纤维等可选加分项即变相扣分挂科）
+- 人群档位（`RefereeTier`）方向是否写反：减脂档低热量/空腹不得因低于走廊下限扣分或标红叉，偏瘦增肌档热量亏空才扣分
+- 多阶段打卡（如饮食早/午/晚三餐）在未集齐前是否保持 `settlement = 'pending'` 且 `isValid = false`（防止提前触发连击、排行、好友动态或前端假盖章弹窗）
+- 同日聚合重算（如 `reconcileDailyDiet`）是否同时覆盖了 `createCheckin`、`updateCheckin` 与 `deleteCheckin` 三条路径
+- 改动打卡流程或 UI 组件时，是否真的用浏览器在 390px 与 1280px 走完了完整多步流程（如 `1/3 → 2/3 → 3/3 庆祝弹窗`），严禁只凭 `pnpm build` 通过即合并
+
 ## 安全与隐私
 
 - 有没有把用户图片写入磁盘、数据库或日志（包括 base64 字符串）

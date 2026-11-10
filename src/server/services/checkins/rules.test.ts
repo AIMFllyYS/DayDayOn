@@ -118,6 +118,21 @@ describe('日历聚合', () => {
     ])
   })
 
+  it('饮食 pending 待汇总记录不误标为 archivedOnly（未达标存档），终判不及格才标 archivedOnly', () => {
+    const days = calendarDays(
+      [
+        { ...row('2026-11-02', false, 0), mealType: 'breakfast', isValid: false, pending: true },
+        { ...row('2026-11-03', false, 0), mealType: 'breakfast', isValid: false },
+      ],
+      'diet',
+      () => ({ kind: 'count', value: 3, weekdays: [1, 2, 3, 4, 5, 6, 7] }),
+    )
+    expect(days).toEqual([
+      { localDate: '2026-11-02', count: 1, done: false, makeupOnly: false, archivedOnly: false },
+      { localDate: '2026-11-03', count: 1, done: false, makeupOnly: false, archivedOnly: true },
+    ])
+  })
+
   it('月份边界：12 月的下一个月是次年 1 月', () => {
     expect(monthBounds('2026-12')).toEqual({ from: '2026-12-01', until: '2027-01-01' })
     expect(monthBounds('2026-02')).toEqual({ from: '2026-02-01', until: '2026-03-01' })

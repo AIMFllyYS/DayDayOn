@@ -1,34 +1,40 @@
 'use client'
 
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { cn } from '@/lib/cn'
 import {
   isNativeApp,
-  listNativeAlbumPhotos,
+  listNativeAlbumPhotosPage,
   requestNativePermission,
+  reselectNativePhotos,
   resolveAlbumPhotoToFile,
   type NativeAlbumPhotoItem,
 } from '@/lib/native'
 import { Button } from './button'
+import { EmptyState } from './empty-state'
 import { Icon } from './icon'
 import { Sheet } from './sheet'
+import { Skeleton } from './skeleton'
 import { toast } from './toast'
 
 /*
- * 微信风自定义多选相册组件（PhotoAlbumSheet）：
- * - 默认最多可选 9 张（maxSelect = 9）；
- * - 每张照片右上角带圆形选择框，点选后按先后顺序展示「1、2、3…」序号角标，取消某张后后续序号自动重排；
- * - 顶栏右上角提供「取消选择」按钮，一键清空当前已选图片；
- * - 安卓壳内优先请求相册权限并加载原生 MediaStore 缩略图列表，同时支持从系统文件选择器导入多张本地图片进入网格挑选；
- * - 严守 ADR-0002：所有缩略图与选中的 File 仅存在于客户端内存，绝不落服务端磁盘。
+ * 安卓客户端专属 · 流式缩略图无限下滑多选相册（PhotoAlbumSheet）：
+ * - 仅在安卓客户端（isNativeApp()）内打开（Playbook 可通过 demoItems 显式注入演示卡片，正式生产代码零假图）；
+ * - 性能优化核心：
+ *   1. 首屏及每次触底仅查询 MediaStore 分页元数据（PAGE_SIZE = 30，耗时 < 5ms），弹窗动画 0 卡顿；
+ *   2. 缩略图统一走 `/__native__/media/thumb/{id}`（系统硬件 loadThumbnail + LruCache）配合 `<img loading="lazy" decoding="async">`；
+ *   3. 底部挂载 IntersectionObserver 哨兵，下滑接近底部时自动无感续拉下一页，支持数千张照片无限顺滑浏览；
+ * - 支持 1..maxSelect 顺序角标点选与重排、一键取消选择、Android 14+ 部分照片授权增选与可选文档附件导入。
  */
 
-interface AlbumGridItem {
+const PAGE_SIZE = 30
+
+export interface AlbumGridItem {
   id: string
   fileName: string
   previewUrl: string
   createdAt: string
-  /** 本地导入的真实 File；若来自原生相册则在点击「完成」时按 item 异步转成 File */
+  /** 本地导入或 Playbook 演示的真实 File；若来自原生相册则在点击「完成」时按需读取 */
   file?: File
   nativeItem?: NativeAlbumPhotoItem
 }
@@ -36,85 +42,25 @@ interface AlbumGridItem {
 export interface PhotoAlbumSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** 默认支持最多选 9 张（与微信相册一致） */
+  /** 默认支持最多选 9 张 */
   maxSelect?: number
-  /** 业务侧实际消费的上限提示（如识别接口一次最多上传 2 张时，可在副标题温和提示） */
+  /** 业务侧实际消费的上限提示 */
   hintText?: string
+  /** 可选系统文件导入 accept（如智能上传需支持 TXT/HTML 附件时传入） */
+  fileAccept?: string
+  /** 仅限 /dev/playbook 演示显式注入，正式环境严禁传假图 */
+  demoItems?: readonly AlbumGridItem[]
   onConfirm: (files: File[]) => void
 }
 
-/** 生成内置轻量 SVG 演示图（供网页端或空相册快速体验微信式 1..9 顺序多选） */
-function createSampleAlbumFile(
-  title: string,
-  subtitle: string,
-  bgHex: string,
-  accentHex: string,
-  fileName: string,
-): { file: File; previewUrl: string } {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 480 480">
-    <rect width="480" height="480" rx="36" fill="${bgHex}"/>
-    <circle cx="380" cy="110" r="56" fill="${accentHex}" opacity="0.28"/>
-    <circle cx="120" cy="360" r="72" fill="${accentHex}" opacity="0.18"/>
-    <text x="44" y="230" font-family="sans-serif" font-size="34" font-weight="bold" fill="#2c2623">${title}</text>
-    <text x="44" y="280" font-family="sans-serif" font-size="22" fill="#6e655f">${subtitle}</text>
-  </svg>`
-  const blob = new Blob([svg], { type: 'image/svg+xml' })
-  const file = new File([blob], fileName, { type: 'image/svg+xml' })
-  const previewUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
-  return { file, previewUrl }
-}
-
-function buildDefaultItems(): AlbumGridItem[] {
-  const presets = [
-    {
-      id: 'sample-1',
-      title: '减脂午餐便当',
-      subtitle: '番茄炒蛋 + 杂粮饭 425 kcal',
-      bg: '#FFF4EC',
-      accent: '#F28B50',
-      fileName: 'lunch_bento_01.jpg',
-    },
-    {
-      id: 'sample-2',
-      title: '傍晚慢跑 5km',
-      subtitle: '配速 5:42 · 运动轨迹截图',
-      bg: '#EEF8F3',
-      accent: '#3FA67A',
-      fileName: 'evening_run_02.jpg',
-    },
-    {
-      id: 'sample-3',
-      title: '早餐全麦三明治',
-      subtitle: '无糖豆浆 + 水煮蛋 310 kcal',
-      bg: '#FFF9EB',
-      accent: '#E5A93C',
-      fileName: 'breakfast_toast_03.jpg',
-    },
-    {
-      id: 'sample-4',
-      title: '睡眠监测报告',
-      subtitle: '23:15 入睡 · 07:10 醒来',
-      bg: '#F2F0FC',
-      accent: '#7A6AD8',
-      fileName: 'sleep_report_04.jpg',
-    },
-  ]
-  return presets.map((p, idx) => {
-    const { file, previewUrl } = createSampleAlbumFile(
-      p.title,
-      p.subtitle,
-      p.bg,
-      p.accent,
-      p.fileName,
-    )
-    return {
-      id: p.id,
-      fileName: p.fileName,
-      previewUrl,
-      createdAt: new Date(Date.now() - idx * 3600_000).toISOString(),
-      file,
-    }
-  })
+function mapNativeItems(list: readonly NativeAlbumPhotoItem[]): AlbumGridItem[] {
+  return list.map((n) => ({
+    id: `native:${n.id}`,
+    fileName: n.name || `photo_${n.id}.jpg`,
+    previewUrl: n.previewUrl,
+    createdAt: n.createdAt,
+    nativeItem: n,
+  }))
 }
 
 export function PhotoAlbumSheet({
@@ -122,13 +68,23 @@ export function PhotoAlbumSheet({
   onOpenChange,
   maxSelect = 9,
   hintText,
+  fileAccept = 'image/*',
+  demoItems,
   onConfirm,
 }: PhotoAlbumSheetProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [sentinelEl, setSentinelEl] = useState<HTMLDivElement | null>(null)
   const objectUrlsRef = useRef<string[]>([])
-  const [items, setItems] = useState<AlbumGridItem[]>(() => buildDefaultItems())
+  const loadingPageRef = useRef(false)
+
+  const [items, setItems] = useState<AlbumGridItem[]>(() => (demoItems ? [...demoItems] : []))
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [loadingNative, setLoadingNative] = useState(false)
+  const [nextOffset, setNextOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [partialAccess, setPartialAccess] = useState(false)
+  const [permissionDenied, setPermissionDenied] = useState(false)
+  const [loadingInitial, setLoadingInitial] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -138,44 +94,130 @@ export function PhotoAlbumSheet({
     }
   }, [])
 
-  // 打开相册时：读取手机相册或内置演示相册缩略图
+  const fetchInitialPage = useCallback(async () => {
+    if (demoItems && !isNativeApp()) {
+      await Promise.resolve()
+      setItems([...demoItems])
+      setHasMore(false)
+      setNextOffset(demoItems.length)
+      setPermissionDenied(false)
+      return
+    }
+    if (!isNativeApp()) {
+      await Promise.resolve()
+      setItems([])
+      setHasMore(false)
+      setNextOffset(0)
+      return
+    }
+
+    loadingPageRef.current = true
+    await Promise.resolve()
+    setLoadingInitial(true)
+    setPermissionDenied(false)
+    try {
+      const perm = await requestNativePermission('photos')
+      if (perm !== 'granted') {
+        setPermissionDenied(true)
+        setItems((prev) => prev.filter((x) => x.id.startsWith('local-')))
+        setHasMore(false)
+        toast.error('需要开启「相册与媒体」权限才能读取手机相册', {
+          description: '也可在「我的 → 权限管理」中开启',
+        })
+        return
+      }
+      const page = await listNativeAlbumPhotosPage(0, PAGE_SIZE)
+      const mapped = mapNativeItems(page.items)
+      setItems((prev) => {
+        const localOnly = prev.filter((x) => x.id.startsWith('local-'))
+        return [...localOnly, ...mapped]
+      })
+      setNextOffset(page.nextOffset)
+      setHasMore(page.hasMore)
+      setPartialAccess(page.partialAccess)
+    } finally {
+      loadingPageRef.current = false
+      setLoadingInitial(false)
+    }
+  }, [demoItems])
+
+  const fetchNextPage = useCallback(async () => {
+    if (!open || !hasMore || loadingPageRef.current || !isNativeApp()) return
+    loadingPageRef.current = true
+    setLoadingMore(true)
+    try {
+      const page = await listNativeAlbumPhotosPage(nextOffset, PAGE_SIZE)
+      const mapped = mapNativeItems(page.items)
+      setItems((prev) => {
+        const existingIds = new Set(prev.map((x) => x.id))
+        const deduped = mapped.filter((x) => !existingIds.has(x.id))
+        return [...prev, ...deduped]
+      })
+      setNextOffset(page.nextOffset)
+      setHasMore(page.hasMore)
+      setPartialAccess(page.partialAccess)
+    } finally {
+      loadingPageRef.current = false
+      setLoadingMore(false)
+    }
+  }, [open, hasMore, nextOffset])
+
+  // 每次打开时异步同步第一页元数据
   useEffect(() => {
     if (!open) return
-    let cancelled = false
-    async function loadNative() {
-      setLoadingNative(true)
-      try {
-        if (isNativeApp()) {
-          const perm = await requestNativePermission('photos')
-          if (perm !== 'granted') {
-            toast.error('需要开启「相册与媒体」权限才能读取手机相册', {
-              description: '也可在「我的 → 权限管理」中开启',
-            })
-            return
-          }
-        }
-        const nativeList: NativeAlbumPhotoItem[] = await listNativeAlbumPhotos(36)
-        if (cancelled || nativeList.length === 0) return
-        const mapped: AlbumGridItem[] = nativeList.map((n) => ({
-          id: `native:${n.id}`,
-          fileName: n.name || `photo_${n.id}.jpg`,
-          previewUrl: n.previewUrl,
-          createdAt: n.createdAt,
-          nativeItem: n,
-        }))
-        setItems((prev) => {
-          const localOnly = prev.filter((x) => !x.nativeItem && x.id.startsWith('local-'))
-          return [...localOnly, ...mapped]
-        })
-      } finally {
-        if (!cancelled) setLoadingNative(false)
+    const timer = window.setTimeout(() => {
+      void fetchInitialPage()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [open, fetchInitialPage])
+
+  // 触底无限下滑监听：使用 callback ref 感知 Sheet Portal 延迟挂载，绑定 scroll 距离阈值 + IntersectionObserver
+  useEffect(() => {
+    if (!open || !hasMore || loadingInitial || loadingMore || !sentinelEl) return
+    const scrollRoot = sentinelEl.closest('.overflow-y-auto') as HTMLElement | null
+
+    const checkNearBottom = () => {
+      if (!scrollRoot) return
+      if (
+        scrollRoot.clientHeight > 0 &&
+        scrollRoot.scrollHeight - scrollRoot.scrollTop - scrollRoot.clientHeight <= 320
+      ) {
+        void fetchNextPage()
       }
     }
-    void loadNative()
-    return () => {
-      cancelled = true
+
+    scrollRoot?.addEventListener('scroll', checkNearBottom, { passive: true })
+    const rafId = window.requestAnimationFrame(checkNearBottom)
+
+    let observer: IntersectionObserver | null = null
+    if (typeof IntersectionObserver !== 'undefined') {
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            void fetchNextPage()
+          }
+        },
+        {
+          root: scrollRoot,
+          rootMargin: '0px 0px 300px 0px',
+        },
+      )
+      observer.observe(sentinelEl)
     }
-  }, [open])
+
+    return () => {
+      window.cancelAnimationFrame(rafId)
+      scrollRoot?.removeEventListener('scroll', checkNearBottom)
+      observer?.disconnect()
+    }
+  }, [open, hasMore, loadingInitial, loadingMore, fetchNextPage, items.length, sentinelEl])
+
+  async function handleReselectPartial() {
+    const state = await reselectNativePhotos()
+    if (state === 'granted') {
+      await fetchInitialPage()
+    }
+  }
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -200,8 +242,18 @@ export function PhotoAlbumSheet({
     e.target.value = ''
     if (!fileList || fileList.length === 0) return
 
+    const allFiles = Array.from(fileList)
+    const nonImages = allFiles.filter((f) => !f.type.startsWith('image/'))
+    // 若导入的是 TXT / HTML 等非图片文档附件，直接确认返回给调用方处理
+    if (nonImages.length > 0 && allFiles.every((f) => !f.type.startsWith('image/'))) {
+      onConfirm(nonImages)
+      setSelectedIds([])
+      onOpenChange(false)
+      return
+    }
+
     const imported: AlbumGridItem[] = []
-    for (const file of Array.from(fileList)) {
+    for (const file of allFiles) {
       if (!file.type.startsWith('image/')) continue
       const url = URL.createObjectURL(file)
       objectUrlsRef.current.push(url)
@@ -254,13 +306,15 @@ export function PhotoAlbumSheet({
     }
   }
 
+  const supportsDocImport = fileAccept !== 'image/*'
+
   return (
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
       title="选择照片"
       description={
-        hintText ?? `点击右上角圆圈可按顺序多选（最多 ${maxSelect} 张），再次点击可取消重排`
+        hintText ?? `点击右上角圆圈可按顺序多选（最多 ${maxSelect} 张），向下滑动自动加载更多`
       }
       headerActions={
         selectedIds.length > 0 ? (
@@ -282,7 +336,7 @@ export function PhotoAlbumSheet({
               icon="plus"
               onClick={() => fileInputRef.current?.click()}
             >
-              从设备选图
+              {supportsDocImport ? '系统文件 / 附件' : '系统文件管理'}
             </Button>
             <span className="text-tiny text-muted truncate tabular-nums">
               已选 {selectedIds.length} / {maxSelect} 张
@@ -306,7 +360,7 @@ export function PhotoAlbumSheet({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept={fileAccept}
         multiple
         className="sr-only"
         tabIndex={-1}
@@ -314,76 +368,117 @@ export function PhotoAlbumSheet({
         onChange={handleLocalFilesImport}
       />
 
-      {loadingNative && (
-        <div className="text-muted text-tiny mb-2.5 flex items-center gap-1.5">
-          <Icon name="loader" size={14} className="animate-spin-slow text-primary" />
-          <span>正在同步手机相册照片…</span>
+      {partialAccess && (
+        <div className="bg-primary-soft/60 border-primary/20 mb-2.5 flex items-center justify-between gap-2 rounded-2xl border px-3 py-2">
+          <span className="text-tiny text-primary-ink">当前仅展示你授权访问的选定照片</span>
+          <button
+            type="button"
+            onClick={() => void handleReselectPartial()}
+            className="text-tiny text-primary-ink shrink-0 font-bold underline"
+          >
+            增选更多照片
+          </button>
         </div>
       )}
 
-      <div
-        role="listbox"
-        aria-multiselectable="true"
-        aria-label="相册照片网格"
-        className="grid grid-cols-3 gap-2 pt-1"
-      >
-        {items.map((item) => {
-          const orderIndex = selectedIds.indexOf(item.id)
-          const selected = orderIndex !== -1
-          return (
-            <div
-              key={item.id}
-              role="option"
-              aria-selected={selected}
-              onClick={() => toggleSelect(item.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  toggleSelect(item.id)
-                }
-              }}
-              tabIndex={0}
-              className={cn(
-                'bg-surface-sunken border-border group relative aspect-square cursor-pointer overflow-hidden rounded-2xl border transition-all select-none',
-                selected && 'ring-primary ring-2',
-              )}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- 相册内存缩略图预览，不落盘 */}
-              <img
-                src={item.previewUrl}
-                alt={item.fileName}
-                className={cn(
-                  'size-full object-cover transition-transform duration-150',
-                  selected && 'scale-[0.96]',
-                )}
-              />
+      {loadingInitial && items.length === 0 ? (
+        <div className="grid grid-cols-3 gap-2 pt-1" aria-label="正在加载相册缩略图">
+          {Array.from({ length: 9 }).map((_, idx) => (
+            <Skeleton key={idx} className="aspect-square w-full rounded-2xl" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="py-8">
+          <EmptyState
+            size="compact"
+            title={permissionDenied ? '尚未开启相册访问权限' : '相册里暂时没有照片'}
+            description={
+              permissionDenied
+                ? '开启相册权限后即可直接浏览手机照片，也可点左下角从系统文件管理选取'
+                : '拍一张照片后再来，或点击左下角从系统文件管理选取'
+            }
+            action={
+              permissionDenied ? (
+                <Button size="sm" variant="soft" onClick={() => void fetchInitialPage()}>
+                  重新授权读取
+                </Button>
+              ) : undefined
+            }
+          />
+        </div>
+      ) : (
+        <>
+          <div
+            role="listbox"
+            aria-multiselectable="true"
+            aria-label="相册照片网格"
+            className="grid grid-cols-3 gap-2 pt-1"
+          >
+            {items.map((item) => {
+              const orderIndex = selectedIds.indexOf(item.id)
+              const selected = orderIndex !== -1
+              return (
+                <div
+                  key={item.id}
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => toggleSelect(item.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      toggleSelect(item.id)
+                    }
+                  }}
+                  tabIndex={0}
+                  className={cn(
+                    'bg-surface-sunken border-border group relative aspect-square cursor-pointer overflow-hidden rounded-2xl border transition-transform duration-150 select-none',
+                    selected && 'ring-primary ring-2',
+                  )}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- 相册轻量流式缩略图预览，按视口懒加载 */}
+                  <img
+                    src={item.previewUrl}
+                    alt={item.fileName}
+                    loading="lazy"
+                    decoding="async"
+                    className={cn(
+                      'size-full object-cover transition-transform duration-150',
+                      selected && 'scale-[0.96]',
+                    )}
+                  />
 
-              {/* 选中时的半透明遮罩 */}
-              {selected && (
-                <div className="bg-foreground/15 pointer-events-none absolute inset-0" />
-              )}
+                  {selected && (
+                    <div className="bg-foreground/15 pointer-events-none absolute inset-0" />
+                  )}
 
-              {/* 右上角圆形序号选择器（1, 2, 3...） */}
-              <span
-                aria-label={selected ? `已选第 ${orderIndex + 1} 张` : '点击选择'}
-                className={cn(
-                  'font-display text-tiny absolute top-2 right-2 flex size-6 items-center justify-center rounded-full border-2 font-bold shadow-sm transition-transform',
-                  selected
-                    ? 'bg-primary border-primary text-on-primary scale-105'
-                    : 'bg-foreground/30 border-surface text-transparent group-hover:scale-105',
-                )}
-              >
-                {selected ? orderIndex + 1 : ''}
+                  <span
+                    aria-label={selected ? `已选第 ${orderIndex + 1} 张` : '点击选择'}
+                    className={cn(
+                      'font-display text-tiny absolute top-2 right-2 flex size-6 items-center justify-center rounded-full border-2 font-bold shadow-sm transition-transform',
+                      selected
+                        ? 'bg-primary border-primary text-on-primary scale-105'
+                        : 'bg-foreground/30 border-surface text-transparent group-hover:scale-105',
+                    )}
+                  >
+                    {selected ? orderIndex + 1 : ''}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
+          <div ref={setSentinelEl} className="flex min-h-8 items-center justify-center py-2">
+            {loadingMore ? (
+              <span className="text-tiny text-muted inline-flex items-center gap-1.5">
+                <Icon name="loader" size={13} className="animate-spin-slow text-primary" />
+                正在加载更多照片…
               </span>
-
-              {/* 底部文件名小条 */}
-              <div className="from-foreground/55 pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-2 py-1">
-                <p className="text-on-primary text-tiny truncate font-mono">{item.fileName}</p>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+            ) : !hasMore && items.length >= PAGE_SIZE ? (
+              <span className="text-tiny text-subtle">已加载全部 {items.length} 张照片</span>
+            ) : null}
+          </div>
+        </>
+      )}
     </Sheet>
   )
 }

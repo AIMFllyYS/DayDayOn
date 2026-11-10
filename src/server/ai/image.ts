@@ -36,3 +36,40 @@ export async function imageToFilePart(file: unknown): Promise<FilePart> {
   }
   return { type: 'file', mediaType: 'image/jpeg', data }
 }
+
+const DATA_URL_JPEG_PREFIX = 'data:image/jpeg;base64,'
+
+/**
+ * 校验 Agent 对话内联传入的 JPEG dataURL（单条最多 2 张，每张解码后 ≤ 4 MB 且文件头为 FF D8 FF）。
+ * 严守隐私规范：异常详情不包含任何 base64 片段。
+ */
+export function validateInlineJpegDataUrl(url: unknown): void {
+  if (typeof url !== 'string' || !url.startsWith(DATA_URL_JPEG_PREFIX)) {
+    throw new ApiError('VALIDATION_FAILED', '只接受压缩后的 JPEG 图片', {
+      fields: { message: ['图片格式不对，请重新选择'] },
+    })
+  }
+  const base64 = url.slice(DATA_URL_JPEG_PREFIX.length)
+  if (base64.length === 0) {
+    throw new ApiError('VALIDATION_FAILED', '图片内容为空', {
+      fields: { message: ['图片格式不对，请重新选择'] },
+    })
+  }
+  const approxBytes = Math.floor((base64.length * 3) / 4)
+  if (approxBytes > IMAGE_MAX_BYTES) {
+    throw new ApiError('PAYLOAD_TOO_LARGE', '单张图片超过 4 MB')
+  }
+  let head: Buffer
+  try {
+    head = Buffer.from(base64.slice(0, 16), 'base64')
+  } catch {
+    throw new ApiError('VALIDATION_FAILED', '图片编码无效', {
+      fields: { message: ['图片格式不对，请重新选择'] },
+    })
+  }
+  if (head.byteLength < 3 || JPEG_MAGIC.some((b, i) => head[i] !== b)) {
+    throw new ApiError('VALIDATION_FAILED', '文件头不是 JPEG', {
+      fields: { message: ['图片格式不对，请重新选择'] },
+    })
+  }
+}

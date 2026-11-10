@@ -1,4 +1,12 @@
-import type { RefereeTier, Verdict, Citation, Check, Facts } from '../schemas'
+import type {
+  RefereeTier,
+  Verdict,
+  Citation,
+  Check,
+  Facts,
+  DietDishFact,
+  SettlementStage,
+} from '../schemas'
 
 /*
  * 各板块裁判函数共用的输入与结论拼装。纯函数：不读时间、不碰数据库。
@@ -6,6 +14,15 @@ import type { RefereeTier, Verdict, Citation, Check, Facts } from '../schemas'
 
 /** 餐次（与 features/checkin 的 MealTypeSchema 取值一致；这里不反向 import） */
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+
+/** 当日已入库的其余饮食记录快照（供饮食全天周期聚合结算） */
+export interface PriorDietMeal {
+  mealType: MealType
+  items: { name: string; portion: string; kcal: number | null }[]
+  note?: string | null
+  /** 已解析的菜品营养事实；离线记录无事实时为 null */
+  dishes: readonly DietDishFact[] | null
+}
 
 /** Agent 那一侧带来的、和判定无关的附加信息 */
 export interface RefereeExtras {
@@ -23,10 +40,13 @@ export interface JudgeContext<R, F> {
   tier: RefereeTier
   extras?: RefereeExtras
   priorMinutesToday?: number
+  /** 饮食模块当日已打卡的其他餐次（不含本次正在覆盖的同正餐） */
+  priorDietMeals?: readonly PriorDietMeal[]
 }
 
 export function buildVerdict(input: {
   isValid: boolean
+  settlement?: SettlementStage
   score?: number | null
   scoreMax?: number | null
   detail: string
@@ -35,12 +55,14 @@ export function buildVerdict(input: {
   facts: Facts | null
   advice: string[]
   extras?: RefereeExtras
+  offline?: boolean
 }): Verdict {
   const extras = input.extras ?? NO_EXTRAS
   const advice = [...input.advice, ...extras.advice].filter(Boolean)
   return {
     version: 1,
     isValid: input.isValid,
+    ...(input.settlement ? { settlement: input.settlement } : {}),
     score: input.score ?? null,
     scoreMax: input.scoreMax ?? null,
     detail: input.detail,
@@ -50,7 +72,7 @@ export function buildVerdict(input: {
     citations: extras.citations.slice(0, 10),
     advice: [...new Set(advice)].slice(0, 3),
     refereeRunId: extras.refereeRunId,
-    offline: input.facts === null,
+    offline: input.offline ?? input.facts === null,
   }
 }
 
