@@ -1,10 +1,12 @@
 import { NATIVE_UA_TOKEN } from './native'
 
 /*
- * 开屏（ADR-0022、pwa.md 第 6 节）：只在"手机上以 App 形式冷启动"时播放一次。
- * - APK 壳、已安装的 PWA（display-mode: standalone）并且是触屏设备：播放
- * - 浏览器直接打开网址、桌面：不播放
- * - 同一次启动（sessionStorage 还在）里刷新、切后台再回来：不重播
+ * 开屏（ADR-0022、pwa.md 第 6 节）：
+ * - APK 原生壳（UA 含 DayDayOnApp/）：由 Android 原生层 MainActivity 的 nativeSplashOverlay 在 0ms 承载开屏，
+ *   网页层不再重复叠加 CSS .splash（避免公网加载完再播一遍且触发 mask-image 全屏光栅化卡顿）；
+ * - 手机上已安装的 PWA（display-mode: standalone 且触屏设备）：由网页层播放一次；
+ * - 浏览器直接打开网址、桌面：不播放；
+ * - 同一次启动（sessionStorage 还在）里刷新、切后台再回来：不重播。
  *
  * 必须在首帧前决定，否则会先闪出页面再盖上开屏。所以由根布局 <head> 里的内联脚本执行，
  * 只给 <html> 写 data-splash、data-splash-char、data-splash-greet 三个属性；开屏本身是静态 HTML + CSS，
@@ -43,4 +45,4 @@ export function rememberSplashMascot(character: string) {
  * 内联脚本。逻辑与上面的注释一致；问候分档与 splashGreeting 一致（单测会执行这段脚本核对）。
  * 任何一步出错都不播放开屏，页面照常显示。
  */
-export const splashScript = `(function(){try{var w=window,d=document.documentElement,n=w.navigator,ua=n.userAgent||"";var app=ua.indexOf(${JSON.stringify(NATIVE_UA_TOKEN)})>-1;var sa=app||w.matchMedia("(display-mode: standalone)").matches||n.standalone===true;if(!sa||!(app||w.matchMedia("(pointer: coarse)").matches))return;var s=w.sessionStorage;if(s.getItem(${JSON.stringify(SPLASH_PLAYED_KEY)}))return;s.setItem(${JSON.stringify(SPLASH_PLAYED_KEY)},"1");if(w.localStorage.getItem(${JSON.stringify(SPLASH_MASCOT_KEY)})==="dun")d.dataset.splashChar="dun";var h=new Date().getHours();d.dataset.splashGreet=h<5||h>=22?"night":h<11?"morning":"day";d.dataset.splash="1"}catch(e){}})()`
+export const splashScript = `(function(){try{var w=window,d=document.documentElement,n=w.navigator,ua=n.userAgent||"";if(ua.indexOf(${JSON.stringify(NATIVE_UA_TOKEN)})>-1)return;var sa=w.matchMedia("(display-mode: standalone)").matches||n.standalone===true;if(!sa||!w.matchMedia("(pointer: coarse)").matches)return;var s=w.sessionStorage;if(s.getItem(${JSON.stringify(SPLASH_PLAYED_KEY)}))return;s.setItem(${JSON.stringify(SPLASH_PLAYED_KEY)},"1");if(w.localStorage.getItem(${JSON.stringify(SPLASH_MASCOT_KEY)})==="dun")d.dataset.splashChar="dun";var h=new Date().getHours();d.dataset.splashGreet=h<5||h>=22?"night":h<11?"morning":"day";d.dataset.splash="1"}catch(e){}})()`

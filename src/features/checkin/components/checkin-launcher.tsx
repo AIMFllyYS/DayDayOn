@@ -33,7 +33,7 @@ export function CheckinLauncher() {
     }
     const timer = window.setTimeout(() => {
       void loadCheckinSheet()
-    }, 1200)
+    }, 2400)
     return () => window.clearTimeout(timer)
   }, [])
 

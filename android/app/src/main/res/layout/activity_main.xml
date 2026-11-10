@@ -17,7 +17,8 @@
         android:layout_height="3dp"
         android:layout_gravity="top"
         android:indeterminate="false"
-        android:max="100" />
+        android:max="100"
+        android:visibility="gone" />
 
     <LinearLayout
         android:id="@+id/errorPanel"
@@ -58,5 +59,64 @@
             android:text="@string/error_retry"
             android:textAllCaps="false"
             android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- 原生 0ms 冷启动开屏覆盖层：首帧立即呈现，掩盖后台 WebView 初始化与网络请求，就绪后硬件加速平滑揭开 -->
+    <LinearLayout
+        android:id="@+id/nativeSplashOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#FFF8F0"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp">
+
+        <ImageView
+            android:id="@+id/splashLogo"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:contentDescription="@string/app_name"
+            android:src="@mipmap/ic_launcher_round" />
+
+        <TextView
+            android:id="@+id/splashStamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:letterSpacing="0.06"
+            android:text="开始啦 · 每日手账"
+            android:textColor="#D96B27"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/splashTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/app_name"
+            android:textColor="#3A281D"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/splashGreeting"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="欢迎回来，今天也一起加油"
+            android:textColor="#7D6858"
+            android:textSize="14sp" />
+
+        <ProgressBar
+            android:id="@+id/splashSpinner"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginTop="24dp"
+            android:indeterminate="true" />
     </LinearLayout>
 </FrameLayout>

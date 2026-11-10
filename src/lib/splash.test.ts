@@ -55,8 +55,8 @@ describe('splashScript', () => {
     expect(run({ standalone: true, coarse: false }).dataset.splash).toBeUndefined()
   })
 
-  it('APK 壳里总是按冷启动处理', () => {
-    expect(run({ ua: `${ANDROID} DayDayOnApp/1.0.0`, coarse: false }).dataset.splash).toBe('1')
+  it('APK 壳由原生层 0ms 开屏承载，网页层不再重复叠加', () => {
+    expect(run({ ua: `${ANDROID} DayDayOnApp/1.0.0`, coarse: true }).dataset.splash).toBeUndefined()
   })
 
   it('同一次启动里不重播', () => {
