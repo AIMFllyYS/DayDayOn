@@ -11,6 +11,7 @@ import { PhotoAlbumSheet, type AlbumGridItem } from '@/components/ui/photo-album
 import { Rating, type RatingValue } from '@/components/ui/rating'
 import { TimeField } from '@/components/ui/time-field'
 import { TimeRangeField } from '@/components/ui/time-range-field'
+import type { NativeAlbumBucket } from '@/lib/native'
 
 /*
  * 「数据与时间」页的交互演示。演示数据固定在 2026-11-02（周一），不读当前时间，
@@ -258,23 +259,99 @@ export function ImagePickerDemo() {
   )
 }
 
+const PLAYBOOK_ALBUM_BUCKETS: NativeAlbumBucket[] = [
+  { id: '__ALL__', name: '全部', count: 6 },
+  { id: 'camera', name: 'Camera', count: 2 },
+  { id: 'screenshots', name: 'Screenshots', count: 1 },
+  { id: 'raw', name: 'RAW', count: 1 },
+  { id: 'weixin', name: 'WeiXin', count: 1 },
+  { id: 'pictures', name: 'Pictures', count: 1 },
+  { id: 'download', name: 'Download', count: 0 },
+  { id: 'notes', name: 'Notes', count: 0 },
+  { id: 'wallpapers', name: 'Wallpapers', count: 0 },
+  { id: 'exports', name: 'Exports', count: 0 },
+]
+
 function makePlaybookAlbumItems(): AlbumGridItem[] {
+  // 故意以乱序时间戳构造输入，验证 PhotoAlbumSheet 严格按最新 → 最旧倒序排列
   const presets = [
-    { id: 'pb-1', title: '减脂午餐便当', bg: '#FFF4EC', accent: '#F28B50', name: 'lunch_01.jpg' },
-    { id: 'pb-2', title: '傍晚慢跑 5km', bg: '#EEF8F3', accent: '#3FA67A', name: 'run_02.jpg' },
-    { id: 'pb-3', title: '全麦三明治', bg: '#FFF9EB', accent: '#E5A93C', name: 'toast_03.jpg' },
-    { id: 'pb-4', title: '睡眠监测报告', bg: '#F2F0FC', accent: '#7A6AD8', name: 'sleep_04.jpg' },
-    { id: 'pb-5', title: '复习笔记打卡', bg: '#E7F5FF', accent: '#339AF0', name: 'study_05.jpg' },
-    { id: 'pb-6', title: '无糖酸奶水果碗', bg: '#FFF0F6', accent: '#F06595', name: 'berry_06.jpg' },
+    {
+      id: 'pb-1',
+      title: '减脂午餐便当',
+      sub: '11-09 12:20 · Camera',
+      bg: '#FFF4EC',
+      accent: '#F28B50',
+      name: 'lunch_1109.jpg',
+      createdAt: '2026-11-09T12:20:00.000Z',
+      albumId: 'camera',
+      albumName: 'Camera',
+    },
+    {
+      id: 'pb-2',
+      title: '最新 · 晚餐轻食碗',
+      sub: '11-11 19:05 · Camera',
+      bg: '#EEF8F3',
+      accent: '#3FA67A',
+      name: 'dinner_1111_newest.jpg',
+      createdAt: '2026-11-11T19:05:00.000Z',
+      albumId: 'camera',
+      albumName: 'Camera',
+    },
+    {
+      id: 'pb-3',
+      title: '全麦三明治 RAW',
+      sub: '11-11 08:15 · RAW',
+      bg: '#FFF9EB',
+      accent: '#E5A93C',
+      name: 'toast_1111_morning.dng',
+      createdAt: '2026-11-11T08:15:00.000Z',
+      albumId: 'raw',
+      albumName: 'RAW',
+    },
+    {
+      id: 'pb-4',
+      title: '睡眠监测截图',
+      sub: '11-10 23:10 · Screenshots',
+      bg: '#F2F0FC',
+      accent: '#7A6AD8',
+      name: 'sleep_1110.png',
+      createdAt: '2026-11-10T23:10:00.000Z',
+      albumId: 'screenshots',
+      albumName: 'Screenshots',
+    },
+    {
+      id: 'pb-5',
+      title: '最早 · 复习笔记',
+      sub: '11-08 20:00 · Pictures',
+      bg: '#E7F5FF',
+      accent: '#339AF0',
+      name: 'study_1108_oldest.jpg',
+      createdAt: '2026-11-08T20:00:00.000Z',
+      albumId: 'pictures',
+      albumName: 'Pictures',
+    },
+    {
+      id: 'pb-6',
+      title: '微信运动步数图',
+      sub: '11-10 09:40 · WeiXin',
+      bg: '#FFF0F6',
+      accent: '#F06595',
+      name: 'wx_steps_1110.jpg',
+      createdAt: '2026-11-10T09:40:00.000Z',
+      albumId: 'weixin',
+      albumName: 'WeiXin',
+    },
   ]
-  return presets.map((p, idx) => {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320"><rect width="320" height="320" rx="28" fill="${p.bg}"/><circle cx="250" cy="76" r="40" fill="${p.accent}" opacity="0.28"/><text x="28" y="176" font-family="sans-serif" font-size="24" font-weight="bold" fill="#2c2623">${p.title}</text></svg>`
+  return presets.map((p) => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320"><rect width="320" height="320" rx="28" fill="${p.bg}"/><circle cx="250" cy="76" r="40" fill="${p.accent}" opacity="0.28"/><text x="24" y="164" font-family="sans-serif" font-size="22" font-weight="bold" fill="#2c2623">${p.title}</text><text x="24" y="202" font-family="sans-serif" font-size="16" fill="#6b5e57">${p.sub}</text></svg>`
     const blob = new Blob([svg], { type: 'image/svg+xml' })
     return {
       id: p.id,
       fileName: p.name,
       previewUrl: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
-      createdAt: `2026-11-02T0${idx}:00:00.000Z`,
+      createdAt: p.createdAt,
+      albumId: p.albumId,
+      albumName: p.albumName,
       file: new File([blob], p.name, { type: 'image/svg+xml' }),
     }
   })
@@ -288,18 +365,19 @@ export function PhotoAlbumSheetDemo() {
 
   return (
     <div className="flex flex-col items-start gap-2.5">
-      <Button variant="soft" icon="sparkles" onClick={() => setOpen(true)}>
+      <Button variant="soft" icon="album" onClick={() => setOpen(true)}>
         预览安卓流式多选相册（仅壳内生效）
       </Button>
       <p className="text-tiny text-muted">
-        网页端严禁弹出此抽屉（直接调系统多选文件管理器）；此演示通过 Playbook 专属 demoItems
-        注入，正式生产代码零假图。
+        左上角相册菜单首项固定为「全部」，超出限高自动内部滚动；网格严格按拍摄时间最新 →
+        最旧排序；网页端正式环境不弹出此抽屉。
       </p>
       {pickedSummary && <p className="text-caption text-success-ink">{pickedSummary}</p>}
       <PhotoAlbumSheet
         open={open}
         onOpenChange={setOpen}
         demoItems={PLAYBOOK_ALBUM_ITEMS}
+        demoBuckets={PLAYBOOK_ALBUM_BUCKETS}
         onConfirm={(files) => {
           setPickedSummary(
             `已按顺序选定 ${files.length} 张：${files.map((f) => f.name).join(' → ')}`,

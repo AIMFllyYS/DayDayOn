@@ -372,7 +372,7 @@ export default function DataPage() {
           <Specimen
             ann="playbook.data.image.album"
             label="PhotoAlbumSheet（安卓壳内专属）"
-            note="MediaStore 毫秒分页元数据 + 系统硬件缩略图流 + 触底无限下滑 + 1..9 顺序多选"
+            note="拍摄时间最新→最旧严格倒序 + 左上角限高滚动相册目录菜单（首项固定「全部」）+ 触底无限下滑"
           >
             <PhotoAlbumSheetDemo />
           </Specimen>

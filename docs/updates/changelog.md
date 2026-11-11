@@ -4,6 +4,18 @@
 
 ---
 
+## [v0.1.8] - 2026-11-11（相册时间倒序修复、左上角限高滚动相册目录菜单与安卓壳 v0.1.8 升级）
+
+### 📱 安卓原生相册与图片解码升级（安装包壳 v0.1.8 / `versionCode = 5`）
+- **真实拍摄时间归一化严格倒序（修复 #77）**：`MediaAlbumBridge` 废弃单一 `DATE_ADDED` 排序，统一按 `DATE_TAKEN`（含 10 位秒级兼容与未来漂移保护）→ `DATE_MODIFIED * 1000` → `DATE_ADDED * 1000` 归一化毫秒时间戳，过滤 `IS_PENDING` / `IS_TRASHED` 并按 `effectiveTimeMillis DESC, id DESC` 稳定倒序排列，修正 UTC 时区格式化并接入 `MediaStore` 代数快照缓存。
+- **相册文件夹聚合与按目录分页桥接**：新增 `getAlbumBucketsJson()` 与 `getAlbumPhotosPageWithBucketJson(offset, limit, bucketId)`，菜单首项固定为「全部」（`__ALL__`），核心相册目录（`Camera` / `Screenshots` / `RAW` / `WeiXin` / `Pictures` / `Download`）固定优先、其余目录按本地化规则稳定排序；`src/lib/native.ts` 同步提供 `sortAlbumPhotosNewestFirst`、`normalizeAlbumBuckets` 与向后兼容回退。
+- **RAW（`.dng`）与 HEIC 解码加固**：`NativeCameraHelper` 新增 API 28+ `ImageDecoder`（软件位图分配 + 自动 EXIF 旋转）、`ContentResolver.loadThumbnail` 与 `ExifInterface.thumbnailBitmap` 多级回退。
+
+### 🎨 底部相册抽屉交互升级
+- **左上角相册文件夹选择菜单**：`Sheet` 支持 `titleSlot` 自定义无障碍标题槽位；`PhotoAlbumSheet` 顶栏左上角替换为带手绘 `album` SVG 图标的目录选择菜单（首项固定「全部」），隐藏原顶栏辅助文案；弹层菜单限定最大高度（`max-h-56`）并在目录超出时内部独立滚动，不撑高抽屉、不顶出屏幕，跨目录点选完整保留 `1..9` 顺序角标。
+
+---
+
 ## [v0.1.7] - 2026-11-11（智能打卡切手动 409 修复、跨页缓存同步与焦点无障碍优化）
 
 ### 🛠️ 打卡链路断层修复与无障碍加固

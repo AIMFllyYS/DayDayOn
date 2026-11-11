@@ -49,6 +49,15 @@ export type PermissionStateValue = 'granted' | 'denied' | 'prompt'
 
 export type NativePermissionsMap = Record<NativePermissionName, PermissionStateValue>
 
+export const NATIVE_ALBUM_ALL_ID = '__ALL__'
+export const NATIVE_ALBUM_ALL_LABEL = '全部'
+
+export interface NativeAlbumBucket {
+  id: string
+  name: string
+  count: number
+}
+
 export interface NativeAlbumPhotoItem {
   id: string
   name: string
@@ -59,6 +68,10 @@ export interface NativeAlbumPhotoItem {
   createdAt: string
   width: number
   height: number
+  /** 所属相册/文件夹 ID（MediaStore BUCKET_ID） */
+  albumId?: string
+  /** 所属相册/文件夹显示名 */
+  albumName?: string
 }
 
 export interface NativeAlbumPhotosPage {
@@ -103,6 +116,10 @@ interface AndroidBridge {
   openAppSettings?: () => void
   /** 直接拉起安卓系统原生相机拍摄高清原图（返回同源流式地址或 dataUrl） */
   captureHighResPhoto?: () => void
+  /** 读取手机相册/文件夹列表 JSON（首项固定为「全部」，后续按稳定可预期顺序排列） */
+  getAlbumBucketsJson?: () => string
+  /** 按指定相册/文件夹分页读取照片元数据列表 JSON（严格最新 → 最旧，< 5ms） */
+  getAlbumPhotosPageWithBucketJson?: (offset: number, limit: number, bucketId: string) => string
   /** 分页读取手机相册照片元数据列表 JSON（< 5ms，不含大图解码） */
   getAlbumPhotosPageJson?: (offset: number, limit: number) => string
   /** 兼容旧版：读取手机相册最近照片列表 JSON */
@@ -443,17 +460,111 @@ export async function captureNativeHighResPhoto(): Promise<File | null> {
   })
 }
 
+function extractNumericTail(id: string): number {
+  const m = /(\d+)$/.exec(id)
+  return m ? Number(m[1]) : Number.NaN
+}
+
+/**
+ * 严格按时间从最新到最旧（Newest → Oldest）稳定排序：
+ * 1. 先按 `createdAt` 毫秒时间戳倒序；
+ * 2. 时间相同时按末尾数字 ID 倒序，再按字符串倒序决胜。
+ */
+export function sortAlbumPhotosNewestFirst<T extends { id: string; createdAt: string }>(
+  items: readonly T[],
+): T[] {
+  return [...items].sort((a, b) => {
+    const timeA = Date.parse(a.createdAt)
+    const timeB = Date.parse(b.createdAt)
+    const safeA = Number.isFinite(timeA) ? timeA : 0
+    const safeB = Number.isFinite(timeB) ? timeB : 0
+    if (safeA !== safeB) return safeB - safeA
+
+    const numA = extractNumericTail(a.id)
+    const numB = extractNumericTail(b.id)
+    if (Number.isFinite(numA) && Number.isFinite(numB) && numA !== numB) {
+      return numB - numA
+    }
+    return b.id.localeCompare(a.id)
+  })
+}
+
+/**
+ * 规范化相册/文件夹列表：
+ * - 第一项永远固定为「全部」（`__ALL__`）；
+ * - 其余文件夹去重并保留稳定可预期的排列顺序。
+ */
+export function normalizeAlbumBuckets(
+  rawBuckets: readonly NativeAlbumBucket[],
+  fallbackAllCount = 0,
+): NativeAlbumBucket[] {
+  let explicitAllCount: number | null = null
+  const seen = new Set<string>()
+  const folders: NativeAlbumBucket[] = []
+
+  for (const item of rawBuckets) {
+    if (!item || typeof item.id !== 'string') continue
+    const id = item.id.trim()
+    if (!id) continue
+    const count =
+      typeof item.count === 'number' && Number.isFinite(item.count)
+        ? Math.max(0, Math.trunc(item.count))
+        : 0
+    if (id === NATIVE_ALBUM_ALL_ID) {
+      explicitAllCount = count
+      continue
+    }
+    if (seen.has(id)) continue
+    seen.add(id)
+    const name = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : id
+    folders.push({ id, name, count })
+  }
+
+  const summedCount = folders.reduce((acc, f) => acc + f.count, 0)
+  const totalCount = explicitAllCount ?? Math.max(fallbackAllCount, summedCount)
+  return [{ id: NATIVE_ALBUM_ALL_ID, name: NATIVE_ALBUM_ALL_LABEL, count: totalCount }, ...folders]
+}
+
+/**
+ * 读取手机相册/文件夹列表：
+ * - 在新版 APK 壳内：直接读取 MediaStore 聚合目录，保证首项固定为「全部」且目录顺序稳定；
+ * - 在旧版 APK 壳内：安全降级返回单条「全部」；
+ * - 在纯网页端：返回空数组。
+ */
+export async function listNativeAlbumBuckets(): Promise<NativeAlbumBucket[]> {
+  const bridge = getBridge()
+  if (!bridge) return []
+
+  const perm = await requestNativePermission('photos')
+  if (perm === 'denied') return []
+
+  if (bridge.getAlbumBucketsJson) {
+    try {
+      const raw = bridge.getAlbumBucketsJson()
+      const parsed = JSON.parse(raw) as unknown
+      if (Array.isArray(parsed)) {
+        return normalizeAlbumBuckets(parsed as NativeAlbumBucket[])
+      }
+    } catch {
+      // 解析异常时降级为默认「全部」
+    }
+  }
+  return [{ id: NATIVE_ALBUM_ALL_ID, name: NATIVE_ALBUM_ALL_LABEL, count: 0 }]
+}
+
 /**
  * 分页读取手机相册照片元数据列表（用于流式缩略图无限下滑相册组件）。
- * - 在 APK 壳内：毫秒级查询 MediaStore 分页元数据（缩略图走 `/__native__/media/thumb/{id}` 异步流）；
- * - 兼容旧版 0.1.3 APK 壳：自动回退单页 `getAlbumPhotosJson`；
+ * - 在 APK 壳内：毫秒级按相册/文件夹查询 MediaStore 分页元数据（严格最新 → 最旧，缩略图走 `/__native__/media/thumb/{id}` 异步流）；
+ * - 兼容旧版 APK 壳：自动回退 `getAlbumPhotosPageJson` / `getAlbumPhotosJson` 并执行时间倒序保序；
  * - 在纯网页端：**固定返回空页，绝不生成或返回任何内置演示假图**。
  */
 export async function listNativeAlbumPhotosPage(
   offset = 0,
   limit = 30,
+  bucketId = NATIVE_ALBUM_ALL_ID,
 ): Promise<NativeAlbumPhotosPage> {
   const bridge = getBridge()
+  const targetBucket = bucketId.trim() || NATIVE_ALBUM_ALL_ID
   const empty: NativeAlbumPhotosPage = {
     items: [],
     hasMore: false,
@@ -465,16 +576,39 @@ export async function listNativeAlbumPhotosPage(
   const perm = await requestNativePermission('photos')
   if (perm === 'denied') return empty
 
-  if (bridge.getAlbumPhotosPageJson) {
+  if (bridge.getAlbumPhotosPageWithBucketJson) {
     try {
-      const raw = bridge.getAlbumPhotosPageJson(offset, limit)
+      const raw = bridge.getAlbumPhotosPageWithBucketJson(offset, limit, targetBucket)
       const parsed = JSON.parse(raw) as Partial<NativeAlbumPhotosPage>
-      const items = Array.isArray(parsed.items) ? parsed.items : []
+      const rawItems = Array.isArray(parsed.items) ? parsed.items : []
+      const items = sortAlbumPhotosNewestFirst(rawItems)
       return {
         items,
         hasMore: Boolean(parsed.hasMore),
         nextOffset:
           typeof parsed.nextOffset === 'number' ? parsed.nextOffset : offset + items.length,
+        partialAccess: Boolean(parsed.partialAccess),
+      }
+    } catch {
+      // 解析失败时尝试旧版双参数接口
+    }
+  }
+
+  if (bridge.getAlbumPhotosPageJson) {
+    try {
+      const raw = bridge.getAlbumPhotosPageJson(offset, limit)
+      const parsed = JSON.parse(raw) as Partial<NativeAlbumPhotosPage>
+      const rawItems = Array.isArray(parsed.items) ? parsed.items : []
+      const filtered =
+        targetBucket === NATIVE_ALBUM_ALL_ID
+          ? rawItems
+          : rawItems.filter((item) => !item.albumId || item.albumId === targetBucket)
+      const items = sortAlbumPhotosNewestFirst(filtered)
+      return {
+        items,
+        hasMore: Boolean(parsed.hasMore),
+        nextOffset:
+          typeof parsed.nextOffset === 'number' ? parsed.nextOffset : offset + rawItems.length,
         partialAccess: Boolean(parsed.partialAccess),
       }
     } catch {
@@ -487,10 +621,11 @@ export async function listNativeAlbumPhotosPage(
       const raw = bridge.getAlbumPhotosJson(limit)
       const parsed = JSON.parse(raw) as NativeAlbumPhotoItem[]
       if (Array.isArray(parsed)) {
+        const items = sortAlbumPhotosNewestFirst(parsed)
         return {
-          items: parsed,
+          items,
           hasMore: false,
-          nextOffset: parsed.length,
+          nextOffset: items.length,
           partialAccess: isNativePhotosPartialAccess(),
         }
       }
