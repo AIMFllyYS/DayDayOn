@@ -10,9 +10,14 @@ import {
   installNativeDownloadedApk,
   isNativePhotosPartialAccess,
   isNativeShellUA,
+  listNativeAlbumBuckets,
   listNativeAlbumPhotos,
   listNativeAlbumPhotosPage,
+  NATIVE_ALBUM_ALL_ID,
+  NATIVE_ALBUM_ALL_LABEL,
+  normalizeAlbumBuckets,
   requestNativePermission,
+  sortAlbumPhotosNewestFirst,
   startNativeApkUpdate,
   subscribeNativeApkUpdateProgress,
   syncNativeReminder,
@@ -120,11 +125,13 @@ describe('相册分页与网页端零假数据隔离边界', () => {
         getAlbumPhotosPageJson: (offset: number, limit: number) =>
           JSON.stringify({
             items: Array.from({ length: limit }, (_, idx) => ({
-              id: String(offset + idx + 1),
+              id: String(1000 - (offset + idx)),
               name: `IMG_${offset + idx + 1}.jpg`,
               previewUrl: `/__native__/media/thumb/${offset + idx + 1}`,
               fullUrl: `/__native__/media/full/${offset + idx + 1}`,
-              createdAt: '2026-11-10T04:00:00.000Z',
+              createdAt: new Date(
+                Date.UTC(2026, 10, 10, 12, 0, 0) - (offset + idx) * 60_000,
+              ).toISOString(),
               width: 1080,
               height: 1440,
             })),
@@ -180,6 +187,103 @@ describe('相册分页与网页端零假数据隔离边界', () => {
       expect(p.items).toHaveLength(1)
       expect(p.items[0]?.id).toBe('99')
       expect(p.hasMore).toBe(false)
+    } finally {
+      g.window = prevWindow
+    }
+  })
+
+  it('严格按最新 → 最旧排序照片，并在相同时间戳时按更高 ID 优先', () => {
+    const unordered = [
+      { id: 'native:12', createdAt: '2026-11-01T08:00:00.000Z' },
+      { id: 'native:45', createdAt: '2026-11-11T09:30:00.000Z' },
+      { id: 'native:30', createdAt: '2026-11-09T12:00:00.000Z' },
+      { id: 'native:31', createdAt: '2026-11-09T12:00:00.000Z' },
+    ]
+    const sorted = sortAlbumPhotosNewestFirst(unordered)
+    expect(sorted.map((x) => x.id)).toEqual(['native:45', 'native:31', 'native:30', 'native:12'])
+  })
+
+  it('相册菜单目录首项固定为「全部」，支持稳定目录顺序与按相册过滤分页', async () => {
+    const normalized = normalizeAlbumBuckets([
+      { id: 'b-cam', name: 'Camera', count: 18 },
+      { id: 'b-shot', name: 'Screenshots', count: 7 },
+      { id: 'b-cam', name: 'Camera Duplicate', count: 99 },
+    ])
+    expect(normalized).toEqual([
+      { id: NATIVE_ALBUM_ALL_ID, name: NATIVE_ALBUM_ALL_LABEL, count: 25 },
+      { id: 'b-cam', name: 'Camera', count: 18 },
+      { id: 'b-shot', name: 'Screenshots', count: 7 },
+    ])
+
+    // 纯网页端返回空目录列表
+    expect(await listNativeAlbumBuckets()).toEqual([])
+
+    const g = globalThis as unknown as { window?: Window }
+    const prevWindow = g.window
+    g.window = {
+      DayDayOnNative: {
+        requestPermission: () => 'granted',
+        getAlbumBucketsJson: () =>
+          JSON.stringify([
+            { id: '__ALL__', name: '全部', count: 3 },
+            { id: 'cam', name: 'Camera', count: 2 },
+            { id: 'raw', name: 'RAW', count: 1 },
+          ]),
+        getAlbumPhotosPageWithBucketJson: (_offset: number, _limit: number, bucketId: string) =>
+          JSON.stringify({
+            items:
+              bucketId === 'raw'
+                ? [
+                    {
+                      id: '201',
+                      name: 'DSC_0201.dng',
+                      previewUrl: '/__native__/media/thumb/201',
+                      fullUrl: '/__native__/media/full/201',
+                      createdAt: '2026-11-11T05:00:00.000Z',
+                      width: 4000,
+                      height: 3000,
+                      albumId: 'raw',
+                      albumName: 'RAW',
+                    },
+                  ]
+                : [
+                    {
+                      id: '101',
+                      name: 'OLD_SYNCED.jpg',
+                      previewUrl: '/__native__/media/thumb/101',
+                      createdAt: '2026-08-01T10:00:00.000Z',
+                      width: 1080,
+                      height: 1080,
+                      albumId: 'cam',
+                    },
+                    {
+                      id: '205',
+                      name: 'NEW_SHOT.jpg',
+                      previewUrl: '/__native__/media/thumb/205',
+                      createdAt: '2026-11-11T06:20:00.000Z',
+                      width: 1080,
+                      height: 1440,
+                      albumId: 'cam',
+                    },
+                  ],
+            hasMore: false,
+            nextOffset: bucketId === 'raw' ? 1 : 2,
+            partialAccess: false,
+          }),
+      },
+    } as unknown as Window
+
+    try {
+      const buckets = await listNativeAlbumBuckets()
+      expect(buckets[0]).toEqual({ id: '__ALL__', name: '全部', count: 3 })
+      expect(buckets.map((b) => b.name)).toEqual(['全部', 'Camera', 'RAW'])
+
+      const allPage = await listNativeAlbumPhotosPage(0, 30, '__ALL__')
+      expect(allPage.items.map((i) => i.name)).toEqual(['NEW_SHOT.jpg', 'OLD_SYNCED.jpg'])
+
+      const rawPage = await listNativeAlbumPhotosPage(0, 30, 'raw')
+      expect(rawPage.items).toHaveLength(1)
+      expect(rawPage.items[0]?.name).toBe('DSC_0201.dng')
     } finally {
       g.window = prevWindow
     }
