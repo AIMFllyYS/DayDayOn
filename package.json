@@ -1,6 +1,6 @@
 {
   "name": "daydayon",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "description": "DayDayOn —— 治愈系多人互动打卡应用（PWA，手机与电脑双端）",
   "engines": {
