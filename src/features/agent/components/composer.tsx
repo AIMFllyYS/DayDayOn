@@ -6,7 +6,8 @@ import { Icon } from '@/components/ui/icon'
 import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/cn'
 import { newIdempotencyKey } from '@/lib/api/fetcher'
-import { compressImage, ImageCompressError } from '@/lib/image/compress'
+import { compressImage, ImageCompressError, sniffIsImageFile } from '@/lib/image'
+import { hasNativeSystemFilePicker, pickNativeSystemFiles } from '@/lib/native'
 import { usePetIdentity } from '../pet-binding'
 import { useAgentUi, useAgentUiState } from '../agent-store'
 import { useAgentChat } from '../chat-context'
@@ -94,16 +95,19 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
     if (!files || files.length === 0) return
     setAttachError(null)
     const rawArray = Array.from(files)
+    const imageFlags = await Promise.all(rawArray.map((f) => sniffIsImageFile(f)))
     const existingImageCount = attachments.filter((x) => x.kind === 'image').length
-    const incomingImages = rawArray.filter((f) => f.type.startsWith('image/'))
+    const incomingImages = rawArray.filter((_, idx) => imageFlags[idx])
     if (existingImageCount + incomingImages.length > 2) {
       toast.info('单次对话最多同时附带 2 张图片～')
     }
     let imageQuota = Math.max(0, 2 - existingImageCount)
     const next: Attachment[] = []
-    for (const file of rawArray) {
+    for (let i = 0; i < rawArray.length; i++) {
+      const file = rawArray[i]!
+      const isImg = Boolean(imageFlags[i])
       try {
-        if (file.type.startsWith('image/')) {
+        if (isImg) {
           if (imageQuota <= 0) continue
           imageQuota--
           const { blob } = await compressImage(file)
@@ -139,6 +143,23 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
         return [...imgs, ...texts]
       })
     }
+  }
+
+  function handleAttachButtonClick() {
+    if (busy) return
+    if (hasNativeSystemFilePicker()) {
+      void pickNativeSystemFiles(AGENT_FILE_ACCEPT, 9).then((picked) => {
+        if (picked === null) {
+          fileRef.current?.click()
+          return
+        }
+        if (picked.length > 0) {
+          void onPick(picked)
+        }
+      })
+      return
+    }
+    fileRef.current?.click()
   }
 
   function sendNow() {
@@ -182,8 +203,9 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
         tabIndex={-1}
         aria-hidden
         onChange={(e) => {
-          void onPick(e.target.files)
+          const picked = e.target.files ? Array.from(e.target.files) : []
           e.target.value = ''
+          void onPick(picked)
         }}
       />
 
@@ -263,7 +285,7 @@ export function Composer({ variant = 'panel', className }: ComposerProps) {
           type="button"
           aria-label="上传图片或文件"
           disabled={busy}
-          onClick={() => fileRef.current?.click()}
+          onClick={handleAttachButtonClick}
           className="text-muted hover:text-foreground hover:bg-surface-sunken flex size-7 shrink-0 items-center justify-center rounded-full transition-colors active:scale-95 disabled:opacity-40"
         >
           <Icon name="plus" size={16} lineOnly />

@@ -87,7 +87,8 @@ describe('目标接口', () => {
     const res = await app.request(`/api/v1/goals/${GOAL_ID}`)
     expect(res.status).toBe(404)
     expect(await res.json()).toMatchObject({ code: 'GOAL_NOT_FOUND' })
-  })
+    // 首次 import 整个根应用（全部路由）在并行跑满时会超过默认超时
+  }, 30_000)
 
   it('删除：成功返回 204', async () => {
     login()
