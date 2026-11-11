@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { TimeField } from '@/components/ui/time-field'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
 import { MeView } from '@/features/me/components/me-view'
 import type { Me } from '@/features/me/schemas'
@@ -45,6 +46,18 @@ export function MeScreen({ thumb = false }: { thumb?: boolean }) {
       thumb={thumb}
       me={{ ...me, preferences: { ...me.preferences, theme } }}
       quota={<QuotaMeter weeklyLimitMicro={10_000_000} weeklyUsedMicro={3_420_000} />}
+      appVersion="0.1.9"
+      remindControl={
+        <TimeField
+          label="提醒时间"
+          id="pb-me-remind"
+          value={me.preferences.remindAt ?? '21:00'}
+          onValueChange={(v) =>
+            setMe((m) => ({ ...m, preferences: { ...m.preferences, remindAt: v } }))
+          }
+          hint="过了这个时间还有没打卡的目标，系统将按所选方式提醒"
+        />
+      }
       onPreferencesChange={(patch) => {
         if (patch.theme && isThemeId(patch.theme)) setTheme(patch.theme)
         setMe((m) => ({ ...m, preferences: { ...m.preferences, ...patch } }))

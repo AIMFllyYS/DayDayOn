@@ -16,7 +16,9 @@ import {
   NATIVE_ALBUM_ALL_ID,
   NATIVE_ALBUM_ALL_LABEL,
   normalizeAlbumBuckets,
+  openNativeNotificationSettings,
   requestNativePermission,
+  sendNativeTestNotification,
   sortAlbumPhotosNewestFirst,
   startNativeApkUpdate,
   subscribeNativeApkUpdateProgress,
@@ -382,6 +384,58 @@ describe('getNativePermissions & requestNativePermission & dataUrlToFile', () =>
       expect(ready.percent).toBe(100)
       expect(installNativeDownloadedApk()).toBe(true)
       expect(installedTriggered).toBe(true)
+    } finally {
+      g.window = prevWindow
+    }
+  })
+
+  it('syncNativeReminder 与 sendNativeTestNotification 严格校验通知权限为 granted', async () => {
+    const g = globalThis as unknown as { window?: Window }
+    const prevWindow = g.window
+    let scheduledCalls = 0
+    let notifiedTitle = ''
+    let openedNotifSettings = false
+
+    // 1. 权限停留在 prompt/denied 时绝不虚报提醒开启成功
+    g.window = {
+      DayDayOnNative: {
+        requestPermission: () => 'denied',
+        scheduleDailyReminder: () => {
+          scheduledCalls++
+          return true
+        },
+        openNotificationSettings: () => {
+          openedNotifSettings = true
+        },
+      },
+    } as unknown as Window
+
+    try {
+      expect(await syncNativeReminder({ enabled: true, remindAt: '20:30' })).toBe(false)
+      expect(scheduledCalls).toBe(0)
+      expect(await sendNativeTestNotification()).toBe(false)
+      expect(openNativeNotificationSettings()).toBe(true)
+      expect(openedNotifSettings).toBe(true)
+
+      // 2. 权限为 granted 时正常注册每日提醒并可推送真实系统通知
+      g.window = {
+        DayDayOnNative: {
+          requestPermission: () => 'granted',
+          scheduleDailyReminder: (remindAt: string, enabled: boolean) => {
+            if (remindAt === '20:30' && enabled) scheduledCalls++
+            return true
+          },
+          notify: (title: string) => {
+            notifiedTitle = title
+            return true
+          },
+        },
+      } as unknown as Window
+
+      expect(await syncNativeReminder({ enabled: true, remindAt: '20:30' })).toBe(true)
+      expect(scheduledCalls).toBe(1)
+      expect(await sendNativeTestNotification('测试标题', '测试正文')).toBe(true)
+      expect(notifiedTitle).toBe('测试标题')
     } finally {
       g.window = prevWindow
     }

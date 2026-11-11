@@ -75,10 +75,12 @@ export function SmartTopBarActions() {
 }
 
 export function SmartCheckinPage({
+  sessionId,
   initialAction = 'capture',
   initialView = 'scanner',
   initialRecordId,
 }: {
+  sessionId?: string
   initialAction?: 'capture' | 'upload'
   initialView?: 'scanner' | 'history'
   initialRecordId?: string
@@ -92,7 +94,10 @@ export function SmartCheckinPage({
   const viewMode = useSmartPageViewMode()
 
   const initialRecord = initialRecordId ? getSmartHistoryRecord(initialRecordId) : null
-  const hasPendingOnMount = Boolean(peekPendingSmartCapture())
+  const pendingOnMount = peekPendingSmartCapture()
+  const hasPendingOnMount = Boolean(
+    pendingOnMount && (!pendingOnMount.requireSessionMatch || pendingOnMount.id === sessionId),
+  )
 
   const [activeMode, setActiveMode] = useState<SmartInputMode>(
     initialAction === 'upload' ? 'smart-upload' : 'smart-capture',
@@ -404,6 +409,8 @@ export function SmartCheckinPage({
           mode={activeMode}
           tone={selectedModule}
           note={scanNote}
+          enableGlobalHandoff
+          handoffSessionId={sessionId}
           onScanStart={(nextMode) => {
             setViewingHistoryId(null)
             setActiveMode(nextMode)

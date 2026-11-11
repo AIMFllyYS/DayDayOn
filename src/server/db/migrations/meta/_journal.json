@@ -78,6 +78,13 @@
       "when": 1794063667305,
       "tag": "0010_remarkable_nebula",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794400045439,
+      "tag": "0011_freezing_crystal",
+      "breakpoints": true
     }
   ]
 }

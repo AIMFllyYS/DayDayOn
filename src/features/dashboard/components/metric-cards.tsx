@@ -24,17 +24,19 @@ function MetricCard({
   onOpen,
   ariaLabel,
   readOnly = false,
+  className,
   children,
 }: {
   title: string
   onOpen: () => void
   ariaLabel: string
   readOnly?: boolean
+  className?: string
   children: ReactNode
 }) {
   if (readOnly) {
     return (
-      <Card aria-label={ariaLabel} className="flex min-h-28 flex-col gap-1">
+      <Card aria-label={ariaLabel} className={cn('flex min-h-28 flex-col gap-1', className)}>
         <span className="text-tiny text-muted font-semibold">{title}</span>
         {children}
       </Card>
@@ -54,7 +56,7 @@ function MetricCard({
       aria-label={ariaLabel}
       onClick={onOpen}
       onKeyDown={onKeyDown}
-      className="flex min-h-28 flex-col gap-1"
+      className={cn('flex min-h-28 flex-col gap-1', className)}
     >
       <span className="text-tiny text-muted font-semibold">{title}</span>
       {children}
@@ -165,17 +167,19 @@ export function MoodCard({
 }
 
 /**
- * 今日步数卡：位于「本周热力图」与「今日体重 / 今日心情」下方，左侧单列，与「今日体重」同宽同样式。
- * 关键边界条件：未安装手机端 App（纯网页端）或今日无步数记录时，todaySteps 恒为 0，安全展示「0 步」，绝不报错。
+ * 今日步数卡：位于「今日体重 / 今日心情」下方，高度与体重卡一致（min-h-28），宽度横跨两张小卡（col-span-2）。
+ * 支持手机端计步同步与全端点击手动录入，消除原布局右下角留白。
  */
 export function StepsCard({
   steps,
   onOpen,
   readOnly = false,
+  className,
 }: {
   steps?: StepTrend
   onOpen?: () => void
   readOnly?: boolean
+  className?: string
 }) {
   const todaySteps = steps?.todaySteps ?? 0
   const delta = steps?.deltaSteps7d ?? null
@@ -187,36 +191,47 @@ export function StepsCard({
       title="今日步数"
       onOpen={handleOpen}
       readOnly={readOnly || !onOpen}
-      ariaLabel={`今日步数 ${formatSteps(todaySteps)} 步${readOnly ? '' : '，点此同步步数'}`}
+      className={className}
+      ariaLabel={`今日步数 ${formatSteps(todaySteps)} 步${readOnly ? '' : '，点开记录或同步步数'}`}
     >
-      <span className="flex items-end justify-between gap-2">
+      <span className="flex items-end justify-between gap-3">
         <span className="font-display text-title font-semibold tabular-nums">
           {formatSteps(todaySteps)}
-          <span className="text-caption text-muted ml-0.5">步</span>
+          <span className="text-caption text-muted ml-1">步</span>
         </span>
-        {values.length > 1 && (
+        {values.length > 1 ? (
           <Sparkline
             values={values}
             label={stepTrendLabel(values)}
-            width={64}
+            width={128}
             height={28}
-            className="mb-1.5"
+            className="mb-1 shrink-0"
           />
+        ) : (
+          !readOnly && (
+            <span className="bg-primary-soft text-primary-ink text-tiny mb-1 shrink-0 rounded-full px-2.5 py-0.5 font-semibold">
+              记录 / 同步
+            </span>
+          )
         )}
       </span>
       <span
         className={cn(
           'text-tiny tabular-nums',
-          delta !== null && delta > 0 ? 'text-success-ink' : 'text-muted',
+          delta !== null && delta > 0
+            ? 'text-success-ink'
+            : todaySteps === 0 && !readOnly
+              ? 'text-primary-ink font-semibold'
+              : 'text-muted',
         )}
       >
         {delta !== null
           ? `比上周 ${formatStepsDelta(delta)} 步`
           : todaySteps > 0
-            ? '手机计步已同步'
+            ? '点击更新或同步今日步数'
             : readOnly
               ? '今日 0 步'
-              : '手机端自动计步'}
+              : '点击同步或记录今日步数'}
       </span>
     </MetricCard>
   )

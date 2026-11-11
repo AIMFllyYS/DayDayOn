@@ -4,6 +4,19 @@
 
 ---
 
+## [v0.1.9] - 2026-11-12（智能上传附件直传、我的多级菜单、计步优化、全屏消息与官方公告模块）
+
+### 📱 安卓原生提醒推送、计步传感器与文件选择加固（安装包壳 v0.1.9 / `versionCode = 6`）
+- **智能上传左下角系统文件 / 附件直传识别（修复 #80）**：`PhotoAlbumSheet` 左下角选中任意图片或文档后立即关闭面板并回调上传；`MainActivity` 升级 `ACTION_OPEN_DOCUMENT` 文件选择授权；`smart-handoff` 引入 `requireSessionMatch` 杜绝跨路由 `sid` 载荷被旧实例抢占。
+- **手机提醒精确唤醒与真实通知推送**：`LocalReminderScheduler` 升级 `setExactAndAllowWhileIdle` 单次精确闹钟续期链、高优通知渠道 `daydayon_checkin_reminder_v2` 与单色状态栏图标 `ic_stat_reminder.xml`；`syncNativeReminder` 严格校验 `perm === 'granted'` 并提供测试通知一键验证。
+- **今日步数传感器准确性与手动记录面板**：`StepCounterManager` 引入独立 `HandlerThread`、`flush` 同步等待、当日重启基线智能判定与 `TYPE_STEP_DETECTOR` 回退；新增 `StepsPanel` 支持硬件一键同步与手动步数记录；主页 `StepsCard` 改为 `col-span-2` 等高横跨双列。
+
+### 🎨 「我的」多级菜单、全屏消息中心与数据库官方公告
+- **「我的」多级分组与组件加固（同步修复 #62）**：参考 Material Design 3 设置规范重构 `MeView` 一级分组与二级详情页，全面清理工程化权限名与冗余术语；`Select` 提升浮层层级并支持选项副文案，`MenuItem` 通过判别联合类型根治 `<button>` 嵌套水合警告。
+- **全屏消息与通知 + 数据库官方公告模块**：`MessageCenter` 与 `ChatRoom` 升级为无外框全屏布局，顶部独立置顶「打卡房间与动态」与「官方与系统通知」，下方排布好友聊天；新增 PostgreSQL `announcements` + `announcement_reads` 表（迁移 `0011_freezing_crystal`），支持随时向数据库写入全局公告并独立追踪每位用户已读状态。
+
+---
+
 ## [v0.1.8] - 2026-11-11（相册时间倒序修复、左上角限高滚动相册目录菜单与安卓壳 v0.1.8 升级）
 
 ### 📱 安卓原生相册与图片解码升级（安装包壳 v0.1.8 / `versionCode = 5`）

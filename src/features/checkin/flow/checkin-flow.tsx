@@ -647,6 +647,12 @@ export function CheckinFlow(props: CheckinFlowProps) {
                     const hasDraft = hasDraftForModule(res.draft, goal.module)
                     setSmart(hasDraft ? res : null)
                     setScanPhase(hasDraft ? 'done' : 'idle')
+                    if (!hasDraft && !props.onSmartRecognized) {
+                      toast.info(
+                        res.draft.summary ||
+                          `未从文件中识别出「${moduleMeta[goal.module].label}」板块的数据，请换个文件或手动填写`,
+                      )
+                    }
                     // 识别结果填进表单，同时直接交给 Agent 裁判；提前对齐 seenSyncKey 防止切餐次时渲染期误触发 reset
                     const next = hasDraft ? form.applySmart(res.draft) : null
                     if (next) {

@@ -298,6 +298,9 @@ describe.runIf(hasDb)('真实数据库集成：通知服务与动态聚合', () 
         { userId: u2, nickname: '阿柚', avatar: 'mascot:you:happy:diet' },
       ])
 
+      // 记录当前全局公告产生的基线未读数（例如种子库中的已发布官方公告）
+      const baselineSummary = await notificationsService.getNotificationSummary(tx, u1, now)
+
       // 1. 首次打卡：创建一条打卡动态
       const id1 = await notificationsService.recordCheckinNotification(
         tx,
@@ -308,9 +311,9 @@ describe.runIf(hasDb)('真实数据库集成：通知服务与动态聚合', () 
       )
       expect(id1).toBeTruthy()
 
-      // 验证未读数
-      const summary1 = await notificationsService.getNotificationSummary(tx, u1)
-      expect(summary1.unreadCount).toBe(1)
+      // 验证未读数 +1
+      const summary1 = await notificationsService.getNotificationSummary(tx, u1, now)
+      expect(summary1.unreadCount).toBe(baselineSummary.unreadCount + 1)
       expect(summary1.hasUnread).toBe(true)
 
       // 2. 2 分钟后第 2 次打卡（在 5 分钟窗口内）：合并为同一张卡片
@@ -324,26 +327,108 @@ describe.runIf(hasDb)('真实数据库集成：通知服务与动态聚合', () 
       )
       expect(id2).toBe(id1) // 同一条通知 ID
 
-      // 未读数仍为 1
-      const summary2 = await notificationsService.getNotificationSummary(tx, u1)
-      expect(summary2.unreadCount).toBe(1)
+      // 未读数仍为 baseline + 1
+      const summary2 = await notificationsService.getNotificationSummary(tx, u1, after2Min)
+      expect(summary2.unreadCount).toBe(baselineSummary.unreadCount + 1)
 
       // 3. 验证通知内容已更新为聚合卡片
-      const list = await notificationsService.listNotifications(tx, u1, { channel: 'feed' })
+      const list = await notificationsService.listNotifications(
+        tx,
+        u1,
+        { channel: 'feed' },
+        after2Min,
+      )
       expect(list.items).toHaveLength(1)
       const card = list.items[0]
       expect(card.title).toContain('连打 2 项')
       expect((card.metadata as { checkins?: unknown[] }).checkins).toHaveLength(2)
 
       // 4. 标记已读
-      const markResult = await notificationsService.markNotificationsRead(tx, u1, {
-        channel: 'feed',
-      })
+      const markResult = await notificationsService.markNotificationsRead(
+        tx,
+        u1,
+        { channel: 'feed' },
+        after2Min,
+      )
       expect(markResult.markedCount).toBe(1)
 
-      const summaryAfterRead = await notificationsService.getNotificationSummary(tx, u1)
-      expect(summaryAfterRead.unreadCount).toBe(0)
-      expect(summaryAfterRead.hasUnread).toBe(false)
+      const summaryAfterRead = await notificationsService.getNotificationSummary(tx, u1, after2Min)
+      expect(summaryAfterRead.unreadCount).toBe(baselineSummary.unreadCount)
+      expect(summaryAfterRead.hasUnread).toBe(baselineSummary.unreadCount > 0)
+    })
+  })
+
+  it('数据库官方公告模块（announcements + announcement_reads）：发布即可见、支持定时与独立已读（Issue #80）', async () => {
+    await inRolledBackTx(async (tx) => {
+      const u1 = 'test_announce_user_1'
+      const u2 = 'test_announce_user_2'
+      const now = new Date('2026-11-12T08:00:00.000Z')
+      const future = new Date('2026-11-20T08:00:00.000Z')
+
+      await tx.insert(user).values([
+        { id: u1, name: 'Ann User 1', email: 'ann1@test.local', createdAt: now, updatedAt: now },
+        { id: u2, name: 'Ann User 2', email: 'ann2@test.local', createdAt: now, updatedAt: now },
+      ])
+
+      const baseU1 = await notificationsService.getNotificationSummary(tx, u1, now)
+      const baseU2 = await notificationsService.getNotificationSummary(tx, u2, now)
+
+      // 1. 直接向 announcements 插入一条已生效公告与一条未来定时公告
+      const liveAnnId = await notificationsService.createAnnouncement(tx, {
+        tag: '版本更新',
+        version: '0.1.9',
+        title: 'DayDayOn v0.1.9 公告测试',
+        content: '1. 智能上传直传\n2. 全屏通知重构',
+        pinned: true,
+        publishedAt: now,
+        now,
+      })
+      await notificationsService.createAnnouncement(tx, {
+        tag: '预告',
+        title: '未来定时发布的活动公告',
+        content: '不到时间不会展示',
+        publishedAt: future,
+        now,
+      })
+
+      // 2. 两位用户无需扇出即可立即看到未读数 +1，未来定时公告不计入
+      const s1 = await notificationsService.getNotificationSummary(tx, u1, now)
+      const s2 = await notificationsService.getNotificationSummary(tx, u2, now)
+      expect(s1.unreadCount).toBe(baseU1.unreadCount + 1)
+      expect(s2.unreadCount).toBe(baseU2.unreadCount + 1)
+
+      // 3. system 频道返回新公告且带置顶与版本元数据
+      const sysList = await notificationsService.listNotifications(
+        tx,
+        u1,
+        { channel: 'system' },
+        now,
+      )
+      const matched = sysList.items.find((item) => item.id === liveAnnId)
+      expect(matched).toBeDefined()
+      expect(matched?.title).toBe('DayDayOn v0.1.9 公告测试')
+      expect(matched?.readAt).toBeNull()
+      expect(matched?.metadata).toMatchObject({
+        source: 'announcement',
+        tag: '版本更新',
+        version: '0.1.9',
+        pinned: true,
+      })
+      expect(sysList.items.some((item) => item.title === '未来定时发布的活动公告')).toBe(false)
+
+      // 4. u1 标记 system 频道已读后，u1 未读清零，而 u2 仍保持未读
+      const readRes = await notificationsService.markNotificationsRead(
+        tx,
+        u1,
+        { channel: 'system' },
+        now,
+      )
+      expect(readRes.markedCount).toBeGreaterThanOrEqual(1)
+
+      const s1After = await notificationsService.getNotificationSummary(tx, u1, now)
+      const s2After = await notificationsService.getNotificationSummary(tx, u2, now)
+      expect(s1After.unreadCount).toBe(0)
+      expect(s2After.unreadCount).toBe(baseU2.unreadCount + 1)
     })
   })
 

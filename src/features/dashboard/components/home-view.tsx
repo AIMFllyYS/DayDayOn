@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react'
 import { ErrorState } from '@/components/ui/error-state'
-import { toast } from '@/components/ui/toast'
 import { useCheckinLauncher } from '@/features/checkin/launcher-store'
 import { FriendRoomBanner } from '@/features/friend/components/friend-room-banner'
 import { friendActions, useFriendStore } from '@/features/friend/friend-store'
@@ -11,7 +10,7 @@ import { dashboardTodayQuery } from '@/lib/api/queries/dashboard'
 import { useFriendDashboard } from '@/lib/api/queries/friends'
 import { insightsQuery } from '@/lib/api/queries/insights'
 import { usePutSteps } from '@/lib/api/queries/metrics'
-import { getNativeTodaySteps, isNativeApp, requestNativePermission } from '@/lib/native'
+import { getNativeTodaySteps, isNativeApp } from '@/lib/native'
 import { HomeDashboard } from './home-dashboard'
 import { HomeSkeleton } from './home-skeleton'
 
@@ -36,36 +35,11 @@ export function HomeView() {
     syncedStepsRef.current = true
     const currentTodaySteps = myQuery.data.steps.todaySteps
     void getNativeTodaySteps().then((nativeSteps) => {
-      if (nativeSteps > 0 && nativeSteps !== currentTodaySteps) {
+      if (nativeSteps > currentTodaySteps) {
         putSteps.mutate({ steps: nativeSteps })
       }
     })
   }, [myQuery.data, putSteps, viewingFriendId])
-
-  async function handleSyncSteps() {
-    if (!isNativeApp()) {
-      toast.info('当前为网页端，今日步数默认为 0 步', {
-        description: '安装安卓客户端并开启「身体活动 / 计步器」权限后，会自动同步手机计步～',
-      })
-      return
-    }
-    const status = await requestNativePermission('steps')
-    if (status !== 'granted') {
-      toast.error('需要开启「身体活动 / 计步器」权限才能读取步数', {
-        description: '也可以前往「我的 → 权限管理」手动开启',
-      })
-      return
-    }
-    const nativeSteps = await getNativeTodaySteps()
-    putSteps.mutate(
-      { steps: nativeSteps },
-      {
-        onSuccess: () => {
-          toast.success(`已同步今日步数：${nativeSteps.toLocaleString('en-US')} 步`)
-        },
-      },
-    )
-  }
 
   if (viewingFriendId !== null) {
     if (friendQuery.isPending) return <HomeSkeleton />
@@ -114,7 +88,7 @@ export function HomeView() {
       timeZone={myQuery.data.timeZone}
       onOpenWeight={() => launcher.open('weight')}
       onOpenMood={() => launcher.open('mood')}
-      onOpenSteps={() => void handleSyncSteps()}
+      onOpenSteps={() => launcher.open('steps')}
       insights={insights.data}
     />
   )

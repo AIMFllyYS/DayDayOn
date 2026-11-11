@@ -34,6 +34,7 @@ async function SmartCheckinRoute({
   return (
     <SmartCheckinPage
       key={sessionKey}
+      sessionId={sid}
       initialAction={action === 'upload' ? 'upload' : 'capture'}
       initialView={view === 'history' ? 'history' : 'scanner'}
       initialRecordId={recordId}

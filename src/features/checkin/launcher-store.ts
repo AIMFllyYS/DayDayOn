@@ -9,7 +9,7 @@ import { useSyncExternalStore } from 'react'
  * 视图在同一个弹层里切换内容，不开第二层弹层（PRD 2.4）。
  */
 
-export type CheckinLauncherView = 'list' | 'weight' | 'mood'
+export type CheckinLauncherView = 'list' | 'weight' | 'mood' | 'steps'
 
 export interface CheckinLauncherState {
   open: boolean

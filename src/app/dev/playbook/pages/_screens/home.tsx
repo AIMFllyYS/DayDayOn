@@ -178,11 +178,7 @@ export function HomeScreen({ thumb = false }: { thumb?: boolean }) {
       timeZone="Asia/Shanghai"
       onOpenWeight={() => launcher.open('weight')}
       onOpenMood={() => launcher.open('mood')}
-      onOpenSteps={() =>
-        toast.info('手机端自动同步硬件计步器', {
-          description: '网页端未安装 App 时默认显示 0 步，绝不报错～',
-        })
-      }
+      onOpenSteps={() => launcher.open('steps')}
       readOnly={Boolean(activeFriend)}
       friendBanner={
         activeFriend ? (

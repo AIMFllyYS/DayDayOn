@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.husteread.daydayon"
-    android:versionCode="5"
-    android:versionName="0.1.8">
+    android:versionCode="6"
+    android:versionName="0.1.9">
 
     <uses-sdk
         android:minSdkVersion="26"
@@ -33,10 +33,11 @@
         android:name="android.hardware.sensor.stepcounter"
         android:required="false" />
 
-    <!-- 4. 本地闹钟提醒与系统通知权限（我的 → 打卡提醒 → 手机提醒） -->
+    <!-- 4. 本地闹钟提醒与系统通知权限（我的 → 打卡与提醒 → 手机提醒） -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <!-- 5. 应用内自更新下载完成后调起系统安装器权限（Android 8.0+） -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
@@ -76,6 +77,9 @@
             <intent-filter>
                 <action android:name="com.husteread.daydayon.ACTION_DAILY_REMINDER" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
     </application>

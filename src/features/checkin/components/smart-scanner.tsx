@@ -40,7 +40,24 @@ export type CheckinInputMode = 'manual' | 'smart-capture' | 'smart-upload'
 
 export const SMART_IMAGE_ACCEPT = 'image/*'
 export const SMART_UPLOAD_ACCEPT =
-  'image/*,text/plain,text/html,text/markdown,text/csv,.txt,.html,.htm,.md,.csv'
+  'image/*,text/plain,text/html,text/markdown,text/csv,application/json,.txt,.html,.htm,.md,.markdown,.csv,.tsv,.json,.log,.xml'
+
+function isLikelyImageFile(file: File): boolean {
+  if (file.type.startsWith('image/')) return true
+  return /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif|dng)$/i.test(file.name)
+}
+
+function isUnsupportedBinaryDocument(file: File, rawText?: string): boolean {
+  if (
+    file.type === 'application/pdf' ||
+    file.type.startsWith('video/') ||
+    file.type.startsWith('audio/') ||
+    /\.(pdf|zip|rar|7z|doc|docx|xls|xlsx|ppt|pptx|apk|exe|mp4|mov|mp3)$/i.test(file.name)
+  ) {
+    return true
+  }
+  return rawText !== undefined && rawText.includes('\u0000')
+}
 
 export interface SmartScannerSnapshot {
   kind: 'image' | 'text'
@@ -179,6 +196,10 @@ export interface SmartScannerLensProps {
   note?: string
   /** 视觉主题色 */
   tone?: ModuleTone
+  /** 是否订阅并消费全局跨路由内存交接槽（仅 /checkin/smart 主扫描镜开启） */
+  enableGlobalHandoff?: boolean
+  /** 当前路由携带的会话 ID（sid），用于精确匹配交接载荷防止旧实例抢占 */
+  handoffSessionId?: string
   /** 外部注入的已完成识别快照（用于 /checkin/smart 识别完切入 CheckinFlow 后保留预览） */
   initialSnapshot?: {
     result: SmartRecognitionResult
@@ -204,6 +225,8 @@ export function SmartScannerLens({
   goalId,
   note,
   tone = 'exercise',
+  enableGlobalHandoff = false,
+  handoffSessionId,
   initialSnapshot = null,
   onScanStart,
   onRecognized,
@@ -308,7 +331,7 @@ export function SmartScannerLens({
     setDraft(null)
     setActiveStepIdx(0)
 
-    const imageFiles = files.filter((f) => f.type.startsWith('image/'))
+    const imageFiles = files.filter(isLikelyImageFile)
     if (imageFiles.length > 0) {
       if (imageFiles.length > 2) {
         toast.info(`已选 ${imageFiles.length} 张照片，单次识别最多同时上传前 2 张～`)
@@ -352,14 +375,30 @@ export function SmartScannerLens({
       return
     }
 
+    if (isUnsupportedBinaryDocument(first)) {
+      const msg = '暂不支持该文件格式，请选择图片或 TXT / MD / CSV / HTML 文本附件'
+      setErrorText(msg)
+      onScanError?.(msg)
+      toast.error(msg)
+      return
+    }
+
     const relPath = buildRelativeMediaPath(first.name, sourceMode)
     try {
       const raw = await first.text()
+      if (isUnsupportedBinaryDocument(first, raw)) {
+        const msg = '暂不支持二进制文档，请选择图片或 TXT / MD / CSV / HTML 文本附件'
+        setErrorText(msg)
+        onScanError?.(msg)
+        toast.error(msg)
+        return
+      }
       const clean = extractCleanText(raw)
       if (!clean) {
         const msg = '文件内容为空或无法识别，请重新选择'
         setErrorText(msg)
         onScanError?.(msg)
+        toast.error(msg)
         return
       }
       const snippet = clean.slice(0, 240)
@@ -382,9 +421,10 @@ export function SmartScannerLens({
       }
       runRecognition()
     } catch {
-      const msg = '读取文件失败，请重新选择 TXT / HTML 或图片文件'
+      const msg = '读取文件失败，请重新选择图片或 TXT / MD / CSV / HTML 附件'
       setErrorText(msg)
       onScanError?.(msg)
+      toast.error(msg)
     }
   }
 
@@ -394,8 +434,9 @@ export function SmartScannerLens({
 
   // 承接从打卡弹层点击「智能拍照」或「智能上传」直接选完文件传过来的内存交接槽
   useEffect(() => {
+    if (!enableGlobalHandoff) return
     const consumeIfAny = () => {
-      const captured = consumePendingSmartCapture()
+      const captured = consumePendingSmartCapture(handoffSessionId)
       if (captured) {
         const list = captured.files && captured.files.length > 0 ? captured.files : [captured.file]
         void processFilesRef.current(list, captured.mode)
@@ -403,7 +444,7 @@ export function SmartScannerLens({
     }
     consumeIfAny()
     return subscribePendingSmartCapture(consumeIfAny)
-  }, [])
+  }, [enableGlobalHandoff, handoffSessionId])
 
   const mediaPicker = useMediaPicker({
     uploadAccept: SMART_UPLOAD_ACCEPT,
