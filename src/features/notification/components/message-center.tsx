@@ -219,20 +219,20 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
   }
 
   return (
-    <div className="@container flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
-      <div className="divide-border flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden @3xl:grid @3xl:grid-cols-[340px_1fr] @3xl:divide-x @4xl:grid-cols-[360px_1fr]">
+    <div className="@container flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="divide-border flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 flex-col overflow-hidden @3xl:grid @3xl:grid-cols-[340px_minmax(0,1fr)] @3xl:divide-x @4xl:grid-cols-[360px_minmax(0,1fr)]">
         {/* ======================================================================
          * 第 1 级：全屏消息首页（顶部双通知入口 + 下方好友聊天列表）
          * ==================================================================== */}
         <div
           className={cn(
-            'bg-background flex h-full min-h-0 flex-col',
+            'bg-background flex h-full min-h-0 w-full max-w-full min-w-0 flex-col overflow-x-hidden',
             mobileLevel === 2 && 'hidden @3xl:flex',
           )}
         >
           {/* 一级全屏吸顶顶栏 */}
-          <header className="border-border/70 bg-background/90 sticky top-0 z-20 flex shrink-0 items-center justify-between gap-2 border-b px-4 pt-[calc(var(--safe-top)+0.5rem)] pb-2.5 backdrop-blur-md md:pt-4 md:pb-3">
-            <div className="flex min-w-0 items-center gap-1.5">
+          <header className="border-border/70 bg-background/90 sticky top-0 z-20 flex w-full max-w-full min-w-0 shrink-0 items-center justify-between gap-2 overflow-hidden border-b px-4 pt-[calc(var(--safe-top)+0.5rem)] pb-2.5 backdrop-blur-md md:pt-4 md:pb-3">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
               <BackButton fallbackHref="/" />
               <h1 className="text-subhead md:text-heading truncate font-bold">消息与通知</h1>
               {totalUnread > 0 && (
@@ -256,11 +256,11 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
           </header>
 
           {/* 一级全屏滚动区 */}
-          <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(var(--safe-bottom)+1.5rem)] md:pb-6">
+          <div className="min-h-0 w-full max-w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-x-none pb-[calc(var(--safe-bottom)+1.5rem)] md:pb-6">
             {/* 顶部独立双入口：打卡房间与动态 / 官方与系统通知 */}
             <section
               aria-label="通知分类入口"
-              className="border-border/60 bg-surface/60 grid grid-cols-2 gap-2.5 border-b px-4 py-3.5"
+              className="border-border/60 bg-surface/60 grid w-full max-w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2.5 overflow-hidden border-b px-4 py-3.5"
             >
               {topCategories.map((cat) => {
                 const isActive = cat.id === activeChannelId
@@ -271,29 +271,29 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                     data-testid={`notice-entry-${cat.id}`}
                     onClick={() => handleSelectChannel(cat.id)}
                     className={cn(
-                      'border-border/80 bg-surface hover:bg-surface-sunken/70 relative flex min-w-0 cursor-pointer flex-col gap-2 rounded-2xl border p-3 text-left transition-all active:scale-[0.98]',
+                      'border-border/80 bg-surface hover:bg-surface-sunken/70 relative flex w-full max-w-full min-w-0 cursor-pointer flex-col items-stretch gap-2 overflow-hidden rounded-2xl border p-3 text-left transition-all active:scale-[0.98]',
                       isActive && '@3xl:border-primary/50 @3xl:bg-primary-soft/35',
                     )}
                   >
-                    <div className="flex w-full items-center justify-between gap-2">
+                    <div className="flex w-full max-w-full min-w-0 items-center justify-between gap-2">
                       <IconTile
                         icon={cat.kind === 'feed' ? 'sparkles' : 'megaphone'}
                         tone={cat.kind === 'feed' ? 'primary' : 'diet'}
                         size="md"
                       />
                       {cat.unread > 0 ? (
-                        <span className="bg-danger text-on-primary flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-[11px] leading-none font-bold">
+                        <span className="bg-danger text-on-primary flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 font-mono text-[11px] leading-none font-bold">
                           {cat.unread > 99 ? '99+' : cat.unread}
                         </span>
                       ) : (
                         <Icon name="chevron-right" size={16} className="text-subtle shrink-0" />
                       )}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-caption truncate font-bold">{cat.title}</p>
+                    <div className="w-full max-w-full min-w-0 overflow-hidden">
+                      <p className="text-caption block w-full truncate font-bold">{cat.title}</p>
                       <p
                         className={cn(
-                          'text-tiny mt-0.5 truncate',
+                          'text-tiny mt-0.5 block w-full truncate',
                           cat.unread > 0 ? 'text-foreground font-medium' : 'text-muted',
                         )}
                       >
@@ -306,11 +306,14 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
             </section>
 
             {/* 下侧好友聊天会话列表 */}
-            <section aria-label="和朋友聊天" className="flex flex-col">
-              <div className="flex items-center justify-between px-4 pt-3.5 pb-1.5">
-                <h2 className="text-tiny text-muted font-semibold">和朋友聊天</h2>
+            <section
+              aria-label="和朋友聊天"
+              className="flex w-full max-w-full min-w-0 flex-col overflow-hidden"
+            >
+              <div className="flex w-full max-w-full min-w-0 items-center justify-between gap-2 px-4 pt-3.5 pb-1.5">
+                <h2 className="text-tiny text-muted truncate font-semibold">和朋友聊天</h2>
                 {friendChannels.length > 0 && (
-                  <span className="text-tiny text-subtle font-mono">
+                  <span className="text-tiny text-subtle shrink-0 font-mono">
                     {friendChannels.length} 位伙伴
                   </span>
                 )}
@@ -327,16 +330,16 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                   </p>
                 </div>
               ) : (
-                <ul className="divide-border/50 divide-y">
+                <ul className="divide-border/50 w-full max-w-full min-w-0 divide-y overflow-hidden">
                   {friendChannels.map((row) => {
                     const isActive = row.id === activeChannelId
                     return (
-                      <li key={row.id}>
+                      <li key={row.id} className="w-full max-w-full min-w-0 overflow-hidden">
                         <button
                           type="button"
                           onClick={() => handleSelectChannel(row.id)}
                           className={cn(
-                            'flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors',
+                            'flex w-full max-w-full min-w-0 cursor-pointer items-center gap-3 overflow-hidden px-4 py-3 text-left transition-colors',
                             isActive
                               ? '@3xl:bg-primary-soft/55 hover:bg-surface-sunken/70'
                               : 'hover:bg-surface-sunken/70 active:bg-surface-sunken',
@@ -354,11 +357,15 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                             )}
                           </div>
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex min-w-0 items-center gap-1.5">
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <div className="flex w-full min-w-0 items-center justify-between gap-2">
+                              <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
                                 <span className="text-body truncate font-bold">{row.title}</span>
-                                {row.isFrozen && <Badge tone="neutral">归档</Badge>}
+                                {row.isFrozen && (
+                                  <Badge tone="neutral" className="shrink-0">
+                                    归档
+                                  </Badge>
+                                )}
                               </div>
                               {row.time && (
                                 <span className="text-tiny text-subtle shrink-0 font-mono">
@@ -366,10 +373,10 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                                 </span>
                               )}
                             </div>
-                            <div className="mt-0.5 flex items-center justify-between gap-2">
+                            <div className="mt-0.5 flex w-full min-w-0 items-center justify-between gap-2">
                               <p
                                 className={cn(
-                                  'text-caption truncate',
+                                  'text-caption min-w-0 flex-1 truncate',
                                   row.unread > 0 ? 'text-foreground font-semibold' : 'text-muted',
                                 )}
                               >
@@ -398,7 +405,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
         {activeChannel.kind === 'friend' ? (
           <div
             className={cn(
-              'bg-background flex h-full min-h-0 flex-1 flex-col',
+              'bg-background flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 flex-col overflow-hidden',
               mobileLevel === 1 && 'hidden @3xl:flex',
             )}
           >
@@ -415,14 +422,14 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
         ) : (
           <div
             className={cn(
-              'bg-background flex h-full min-h-0 flex-1 flex-col',
+              'bg-background flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 flex-col overflow-hidden',
               mobileLevel === 1 && 'hidden @3xl:flex',
             )}
           >
             {/* 第 2 级全屏吸顶顶栏 */}
-            <header className="border-border bg-surface/95 sticky top-0 z-10 flex shrink-0 items-center justify-between gap-2 border-b px-4 pt-[calc(var(--safe-top)+0.5rem)] pb-2.5 backdrop-blur-md @3xl:pt-3.5 @3xl:pb-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <div className="@3xl:hidden">
+            <header className="border-border bg-surface/95 sticky top-0 z-10 flex w-full max-w-full min-w-0 shrink-0 items-center justify-between gap-2 overflow-hidden border-b px-4 pt-[calc(var(--safe-top)+0.5rem)] pb-2.5 backdrop-blur-md @3xl:pt-3.5 @3xl:pb-3">
+              <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+                <div className="shrink-0 @3xl:hidden">
                   <IconButton
                     icon="chevron-left"
                     label="返回消息列表"
@@ -435,7 +442,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                   tone={activeChannel.kind === 'feed' ? 'primary' : 'diet'}
                   size="sm"
                 />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1 overflow-hidden">
                   <h2 className="text-subhead truncate font-bold">{activeChannel.title}</h2>
                   <p className="text-tiny text-muted truncate">
                     {activeChannel.kind === 'feed'
@@ -466,8 +473,8 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
             </header>
 
             {/* 第 2 级全屏滚动内容流 */}
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-[calc(var(--safe-bottom)+1.5rem)] md:px-6 md:pb-8">
-              <div className="mx-auto w-full max-w-2xl">
+            <div className="min-h-0 w-full max-w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-x-none px-4 py-4 pb-[calc(var(--safe-bottom)+1.5rem)] md:px-6 md:pb-8">
+              <div className="mx-auto w-full max-w-2xl min-w-0">
                 {activeChannel.kind === 'feed' ? (
                   feedLoading ? (
                     <div className="text-tiny text-muted flex h-48 items-center justify-center">
@@ -484,7 +491,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="w-full min-w-0 space-y-3">
                       {feedItems.map((item) => {
                         if (item.kind === 'checkin_aggregate') {
                           return (
@@ -508,9 +515,13 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                           return <VisitFootprintCard key={item.id} notification={item} />
                         }
                         return (
-                          <Card key={item.id} variant="outline" className="p-3.5">
-                            <p className="text-caption font-bold">{item.title}</p>
-                            <p className="text-tiny text-muted mt-1">{item.content}</p>
+                          <Card
+                            key={item.id}
+                            variant="outline"
+                            className="w-full max-w-full min-w-0 overflow-hidden p-3.5"
+                          >
+                            <p className="text-caption font-bold break-words">{item.title}</p>
+                            <p className="text-tiny text-muted mt-1 break-words">{item.content}</p>
                           </Card>
                         )
                       })}
@@ -529,7 +540,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                     <p className="text-tiny text-subtle">重要公告与版本更新将在这里呈现</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="w-full min-w-0 space-y-3">
                     {systemItems.map((item) => (
                       <SystemNoticeCard key={item.id} notification={item} />
                     ))}

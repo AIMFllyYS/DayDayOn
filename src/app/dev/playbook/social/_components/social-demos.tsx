@@ -447,22 +447,22 @@ export function TwoLevelNotificationCenterDemo() {
       >
         <div
           className={cn(
-            'min-h-[540px]',
+            'min-h-[540px] w-full max-w-full min-w-0 overflow-hidden',
             viewport === 'desktop'
-              ? 'divide-border grid grid-cols-[320px_1fr] divide-x'
+              ? 'divide-border grid grid-cols-[320px_minmax(0,1fr)] divide-x'
               : 'flex flex-col',
           )}
         >
           {/* ==================== 第 1 级：消息与通知总列表 ==================== */}
           {(viewport === 'desktop' || mobileLevel === 1) && (
-            <div className="bg-surface flex flex-col justify-between">
-              <div>
+            <div className="bg-surface flex w-full max-w-full min-w-0 flex-col justify-between overflow-hidden">
+              <div className="w-full max-w-full min-w-0 overflow-hidden">
                 {/* 一级顶栏 */}
-                <div className="border-border flex items-center justify-between border-b px-4 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-heading font-bold">消息与通知</h3>
+                <div className="border-border flex w-full max-w-full min-w-0 items-center justify-between gap-2 overflow-hidden border-b px-4 py-3.5">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h3 className="text-heading truncate font-bold">消息与通知</h3>
                     {totalUnread > 0 && (
-                      <span className="bg-danger text-on-primary text-tiny inline-flex h-5 items-center justify-center rounded-full px-2 font-mono leading-none font-bold">
+                      <span className="bg-danger text-on-primary text-tiny inline-flex h-5 shrink-0 items-center justify-center rounded-full px-2 font-mono leading-none font-bold">
                         {totalUnread} 未读
                       </span>
                     )}
@@ -471,14 +471,14 @@ export function TwoLevelNotificationCenterDemo() {
                     type="button"
                     onClick={markAllRead}
                     disabled={totalUnread === 0}
-                    className="text-tiny text-primary-ink disabled:text-subtle font-semibold hover:underline disabled:no-underline"
+                    className="text-tiny text-primary-ink disabled:text-subtle shrink-0 font-semibold hover:underline disabled:no-underline"
                   >
                     全部已读
                   </button>
                 </div>
 
                 {/* 顶部独立两项通知入口：打卡房间与动态 / 官方与系统通知 */}
-                <div className="border-border/60 bg-surface/60 grid grid-cols-2 gap-2.5 border-b px-4 py-3">
+                <div className="border-border/60 bg-surface/60 grid w-full max-w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2.5 overflow-hidden border-b px-4 py-3">
                   {inbox
                     .filter((row) => row.kind === 'channel-feed' || row.kind === 'channel-system')
                     .map((row) => {
@@ -489,29 +489,35 @@ export function TwoLevelNotificationCenterDemo() {
                           type="button"
                           onClick={() => selectChannel(row.id)}
                           className={cn(
-                            'border-border/80 bg-surface hover:bg-surface-sunken/70 flex min-w-0 flex-col gap-2 rounded-2xl border p-3 text-left transition-colors',
+                            'border-border/80 bg-surface hover:bg-surface-sunken/70 flex w-full max-w-full min-w-0 flex-col items-stretch gap-2 overflow-hidden rounded-2xl border p-3 text-left transition-colors',
                             isSelected && 'border-primary/50 bg-primary-soft/35',
                           )}
                         >
-                          <div className="flex w-full items-center justify-between gap-2">
+                          <div className="flex w-full max-w-full min-w-0 items-center justify-between gap-2">
                             <IconTile
                               icon={row.kind === 'channel-feed' ? 'sparkles' : 'megaphone'}
                               tone={row.kind === 'channel-feed' ? 'primary' : 'diet'}
                               size="md"
                             />
                             {row.unread > 0 ? (
-                              <span className="bg-danger text-on-primary flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-[11px] leading-none font-bold">
+                              <span className="bg-danger text-on-primary flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 font-mono text-[11px] leading-none font-bold">
                                 {row.unread}
                               </span>
                             ) : (
-                              <Icon name="chevron-right" size={16} className="text-subtle" />
+                              <Icon
+                                name="chevron-right"
+                                size={16}
+                                className="text-subtle shrink-0"
+                              />
                             )}
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-caption truncate font-bold">
+                          <div className="w-full max-w-full min-w-0 overflow-hidden">
+                            <p className="text-caption block w-full truncate font-bold">
                               {row.kind === 'channel-feed' ? '打卡房间与动态' : row.title}
                             </p>
-                            <p className="text-tiny text-muted mt-0.5 truncate">{row.subtitle}</p>
+                            <p className="text-tiny text-muted mt-0.5 block w-full truncate">
+                              {row.subtitle}
+                            </p>
                           </div>
                         </button>
                       )
@@ -523,18 +529,18 @@ export function TwoLevelNotificationCenterDemo() {
                   <p className="text-tiny text-muted font-semibold">和朋友聊天</p>
                 </div>
 
-                <ul className="divide-border/60 divide-y">
+                <ul className="divide-border/60 w-full max-w-full min-w-0 divide-y overflow-hidden">
                   {inbox
                     .filter((row) => row.kind !== 'channel-feed' && row.kind !== 'channel-system')
                     .map((row) => {
                       const isSelected = viewport === 'desktop' && row.id === activeId
                       return (
-                        <li key={row.id}>
+                        <li key={row.id} className="w-full max-w-full min-w-0 overflow-hidden">
                           <button
                             type="button"
                             onClick={() => selectChannel(row.id)}
                             className={cn(
-                              'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
+                              'flex w-full max-w-full min-w-0 items-center gap-3 overflow-hidden px-4 py-3 text-left transition-colors',
                               isSelected
                                 ? 'bg-primary-soft/65'
                                 : 'hover:bg-surface-sunken active:bg-surface-sunken',
@@ -552,24 +558,26 @@ export function TwoLevelNotificationCenterDemo() {
                               )}
                             </div>
 
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-1.5 truncate">
+                            <div className="min-w-0 flex-1 overflow-hidden">
+                              <div className="flex w-full min-w-0 items-center justify-between gap-2">
+                                <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
                                   <span className="text-caption truncate font-bold">
                                     {row.title}
                                   </span>
                                   {row.kind === 'friend-unfriended' && (
-                                    <Badge tone="neutral">已解除好友</Badge>
+                                    <Badge tone="neutral" className="shrink-0">
+                                      已解除好友
+                                    </Badge>
                                   )}
                                 </div>
                                 <span className="text-tiny text-subtle shrink-0 font-mono">
                                   {row.time}
                                 </span>
                               </div>
-                              <div className="mt-0.5 flex items-center justify-between gap-2">
+                              <div className="mt-0.5 flex w-full min-w-0 items-center justify-between gap-2">
                                 <p
                                   className={cn(
-                                    'text-tiny truncate',
+                                    'text-tiny min-w-0 flex-1 truncate',
                                     row.unread > 0 ? 'text-foreground font-semibold' : 'text-muted',
                                   )}
                                 >
@@ -599,31 +607,35 @@ export function TwoLevelNotificationCenterDemo() {
 
           {/* ==================== 第 2 级：具体通知详情或 1v1 好友私聊 ==================== */}
           {(viewport === 'desktop' || mobileLevel === 2) && (
-            <div className="bg-paper flex min-h-[540px] flex-col justify-between">
+            <div className="bg-paper flex min-h-[540px] w-full max-w-full min-w-0 flex-col justify-between overflow-hidden">
               {/* 二级顶栏（手机端带返回按钮） */}
-              <div className="border-border bg-surface flex items-center justify-between gap-2 border-b px-4 py-3">
-                <div className="flex items-center gap-2">
+              <div className="border-border bg-surface flex w-full max-w-full min-w-0 items-center justify-between gap-2 overflow-hidden border-b px-4 py-3">
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                   {viewport === 'mobile' && (
-                    <IconButton
-                      icon="chevron-left"
-                      label="返回消息列表"
-                      size="sm"
-                      onClick={() => setMobileLevel(1)}
-                    />
+                    <div className="shrink-0">
+                      <IconButton
+                        icon="chevron-left"
+                        label="返回消息列表"
+                        size="sm"
+                        onClick={() => setMobileLevel(1)}
+                      />
+                    </div>
                   )}
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-subhead font-bold">{activeItem.title}</h4>
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+                      <h4 className="text-subhead truncate font-bold">{activeItem.title}</h4>
                       {activeItem.streak && (
-                        <Badge tone="diet" icon="flame">
+                        <Badge tone="diet" icon="flame" className="shrink-0">
                           {activeItem.streak} 天
                         </Badge>
                       )}
                       {activeItem.kind === 'friend-unfriended' && (
-                        <Badge tone="neutral">只读历史归档</Badge>
+                        <Badge tone="neutral" className="shrink-0">
+                          只读历史归档
+                        </Badge>
                       )}
                     </div>
-                    <p className="text-tiny text-muted">
+                    <p className="text-tiny text-muted truncate">
                       {activeItem.kind === 'channel-feed'
                         ? '好友打卡里程碑（5 分钟聚合）、宠物轻互动与房间脚印'
                         : activeItem.kind === 'channel-system'
@@ -636,28 +648,30 @@ export function TwoLevelNotificationCenterDemo() {
                 </div>
 
                 {activeItem.kind === 'friend-active' && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    icon="flag"
-                    onClick={() => {
-                      const list = chats[activeId] ?? []
-                      const target = list.find((m) => m.sender === 'friend') ?? list[0]
-                      if (target) setReportingMsg(target)
-                    }}
-                  >
-                    举报
-                  </Button>
+                  <div className="shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon="flag"
+                      onClick={() => {
+                        const list = chats[activeId] ?? []
+                        const target = list.find((m) => m.sender === 'friend') ?? list[0]
+                        if (target) setReportingMsg(target)
+                      }}
+                    >
+                      举报
+                    </Button>
+                  </div>
                 )}
               </div>
 
               {/* 二级主体内容区 */}
               {activeItem.kind === 'channel-feed' ? (
-                <div className="flex-1 space-y-3 overflow-y-auto p-4">
+                <div className="w-full min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto p-4">
                   <FeedCardsShowcase compact={viewport === 'mobile'} />
                 </div>
               ) : activeItem.kind === 'channel-system' ? (
-                <div className="flex-1 space-y-3 overflow-y-auto p-4">
+                <div className="w-full min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto p-4">
                   <Card variant="plain" className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Badge tone="diet" icon="sparkles">

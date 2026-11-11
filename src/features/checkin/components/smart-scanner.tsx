@@ -17,7 +17,7 @@ import type { Module } from '@/features/shared/schemas'
 import { errorMessage, isApiError, newIdempotencyKey } from '@/lib/api'
 import { useRecognizeSmart } from '@/lib/api/queries/ai'
 import { cn } from '@/lib/cn'
-import { compressImage } from '@/lib/image'
+import { compressImage, sniffIsImageFile } from '@/lib/image'
 import {
   buildRelativeMediaPath,
   consumePendingSmartCapture,
@@ -41,11 +41,6 @@ export type CheckinInputMode = 'manual' | 'smart-capture' | 'smart-upload'
 export const SMART_IMAGE_ACCEPT = 'image/*'
 export const SMART_UPLOAD_ACCEPT =
   'image/*,text/plain,text/html,text/markdown,text/csv,application/json,.txt,.html,.htm,.md,.markdown,.csv,.tsv,.json,.log,.xml'
-
-function isLikelyImageFile(file: File): boolean {
-  if (file.type.startsWith('image/')) return true
-  return /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif|dng)$/i.test(file.name)
-}
 
 function isUnsupportedBinaryDocument(file: File, rawText?: string): boolean {
   if (
@@ -331,7 +326,8 @@ export function SmartScannerLens({
     setDraft(null)
     setActiveStepIdx(0)
 
-    const imageFiles = files.filter(isLikelyImageFile)
+    const imageFlags = await Promise.all(files.map((f) => sniffIsImageFile(f)))
+    const imageFiles = files.filter((_, idx) => imageFlags[idx])
     if (imageFiles.length > 0) {
       if (imageFiles.length > 2) {
         toast.info(`已选 ${imageFiles.length} 张照片，单次识别最多同时上传前 2 张～`)

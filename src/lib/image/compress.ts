@@ -57,6 +57,79 @@ function toJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
   })
 }
 
+const IMAGE_EXT_RE = /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif|dng)$/i
+const ISO_IMAGE_BRANDS = new Set([
+  'heic',
+  'heix',
+  'hevc',
+  'hevx',
+  'heim',
+  'heis',
+  'mif1',
+  'msf1',
+  'avif',
+  'avis',
+])
+
+/** 检查文件前 16 字节是否匹配常见图片魔数（兼容安卓 DocumentsUI 无扩展名或 octet-stream 文件） */
+export function hasImageMagicBytes(bytes: Uint8Array): boolean {
+  if (bytes.length < 4) return false
+  // JPEG: FF D8 FF
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return true
+  // PNG: 89 50 4E 47
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return true
+  // GIF: GIF87a / GIF89a
+  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) return true
+  // BMP: BM
+  if (bytes[0] === 0x42 && bytes[1] === 0x4d) return true
+  // TIFF / DNG: II*\0 or MM\0*
+  if (
+    (bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00) ||
+    (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a)
+  ) {
+    return true
+  }
+  // WebP: RIFF....WEBP
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return true
+  }
+  // ISO BMFF (HEIC / HEIF / AVIF): ....ftyp<brand>
+  if (
+    bytes.length >= 12 &&
+    bytes[4] === 0x66 &&
+    bytes[5] === 0x74 &&
+    bytes[6] === 0x79 &&
+    bytes[7] === 0x70
+  ) {
+    const brand = String.fromCharCode(bytes[8]!, bytes[9]!, bytes[10]!, bytes[11]!).toLowerCase()
+    if (ISO_IMAGE_BRANDS.has(brand)) return true
+  }
+  return false
+}
+
+/** 判断所选 File 是否为图片（先查 MIME 与后缀，不确定时嗅探前 16 字节文件头） */
+export async function sniffIsImageFile(file: File): Promise<boolean> {
+  if (file.type.startsWith('image/')) return true
+  if (IMAGE_EXT_RE.test(file.name)) return true
+  if (file.type && file.type !== 'application/octet-stream') return false
+  try {
+    const head = new Uint8Array(await file.slice(0, 16).arrayBuffer())
+    return hasImageMagicBytes(head)
+  } catch {
+    return false
+  }
+}
+
 /** 把用户选的图片压成 JPEG。失败抛 ImageCompressError，界面直接显示它的 message */
 export async function compressImage(
   file: Blob,

@@ -3,7 +3,9 @@
  */
 export {
   compressImage,
+  hasImageMagicBytes,
   ImageCompressError,
+  sniffIsImageFile,
   type CompressedImage,
   type CompressOptions,
   type ImageCompressErrorReason,

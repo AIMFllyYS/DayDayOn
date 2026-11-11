@@ -18,13 +18,13 @@ import android.os.Message
 import android.print.PrintAttributes
 import android.print.PrintManager
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.provider.Settings
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
 import android.webkit.JavascriptInterface
-import android.webkit.MimeTypeMap
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -38,17 +38,19 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.Calendar
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * DayDayOn 安卓客户端主 Activity（Kotlin 混合架构，v0.1.9 / versionCode 6）：
+ * DayDayOn 安卓客户端主 Activity（Kotlin 混合架构，v0.1.10 / versionCode 7）：
  * - 冷启动 0ms 立即展示原生开屏覆盖层 `nativeSplashOverlay`（含时段问候与品牌微动效），后台并行初始化 WebView 并加载站点，水合完成后硬件加速平滑揭开；
- * - 在 WebView User-Agent 末尾追加 `DayDayOnApp/0.1.9`；
+ * - 在 WebView User-Agent 末尾追加 `DayDayOnApp/0.1.10`；
  * - 通过 `shouldInterceptRequest` 拦截同源虚拟路径 `/__native__/media/...`，在后台 IO 线程池流式返回系统硬件缩略图与高清内存字节流（兼容 RAW/DNG/HEIC）；
  * - 注入 `window.DayDayOnNative` (@JavascriptInterface)，提供：
  *   1. 原生开屏收尾：dismissSplash
@@ -73,11 +75,15 @@ class MainActivity : Activity() {
     private lateinit var permPrefs: SharedPreferences
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    private data class EphemeralPickedMedia(val bytes: ByteArray, val mimeType: String)
+
     private var pendingFileChooser: ValueCallback<Array<Uri>>? = null
     private var pendingCameraFile: File? = null
+    private var pendingSystemFileMaxCount = 9
     private val pendingPermRequests = ConcurrentHashMap<Int, String>()
     private var nextPermReqCode = REQ_RUNTIME_PERM_BASE
     private val ephemeralCameraBlobs = ConcurrentHashMap<String, ByteArray>()
+    private val ephemeralPickedBlobs = ConcurrentHashMap<String, EphemeralPickedMedia>()
     private var mainFrameLoadFailed = false
     private var splashDismissed = false
     private var splashCreatedAt = 0L
@@ -123,7 +129,7 @@ class MainActivity : Activity() {
         settings.allowContentAccess = true
         settings.mediaPlaybackRequiresUserGesture = false
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-        settings.userAgentString = "${settings.userAgentString} DayDayOnApp/0.1.9"
+        settings.userAgentString = "${settings.userAgentString} DayDayOnApp/0.1.10"
 
         CookieManager.getInstance().apply {
             setAcceptCookie(true)
@@ -169,6 +175,38 @@ class MainActivity : Activity() {
                 if (!isTrustedHost(host)) return null
                 val path = uri.path ?: return null
                 if (!path.startsWith("/__native__/media/")) return null
+
+                if (path.startsWith("/__native__/media/picked/")) {
+                    val token = path.removePrefix("/__native__/media/picked/")
+                    val picked = ephemeralPickedBlobs.remove(token)
+                    if (picked == null || picked.bytes.isEmpty()) {
+                        return WebResourceResponse(
+                            "text/plain",
+                            "UTF-8",
+                            404,
+                            "Not Found",
+                            mapOf("Cache-Control" to "no-store"),
+                            ByteArrayInputStream(ByteArray(0)),
+                        )
+                    }
+                    val encoding =
+                        if (picked.mimeType.startsWith("text/") || picked.mimeType == "application/json") {
+                            "UTF-8"
+                        } else {
+                            null
+                        }
+                    return WebResourceResponse(
+                        picked.mimeType,
+                        encoding,
+                        200,
+                        "OK",
+                        mapOf(
+                            "Cache-Control" to "no-store",
+                            "X-Content-Type-Options" to "nosniff",
+                        ),
+                        ByteArrayInputStream(picked.bytes),
+                    )
+                }
 
                 val bytes: ByteArray? = when {
                     path.startsWith("/__native__/media/thumb/") -> {
@@ -387,6 +425,7 @@ class MainActivity : Activity() {
         stepCounterManager.stopListening()
         CameraTempFileProvider.cleanupStaleFiles(this)
         ephemeralCameraBlobs.clear()
+        ephemeralPickedBlobs.clear()
         super.onDestroy()
     }
 
@@ -419,6 +458,32 @@ class MainActivity : Activity() {
             pendingFileChooser = null
             if (callback == null) return
             callback.onReceiveValue(parseMultiFileChooserResult(resultCode, data))
+            return
+        }
+
+        if (requestCode == REQ_NATIVE_SYSTEM_FILES) {
+            val uris = parseMultiFileChooserResult(resultCode, data)
+            if (uris == null || uris.isEmpty()) {
+                dispatchSystemFilesResult("[]")
+                return
+            }
+            val maxToRead = pendingSystemFileMaxCount.coerceIn(1, 9)
+            val pickedUris = uris.take(maxToRead)
+            Thread {
+                val arr = JSONArray()
+                try {
+                    if (ephemeralPickedBlobs.size >= 24) {
+                        ephemeralPickedBlobs.clear()
+                    }
+                    for ((idx, uri) in pickedUris.withIndex()) {
+                        val itemObj = readPickedUriIntoMemory(uri, idx) ?: continue
+                        arr.put(itemObj)
+                    }
+                } catch (_: Throwable) {
+                    // ignore batch failure and return collected items
+                }
+                dispatchSystemFilesResult(arr.toString())
+            }.start()
             return
         }
 
@@ -549,6 +614,36 @@ class MainActivity : Activity() {
         return host.endsWith("daydayon.husteread.com") || host == "localhost" || host == "127.0.0.1"
     }
 
+    private fun isImageOnlyAccept(rawAccepts: List<String>): Boolean {
+        if (rawAccepts.isEmpty()) return false
+        return rawAccepts.all { token ->
+            val lower = token.lowercase()
+            if (lower.startsWith("image/")) {
+                true
+            } else {
+                val ext = lower.removePrefix(".")
+                ext in IMAGE_EXTENSIONS
+            }
+        }
+    }
+
+    private fun buildSystemPickerIntent(
+        acceptTokens: List<String>,
+        allowMultiple: Boolean,
+        action: String = Intent.ACTION_OPEN_DOCUMENT,
+    ): Intent {
+        val imageOnly = isImageOnlyAccept(acceptTokens)
+        return Intent(action).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            if (allowMultiple) {
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            }
+            // 包含非图片附件时固定使用 */* 且不设窄白名单 EXTRA_MIME_TYPES，防止国产 ROM DocumentsUI 将 .md/.csv/.txt/.dng 置灰无法点击
+            type = if (imageOnly) "image/*" else "*/*"
+        }
+    }
+
     private fun buildEnhancedFileChooserIntent(
         params: WebChromeClient.FileChooserParams?,
         action: String = Intent.ACTION_OPEN_DOCUMENT,
@@ -560,42 +655,175 @@ class MainActivity : Activity() {
             ?.map { it.trim() }
             ?.filter { it.isNotEmpty() }
             ?: emptyList()
+        return buildSystemPickerIntent(rawAccepts, allowMultiple, action)
+    }
 
-        val resolvedMimes = rawAccepts.mapNotNull { token ->
-            if (token.contains("/")) {
-                token
+    private fun resolvePickedDisplayName(uri: Uri, index: Int): String {
+        try {
+            contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val colIdx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (colIdx >= 0) {
+                        val name = cursor.getString(colIdx)?.trim()
+                        if (!name.isNullOrEmpty()) return name
+                    }
+                }
+            }
+        } catch (_: Throwable) {
+            // fallback below
+        }
+        val fallback = uri.lastPathSegment
+            ?.substringAfterLast('/')
+            ?.substringAfterLast(':')
+            ?.trim()
+        return if (!fallback.isNullOrEmpty()) fallback else "attachment_${index + 1}"
+    }
+
+    private fun sniffHeaderBytes(uri: Uri, maxLen: Int = 16): ByteArray {
+        return try {
+            contentResolver.openInputStream(uri)?.use { input ->
+                val buf = ByteArray(maxLen)
+                var total = 0
+                while (total < maxLen) {
+                    val n = input.read(buf, total, maxLen - total)
+                    if (n <= 0) break
+                    total += n
+                }
+                if (total == maxLen) buf else buf.copyOf(total)
+            } ?: ByteArray(0)
+        } catch (_: Throwable) {
+            ByteArray(0)
+        }
+    }
+
+    private fun hasImageHeaderMagic(b: ByteArray): Boolean {
+        if (b.size < 4) return false
+        val b0 = b[0].toInt() and 0xFF
+        val b1 = b[1].toInt() and 0xFF
+        val b2 = b[2].toInt() and 0xFF
+        val b3 = b[3].toInt() and 0xFF
+        if (b0 == 0xFF && b1 == 0xD8 && b2 == 0xFF) return true // JPEG
+        if (b0 == 0x89 && b1 == 0x50 && b2 == 0x4E && b3 == 0x47) return true // PNG
+        if (b0 == 0x47 && b1 == 0x49 && b2 == 0x46 && b3 == 0x38) return true // GIF
+        if (b0 == 0x42 && b1 == 0x4D) return true // BMP
+        if ((b0 == 0x49 && b1 == 0x49 && b2 == 0x2A && b3 == 0x00) ||
+            (b0 == 0x4D && b1 == 0x4D && b2 == 0x00 && b3 == 0x2A)
+        ) {
+            return true // TIFF / DNG
+        }
+        if (b.size >= 12) {
+            if (b0 == 0x52 && b1 == 0x49 && b2 == 0x46 && b3 == 0x46 &&
+                (b[8].toInt() and 0xFF) == 0x57 &&
+                (b[9].toInt() and 0xFF) == 0x45 &&
+                (b[10].toInt() and 0xFF) == 0x42 &&
+                (b[11].toInt() and 0xFF) == 0x50
+            ) {
+                return true // WebP
+            }
+            if ((b[4].toInt() and 0xFF) == 0x66 &&
+                (b[5].toInt() and 0xFF) == 0x74 &&
+                (b[6].toInt() and 0xFF) == 0x79 &&
+                (b[7].toInt() and 0xFF) == 0x70
+            ) {
+                val brand = String(b, 8, 4, Charsets.US_ASCII).lowercase()
+                if (brand in ISO_IMAGE_BRANDS) return true
+            }
+        }
+        return false
+    }
+
+    private fun readDocumentBytesInMemory(uri: Uri, maxBytes: Int): ByteArray? {
+        return try {
+            contentResolver.openInputStream(uri)?.use { input ->
+                val out = ByteArrayOutputStream()
+                val chunk = ByteArray(8192)
+                var total = 0
+                while (total < maxBytes) {
+                    val toRead = minOf(chunk.size, maxBytes - total)
+                    val read = input.read(chunk, 0, toRead)
+                    if (read <= 0) break
+                    out.write(chunk, 0, read)
+                    total += read
+                }
+                val bytes = out.toByteArray()
+                if (bytes.isNotEmpty()) bytes else null
+            }
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    private fun readPickedUriIntoMemory(uri: Uri, index: Int): JSONObject? {
+        val displayName = resolvePickedDisplayName(uri, index)
+        val ext = displayName.substringAfterLast('.', "").lowercase()
+        val providerMime = contentResolver.getType(uri)?.trim()?.lowercase() ?: ""
+        val header = sniffHeaderBytes(uri, 16)
+        val isImage = providerMime.startsWith("image/") ||
+            ext in IMAGE_EXTENSIONS ||
+            hasImageHeaderMagic(header)
+
+        if (isImage) {
+            val jpegBytes = NativeCameraHelper.uriToJpegBytes(this, uri, 1920)
+            if (jpegBytes != null && jpegBytes.isNotEmpty()) {
+                val token = UUID.randomUUID().toString()
+                ephemeralPickedBlobs[token] = EphemeralPickedMedia(jpegBytes, "image/jpeg")
+                val baseName = if (ext in IMAGE_EXTENSIONS) {
+                    displayName.substringBeforeLast('.')
+                } else {
+                    displayName
+                }
+                val safeJpegName = if (baseName.endsWith(".jpg", ignoreCase = true) ||
+                    baseName.endsWith(".jpeg", ignoreCase = true)
+                ) {
+                    baseName
+                } else {
+                    "${baseName.ifBlank { "photo_${index + 1}" }}.jpg"
+                }
+                return JSONObject().apply {
+                    put("url", "/__native__/media/picked/$token")
+                    put("name", safeJpegName)
+                    put("mimeType", "image/jpeg")
+                }
+            }
+        }
+
+        val docBytes = readDocumentBytesInMemory(uri, MAX_PICKED_DOC_BYTES) ?: return null
+        val resolvedMime = when (ext) {
+            "md", "markdown" -> "text/markdown"
+            "txt", "log" -> "text/plain"
+            "csv" -> "text/csv"
+            "tsv" -> "text/tab-separated-values"
+            "json" -> "application/json"
+            "xml" -> "text/xml"
+            "htm", "html" -> "text/html"
+            else -> if (providerMime.isNotBlank() && providerMime != "application/octet-stream") {
+                providerMime
             } else {
-                val ext = token.removePrefix(".").lowercase()
-                when (ext) {
-                    "md", "markdown" -> "text/markdown"
-                    "txt", "log" -> "text/plain"
-                    "csv" -> "text/csv"
-                    "tsv" -> "text/tab-separated-values"
-                    "json" -> "application/json"
-                    "xml" -> "text/xml"
-                    "htm", "html" -> "text/html"
-                    "dng" -> "image/x-adobe-dng"
-                    "heic" -> "image/heic"
-                    "heif" -> "image/heif"
-                    else -> MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
-                }
+                "text/plain"
             }
-        }.distinct()
+        }
+        val token = UUID.randomUUID().toString()
+        ephemeralPickedBlobs[token] = EphemeralPickedMedia(docBytes, resolvedMime)
+        return JSONObject().apply {
+            put("url", "/__native__/media/picked/$token")
+            put("name", displayName)
+            put("mimeType", resolvedMime)
+        }
+    }
 
-        return Intent(action).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            if (allowMultiple) {
-                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-            }
-            when {
-                resolvedMimes.isEmpty() -> type = "*/*"
-                resolvedMimes.size == 1 -> type = resolvedMimes[0]
-                else -> {
-                    type = "*/*"
-                    putExtra(Intent.EXTRA_MIME_TYPES, resolvedMimes.toTypedArray())
-                }
-            }
+    private fun dispatchSystemFilesResult(jsonArrayStr: String) {
+        runOnUiThread {
+            val escaped = JSONObject.quote(jsonArrayStr)
+            webView.evaluateJavascript(
+                "window.__ddoOnSystemFilesResult && window.__ddoOnSystemFilesResult(JSON.parse($escaped));",
+                null,
+            )
         }
     }
 
@@ -896,6 +1124,36 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun pickSystemFiles(accept: String, maxCount: Int) {
+            val safeMax = maxCount.coerceIn(1, 9)
+            pendingSystemFileMaxCount = safeMax
+            val tokens = accept.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+            runOnUiThread {
+                try {
+                    val intent = buildSystemPickerIntent(
+                        tokens,
+                        safeMax > 1,
+                        Intent.ACTION_OPEN_DOCUMENT,
+                    )
+                    startActivityForResult(intent, REQ_NATIVE_SYSTEM_FILES)
+                } catch (_: Throwable) {
+                    try {
+                        val fallback = buildSystemPickerIntent(
+                            tokens,
+                            safeMax > 1,
+                            Intent.ACTION_GET_CONTENT,
+                        )
+                        startActivityForResult(fallback, REQ_NATIVE_SYSTEM_FILES)
+                    } catch (_: Throwable) {
+                        dispatchSystemFilesResult("[]")
+                    }
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun getAlbumBucketsJson(): String {
             return MediaAlbumBridge.getAlbumBucketsJson(this@MainActivity)
         }
@@ -970,7 +1228,33 @@ class MainActivity : Activity() {
         private const val REQ_FILE_CHOOSER = 1001
         private const val REQ_CAMERA_FOR_CAPTURE = 1003
         private const val REQ_NATIVE_CAMERA = 1004
+        private const val REQ_NATIVE_SYSTEM_FILES = 1005
         private const val REQ_RUNTIME_PERM_BASE = 2000
         private const val REQ_RUNTIME_PERM_MAX = 2999
+        private const val MAX_PICKED_DOC_BYTES = 512 * 1024
+        private val IMAGE_EXTENSIONS = setOf(
+            "jpg",
+            "jpeg",
+            "png",
+            "webp",
+            "gif",
+            "bmp",
+            "heic",
+            "heif",
+            "avif",
+            "dng",
+        )
+        private val ISO_IMAGE_BRANDS = setOf(
+            "heic",
+            "heix",
+            "hevc",
+            "hevx",
+            "heim",
+            "heis",
+            "mif1",
+            "msf1",
+            "avif",
+            "avis",
+        )
     }
 }

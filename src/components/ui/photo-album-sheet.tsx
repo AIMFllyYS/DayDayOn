@@ -5,10 +5,12 @@ import { cn } from '@/lib/cn'
 import {
   NATIVE_ALBUM_ALL_ID,
   NATIVE_ALBUM_ALL_LABEL,
+  hasNativeSystemFilePicker,
   isNativeApp,
   listNativeAlbumBuckets,
   listNativeAlbumPhotosPage,
   normalizeAlbumBuckets,
+  pickNativeSystemFiles,
   requestNativePermission,
   reselectNativePhotos,
   resolveAlbumPhotoToFile,
@@ -255,6 +257,7 @@ export function PhotoAlbumSheet({
   const [loadingInitial, setLoadingInitial] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [pickingSystemFiles, setPickingSystemFiles] = useState(false)
 
   useEffect(() => {
     for (const item of items) {
@@ -471,12 +474,8 @@ export function PhotoAlbumSheet({
     setSelectedIds([])
   }
 
-  function handleLocalFilesImport(e: ChangeEvent<HTMLInputElement>) {
-    const fileList = e.target.files
-    e.target.value = ''
-    if (!fileList || fileList.length === 0) return
-
-    const allFiles = Array.from(fileList)
+  function deliverPickedFiles(allFiles: File[]) {
+    if (allFiles.length === 0) return
     if (allFiles.length > maxSelect) {
       toast.info(`单次最多选择 ${maxSelect} 个文件，已为你保留前 ${maxSelect} 个`)
     }
@@ -484,9 +483,38 @@ export function PhotoAlbumSheet({
     if (pickedFiles.length === 0) return
 
     // 从左下角「系统文件 / 附件」选中任意图片或文本文件后，立即关闭面板并直传给 Agent 识别，避免停留在空状态
-    onConfirm(pickedFiles)
     setSelectedIds([])
     handleSheetOpenChange(false)
+    onConfirm(pickedFiles)
+  }
+
+  function handleLocalFilesImport(e: ChangeEvent<HTMLInputElement>) {
+    // 必须先快照动态 FileList 再清空 input.value，否则 Blink/WebView 会原地将 FileList 清空为 0
+    const allFiles = e.target.files ? Array.from(e.target.files) : []
+    e.target.value = ''
+    deliverPickedFiles(allFiles)
+  }
+
+  function handleSystemFilesClick() {
+    if (pickingSystemFiles || submitting) return
+    if (hasNativeSystemFilePicker()) {
+      setPickingSystemFiles(true)
+      void pickNativeSystemFiles(fileAccept, maxSelect)
+        .then((nativeFiles) => {
+          if (nativeFiles === null) {
+            fileInputRef.current?.click()
+            return
+          }
+          if (nativeFiles.length > 0) {
+            deliverPickedFiles(nativeFiles)
+          }
+        })
+        .finally(() => {
+          setPickingSystemFiles(false)
+        })
+      return
+    }
+    fileInputRef.current?.click()
   }
 
   async function handleConfirm() {
@@ -508,9 +536,9 @@ export function PhotoAlbumSheet({
         toast.error('未读取到所选照片，请重试')
         return
       }
-      onConfirm(resolvedFiles)
       setSelectedIds([])
       handleSheetOpenChange(false)
+      onConfirm(resolvedFiles)
     } finally {
       setSubmitting(false)
     }
@@ -545,12 +573,23 @@ export function PhotoAlbumSheet({
       }
       footer={
         <div className="flex items-center justify-between gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={fileAccept}
+            multiple
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden
+            onChange={handleLocalFilesImport}
+          />
           <div className="flex min-w-0 items-center gap-2">
             <Button
               size="sm"
               variant="secondary"
               icon="plus"
-              onClick={() => fileInputRef.current?.click()}
+              disabled={pickingSystemFiles || submitting}
+              onClick={handleSystemFilesClick}
             >
               {supportsDocImport ? '系统文件 / 附件' : '系统文件管理'}
             </Button>
@@ -573,17 +612,6 @@ export function PhotoAlbumSheet({
         </div>
       }
     >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={fileAccept}
-        multiple
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        onChange={handleLocalFilesImport}
-      />
-
       {partialAccess && (
         <div className="bg-primary-soft/60 border-primary/20 mb-2.5 flex items-center justify-between gap-2 rounded-2xl border px-3 py-2">
           <span className="text-tiny text-primary-ink">当前仅展示你授权访问的选定照片</span>
