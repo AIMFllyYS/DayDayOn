@@ -1,30 +1,36 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { cn } from '@/lib/cn'
 import {
+  NATIVE_ALBUM_ALL_ID,
+  NATIVE_ALBUM_ALL_LABEL,
   isNativeApp,
+  listNativeAlbumBuckets,
   listNativeAlbumPhotosPage,
+  normalizeAlbumBuckets,
   requestNativePermission,
   reselectNativePhotos,
   resolveAlbumPhotoToFile,
+  sortAlbumPhotosNewestFirst,
+  type NativeAlbumBucket,
   type NativeAlbumPhotoItem,
 } from '@/lib/native'
 import { Button } from './button'
 import { EmptyState } from './empty-state'
 import { Icon } from './icon'
+import { Popover } from './popover'
 import { Sheet } from './sheet'
 import { Skeleton } from './skeleton'
 import { toast } from './toast'
 
 /*
  * 安卓客户端专属 · 流式缩略图无限下滑多选相册（PhotoAlbumSheet）：
- * - 仅在安卓客户端（isNativeApp()）内打开（Playbook 可通过 demoItems 显式注入演示卡片，正式生产代码零假图）；
- * - 性能优化核心：
- *   1. 首屏及每次触底仅查询 MediaStore 分页元数据（PAGE_SIZE = 30，耗时 < 5ms），弹窗动画 0 卡顿；
- *   2. 缩略图统一走 `/__native__/media/thumb/{id}`（系统硬件 loadThumbnail + LruCache）配合 `<img loading="lazy" decoding="async">`；
- *   3. 底部挂载 IntersectionObserver 哨兵，下滑接近底部时自动无感续拉下一页，支持数千张照片无限顺滑浏览；
- * - 支持 1..maxSelect 顺序角标点选与重排、一键取消选择、Android 14+ 部分照片授权增选与可选文档附件导入。
+ * - 仅在安卓客户端（isNativeApp()）内打开（Playbook 可通过 demoItems / demoBuckets 显式注入演示数据，正式生产代码零假图）；
+ * - 严格按真实拍摄/创建时间倒序排列（Newest → Oldest）；
+ * - 顶栏左上角以相册文件夹选择菜单取代原静态「选择照片」标题与辅助说明：保留手绘相册 SVG 图标与当前目录名，
+ *   首项固定为「全部」，目录列表高度受限（max-h-56）并在条目超出时内部独立滚动，绝不撑高抽屉或顶出屏幕；
+ * - 支持 1..maxSelect 跨目录顺序角标点选与重排、一键取消选择、Android 14+ 部分照片授权增选与可选文档附件导入。
  */
 
 const PAGE_SIZE = 30
@@ -34,6 +40,10 @@ export interface AlbumGridItem {
   fileName: string
   previewUrl: string
   createdAt: string
+  /** 所属相册/文件夹 ID（MediaStore BUCKET_ID 或 Playbook 演示目录 ID） */
+  albumId?: string
+  /** 所属相册/文件夹显示名称 */
+  albumName?: string
   /** 本地导入或 Playbook 演示的真实 File；若来自原生相册则在点击「完成」时按需读取 */
   file?: File
   nativeItem?: NativeAlbumPhotoItem
@@ -44,40 +54,200 @@ export interface PhotoAlbumSheetProps {
   onOpenChange: (open: boolean) => void
   /** 默认支持最多选 9 张 */
   maxSelect?: number
-  /** 业务侧实际消费的上限提示 */
+  /** 兼容保留：顶栏原辅助说明文案已按设计隐藏 */
   hintText?: string
   /** 可选系统文件导入 accept（如智能上传需支持 TXT/HTML 附件时传入） */
   fileAccept?: string
   /** 仅限 /dev/playbook 演示显式注入，正式环境严禁传假图 */
   demoItems?: readonly AlbumGridItem[]
+  /** 仅限 /dev/playbook 演示显式注入相册目录列表，正式环境严禁传假目录 */
+  demoBuckets?: readonly NativeAlbumBucket[]
   onConfirm: (files: File[]) => void
 }
 
 function mapNativeItems(list: readonly NativeAlbumPhotoItem[]): AlbumGridItem[] {
-  return list.map((n) => ({
-    id: `native:${n.id}`,
-    fileName: n.name || `photo_${n.id}.jpg`,
-    previewUrl: n.previewUrl,
-    createdAt: n.createdAt,
-    nativeItem: n,
+  return sortAlbumPhotosNewestFirst(
+    list.map((n) => ({
+      id: `native:${n.id}`,
+      fileName: n.name || `photo_${n.id}.jpg`,
+      previewUrl: n.previewUrl,
+      createdAt: n.createdAt,
+      albumId: n.albumId,
+      albumName: n.albumName,
+      nativeItem: n,
+    })),
+  )
+}
+
+function deriveDemoBuckets(
+  demoItems?: readonly AlbumGridItem[],
+  demoBuckets?: readonly NativeAlbumBucket[],
+): NativeAlbumBucket[] {
+  if (demoBuckets && demoBuckets.length > 0) {
+    return normalizeAlbumBuckets(demoBuckets, demoItems?.length ?? 0)
+  }
+  if (!demoItems || demoItems.length === 0) {
+    return [{ id: NATIVE_ALBUM_ALL_ID, name: NATIVE_ALBUM_ALL_LABEL, count: 0 }]
+  }
+  const counts = new Map<string, { name: string; count: number }>()
+  for (const item of demoItems) {
+    if (!item.albumId) continue
+    const prev = counts.get(item.albumId)
+    if (prev) {
+      prev.count += 1
+    } else {
+      counts.set(item.albumId, { name: item.albumName || item.albumId, count: 1 })
+    }
+  }
+  const raw: NativeAlbumBucket[] = Array.from(counts.entries()).map(([id, info]) => ({
+    id,
+    name: info.name,
+    count: info.count,
   }))
+  return normalizeAlbumBuckets(raw, demoItems.length)
+}
+
+function filterDemoItemsByBucket(
+  demoItems: readonly AlbumGridItem[],
+  bucketId: string,
+): AlbumGridItem[] {
+  const filtered =
+    bucketId === NATIVE_ALBUM_ALL_ID
+      ? demoItems
+      : demoItems.filter((item) => item.albumId === bucketId)
+  return sortAlbumPhotosNewestFirst(filtered)
+}
+
+interface AlbumBucketMenuProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  buckets: readonly NativeAlbumBucket[]
+  activeBucketId: string
+  onSelectBucket: (bucketId: string) => void
+}
+
+function AlbumBucketMenu({
+  open,
+  onOpenChange,
+  buckets,
+  activeBucketId,
+  onSelectBucket,
+}: AlbumBucketMenuProps) {
+  const activeBucketName =
+    buckets.find((b) => b.id === activeBucketId)?.name ?? NATIVE_ALBUM_ALL_LABEL
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={onOpenChange}
+      side="bottom"
+      align="start"
+      sideOffset={6}
+      clean
+      positionerClassName="z-50"
+      className="w-60 max-w-[calc(100vw-2.5rem)] overflow-hidden rounded-2xl p-1.5"
+      trigger={
+        <button
+          type="button"
+          data-testid="photo-album-bucket-trigger"
+          data-base-ui-swipe-ignore
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={`切换相册文件夹，当前：${activeBucketName}`}
+          className={cn(
+            'text-foreground hover:bg-surface-sunken active:bg-surface-sunken inline-flex min-h-9 max-w-full items-center gap-2 rounded-full border px-3 py-1.5 transition-colors outline-none',
+            'border-border bg-surface-sunken/65 focus-visible:ring-ring focus-visible:ring-2',
+          )}
+        >
+          <Icon name="album" size={18} className="text-primary shrink-0" />
+          <span className="text-subhead truncate font-bold">{activeBucketName}</span>
+          <Icon
+            name="chevron-down"
+            size={15}
+            lineOnly
+            className={cn(
+              'text-muted shrink-0 transition-transform duration-150',
+              open && 'rotate-180',
+            )}
+          />
+        </button>
+      }
+    >
+      <div
+        role="listbox"
+        aria-label="相册文件夹列表"
+        data-testid="photo-album-bucket-menu"
+        data-base-ui-swipe-ignore
+        className="max-h-56 overflow-y-auto overscroll-contain py-0.5"
+      >
+        {buckets.map((bucket) => {
+          const active = bucket.id === activeBucketId
+          return (
+            <button
+              key={bucket.id}
+              type="button"
+              role="option"
+              aria-selected={active}
+              onClick={() => onSelectBucket(bucket.id)}
+              className={cn(
+                'flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-left transition-colors outline-none',
+                'focus-visible:ring-ring focus-visible:ring-2',
+                active
+                  ? 'bg-primary-soft text-primary-ink font-semibold'
+                  : 'text-foreground hover:bg-surface-sunken',
+              )}
+            >
+              <span className="text-caption truncate">{bucket.name}</span>
+              <span className="flex shrink-0 items-center gap-1.5">
+                {bucket.count > 0 && (
+                  <span
+                    className={cn(
+                      'text-tiny tabular-nums',
+                      active ? 'text-primary-ink/80' : 'text-muted',
+                    )}
+                  >
+                    {bucket.count}
+                  </span>
+                )}
+                {active && (
+                  <Icon name="check" size={15} lineOnly className="text-primary shrink-0" />
+                )}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </Popover>
+  )
 }
 
 export function PhotoAlbumSheet({
   open,
   onOpenChange,
   maxSelect = 9,
-  hintText,
   fileAccept = 'image/*',
   demoItems,
+  demoBuckets,
   onConfirm,
 }: PhotoAlbumSheetProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [sentinelEl, setSentinelEl] = useState<HTMLDivElement | null>(null)
   const objectUrlsRef = useRef<string[]>([])
+  const knownItemsRef = useRef<Map<string, AlbumGridItem>>(new Map())
   const loadingPageRef = useRef(false)
+  const requestSeqRef = useRef(0)
 
-  const [items, setItems] = useState<AlbumGridItem[]>(() => (demoItems ? [...demoItems] : []))
+  const initialDemoBuckets = useMemo(
+    () => deriveDemoBuckets(demoItems, demoBuckets),
+    [demoItems, demoBuckets],
+  )
+
+  const [buckets, setBuckets] = useState<NativeAlbumBucket[]>(() => initialDemoBuckets)
+  const [activeBucketId, setActiveBucketId] = useState<string>(NATIVE_ALBUM_ALL_ID)
+  const [bucketMenuOpen, setBucketMenuOpen] = useState(false)
+  const [items, setItems] = useState<AlbumGridItem[]>(() =>
+    demoItems ? filterDemoItemsByBucket(demoItems, NATIVE_ALBUM_ALL_ID) : [],
+  )
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [nextOffset, setNextOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
@@ -88,88 +258,141 @@ export function PhotoAlbumSheet({
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    for (const item of items) {
+      knownItemsRef.current.set(item.id, item)
+    }
+  }, [items])
+
+  useEffect(() => {
     const urls = objectUrlsRef.current
     return () => {
       for (const u of urls) URL.revokeObjectURL(u)
     }
   }, [])
 
-  const fetchInitialPage = useCallback(async () => {
-    if (demoItems && !isNativeApp()) {
-      await Promise.resolve()
-      setItems([...demoItems])
-      setHasMore(false)
-      setNextOffset(demoItems.length)
-      setPermissionDenied(false)
-      return
-    }
-    if (!isNativeApp()) {
-      await Promise.resolve()
-      setItems([])
-      setHasMore(false)
-      setNextOffset(0)
-      return
-    }
+  const loadBucketFirstPage = useCallback(
+    async (bucketId: string, refreshBuckets: boolean) => {
+      const seq = ++requestSeqRef.current
+      loadingPageRef.current = false
 
-    loadingPageRef.current = true
-    await Promise.resolve()
-    setLoadingInitial(true)
-    setPermissionDenied(false)
-    try {
-      const perm = await requestNativePermission('photos')
-      if (perm !== 'granted') {
-        setPermissionDenied(true)
-        setItems((prev) => prev.filter((x) => x.id.startsWith('local-')))
-        setHasMore(false)
-        toast.error('需要开启「相册与媒体」权限才能读取手机相册', {
-          description: '也可在「我的 → 权限管理」中开启',
+      if (demoItems && !isNativeApp()) {
+        await Promise.resolve()
+        if (seq !== requestSeqRef.current) return
+        if (refreshBuckets) {
+          setBuckets(deriveDemoBuckets(demoItems, demoBuckets))
+        }
+        const sortedDemo = filterDemoItemsByBucket(demoItems, bucketId)
+        setItems((prev) => {
+          const localOnly =
+            bucketId === NATIVE_ALBUM_ALL_ID ? prev.filter((x) => x.id.startsWith('local-')) : []
+          return sortAlbumPhotosNewestFirst([...localOnly, ...sortedDemo])
         })
+        setHasMore(false)
+        setNextOffset(sortedDemo.length)
+        setPermissionDenied(false)
         return
       }
-      const page = await listNativeAlbumPhotosPage(0, PAGE_SIZE)
-      const mapped = mapNativeItems(page.items)
-      setItems((prev) => {
-        const localOnly = prev.filter((x) => x.id.startsWith('local-'))
-        return [...localOnly, ...mapped]
-      })
-      setNextOffset(page.nextOffset)
-      setHasMore(page.hasMore)
-      setPartialAccess(page.partialAccess)
-    } finally {
-      loadingPageRef.current = false
-      setLoadingInitial(false)
-    }
-  }, [demoItems])
+
+      if (!isNativeApp()) {
+        await Promise.resolve()
+        if (seq !== requestSeqRef.current) return
+        setBuckets([{ id: NATIVE_ALBUM_ALL_ID, name: NATIVE_ALBUM_ALL_LABEL, count: 0 }])
+        setItems([])
+        setHasMore(false)
+        setNextOffset(0)
+        return
+      }
+
+      loadingPageRef.current = true
+      await Promise.resolve()
+      if (seq !== requestSeqRef.current) return
+      setLoadingInitial(true)
+      setPermissionDenied(false)
+
+      try {
+        const perm = await requestNativePermission('photos')
+        if (seq !== requestSeqRef.current) return
+        if (perm !== 'granted') {
+          setPermissionDenied(true)
+          setBuckets([{ id: NATIVE_ALBUM_ALL_ID, name: NATIVE_ALBUM_ALL_LABEL, count: 0 }])
+          setItems((prev) => prev.filter((x) => x.id.startsWith('local-')))
+          setHasMore(false)
+          toast.error('需要开启「相册与媒体」权限才能读取手机相册', {
+            description: '也可在「我的 → 权限管理」中开启',
+          })
+          return
+        }
+
+        const [fetchedBuckets, page] = await Promise.all([
+          refreshBuckets ? listNativeAlbumBuckets() : Promise.resolve(null),
+          listNativeAlbumPhotosPage(0, PAGE_SIZE, bucketId),
+        ])
+        if (seq !== requestSeqRef.current) return
+
+        if (fetchedBuckets) {
+          setBuckets(normalizeAlbumBuckets(fetchedBuckets, page.items.length))
+        }
+        const mapped = mapNativeItems(page.items)
+        for (const item of mapped) {
+          knownItemsRef.current.set(item.id, item)
+        }
+        setItems((prev) => {
+          const localOnly =
+            bucketId === NATIVE_ALBUM_ALL_ID ? prev.filter((x) => x.id.startsWith('local-')) : []
+          return sortAlbumPhotosNewestFirst([...localOnly, ...mapped])
+        })
+        setNextOffset(page.nextOffset)
+        setHasMore(page.hasMore)
+        setPartialAccess(page.partialAccess)
+      } finally {
+        if (seq === requestSeqRef.current) {
+          loadingPageRef.current = false
+          setLoadingInitial(false)
+        }
+      }
+    },
+    [demoBuckets, demoItems],
+  )
 
   const fetchNextPage = useCallback(async () => {
     if (!open || !hasMore || loadingPageRef.current || !isNativeApp()) return
+    const seq = requestSeqRef.current
+    const bucketId = activeBucketId
     loadingPageRef.current = true
     setLoadingMore(true)
     try {
-      const page = await listNativeAlbumPhotosPage(nextOffset, PAGE_SIZE)
+      const page = await listNativeAlbumPhotosPage(nextOffset, PAGE_SIZE, bucketId)
+      if (seq !== requestSeqRef.current) return
       const mapped = mapNativeItems(page.items)
+      for (const item of mapped) {
+        knownItemsRef.current.set(item.id, item)
+      }
       setItems((prev) => {
         const existingIds = new Set(prev.map((x) => x.id))
         const deduped = mapped.filter((x) => !existingIds.has(x.id))
-        return [...prev, ...deduped]
+        return sortAlbumPhotosNewestFirst([...prev, ...deduped])
       })
       setNextOffset(page.nextOffset)
       setHasMore(page.hasMore)
       setPartialAccess(page.partialAccess)
     } finally {
-      loadingPageRef.current = false
-      setLoadingMore(false)
+      if (seq === requestSeqRef.current) {
+        loadingPageRef.current = false
+        setLoadingMore(false)
+      }
     }
-  }, [open, hasMore, nextOffset])
+  }, [open, hasMore, nextOffset, activeBucketId])
 
-  // 每次打开时异步同步第一页元数据
+  // 每次打开抽屉时重置到「全部」目录并异步拉取最新相册目录与第一页照片
   useEffect(() => {
     if (!open) return
     const timer = window.setTimeout(() => {
-      void fetchInitialPage()
+      setBucketMenuOpen(false)
+      setActiveBucketId(NATIVE_ALBUM_ALL_ID)
+      void loadBucketFirstPage(NATIVE_ALBUM_ALL_ID, true)
     }, 0)
     return () => window.clearTimeout(timer)
-  }, [open, fetchInitialPage])
+  }, [open, loadBucketFirstPage])
 
   // 触底无限下滑监听：使用 callback ref 感知 Sheet Portal 延迟挂载，绑定 scroll 距离阈值 + IntersectionObserver
   useEffect(() => {
@@ -212,24 +435,43 @@ export function PhotoAlbumSheet({
     }
   }, [open, hasMore, loadingInitial, loadingMore, fetchNextPage, items.length, sentinelEl])
 
+  function handleSheetOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setBucketMenuOpen(false)
+    }
+    onOpenChange(nextOpen)
+  }
+
+  function handleSelectBucket(bucketId: string) {
+    setBucketMenuOpen(false)
+    if (bucketId === activeBucketId) return
+    setActiveBucketId(bucketId)
+    const scrollRoot = sentinelEl?.closest('.overflow-y-auto') as HTMLElement | null
+    if (scrollRoot) {
+      scrollRoot.scrollTop = 0
+    }
+    void loadBucketFirstPage(bucketId, false)
+  }
+
   async function handleReselectPartial() {
     const state = await reselectNativePhotos()
     if (state === 'granted') {
-      await fetchInitialPage()
+      await loadBucketFirstPage(activeBucketId, true)
     }
   }
 
-  function toggleSelect(id: string) {
+  function toggleSelect(item: AlbumGridItem) {
+    knownItemsRef.current.set(item.id, item)
     setSelectedIds((prev) => {
-      const existingIdx = prev.indexOf(id)
+      const existingIdx = prev.indexOf(item.id)
       if (existingIdx !== -1) {
-        return prev.filter((item) => item !== id)
+        return prev.filter((id) => id !== item.id)
       }
       if (prev.length >= maxSelect) {
         toast.info(`最多只能选择 ${maxSelect} 张照片`)
         return prev
       }
-      return [...prev, id]
+      return [...prev, item.id]
     })
   }
 
@@ -248,26 +490,34 @@ export function PhotoAlbumSheet({
     if (nonImages.length > 0 && allFiles.every((f) => !f.type.startsWith('image/'))) {
       onConfirm(nonImages)
       setSelectedIds([])
-      onOpenChange(false)
+      handleSheetOpenChange(false)
       return
     }
 
+    const now = Date.now()
     const imported: AlbumGridItem[] = []
-    for (const file of allFiles) {
+    for (let i = 0; i < allFiles.length; i += 1) {
+      const file = allFiles[i]
       if (!file.type.startsWith('image/')) continue
       const url = URL.createObjectURL(file)
       objectUrlsRef.current.push(url)
-      imported.push({
-        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      const created: AlbumGridItem = {
+        id: `local-${now}-${i}-${Math.random().toString(36).slice(2, 8)}`,
         fileName: file.name || 'album_photo.jpg',
         previewUrl: url,
-        createdAt: new Date(file.lastModified || Date.now()).toISOString(),
+        // 本地刚从系统文件管理器导入的照片排在当前视图最前（最新）
+        createdAt: new Date(
+          Math.max(file.lastModified || 0, now + (allFiles.length - i)),
+        ).toISOString(),
         file,
-      })
+      }
+      knownItemsRef.current.set(created.id, created)
+      imported.push(created)
     }
     if (imported.length === 0) return
 
-    setItems((prev) => [...imported, ...prev])
+    setActiveBucketId(NATIVE_ALBUM_ALL_ID)
+    setItems((prev) => sortAlbumPhotosNewestFirst([...imported, ...prev]))
     setSelectedIds((prev) => {
       const next = [...prev]
       for (const item of imported) {
@@ -285,7 +535,7 @@ export function PhotoAlbumSheet({
     try {
       const resolvedFiles: File[] = []
       for (const id of selectedIds) {
-        const item = items.find((x) => x.id === id)
+        const item = items.find((x) => x.id === id) ?? knownItemsRef.current.get(id)
         if (!item) continue
         if (item.file) {
           resolvedFiles.push(item.file)
@@ -300,7 +550,7 @@ export function PhotoAlbumSheet({
       }
       onConfirm(resolvedFiles)
       setSelectedIds([])
-      onOpenChange(false)
+      handleSheetOpenChange(false)
     } finally {
       setSubmitting(false)
     }
@@ -311,10 +561,16 @@ export function PhotoAlbumSheet({
   return (
     <Sheet
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleSheetOpenChange}
       title="选择照片"
-      description={
-        hintText ?? `点击右上角圆圈可按顺序多选（最多 ${maxSelect} 张），向下滑动自动加载更多`
+      titleSlot={
+        <AlbumBucketMenu
+          open={bucketMenuOpen}
+          onOpenChange={setBucketMenuOpen}
+          buckets={buckets}
+          activeBucketId={activeBucketId}
+          onSelectBucket={handleSelectBucket}
+        />
       }
       headerActions={
         selectedIds.length > 0 ? (
@@ -391,15 +647,27 @@ export function PhotoAlbumSheet({
         <div className="py-8">
           <EmptyState
             size="compact"
-            title={permissionDenied ? '尚未开启相册访问权限' : '相册里暂时没有照片'}
+            title={
+              permissionDenied
+                ? '尚未开启相册访问权限'
+                : activeBucketId === NATIVE_ALBUM_ALL_ID
+                  ? '相册里暂时没有照片'
+                  : '该相册文件夹暂无照片'
+            }
             description={
               permissionDenied
                 ? '开启相册权限后即可直接浏览手机照片，也可点左下角从系统文件管理选取'
-                : '拍一张照片后再来，或点击左下角从系统文件管理选取'
+                : activeBucketId === NATIVE_ALBUM_ALL_ID
+                  ? '拍一张照片后再来，或点击左下角从系统文件管理选取'
+                  : '可点击左上角相册菜单切回「全部」或其他文件夹浏览'
             }
             action={
               permissionDenied ? (
-                <Button size="sm" variant="soft" onClick={() => void fetchInitialPage()}>
+                <Button
+                  size="sm"
+                  variant="soft"
+                  onClick={() => void loadBucketFirstPage(activeBucketId, true)}
+                >
                   重新授权读取
                 </Button>
               ) : undefined
@@ -422,11 +690,11 @@ export function PhotoAlbumSheet({
                   key={item.id}
                   role="option"
                   aria-selected={selected}
-                  onClick={() => toggleSelect(item.id)}
+                  onClick={() => toggleSelect(item)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
-                      toggleSelect(item.id)
+                      toggleSelect(item)
                     }
                   }}
                   tabIndex={0}

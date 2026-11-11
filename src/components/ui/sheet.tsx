@@ -25,6 +25,8 @@ interface SheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
+  /** 自定义顶栏左侧标题槽位（如相册目录选择菜单）；传入时仍保留 sr-only 的无障碍标题 */
+  titleSlot?: ReactNode
   description?: string
   /** 顶栏右侧关闭按钮（叉号）左侧的附加图标按钮（如历史记录图标） */
   headerActions?: ReactNode
@@ -65,6 +67,7 @@ function DrawerSheet({
   open,
   onOpenChange,
   title,
+  titleSlot,
   description,
   headerActions,
   children,
@@ -107,7 +110,16 @@ function DrawerSheet({
               />
               <Drawer.Content className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <SheetHeader
-                  title={<Drawer.Title className="text-heading font-bold">{title}</Drawer.Title>}
+                  title={
+                    titleSlot ? (
+                      <>
+                        <Drawer.Title className="sr-only">{title}</Drawer.Title>
+                        {titleSlot}
+                      </>
+                    ) : (
+                      <Drawer.Title className="text-heading font-bold">{title}</Drawer.Title>
+                    )
+                  }
                   description={
                     description && (
                       <Drawer.Description className="text-caption text-muted">
@@ -132,6 +144,7 @@ function DialogSheet({
   open,
   onOpenChange,
   title,
+  titleSlot,
   description,
   headerActions,
   children,
@@ -152,7 +165,16 @@ function DialogSheet({
         >
           <div className="h-3 shrink-0" />
           <SheetHeader
-            title={<Dialog.Title className="text-heading font-bold">{title}</Dialog.Title>}
+            title={
+              titleSlot ? (
+                <>
+                  <Dialog.Title className="sr-only">{title}</Dialog.Title>
+                  {titleSlot}
+                </>
+              ) : (
+                <Dialog.Title className="text-heading font-bold">{title}</Dialog.Title>
+              )
+            }
             description={
               description && (
                 <Dialog.Description className="text-caption text-muted">

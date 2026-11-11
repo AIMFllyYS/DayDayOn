@@ -226,6 +226,16 @@ const icons = {
       <path d="M5.1 10.1a2 2 0 0 1 2-2h11.9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H7.1a2 2 0 0 1-2-2z" />
     ),
   },
+  album: {
+    line: (
+      <>
+        <rect x="4" y="5" width="16" height="14" rx="2.8" />
+        <circle cx="9" cy="10" r="1.5" />
+        <path d="m4.8 16.8 4.4-4 3.2 2.8 2.8-2.4 4 3.6" />
+      </>
+    ),
+    tint: <rect x="5.1" y="6.1" width="16" height="14" rx="2.8" />,
+  },
   clock: {
     line: (
       <>

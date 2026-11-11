@@ -47,16 +47,16 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * DayDayOn 安卓客户端主 Activity（Kotlin 混合架构，v0.1.6 / versionCode 4）：
+ * DayDayOn 安卓客户端主 Activity（Kotlin 混合架构，v0.1.8 / versionCode 5）：
  * - 冷启动 0ms 立即展示原生开屏覆盖层 `nativeSplashOverlay`（含时段问候与品牌微动效），后台并行初始化 WebView 并加载站点，水合完成后硬件加速平滑揭开；
- * - 在 WebView User-Agent 末尾追加 `DayDayOnApp/0.1.6`；
- * - 通过 `shouldInterceptRequest` 拦截同源虚拟路径 `/__native__/media/...`，在后台 IO 线程池流式返回系统硬件缩略图与高清内存字节流；
+ * - 在 WebView User-Agent 末尾追加 `DayDayOnApp/0.1.8`；
+ * - 通过 `shouldInterceptRequest` 拦截同源虚拟路径 `/__native__/media/...`，在后台 IO 线程池流式返回系统硬件缩略图与高清内存字节流（兼容 RAW/DNG/HEIC）；
  * - 注入 `window.DayDayOnNative` (@JavascriptInterface)，提供：
  *   1. 原生开屏收尾：dismissSplash
  *   2. 应用内自更新闭环：startApkUpdate / getApkUpdateStatusJson / installDownloadedApk / canInstallPackages
  *   3. 权限管理：getPermissionsJson / requestPermission / reselectPhotos / openAppSettings（完整兼容 Android 14+ 部分照片授权与未知来源安装权限）
  *   4. 原生高分辨率相机：captureHighResPhoto（CameraTempFileProvider + EXIF 自动摆正 + 读完即删）
- *   5. 流式分页相册数据桥：getAlbumPhotosPageJson / getAlbumPhotosJson / readAlbumPhotoDataUrl
+ *   5. 流式分页相册与相册目录桥：getAlbumBucketsJson / getAlbumPhotosPageWithBucketJson / getAlbumPhotosPageJson / getAlbumPhotosJson / readAlbumPhotoDataUrl
  *   6. 硬件计步器读取：getTodaySteps（无传感器或未授权安全返回 0）
  *   7. 手机端本地定时闹钟提醒：scheduleDailyReminder
  *   8. WebView 原生文件管理多选增强（EXTRA_ALLOW_MULTIPLE + clipData 多选解析，供 Agent 传图/传文档使用）
@@ -122,7 +122,7 @@ class MainActivity : Activity() {
         settings.allowContentAccess = true
         settings.mediaPlaybackRequiresUserGesture = false
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-        settings.userAgentString = "${settings.userAgentString} DayDayOnApp/0.1.6"
+        settings.userAgentString = "${settings.userAgentString} DayDayOnApp/0.1.8"
 
         CookieManager.getInstance().apply {
             setAcceptCookie(true)
@@ -364,6 +364,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        MediaAlbumBridge.invalidateCache()
         stepCounterManager.startListening()
         ApkUpdater.onHostResume(this)
     }
@@ -472,6 +473,7 @@ class MainActivity : Activity() {
             stepCounterManager.startListening()
         }
         if (permName == "photos") {
+            MediaAlbumBridge.invalidateCache()
             NativeCameraHelper.clearThumbnailCache()
         }
         runOnUiThread {
@@ -829,6 +831,21 @@ class MainActivity : Activity() {
                     requestPermissions(arrayOf(Manifest.permission.CAMERA), REQ_CAMERA_FOR_CAPTURE)
                 }
             }
+        }
+
+        @JavascriptInterface
+        fun getAlbumBucketsJson(): String {
+            return MediaAlbumBridge.getAlbumBucketsJson(this@MainActivity)
+        }
+
+        @JavascriptInterface
+        fun getAlbumPhotosPageWithBucketJson(offset: Int, limit: Int, bucketId: String): String {
+            return MediaAlbumBridge.getAlbumPhotosPageJson(
+                this@MainActivity,
+                offset,
+                limit,
+                bucketId,
+            )
         }
 
         @JavascriptInterface
