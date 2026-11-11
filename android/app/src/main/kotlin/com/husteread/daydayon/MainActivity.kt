@@ -3,7 +3,6 @@ package com.husteread.daydayon
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ClipData
 import android.content.Intent
@@ -47,9 +46,9 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * DayDayOn 安卓客户端主 Activity（Kotlin 混合架构，v0.1.8 / versionCode 5）：
+ * DayDayOn 安卓客户端主 Activity（Kotlin 混合架构，v0.1.9 / versionCode 6）：
  * - 冷启动 0ms 立即展示原生开屏覆盖层 `nativeSplashOverlay`（含时段问候与品牌微动效），后台并行初始化 WebView 并加载站点，水合完成后硬件加速平滑揭开；
- * - 在 WebView User-Agent 末尾追加 `DayDayOnApp/0.1.8`；
+ * - 在 WebView User-Agent 末尾追加 `DayDayOnApp/0.1.9`；
  * - 通过 `shouldInterceptRequest` 拦截同源虚拟路径 `/__native__/media/...`，在后台 IO 线程池流式返回系统硬件缩略图与高清内存字节流（兼容 RAW/DNG/HEIC）；
  * - 注入 `window.DayDayOnNative` (@JavascriptInterface)，提供：
  *   1. 原生开屏收尾：dismissSplash
@@ -100,6 +99,8 @@ class MainActivity : Activity() {
         CameraTempFileProvider.cleanupStaleFiles(this)
         ApkUpdater.attachHost(this)
         permPrefs = getSharedPreferences("daydayon_perms", MODE_PRIVATE)
+        LocalReminderScheduler.ensureChannel(this)
+        LocalReminderScheduler.rescheduleIfEnabled(this)
 
         stepCounterManager = StepCounterManager(this)
         stepCounterManager.startListening()
@@ -122,7 +123,7 @@ class MainActivity : Activity() {
         settings.allowContentAccess = true
         settings.mediaPlaybackRequiresUserGesture = false
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-        settings.userAgentString = "${settings.userAgentString} DayDayOnApp/0.1.8"
+        settings.userAgentString = "${settings.userAgentString} DayDayOnApp/0.1.9"
 
         CookieManager.getInstance().apply {
             setAcceptCookie(true)
@@ -253,12 +254,24 @@ class MainActivity : Activity() {
                 pendingFileChooser?.onReceiveValue(null)
                 pendingFileChooser = filePathCallback
                 return try {
-                    val intent = buildEnhancedFileChooserIntent(fileChooserParams)
-                    startActivityForResult(intent, REQ_FILE_CHOOSER)
+                    val primaryIntent = buildEnhancedFileChooserIntent(
+                        fileChooserParams,
+                        Intent.ACTION_OPEN_DOCUMENT,
+                    )
+                    startActivityForResult(primaryIntent, REQ_FILE_CHOOSER)
                     true
                 } catch (_: Throwable) {
-                    pendingFileChooser = null
-                    false
+                    try {
+                        val fallbackIntent = buildEnhancedFileChooserIntent(
+                            fileChooserParams,
+                            Intent.ACTION_GET_CONTENT,
+                        )
+                        startActivityForResult(fallbackIntent, REQ_FILE_CHOOSER)
+                        true
+                    } catch (_: Throwable) {
+                        pendingFileChooser = null
+                        false
+                    }
                 }
             }
 
@@ -472,6 +485,9 @@ class MainActivity : Activity() {
         if (permName == "steps" && finalState == "granted") {
             stepCounterManager.startListening()
         }
+        if (permName == "notifications" && finalState == "granted") {
+            LocalReminderScheduler.rescheduleIfEnabled(this)
+        }
         if (permName == "photos") {
             MediaAlbumBridge.invalidateCache()
             NativeCameraHelper.clearThumbnailCache()
@@ -508,12 +524,34 @@ class MainActivity : Activity() {
         }
     }
 
+    fun openNotificationSettingsInternal() {
+        try {
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            } else {
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", packageName, null),
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            }
+            startActivity(intent)
+        } catch (_: Throwable) {
+            openAppSettingsInternal()
+        }
+    }
+
     private fun isTrustedHost(host: String): Boolean {
         return host.endsWith("daydayon.husteread.com") || host == "localhost" || host == "127.0.0.1"
     }
 
     private fun buildEnhancedFileChooserIntent(
         params: WebChromeClient.FileChooserParams?,
+        action: String = Intent.ACTION_OPEN_DOCUMENT,
     ): Intent {
         val allowMultiple =
             params?.mode == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE
@@ -530,16 +568,23 @@ class MainActivity : Activity() {
                 val ext = token.removePrefix(".").lowercase()
                 when (ext) {
                     "md", "markdown" -> "text/markdown"
-                    "txt" -> "text/plain"
+                    "txt", "log" -> "text/plain"
                     "csv" -> "text/csv"
+                    "tsv" -> "text/tab-separated-values"
+                    "json" -> "application/json"
+                    "xml" -> "text/xml"
                     "htm", "html" -> "text/html"
+                    "dng" -> "image/x-adobe-dng"
+                    "heic" -> "image/heic"
+                    "heif" -> "image/heif"
                     else -> MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
                 }
             }
         }.distinct()
 
-        return Intent(Intent.ACTION_GET_CONTENT).apply {
+        return Intent(action).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             if (allowMultiple) {
                 putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             }
@@ -791,6 +836,16 @@ class MainActivity : Activity() {
 
             val current = checkMappedPermission(permission)
             if (current == "granted") return "granted"
+            if (permission == "notifications") {
+                val nm = getSystemService(NOTIFICATION_SERVICE) as? NotificationManager
+                val systemEnabled = nm?.areNotificationsEnabled() ?: true
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && !systemEnabled) {
+                    runOnUiThread {
+                        openNotificationSettingsInternal()
+                    }
+                    return "denied"
+                }
+            }
             val perms = permissionsArrayForRequest(permission) ?: return current
             permPrefs.edit().putBoolean("requested_$permission", true).apply()
             val reqCode = allocatePermRequestCode(permission)
@@ -816,6 +871,13 @@ class MainActivity : Activity() {
         fun openAppSettings() {
             runOnUiThread {
                 openAppSettingsInternal()
+            }
+        }
+
+        @JavascriptInterface
+        fun openNotificationSettings() {
+            runOnUiThread {
+                openNotificationSettingsInternal()
             }
         }
 
@@ -874,32 +936,13 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
-        fun notify(title: String, body: String) {
-            runOnUiThread {
-                val manager = getSystemService(NOTIFICATION_SERVICE) as? NotificationManager
-                    ?: return@runOnUiThread
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val channel = NotificationChannel(
-                        LocalReminderScheduler.CHANNEL_ID,
-                        "每日打卡提醒",
-                        NotificationManager.IMPORTANCE_DEFAULT,
-                    )
-                    manager.createNotificationChannel(channel)
-                }
-                val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    android.app.Notification.Builder(this@MainActivity, LocalReminderScheduler.CHANNEL_ID)
-                } else {
-                    @Suppress("DEPRECATION")
-                    android.app.Notification.Builder(this@MainActivity)
-                }
-                val notification = builder
-                    .setSmallIcon(R.mipmap.ic_launcher)
-                    .setContentTitle(title)
-                    .setContentText(body)
-                    .setAutoCancel(true)
-                    .build()
-                manager.notify(23330, notification)
-            }
+        fun notify(title: String, body: String): Boolean {
+            return LocalReminderScheduler.postReminderNotification(
+                context = this@MainActivity,
+                title = title,
+                body = body,
+                notificationId = LocalReminderScheduler.TEST_NOTIFICATION_ID,
+            )
         }
 
         @JavascriptInterface
