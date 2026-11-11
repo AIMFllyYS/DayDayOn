@@ -1,5 +1,5 @@
 import 'server-only'
-import { and, count, desc, eq, gte, inArray, isNull, lt } from 'drizzle-orm'
+import { and, count, desc, eq, gte, inArray, isNull, lt, lte } from 'drizzle-orm'
 import type {
   MarkNotificationReadInput,
   MarkNotificationReadResponse,
@@ -9,7 +9,14 @@ import type {
   NotificationSummary,
 } from '@/features/notification/schemas'
 import { db as defaultDb, type DbOrTx } from '@/server/db/client'
-import { notifications, profiles, user, type NotificationKind } from '@/server/db/schema'
+import {
+  announcementReads,
+  announcements,
+  notifications,
+  profiles,
+  user,
+  type NotificationKind,
+} from '@/server/db/schema'
 
 const FEED_KINDS: NotificationKind[] = [
   'checkin_aggregate',
@@ -55,18 +62,33 @@ async function loadPublicUsers(
 
 /**
  * 获取用户未读通知摘要（未读数 + 是否有未读）
- * 用于顶栏铃铛 NotificationBellBadge
+ * 同时汇总个人通知表与已发布的全局官方公告未读记录，用于顶栏铃铛与消息中心未读角标
  */
 export async function getNotificationSummary(
   db: DbOrTx = defaultDb,
   userId: string,
+  now: Date = new Date(),
 ): Promise<NotificationSummary> {
-  const [res] = await db
-    .select({ unreadCount: count(notifications.id) })
-    .from(notifications)
-    .where(and(eq(notifications.userId, userId), isNull(notifications.readAt)))
+  const [[personalRes], [announcementRes]] = await Promise.all([
+    db
+      .select({ unreadCount: count(notifications.id) })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), isNull(notifications.readAt))),
+    db
+      .select({ unreadCount: count(announcements.id) })
+      .from(announcements)
+      .leftJoin(
+        announcementReads,
+        and(
+          eq(announcementReads.announcementId, announcements.id),
+          eq(announcementReads.userId, userId),
+        ),
+      )
+      .where(and(lte(announcements.publishedAt, now), isNull(announcementReads.readAt))),
+  ])
 
-  const unreadCount = Number(res?.unreadCount ?? 0)
+  const unreadCount =
+    Number(personalRes?.unreadCount ?? 0) + Number(announcementRes?.unreadCount ?? 0)
   return {
     unreadCount,
     hasUnread: unreadCount > 0,
@@ -75,17 +97,21 @@ export async function getNotificationSummary(
 
 /**
  * 分页获取通知列表
- * 支持按频道 (feed / system / all) 过滤与按未读状态过滤
+ * 支持按频道 (feed / system / all) 过滤与按未读状态过滤；
+ * 当 channel 为 system 或 all 时，自动合并数据库中已发布的官方公告（announcements）。
  */
 export async function listNotifications(
   db: DbOrTx = defaultDb,
   userId: string,
   options: Partial<NotificationListQuery> = {},
+  now: Date = new Date(),
 ): Promise<NotificationListResponse> {
   const limit = options.limit ?? 20
   const channel = options.channel ?? 'all'
   const unreadOnly = options.unreadOnly ?? false
   const cursor = options.cursor
+  const cursorDate = cursor ? new Date(cursor) : null
+  const validCursor = cursorDate && !Number.isNaN(cursorDate.getTime()) ? cursorDate : null
 
   const conditions = [eq(notifications.userId, userId)]
 
@@ -99,29 +125,66 @@ export async function listNotifications(
     conditions.push(inArray(notifications.kind, SYSTEM_KINDS))
   }
 
-  if (cursor) {
-    const cursorDate = new Date(cursor)
-    if (!Number.isNaN(cursorDate.getTime())) {
-      conditions.push(lt(notifications.createdAt, cursorDate))
-    }
+  if (validCursor) {
+    conditions.push(lt(notifications.createdAt, validCursor))
   }
 
-  // 查询 limit + 1 条以检测是否有下一页
-  const rows = await db
-    .select()
-    .from(notifications)
-    .where(and(...conditions))
-    .orderBy(desc(notifications.createdAt), desc(notifications.id))
-    .limit(limit + 1)
+  const includeAnnouncements = channel === 'system' || channel === 'all'
 
-  const hasMore = rows.length > limit
-  const resultRows = hasMore ? rows.slice(0, limit) : rows
+  const announcementPromise = includeAnnouncements
+    ? (() => {
+        const annConditions = [lte(announcements.publishedAt, now)]
+        if (unreadOnly) {
+          annConditions.push(isNull(announcementReads.readAt))
+        }
+        if (validCursor) {
+          annConditions.push(lt(announcements.publishedAt, validCursor))
+        }
+        return db
+          .select({
+            id: announcements.id,
+            slug: announcements.slug,
+            tag: announcements.tag,
+            version: announcements.version,
+            title: announcements.title,
+            content: announcements.content,
+            pinned: announcements.pinned,
+            publishedAt: announcements.publishedAt,
+            readAt: announcementReads.readAt,
+          })
+          .from(announcements)
+          .leftJoin(
+            announcementReads,
+            and(
+              eq(announcementReads.announcementId, announcements.id),
+              eq(announcementReads.userId, userId),
+            ),
+          )
+          .where(and(...annConditions))
+          .orderBy(
+            desc(announcements.pinned),
+            desc(announcements.publishedAt),
+            desc(announcements.id),
+          )
+          .limit(limit + 1)
+      })()
+    : Promise.resolve([])
+
+  const [rows, announcementRows] = await Promise.all([
+    db
+      .select()
+      .from(notifications)
+      .where(and(...conditions))
+      .orderBy(desc(notifications.createdAt), desc(notifications.id))
+      .limit(limit + 1),
+    announcementPromise,
+  ])
 
   // 加载发送者公开信息
-  const actorIds = resultRows.map((r) => r.actorId).filter((id): id is string => Boolean(id))
+  const actorIds = rows.map((r) => r.actorId).filter((id): id is string => Boolean(id))
   const userMap = await loadPublicUsers(db, actorIds)
 
-  const items: NotificationItem[] = resultRows.map((r) => {
+  const personalItems: NotificationItem[] = rows.map((r) => {
     const actorInfo = r.actorId ? userMap.get(r.actorId) : undefined
     return {
       id: r.id,
@@ -138,6 +201,40 @@ export async function listNotifications(
     }
   })
 
+  const announcementItems: NotificationItem[] = announcementRows.map((a) => ({
+    id: a.id,
+    userId,
+    actorId: null,
+    actorNickname: null,
+    actorAvatar: null,
+    kind: 'system',
+    title: a.title,
+    content: a.content,
+    metadata: {
+      source: 'announcement',
+      tag: a.tag,
+      version: a.version,
+      pinned: a.pinned,
+      slug: a.slug,
+      publishedAt: a.publishedAt.toISOString(),
+    },
+    readAt: a.readAt ? a.readAt.toISOString() : null,
+    createdAt: a.publishedAt.toISOString(),
+  }))
+
+  const combined = [...announcementItems, ...personalItems].sort((a, b) => {
+    if (!validCursor && channel === 'system') {
+      const aPinned = a.metadata.pinned === true ? 1 : 0
+      const bPinned = b.metadata.pinned === true ? 1 : 0
+      if (aPinned !== bPinned) return bPinned - aPinned
+    }
+    const timeDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    if (timeDiff !== 0) return timeDiff
+    return b.id.localeCompare(a.id)
+  })
+
+  const hasMore = combined.length > limit
+  const items = hasMore ? combined.slice(0, limit) : combined
   const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].createdAt : null
 
   return {
@@ -148,6 +245,7 @@ export async function listNotifications(
 
 /**
  * 标记通知已读（全部、指定频道、指定类别或指定 ID 列表）
+ * 同时将覆盖范围内的未读官方公告写入 announcement_reads
  */
 export async function markNotificationsRead(
   db: DbOrTx = defaultDb,
@@ -176,9 +274,53 @@ export async function markNotificationsRead(
     .where(and(...conditions))
     .returning({ id: notifications.id })
 
+  const shouldMarkAnnouncements =
+    (options.notificationIds && options.notificationIds.length > 0) ||
+    (!options.notificationIds?.length &&
+      (options.all === true ||
+        options.channel === 'system' ||
+        options.channel === 'all' ||
+        options.kind === 'system' ||
+        (!options.channel && !options.kind)))
+
+  let announcementMarkedCount = 0
+  if (shouldMarkAnnouncements) {
+    const annConditions = [lte(announcements.publishedAt, now), isNull(announcementReads.readAt)]
+    if (options.notificationIds && options.notificationIds.length > 0) {
+      annConditions.push(inArray(announcements.id, options.notificationIds))
+    }
+
+    const unreadAnnouncements = await db
+      .select({ id: announcements.id })
+      .from(announcements)
+      .leftJoin(
+        announcementReads,
+        and(
+          eq(announcementReads.announcementId, announcements.id),
+          eq(announcementReads.userId, userId),
+        ),
+      )
+      .where(and(...annConditions))
+
+    if (unreadAnnouncements.length > 0) {
+      const insertedReads = await db
+        .insert(announcementReads)
+        .values(
+          unreadAnnouncements.map((a) => ({
+            userId,
+            announcementId: a.id,
+            readAt: now,
+          })),
+        )
+        .onConflictDoNothing()
+        .returning({ announcementId: announcementReads.announcementId })
+      announcementMarkedCount = insertedReads.length
+    }
+  }
+
   return {
     success: true,
-    markedCount: updatedRows.length,
+    markedCount: updatedRows.length + announcementMarkedCount,
   }
 }
 
@@ -392,6 +534,42 @@ export async function createNotification(
       updatedAt: now,
     })
     .returning({ id: notifications.id })
+
+  return inserted.id
+}
+
+/**
+ * 创建或发布一条全局官方公告（Issue #80）
+ * 也可直接在 PostgreSQL 中执行 INSERT INTO announcements (title, content, tag, version, published_at) VALUES (...)
+ */
+export async function createAnnouncement(
+  db: DbOrTx = defaultDb,
+  params: {
+    slug?: string | null
+    tag?: string
+    version?: string | null
+    title: string
+    content: string
+    pinned?: boolean
+    publishedAt?: Date
+    now?: Date
+  },
+): Promise<string> {
+  const now = params.now ?? new Date()
+  const [inserted] = await db
+    .insert(announcements)
+    .values({
+      slug: params.slug ?? null,
+      tag: params.tag ?? '官方公告',
+      version: params.version ?? null,
+      title: params.title,
+      content: params.content,
+      pinned: params.pinned ?? false,
+      publishedAt: params.publishedAt ?? now,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning({ id: announcements.id })
 
   return inserted.id
 }

@@ -2,6 +2,7 @@
 export * from './auth'
 export * from './agent'
 export * from './ai'
+export * from './announcements'
 export * from './chat'
 export * from './checkins'
 export * from './friends'
