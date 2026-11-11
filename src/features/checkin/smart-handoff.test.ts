@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   buildRelativeMediaPath,
+  clearPendingSmartCaptureForTests,
   consumePendingSmartCapture,
   deleteSmartHistoryRecord,
   getSmartPageViewMode,
@@ -18,7 +19,7 @@ import {
 
 describe('smart-handoff', () => {
   beforeEach(() => {
-    consumePendingSmartCapture()
+    clearPendingSmartCaptureForTests()
     resetSmartHistoryForTests([])
     setUnconfirmedSmartRecord(false)
     setSmartPageViewMode('scanner')
@@ -34,6 +35,25 @@ describe('smart-handoff', () => {
     const consumed = consumePendingSmartCapture()
     expect(consumed?.id).toBe(payload.id)
     expect(consumePendingSmartCapture()).toBeNull()
+  })
+
+  it('requireSessionMatch 防止旧扫描器实例抢占新路由 sid 的待上传文件载荷', () => {
+    const file = new File(['meal note'], 'meal.txt', { type: 'text/plain' })
+    const payload = setPendingSmartCapture({
+      file,
+      mode: 'smart-upload',
+      requireSessionMatch: true,
+    })
+
+    // 未传 sid 或传入旧 sid 的实例不会误消费
+    expect(consumePendingSmartCapture()).toBeNull()
+    expect(consumePendingSmartCapture('smart-old-id')).toBeNull()
+
+    // 匹配目标 sid 的新挂载实例成功消费
+    const consumed = consumePendingSmartCapture(payload.id)
+    expect(consumed?.id).toBe(payload.id)
+    expect(consumed?.file.name).toBe('meal.txt')
+    expect(consumePendingSmartCapture(payload.id)).toBeNull()
   })
 
   it('buildRelativeMediaPath 只生成相对路径字符串并清理非法字符', () => {

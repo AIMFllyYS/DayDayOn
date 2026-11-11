@@ -51,7 +51,12 @@ export function SmartActionBar({
       const first = files[0]
       if (!first) return
       const mode = source === 'capture' ? 'smart-capture' : 'smart-upload'
-      const payload = setPendingSmartCapture({ file: first, files, mode })
+      const payload = setPendingSmartCapture({
+        file: first,
+        files,
+        mode,
+        requireSessionMatch: true,
+      })
       onNavigate?.()
       const targetHref = source === 'capture' ? captureHref : uploadHref
       const sep = targetHref.includes('?') ? '&' : '?'
