@@ -108,10 +108,12 @@ export function HomeDashboard({
         <div className="grid grid-cols-2 gap-3">
           <WeightCard weight={data.weight} onOpen={onOpenWeight} readOnly={readOnly} />
           <MoodCard mood={data.mood} onOpen={onOpenMood} readOnly={readOnly} />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <StepsCard steps={data.steps} onOpen={onOpenSteps} readOnly={readOnly} />
+          <StepsCard
+            steps={data.steps}
+            onOpen={onOpenSteps}
+            readOnly={readOnly}
+            className="col-span-2"
+          />
         </div>
 
         <Card>

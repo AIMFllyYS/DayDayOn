@@ -8,6 +8,7 @@ import {
   CheckinSheetList,
   FirstCheckinCard,
 } from '@/features/checkin/components/checkin-sheet-list'
+import type { CheckinLauncherView } from '@/features/checkin/launcher-store'
 import type { CheckinToday } from '@/features/checkin/schemas'
 import { SmartActionBar } from './smart-action-bar'
 
@@ -86,7 +87,7 @@ export function CheckinSheet({
   /** 演示一个目标都没有：只剩虚线卡「建立你的第一个打卡」+ 体重 / 心情两行 */
   empty?: boolean
 }) {
-  const [view, setView] = useState<'list' | 'weight' | 'mood'>('list')
+  const [view, setView] = useState<CheckinLauncherView>('list')
 
   function handleSmart(mode: 'capture' | 'upload') {
     onOpenChange(false)
@@ -162,7 +163,8 @@ export function CheckinSheet({
       ) : (
         <div className="flex flex-col gap-3 py-2">
           <p className="text-caption text-muted">
-            正式弹层在这里切换成{view === 'weight' ? '记体重' : '今日心情'}
+            正式弹层在这里切换成
+            {view === 'weight' ? '记体重' : view === 'mood' ? '今日心情' : '今日步数'}
             面板（同一个弹层，不开第二层）。
           </p>
         </div>

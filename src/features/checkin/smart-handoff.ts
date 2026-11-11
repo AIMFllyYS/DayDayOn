@@ -21,6 +21,8 @@ export interface PendingSmartPayload {
   /** 支持同时交接最多 2 张图片（首张与 file 相同） */
   files?: File[]
   mode: SmartInputMode
+  /** 为 true 时仅允许携带匹配 sid 的目标 SmartCheckinPage 消费，防止跳转前旧实例误抢载荷导致新实例落入空状态 */
+  requireSessionMatch?: boolean
   createdAt: string
 }
 
@@ -78,17 +80,26 @@ export function buildRelativeMediaPath(
 }
 
 export function setPendingSmartCapture(
-  input: File | { file: File; files?: File[]; mode?: SmartInputMode },
+  input:
+    | File
+    | {
+        file: File
+        files?: File[]
+        mode?: SmartInputMode
+        requireSessionMatch?: boolean
+      },
 ): PendingSmartPayload {
   const file = input instanceof File ? input : input.file
   const files = input instanceof File ? [input] : (input.files ?? [input.file])
   const mode: SmartInputMode =
     input instanceof File ? 'smart-capture' : (input.mode ?? 'smart-capture')
+  const requireSessionMatch = input instanceof File ? false : Boolean(input.requireSessionMatch)
   const payload: PendingSmartPayload = {
     id: `smart-${Date.now()}-${++handoffSeq}`,
     file,
     files,
     mode,
+    requireSessionMatch,
     createdAt: new Date().toISOString(),
   }
   pendingPayload = payload
@@ -99,10 +110,21 @@ export function setPendingSmartCapture(
   return payload
 }
 
-export function consumePendingSmartCapture(): PendingSmartPayload | null {
+export function consumePendingSmartCapture(expectedSessionId?: string): PendingSmartPayload | null {
   const current = pendingPayload
+  if (!current) return null
+  if (current.requireSessionMatch && expectedSessionId !== current.id) {
+    return null
+  }
+  if (expectedSessionId && current.requireSessionMatch === false) {
+    // 非路由绑定载荷（如历史列表内直接发起新扫描）允许当前激活扫描页直接消费
+  }
   pendingPayload = null
   return current
+}
+
+export function clearPendingSmartCaptureForTests() {
+  pendingPayload = null
 }
 
 export function peekPendingSmartCapture(): PendingSmartPayload | null {

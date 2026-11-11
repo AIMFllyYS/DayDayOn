@@ -212,27 +212,50 @@ export function VisitFootprintCard({ notification }: { notification: Notificatio
   )
 }
 
+function formatAnnouncementTime(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}`
+}
+
 /**
- * 系统与官方公告卡片
+ * 系统与官方公告卡片（支持数据库 announcements 表多行正文、标签、版本号与置顶态）
  */
 export function SystemNoticeCard({ notification }: { notification: NotificationItem }) {
+  const meta = notification.metadata ?? {}
+  const tag = typeof meta.tag === 'string' && meta.tag.trim() ? meta.tag.trim() : '官方公告'
+  const version =
+    typeof meta.version === 'string' && meta.version.trim() ? meta.version.trim() : null
+  const pinned = meta.pinned === true
+  const unread = !notification.readAt
+
   return (
-    <Card variant="plain" className="space-y-1.5 p-3.5">
-      <div className="flex items-center justify-between">
-        <Badge tone="diet" icon="sparkles">
-          官方公告
-        </Badge>
+    <Card variant="outline" className="space-y-2.5 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {unread && <span className="bg-danger size-2 shrink-0 rounded-full" aria-label="未读" />}
+          <Badge tone="diet" icon="megaphone">
+            {tag}
+          </Badge>
+          {version && (
+            <Badge tone="primary">{version.startsWith('v') ? version : `v${version}`}</Badge>
+          )}
+          {pinned && <Badge tone="study">置顶</Badge>}
+        </div>
         <span className="text-tiny text-subtle font-mono">
-          {notification.createdAt
-            ? new Date(notification.createdAt).toLocaleDateString([], {
-                month: 'numeric',
-                day: 'numeric',
-              })
-            : ''}
+          {formatAnnouncementTime(notification.createdAt)}
         </span>
       </div>
-      <p className="text-caption font-bold">{notification.title}</p>
-      <p className="text-tiny text-muted leading-relaxed">{notification.content}</p>
+      <h4 className="text-subhead leading-snug font-bold">{notification.title}</h4>
+      <p className="text-caption text-muted leading-relaxed whitespace-pre-line">
+        {notification.content}
+      </p>
     </Card>
   )
 }

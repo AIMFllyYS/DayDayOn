@@ -24,20 +24,36 @@ export function MenuList({ title, children, className }: MenuListProps) {
   )
 }
 
-interface MenuItemProps {
+interface MenuItemBaseProps {
   label: string
   description?: string
   icon?: IconName
   tone?: Tone
   /** 自定义左侧元素（如颜色块、头像），提供时优先于 icon */
   leading?: ReactNode
-  /** 右侧的值或控件（开关、徽章、当前值） */
-  trailing?: ReactNode
-  href?: string
-  onClick?: () => void
+  /** 右侧摘要文本（多级菜单行自动紧贴右箭头展示，无需手拼箭头） */
+  value?: ReactNode
   /** 危险操作（退出登录、注销）用红色 */
   danger?: boolean
 }
+
+type MenuItemActionProps =
+  | {
+      /** 右侧交互控件（Switch / Select 等）：编译期禁止与 href / onClick 同时传入，避免 <button> 嵌套导致 SSR 水合报错 */
+      control: ReactNode
+      trailing?: never
+      href?: never
+      onClick?: never
+    }
+  | {
+      control?: never
+      /** 右侧只读状态（如徽章）；若需可交互控件请使用 control */
+      trailing?: ReactNode
+      href?: string
+      onClick?: () => void
+    }
+
+export type MenuItemProps = MenuItemBaseProps & MenuItemActionProps
 
 export function MenuItem({
   label,
@@ -45,11 +61,16 @@ export function MenuItem({
   icon,
   tone = 'neutral',
   leading,
+  value,
+  control,
   trailing,
   href,
   onClick,
   danger = false,
 }: MenuItemProps) {
+  const rightSlot = control ?? trailing
+  const isNavRow = Boolean(href || onClick)
+
   const body = (
     <>
       {leading ?? (icon && <IconTile icon={icon} tone={danger ? 'danger' : tone} size="sm" />)}
@@ -66,10 +87,15 @@ export function MenuItem({
           </span>
         )}
       </span>
-      {trailing && (
-        <div className="flex max-w-[55%] shrink-0 items-center justify-end">{trailing}</div>
+      {value !== undefined && (
+        <span className="text-caption text-muted max-w-[44%] shrink-0 truncate font-normal">
+          {value}
+        </span>
       )}
-      {(href || onClick) && !trailing && (
+      {rightSlot && (
+        <div className="flex max-w-[56%] shrink-0 items-center justify-end">{rightSlot}</div>
+      )}
+      {isNavRow && !rightSlot && (
         <Icon name="chevron-right" size={18} className="text-subtle shrink-0" />
       )}
     </>

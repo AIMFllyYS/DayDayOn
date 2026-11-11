@@ -232,7 +232,6 @@ export function PhotoAlbumSheet({
 }: PhotoAlbumSheetProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [sentinelEl, setSentinelEl] = useState<HTMLDivElement | null>(null)
-  const objectUrlsRef = useRef<string[]>([])
   const knownItemsRef = useRef<Map<string, AlbumGridItem>>(new Map())
   const loadingPageRef = useRef(false)
   const requestSeqRef = useRef(0)
@@ -262,13 +261,6 @@ export function PhotoAlbumSheet({
       knownItemsRef.current.set(item.id, item)
     }
   }, [items])
-
-  useEffect(() => {
-    const urls = objectUrlsRef.current
-    return () => {
-      for (const u of urls) URL.revokeObjectURL(u)
-    }
-  }, [])
 
   const loadBucketFirstPage = useCallback(
     async (bucketId: string, refreshBuckets: boolean) => {
@@ -485,48 +477,16 @@ export function PhotoAlbumSheet({
     if (!fileList || fileList.length === 0) return
 
     const allFiles = Array.from(fileList)
-    const nonImages = allFiles.filter((f) => !f.type.startsWith('image/'))
-    // 若导入的是 TXT / HTML 等非图片文档附件，直接确认返回给调用方处理
-    if (nonImages.length > 0 && allFiles.every((f) => !f.type.startsWith('image/'))) {
-      onConfirm(nonImages)
-      setSelectedIds([])
-      handleSheetOpenChange(false)
-      return
+    if (allFiles.length > maxSelect) {
+      toast.info(`单次最多选择 ${maxSelect} 个文件，已为你保留前 ${maxSelect} 个`)
     }
+    const pickedFiles = allFiles.slice(0, maxSelect)
+    if (pickedFiles.length === 0) return
 
-    const now = Date.now()
-    const imported: AlbumGridItem[] = []
-    for (let i = 0; i < allFiles.length; i += 1) {
-      const file = allFiles[i]
-      if (!file.type.startsWith('image/')) continue
-      const url = URL.createObjectURL(file)
-      objectUrlsRef.current.push(url)
-      const created: AlbumGridItem = {
-        id: `local-${now}-${i}-${Math.random().toString(36).slice(2, 8)}`,
-        fileName: file.name || 'album_photo.jpg',
-        previewUrl: url,
-        // 本地刚从系统文件管理器导入的照片排在当前视图最前（最新）
-        createdAt: new Date(
-          Math.max(file.lastModified || 0, now + (allFiles.length - i)),
-        ).toISOString(),
-        file,
-      }
-      knownItemsRef.current.set(created.id, created)
-      imported.push(created)
-    }
-    if (imported.length === 0) return
-
-    setActiveBucketId(NATIVE_ALBUM_ALL_ID)
-    setItems((prev) => sortAlbumPhotosNewestFirst([...imported, ...prev]))
-    setSelectedIds((prev) => {
-      const next = [...prev]
-      for (const item of imported) {
-        if (next.length < maxSelect) {
-          next.push(item.id)
-        }
-      }
-      return next
-    })
+    // 从左下角「系统文件 / 附件」选中任意图片或文本文件后，立即关闭面板并直传给 Agent 识别，避免停留在空状态
+    onConfirm(pickedFiles)
+    setSelectedIds([])
+    handleSheetOpenChange(false)
   }
 
   async function handleConfirm() {

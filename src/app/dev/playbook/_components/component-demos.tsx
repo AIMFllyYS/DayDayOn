@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { Mascot } from '@/components/mascot/mascot'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/field'
-import { Icon } from '@/components/ui/icon'
 import { MenuItem, MenuList } from '@/components/ui/menu-list'
 import { Rating, type RatingValue } from '@/components/ui/rating'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -116,12 +115,7 @@ export function MenuDemo() {
           }
           label="主题色"
           description="默认：暖、稳，像一杯热奶茶"
-          trailing={
-            <span className="text-body text-muted flex items-center gap-1 font-normal">
-              <span>奶茶焦糖</span>
-              <Icon name="chevron-right" size={16} className="text-subtle" />
-            </span>
-          }
+          value="奶茶焦糖"
           onClick={() => {}}
         />
         <MenuItem
@@ -132,12 +126,7 @@ export function MenuDemo() {
           }
           label="陪伴宠物"
           description="樱花蝴蝶结，软软糯糯"
-          trailing={
-            <span className="text-body text-muted flex items-center gap-1 font-normal">
-              <span>团团</span>
-              <Icon name="chevron-right" size={16} className="text-subtle" />
-            </span>
-          }
+          value="团团"
           onClick={() => {}}
         />
       </MenuList>
@@ -147,14 +136,9 @@ export function MenuDemo() {
           tone="primary"
           label="打卡提醒"
           description="每天 21:00"
-          trailing={<Switch checked={remind} onCheckedChange={setRemind} label="打卡提醒" />}
+          control={<Switch checked={remind} onCheckedChange={setRemind} label="打卡提醒" />}
         />
-        <MenuItem
-          icon="clock"
-          tone="sleep"
-          label="日切换时间"
-          trailing={<span className="text-caption text-muted">04:00</span>}
-        />
+        <MenuItem icon="clock" tone="sleep" label="日切换时间" value="04:00" onClick={() => {}} />
         <MenuItem icon="trophy" tone="diet" label="排行榜公开" onClick={() => {}} />
       </MenuList>
       <MenuList title="账号">

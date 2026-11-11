@@ -477,93 +477,122 @@ export function TwoLevelNotificationCenterDemo() {
                   </button>
                 </div>
 
-                {/* 分组说明 */}
-                <div className="px-3 pt-2.5 pb-1">
-                  <p className="text-tiny text-muted px-1 font-semibold">通知频道与好友私信</p>
-                </div>
-
-                {/* 列表行 */}
-                <ul className="divide-border/60 divide-y px-2">
-                  {inbox.map((row) => {
-                    const isSelected = viewport === 'desktop' && row.id === activeId
-                    return (
-                      <li key={row.id}>
+                {/* 顶部独立两项通知入口：打卡房间与动态 / 官方与系统通知 */}
+                <div className="border-border/60 bg-surface/60 grid grid-cols-2 gap-2.5 border-b px-4 py-3">
+                  {inbox
+                    .filter((row) => row.kind === 'channel-feed' || row.kind === 'channel-system')
+                    .map((row) => {
+                      const isSelected = viewport === 'desktop' && row.id === activeId
+                      return (
                         <button
+                          key={row.id}
                           type="button"
                           onClick={() => selectChannel(row.id)}
                           className={cn(
-                            'flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors',
-                            isSelected
-                              ? 'bg-primary-soft/65'
-                              : 'hover:bg-surface-sunken active:bg-surface-sunken',
+                            'border-border/80 bg-surface hover:bg-surface-sunken/70 flex min-w-0 flex-col gap-2 rounded-2xl border p-3 text-left transition-colors',
+                            isSelected && 'border-primary/50 bg-primary-soft/35',
                           )}
                         >
-                          {/* 左侧图标或好友头像 */}
-                          <div className="relative shrink-0">
-                            {row.kind === 'channel-feed' ? (
-                              <IconTile icon="sparkles" tone="primary" size="md" />
-                            ) : row.kind === 'channel-system' ? (
-                              <IconTile icon="megaphone" tone="diet" size="md" />
+                          <div className="flex w-full items-center justify-between gap-2">
+                            <IconTile
+                              icon={row.kind === 'channel-feed' ? 'sparkles' : 'megaphone'}
+                              tone={row.kind === 'channel-feed' ? 'primary' : 'diet'}
+                              size="md"
+                            />
+                            {row.unread > 0 ? (
+                              <span className="bg-danger text-on-primary flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-[11px] leading-none font-bold">
+                                {row.unread}
+                              </span>
                             ) : (
+                              <Icon name="chevron-right" size={16} className="text-subtle" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-caption truncate font-bold">
+                              {row.kind === 'channel-feed' ? '打卡房间与动态' : row.title}
+                            </p>
+                            <p className="text-tiny text-muted mt-0.5 truncate">{row.subtitle}</p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                </div>
+
+                {/* 下侧好友私聊会话 */}
+                <div className="px-4 pt-3 pb-1">
+                  <p className="text-tiny text-muted font-semibold">和朋友聊天</p>
+                </div>
+
+                <ul className="divide-border/60 divide-y">
+                  {inbox
+                    .filter((row) => row.kind !== 'channel-feed' && row.kind !== 'channel-system')
+                    .map((row) => {
+                      const isSelected = viewport === 'desktop' && row.id === activeId
+                      return (
+                        <li key={row.id}>
+                          <button
+                            type="button"
+                            onClick={() => selectChannel(row.id)}
+                            className={cn(
+                              'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
+                              isSelected
+                                ? 'bg-primary-soft/65'
+                                : 'hover:bg-surface-sunken active:bg-surface-sunken',
+                            )}
+                          >
+                            <div className="relative shrink-0">
                               <Avatar
                                 name={row.title}
                                 avatar={row.avatar}
                                 size="md"
                                 className={cn(row.kind === 'friend-unfriended' && 'opacity-60')}
                               />
-                            )}
-                            {/* 行尾/头像右上角未读红点：固定柔和浅红底色 */}
-                            {row.unread > 0 && (
-                              <span className="bg-danger ring-surface absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2" />
-                            )}
-                          </div>
-
-                          {/* 中间标题与最新摘要 */}
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 truncate">
-                                <span className="text-caption truncate font-bold">{row.title}</span>
-                                {row.kind === 'friend-unfriended' && (
-                                  <Badge tone="neutral">已解除好友</Badge>
-                                )}
-                              </div>
-                              <span className="text-tiny text-subtle shrink-0 font-mono">
-                                {row.time}
-                              </span>
+                              {row.unread > 0 && (
+                                <span className="bg-danger ring-surface absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2" />
+                              )}
                             </div>
-                            <div className="mt-0.5 flex items-center justify-between gap-2">
-                              <p
-                                className={cn(
-                                  'text-tiny truncate',
-                                  row.unread > 0 ? 'text-foreground font-semibold' : 'text-muted',
-                                )}
-                              >
-                                {row.subtitle}
-                              </p>
-                              {row.unread > 0 ? (
-                                <span className="bg-danger text-on-primary flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 font-mono text-[10px] leading-none font-bold">
-                                  {row.unread}
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 truncate">
+                                  <span className="text-caption truncate font-bold">
+                                    {row.title}
+                                  </span>
+                                  {row.kind === 'friend-unfriended' && (
+                                    <Badge tone="neutral">已解除好友</Badge>
+                                  )}
+                                </div>
+                                <span className="text-tiny text-subtle shrink-0 font-mono">
+                                  {row.time}
                                 </span>
-                              ) : row.kind === 'friend-active' ? (
-                                <Icon
-                                  name="check-double"
-                                  size={14}
-                                  className="text-subtle shrink-0"
-                                />
-                              ) : null}
+                              </div>
+                              <div className="mt-0.5 flex items-center justify-between gap-2">
+                                <p
+                                  className={cn(
+                                    'text-tiny truncate',
+                                    row.unread > 0 ? 'text-foreground font-semibold' : 'text-muted',
+                                  )}
+                                >
+                                  {row.subtitle}
+                                </p>
+                                {row.unread > 0 ? (
+                                  <span className="bg-danger text-on-primary flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 font-mono text-[10px] leading-none font-bold">
+                                    {row.unread}
+                                  </span>
+                                ) : row.kind === 'friend-active' ? (
+                                  <Icon
+                                    name="check-double"
+                                    size={14}
+                                    className="text-subtle shrink-0"
+                                  />
+                                ) : null}
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      </li>
-                    )
-                  })}
+                          </button>
+                        </li>
+                      )
+                    })}
                 </ul>
-              </div>
-
-              <div className="border-border bg-surface-sunken/60 border-t px-4 py-2.5">
-                <p className="text-tiny text-muted">
-                  点击任意一行进入第 2 级详情（动态流 / 官方公告 / 1v1 私聊）
-                </p>
               </div>
             </div>
           )}

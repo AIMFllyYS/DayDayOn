@@ -24,7 +24,7 @@ const PREVIEW_CHANNELS: PreviewChannel[] = [
   {
     id: 'feed',
     kind: 'feed',
-    title: '打卡与房间动态',
+    title: '打卡房间与动态',
     subtitle: '阿柚 完成了「晨间慢跑」等 3 项打卡 · 七七 派绵绵来问候你',
     time: '5 分钟前',
     unread: 3,
@@ -33,8 +33,8 @@ const PREVIEW_CHANNELS: PreviewChannel[] = [
     id: 'system',
     kind: 'system',
     title: '官方与系统通知',
-    subtitle: '新伙伴「绵绵」与「柚柚」已加入陪伴注册表～',
-    time: '昨天',
+    subtitle: 'DayDayOn v0.1.9 更新公告：全屏消息体验与多级菜单升级',
+    time: '今天',
     unread: 1,
   },
   {
@@ -58,9 +58,9 @@ const PREVIEW_CHANNELS: PreviewChannel[] = [
 ]
 
 /**
- * `/notifications` 二级页面预览（Issue #20 · #26）
- * 手机端窄屏：第 1 级消息列表 → 点击进入第 2 级详情/私聊；
- * 桌面端宽屏（@3xl）：左列表 + 右详情双栏自适应。
+ * `/notifications` 全屏消息与通知中心预览（Issue #20 · #80）
+ * 无外层圆角容器包裹：顶部独立展示「打卡房间与动态」「官方与系统通知」，下侧排布好友会话；
+ * 手机端全屏钻取，桌面端左右全屏分栏。
  */
 export function NotificationsScreen() {
   const [channels, setChannels] = useState<PreviewChannel[]>(PREVIEW_CHANNELS)
@@ -74,6 +74,8 @@ export function NotificationsScreen() {
     { id: '3', from: 'friend' as const, text: '晚上一起背完最后 30 个单词呀！', time: '12:40' },
   ])
 
+  const topCategories = channels.filter((c) => c.kind === 'feed' || c.kind === 'system')
+  const friendRows = channels.filter((c) => c.kind === 'friend' || c.kind === 'unfriended')
   const activeChannel = channels.find((c) => c.id === activeId) ?? channels[0]
   const totalUnread = channels.reduce((sum, c) => sum + c.unread, 0)
 
@@ -99,106 +101,130 @@ export function NotificationsScreen() {
   }
 
   return (
-    <div className="@container">
-      <div className="border-border bg-surface shadow-card overflow-hidden rounded-3xl border @3xl:grid @3xl:min-h-[520px] @3xl:grid-cols-[290px_1fr] @3xl:divide-x">
-        {/* 第 1 级：消息与通知总列表（手机端 level=1 时显示，桌面端常驻左栏） */}
-        <div
-          className={cn('flex flex-col justify-between', mobileLevel === 2 && 'hidden @3xl:flex')}
-        >
-          <div>
-            <div className="border-border flex items-center justify-between border-b px-4 py-3">
-              <div className="flex items-center gap-2">
-                <span className="text-caption font-bold">全部会话与频道</span>
-                {totalUnread > 0 && (
-                  <span className="bg-danger text-on-primary text-tiny inline-flex h-5 items-center justify-center rounded-full px-2 font-mono leading-none font-bold">
-                    {totalUnread} 未读
-                  </span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={markAllRead}
-                disabled={totalUnread === 0}
-                className="text-tiny text-primary-ink disabled:text-subtle font-semibold"
-              >
-                全部已读
-              </button>
+    <div className="@container -mx-4 md:-mx-8">
+      <div className="divide-border bg-background border-border/60 border-t @3xl:grid @3xl:min-h-[560px] @3xl:grid-cols-[310px_1fr] @3xl:divide-x">
+        {/* 第 1 级：全屏消息首页（顶部双入口 + 下方好友聊天列表） */}
+        <div className={cn('bg-background flex flex-col', mobileLevel === 2 && 'hidden @3xl:flex')}>
+          <div className="border-border/60 flex items-center justify-between border-b px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-caption font-bold">消息总览</span>
+              {totalUnread > 0 && (
+                <span className="bg-danger text-on-primary text-tiny inline-flex h-5 items-center justify-center rounded-full px-2 font-mono leading-none font-bold">
+                  {totalUnread}
+                </span>
+              )}
             </div>
+            <button
+              type="button"
+              onClick={markAllRead}
+              disabled={totalUnread === 0}
+              className="text-tiny text-primary-ink disabled:text-subtle font-semibold"
+            >
+              全部已读
+            </button>
+          </div>
 
-            <ul className="divide-border/60 divide-y p-2">
-              {channels.map((row) => (
-                <li key={row.id}>
-                  <button
-                    type="button"
-                    onClick={() => openChannel(row.id)}
-                    className={cn(
-                      'flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors',
-                      row.id === activeId
-                        ? '@3xl:bg-primary-soft/65 hover:bg-surface-sunken'
-                        : 'hover:bg-surface-sunken',
+          {/* 顶部独立两项：打卡房间与动态 / 官方与系统通知 */}
+          <div className="border-border/60 bg-surface/60 grid grid-cols-2 gap-2.5 border-b px-4 py-3">
+            {topCategories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => openChannel(cat.id)}
+                className={cn(
+                  'border-border/80 bg-surface hover:bg-surface-sunken/70 flex min-w-0 flex-col gap-2 rounded-2xl border p-3 text-left transition-colors',
+                  cat.id === activeId && '@3xl:border-primary/50 @3xl:bg-primary-soft/35',
+                )}
+              >
+                <div className="flex w-full items-center justify-between gap-2">
+                  <IconTile
+                    icon={cat.kind === 'feed' ? 'sparkles' : 'megaphone'}
+                    tone={cat.kind === 'feed' ? 'primary' : 'diet'}
+                    size="md"
+                  />
+                  {cat.unread > 0 ? (
+                    <span className="bg-danger text-on-primary flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-[11px] leading-none font-bold">
+                      {cat.unread}
+                    </span>
+                  ) : (
+                    <Icon name="chevron-right" size={16} className="text-subtle shrink-0" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-caption truncate font-bold">{cat.title}</p>
+                  <p className="text-tiny text-muted mt-0.5 truncate">{cat.subtitle}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* 下侧和朋友聊天 */}
+          <div className="px-4 pt-3 pb-1.5">
+            <span className="text-tiny text-muted font-semibold">和朋友聊天</span>
+          </div>
+          <ul className="divide-border/50 divide-y">
+            {friendRows.map((row) => (
+              <li key={row.id}>
+                <button
+                  type="button"
+                  onClick={() => openChannel(row.id)}
+                  className={cn(
+                    'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
+                    row.id === activeId
+                      ? '@3xl:bg-primary-soft/55 hover:bg-surface-sunken/70'
+                      : 'hover:bg-surface-sunken/70',
+                  )}
+                >
+                  <div className="relative shrink-0">
+                    <Avatar
+                      name={row.title}
+                      avatar={row.avatar}
+                      size="md"
+                      className={cn(row.kind === 'unfriended' && 'opacity-60')}
+                    />
+                    {row.unread > 0 && (
+                      <span className="bg-danger ring-background absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2" />
                     )}
-                  >
-                    <div className="relative shrink-0">
-                      {row.kind === 'feed' ? (
-                        <IconTile icon="sparkles" tone="primary" size="md" />
-                      ) : row.kind === 'system' ? (
-                        <IconTile icon="megaphone" tone="diet" size="md" />
-                      ) : (
-                        <Avatar
-                          name={row.title}
-                          avatar={row.avatar}
-                          size="md"
-                          className={cn(row.kind === 'unfriended' && 'opacity-60')}
-                        />
-                      )}
-                      {row.unread > 0 && (
-                        <span className="bg-danger ring-surface absolute -top-0.5 -right-0.5 size-2.5 rounded-full ring-2" />
-                      )}
-                    </div>
+                  </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <span className="text-caption truncate font-bold">{row.title}</span>
-                          {row.kind === 'unfriended' && <Badge tone="neutral">已解除</Badge>}
-                        </div>
-                        <span className="text-tiny text-subtle shrink-0 font-mono">{row.time}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="text-body truncate font-bold">{row.title}</span>
+                        {row.kind === 'unfriended' && <Badge tone="neutral">已解除</Badge>}
                       </div>
-                      <div className="mt-0.5 flex items-center justify-between gap-2">
-                        <p
-                          className={cn(
-                            'text-tiny truncate',
-                            row.unread > 0 ? 'text-foreground font-semibold' : 'text-muted',
-                          )}
-                        >
-                          {row.subtitle}
-                        </p>
-                        {row.unread > 0 && (
-                          <span className="bg-danger text-on-primary flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full px-1 font-mono text-[10px] leading-none font-bold">
-                            {row.unread}
-                          </span>
+                      <span className="text-tiny text-subtle shrink-0 font-mono">{row.time}</span>
+                    </div>
+                    <div className="mt-0.5 flex items-center justify-between gap-2">
+                      <p
+                        className={cn(
+                          'text-caption truncate',
+                          row.unread > 0 ? 'text-foreground font-semibold' : 'text-muted',
                         )}
-                      </div>
+                      >
+                        {row.subtitle}
+                      </p>
+                      {row.unread > 0 && (
+                        <span className="bg-danger text-on-primary flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-full px-1.5 font-mono text-[10px] leading-none font-bold">
+                          {row.unread}
+                        </span>
+                      )}
                     </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="border-border bg-surface-sunken/50 text-tiny text-muted border-t px-4 py-2.5">
-            点击任意行钻取进入第 2 级详情
-          </div>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* 第 2 级：具体通知流或好友 1v1 聊天室 */}
+        {/* 第 2 级：全屏通知流或好友 1v1 聊天室 */}
         <div
           className={cn(
-            'bg-paper flex min-h-[440px] flex-col justify-between',
+            'bg-background flex min-h-[460px] flex-col justify-between',
             mobileLevel === 1 && 'hidden @3xl:flex',
           )}
         >
-          <div className="border-border bg-surface flex items-center justify-between gap-2 border-b px-4 py-2.5">
+          <div className="border-border bg-surface/95 flex items-center justify-between gap-2 border-b px-4 py-2.5">
             <div className="flex items-center gap-2">
               <div className="@3xl:hidden">
                 <IconButton
@@ -209,22 +235,22 @@ export function NotificationsScreen() {
                 />
               </div>
               <div>
-                <h4 className="text-caption font-bold">{activeChannel.title}</h4>
+                <h4 className="text-subhead font-bold">{activeChannel.title}</h4>
                 <p className="text-tiny text-muted">
                   {activeChannel.kind === 'feed'
                     ? '5 分钟聚合打卡动态与小窝互动'
                     : activeChannel.kind === 'system'
-                      ? '官方公告与安全通知'
+                      ? '官方更新公告与系统通知'
                       : activeChannel.kind === 'unfriended'
                         ? '已解除好友 · 历史会话只读归档'
-                        : '纯文本鼓励与治愈贴纸（≤300 字）'}
+                        : '纯文本陪伴鼓励（≤300 字）'}
                 </p>
               </div>
             </div>
           </div>
 
           {activeChannel.kind === 'feed' ? (
-            <div className="flex-1 space-y-2.5 p-3.5">
+            <div className="flex-1 space-y-2.5 p-4">
               <Card variant="outline" className="space-y-1.5 p-3.5">
                 <div className="flex items-center justify-between">
                   <Badge tone="exercise" icon="check">
@@ -255,20 +281,31 @@ export function NotificationsScreen() {
               </Card>
             </div>
           ) : activeChannel.kind === 'system' ? (
-            <div className="flex-1 space-y-2.5 p-3.5">
-              <Card variant="plain" className="space-y-1.5 p-3.5">
-                <Badge tone="diet" icon="sparkles">
-                  版本上新
-                </Badge>
-                <p className="text-caption font-bold">新伙伴「绵绵」与「柚柚」加入陪伴注册表</p>
-                <p className="text-tiny text-muted">
-                  前往「我的 → 陪伴伙伴」即可体验 4 只糯米团子，切换伙伴不会覆盖你最初设定的头像。
+            <div className="flex-1 space-y-3 p-4">
+              <Card variant="outline" className="space-y-2 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Badge tone="diet" icon="megaphone">
+                      版本更新
+                    </Badge>
+                    <Badge tone="primary">v0.1.9</Badge>
+                    <Badge tone="study">置顶</Badge>
+                  </div>
+                  <span className="text-tiny text-subtle font-mono">2026-11-12 00:00</span>
+                </div>
+                <p className="text-subhead font-bold">
+                  DayDayOn v0.1.9 更新公告：全屏消息体验与多级菜单升级
+                </p>
+                <p className="text-caption text-muted leading-relaxed whitespace-pre-line">
+                  {
+                    '1. 智能上传支持系统附件直传团团识别\n2. 「我的」升级为多级分组设置并打通手机准点提醒\n3. 全屏消息通知布局与数据库实时公告模块上线'
+                  }
                 </p>
               </Card>
             </div>
           ) : (
             <div className="flex flex-1 flex-col justify-between">
-              <div className="flex-1 space-y-2.5 p-3.5">
+              <div className="flex-1 space-y-2.5 p-4">
                 {ayouMessages.map((m) => (
                   <div
                     key={m.id}

@@ -17,6 +17,7 @@ import {
 } from './checkin-sheet-list'
 import { MoodPanel } from './mood-panel'
 import { SmartActionBar } from './smart-action-bar'
+import { StepsPanel } from './steps-panel'
 import { WeightPanel } from './weight-panel'
 
 /*
@@ -35,6 +36,7 @@ const titles: Record<CheckinLauncherView, string> = {
   list: '记录点什么？',
   weight: '记体重',
   mood: '今日心情',
+  steps: '今日步数',
 }
 
 export function CheckinSheet({ open, view, onOpenChange }: CheckinSheetProps) {
@@ -51,7 +53,9 @@ export function CheckinSheet({ open, view, onOpenChange }: CheckinSheetProps) {
         ? '每天一条，再记就覆盖'
         : view === 'mood'
           ? '今天整体感觉怎么样？'
-          : undefined
+          : view === 'steps'
+            ? '支持同步手机计步或手动记录今日步数'
+            : undefined
 
   const footer =
     view === 'list' ? (
@@ -135,6 +139,7 @@ function SheetBody({
   const data = state.data
   if (view === 'weight') return <WeightPanel currentGrams={data.weightGrams} onSaved={back} />
   if (view === 'mood') return <MoodPanel value={data.mood} onSaved={back} />
+  if (view === 'steps') return <StepsPanel onSaved={back} />
   if (data.goals.length === 0 && data.completion.planned === 0) {
     return (
       <div className="flex flex-col gap-3">

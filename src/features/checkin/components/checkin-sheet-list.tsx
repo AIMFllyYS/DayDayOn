@@ -129,6 +129,17 @@ export function CheckinSheetList({
             />
           </button>
         </li>
+        <li>
+          <button type="button" onClick={() => onOpenView('steps')} className={rowClass}>
+            <RowBody
+              icon="footprints"
+              tone="exercise"
+              title="今日步数"
+              status="同步手机计步或手动记录步数"
+              done={false}
+            />
+          </button>
+        </li>
       </ul>
     </>
   )

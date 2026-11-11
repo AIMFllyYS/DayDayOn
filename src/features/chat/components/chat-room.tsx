@@ -169,10 +169,15 @@ export function ChatRoom({
   return (
     <div
       data-testid="chat-room"
-      className="bg-paper flex min-h-[520px] flex-1 flex-col justify-between"
+      className="bg-background flex h-full min-h-0 w-full flex-1 flex-col justify-between"
     >
-      {/* 1. 私聊室顶栏 */}
-      <div className="border-border bg-surface flex items-center justify-between gap-2 border-b px-4 py-3">
+      {/* 1. 私聊室全屏吸顶顶栏 */}
+      <div
+        className={cn(
+          'border-border bg-surface/95 sticky top-0 z-10 flex shrink-0 items-center justify-between gap-2 border-b px-4 pb-2.5 backdrop-blur-md',
+          showBackButton ? 'pt-[calc(var(--safe-top)+0.5rem)] @3xl:pt-3' : 'pt-3',
+        )}
+      >
         <div className="flex items-center gap-2">
           {showBackButton && onBack && (
             <IconButton icon="chevron-left" label="返回消息列表" size="sm" onClick={onBack} />
@@ -375,13 +380,13 @@ export function ChatRoom({
       {isFrozen ? (
         <div
           data-testid="chat-frozen-input-bar"
-          className="border-border bg-surface-sunken text-caption text-muted flex items-center justify-center gap-2 border-t px-4 py-3.5 text-center font-semibold"
+          className="border-border bg-surface-sunken text-caption text-muted flex shrink-0 items-center justify-center gap-2 border-t px-4 pt-3.5 pb-[calc(var(--safe-bottom)+0.875rem)] text-center font-semibold @3xl:pb-3.5"
         >
           <Icon name="user-x" size={16} />
           <span>已解除好友关系，无法发送新消息</span>
         </div>
       ) : (
-        <div className="border-border bg-surface border-t p-3">
+        <div className="border-border bg-surface shrink-0 border-t px-3.5 pt-2.5 pb-[calc(var(--safe-bottom)+0.75rem)] @3xl:p-3">
           {/* 治愈快捷短语抽屉 */}
           {showPhrases && (
             <div className="mb-2 flex flex-wrap gap-1.5">
