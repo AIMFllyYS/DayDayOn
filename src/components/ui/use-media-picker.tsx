@@ -2,7 +2,12 @@
 
 import dynamic from 'next/dynamic'
 import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
-import { captureNativeHighResPhoto, isNativeApp } from '@/lib/native'
+import {
+  captureNativeHighResPhoto,
+  hasNativeSystemFilePicker,
+  isNativeApp,
+  pickNativeSystemFiles,
+} from '@/lib/native'
 import { toast } from './toast'
 
 /*
@@ -109,6 +114,18 @@ export function useMediaPicker({
   }
 
   function openSystemFiles() {
+    if (hasNativeSystemFilePicker()) {
+      void pickNativeSystemFiles(uploadAccept, maxSelect).then((files) => {
+        if (files === null) {
+          uploadInputRef.current?.click()
+          return
+        }
+        if (files.length > 0) {
+          onFiles(files, 'upload')
+        }
+      })
+      return
+    }
     uploadInputRef.current?.click()
   }
 

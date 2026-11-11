@@ -46,7 +46,7 @@ export function MeScreen({ thumb = false }: { thumb?: boolean }) {
       thumb={thumb}
       me={{ ...me, preferences: { ...me.preferences, theme } }}
       quota={<QuotaMeter weeklyLimitMicro={10_000_000} weeklyUsedMicro={3_420_000} />}
-      appVersion="0.1.9"
+      appVersion="0.1.10"
       remindControl={
         <TimeField
           label="提醒时间"

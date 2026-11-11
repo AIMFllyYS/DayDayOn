@@ -4,6 +4,14 @@
 
 ---
 
+## [v0.1.10] - 2026-11-12（通知页顶部双卡片防溢出与防左右滑动、智能上传系统文件直传 AI 根因修复）
+
+### 🛠️ 交互与布局边界热修（安装包壳 v0.1.10 / `versionCode = 7`）
+- **消息与通知页全链路防横向溢出（修复 #83）**：修复 `MessageCenter`、Playbook `NotificationsScreen` 与 `TwoLevelNotificationCenterDemo` 顶部双 `<button>` 在 Blink UA 默认 `align-items: flex-start` 下交叉轴按 `max-content` 撑宽、文字无法 `truncate` 的布局溢出问题；统一收紧 `grid-cols-[minmax(0,1fr)_minmax(0,1fr)]`、`items-stretch w-full max-w-full min-w-0 overflow-hidden`、滚动区 `overflow-x-hidden overscroll-x-none` 及二级卡片/聊天气泡 `break-words [overflow-wrap:anywhere]`。
+- **智能上传「+ 系统文件 / 附件」直传 AI 根因修复与原生内存流桥接（修复 #83）**：修复 `PhotoAlbumSheet.handleLocalFilesImport` 在 `Array.from(fileList)` 前清空 `e.target.value` 导致动态 `FileList` 原地清零提前返回的问题，并将 `<input>` 移入 `Sheet` 活跃模态 `footer` 内防止 `inert` 阻断；`MainActivity` 新增 `pickSystemFiles` + `/__native__/media/picked/{token}` 内存流桥接（零落盘，支持 HEIC/DNG 转码与文本附件读取）并移除国产 ROM `DocumentsUI` 窄 `EXTRA_MIME_TYPES` 置灰限制；`src/lib/image` 新增 `sniffIsImageFile` 文件头魔数嗅探。
+
+---
+
 ## [v0.1.9] - 2026-11-12（智能上传附件直传、我的多级菜单、计步优化、全屏消息与官方公告模块）
 
 ### 📱 安卓原生提醒推送、计步传感器与文件选择加固（安装包壳 v0.1.9 / `versionCode = 6`）

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { hasImageMagicBytes, sniffIsImageFile } from './image'
 import {
   dataUrlToFile,
   detectPlatform,
@@ -7,6 +8,7 @@ import {
   getNativePermissions,
   getNativeTodaySteps,
   hasNativeApkUpdater,
+  hasNativeSystemFilePicker,
   installNativeDownloadedApk,
   isNativePhotosPartialAccess,
   isNativeShellUA,
@@ -17,6 +19,7 @@ import {
   NATIVE_ALBUM_ALL_LABEL,
   normalizeAlbumBuckets,
   openNativeNotificationSettings,
+  pickNativeSystemFiles,
   requestNativePermission,
   sendNativeTestNotification,
   sortAlbumPhotosNewestFirst,
@@ -439,5 +442,63 @@ describe('getNativePermissions & requestNativePermission & dataUrlToFile', () =>
     } finally {
       g.window = prevWindow
     }
+  })
+
+  it('pickNativeSystemFiles 通过原生内存流桥接解析图片与文本附件，网页端安全回退 null', async () => {
+    expect(hasNativeSystemFilePicker()).toBe(false)
+    expect(await pickNativeSystemFiles('*/*', 9)).toBeNull()
+
+    const g = globalThis as unknown as { window?: Window }
+    const prevWindow = g.window
+    let capturedAccept = ''
+    let capturedMax = 0
+
+    const encodedNote = Buffer.from('今天慢跑30分钟', 'utf8').toString('base64')
+
+    g.window = {
+      DayDayOnNative: {
+        pickSystemFiles: (accept: string, maxCount: number) => {
+          capturedAccept = accept
+          capturedMax = maxCount
+          setTimeout(() => {
+            g.window?.__ddoOnSystemFilesResult?.([
+              {
+                url: `data:text/plain;base64,${encodedNote}`,
+                name: 'workout.txt',
+                mimeType: 'text/plain',
+              },
+            ])
+          }, 0)
+        },
+      },
+    } as unknown as Window
+
+    try {
+      expect(hasNativeSystemFilePicker()).toBe(true)
+      const files = await pickNativeSystemFiles('image/*,.txt', 9)
+      expect(capturedAccept).toBe('image/*,.txt')
+      expect(capturedMax).toBe(9)
+      expect(files).toHaveLength(1)
+      expect(files?.[0]?.name).toBe('workout.txt')
+      expect(files?.[0]?.type).toBe('text/plain')
+      expect(await files?.[0]?.text()).toBe('今天慢跑30分钟')
+    } finally {
+      g.window = prevWindow
+    }
+  })
+
+  it('sniffIsImageFile 支持无扩展名 / octet-stream 的图片文件头魔数嗅探', async () => {
+    const pngHead = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    expect(hasImageMagicBytes(pngHead)).toBe(true)
+
+    const extensionlessPng = new File([pngHead], 'msf_1000034821', {
+      type: 'application/octet-stream',
+    })
+    expect(await sniffIsImageFile(extensionlessPng)).toBe(true)
+
+    const textDoc = new File(['早餐全麦面包配牛奶'], 'diet_note', {
+      type: 'application/octet-stream',
+    })
+    expect(await sniffIsImageFile(textDoc)).toBe(false)
   })
 })

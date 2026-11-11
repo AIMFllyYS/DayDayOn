@@ -118,6 +118,8 @@ interface AndroidBridge {
   openNotificationSettings?: () => void
   /** 直接拉起安卓系统原生相机拍摄高清原图（返回同源流式地址或 dataUrl） */
   captureHighResPhoto?: () => void
+  /** 直接拉起安卓系统文件选择器（支持图片与 TXT/MD/CSV/HTML 等文档，全程内存流返回零落盘） */
+  pickSystemFiles?: (accept: string, maxCount: number) => void
   /** 读取手机相册/文件夹列表 JSON（首项固定为「全部」，后续按稳定可预期顺序排列） */
   getAlbumBucketsJson?: () => string
   /** 按指定相册/文件夹分页读取照片元数据列表 JSON（严格最新 → 最旧，< 5ms） */
@@ -146,6 +148,7 @@ declare global {
   interface Window {
     DayDayOnNative?: AndroidBridge
     __ddoOnCameraResult?: (urlOrDataUrl: string | null, fileName?: string) => void
+    __ddoOnSystemFilesResult?: (rawItems: unknown) => void
     __ddoOnPermissionResult?: (permission: string, state: string) => void
     __ddoOnUpdateProgress?: (rawStatus: unknown) => void
   }
@@ -471,6 +474,87 @@ export async function captureNativeHighResPhoto(): Promise<File | null> {
     }
     try {
       bridge.captureHighResPhoto?.()
+    } catch {
+      clearTimeout(timer)
+      resolve(null)
+    }
+  })
+}
+
+interface NativePickedFileDescriptor {
+  url: string
+  name: string
+  mimeType?: string
+}
+
+/** 当前 APK 壳是否内置原生系统文件内存流桥接（v0.1.10+） */
+export function hasNativeSystemFilePicker(): boolean {
+  return Boolean(getBridge()?.pickSystemFiles)
+}
+
+/**
+ * 在 APK 壳内直接调起安卓系统文件管理器（支持多选图片含 HEIC/DNG 及 TXT/MD/CSV/JSON/HTML 等文档）：
+ * - 全程通过 `/__native__/media/picked/{token}` 在内存传输字节流，严守 ADR-0002 零落盘红线；
+ * - 若不在支持该桥接的壳内，返回 `null`，由调用方回退至标准 `<input type="file">`。
+ */
+export async function pickNativeSystemFiles(accept = '*/*', maxCount = 9): Promise<File[] | null> {
+  const bridge = getBridge()
+  const pickFn = bridge?.pickSystemFiles
+  if (!pickFn) {
+    return null
+  }
+
+  return new Promise<File[] | null>((resolve) => {
+    const timer = setTimeout(() => resolve([]), 180_000)
+    window.__ddoOnSystemFilesResult = (rawItems) => {
+      clearTimeout(timer)
+      void (async () => {
+        try {
+          const parsed = (typeof rawItems === 'string' ? JSON.parse(rawItems) : rawItems) as unknown
+          if (!Array.isArray(parsed) || parsed.length === 0) {
+            resolve([])
+            return
+          }
+          const resolved: File[] = []
+          for (const entry of parsed as Partial<NativePickedFileDescriptor>[]) {
+            if (!entry || typeof entry.url !== 'string' || !entry.url) continue
+            const safeName =
+              typeof entry.name === 'string' && entry.name.trim()
+                ? entry.name.trim()
+                : `file_${resolved.length + 1}`
+            const preferredMime =
+              typeof entry.mimeType === 'string' && entry.mimeType.trim()
+                ? entry.mimeType.trim()
+                : ''
+            if (entry.url.startsWith('data:')) {
+              const f = dataUrlToFile(entry.url, safeName)
+              if (f) {
+                resolved.push(
+                  preferredMime && f.type !== preferredMime
+                    ? new File([f], safeName, { type: preferredMime })
+                    : f,
+                )
+              }
+              continue
+            }
+            const res = await fetch(entry.url)
+            if (!res.ok) continue
+            const blob = await res.blob()
+            if (blob.size <= 0) continue
+            resolved.push(
+              new File([blob], safeName, {
+                type: preferredMime || blob.type || 'application/octet-stream',
+              }),
+            )
+          }
+          resolve(resolved)
+        } catch {
+          resolve([])
+        }
+      })()
+    }
+    try {
+      pickFn.call(bridge, accept, Math.max(1, Math.min(9, Math.trunc(maxCount))))
     } catch {
       clearTimeout(timer)
       resolve(null)

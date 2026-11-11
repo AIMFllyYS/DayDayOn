@@ -169,31 +169,37 @@ export function ChatRoom({
   return (
     <div
       data-testid="chat-room"
-      className="bg-background flex h-full min-h-0 w-full flex-1 flex-col justify-between"
+      className="bg-background flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 flex-col justify-between overflow-hidden"
     >
       {/* 1. 私聊室全屏吸顶顶栏 */}
       <div
         className={cn(
-          'border-border bg-surface/95 sticky top-0 z-10 flex shrink-0 items-center justify-between gap-2 border-b px-4 pb-2.5 backdrop-blur-md',
+          'border-border bg-surface/95 sticky top-0 z-10 flex w-full max-w-full min-w-0 shrink-0 items-center justify-between gap-2 overflow-hidden border-b px-4 pb-2.5 backdrop-blur-md',
           showBackButton ? 'pt-[calc(var(--safe-top)+0.5rem)] @3xl:pt-3' : 'pt-3',
         )}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
           {showBackButton && onBack && (
-            <IconButton icon="chevron-left" label="返回消息列表" size="sm" onClick={onBack} />
+            <div className="shrink-0">
+              <IconButton icon="chevron-left" label="返回消息列表" size="sm" onClick={onBack} />
+            </div>
           )}
-          <Avatar name={displayNickname} avatar={displayAvatar} size="sm" />
-          <div>
-            <div className="flex items-center gap-2">
-              <h4 className="text-caption font-bold">{displayNickname}</h4>
+          <Avatar name={displayNickname} avatar={displayAvatar} size="sm" className="shrink-0" />
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+              <h4 className="text-caption truncate font-bold">{displayNickname}</h4>
               {friendStreak !== undefined && friendStreak > 0 && (
-                <Badge tone="diet" icon="flame">
+                <Badge tone="diet" icon="flame" className="shrink-0">
                   {friendStreak} 天
                 </Badge>
               )}
-              {isFrozen && <Badge tone="neutral">已解除好友 · 只读归档</Badge>}
+              {isFrozen && (
+                <Badge tone="neutral" className="shrink-0">
+                  已解除好友 · 只读归档
+                </Badge>
+              )}
             </div>
-            <p className="text-tiny text-muted">
+            <p className="text-tiny text-muted truncate">
               {isFrozen
                 ? '你们已解除好友关系，历史聊天记录仅供查阅'
                 : '纯文本陪伴鼓励 · 单条 ≤ 300 字'}
@@ -202,19 +208,21 @@ export function ChatRoom({
         </div>
 
         {!isFrozen && onReportMessage && (
-          <Button
-            size="sm"
-            variant="ghost"
-            icon="flag"
-            onClick={() => {
-              const lastFriendMsg = [...serverMessages].find((m) => !m.isMine)
-              if (lastFriendMsg) {
-                onReportMessage(lastFriendMsg)
-              }
-            }}
-          >
-            举报
-          </Button>
+          <div className="shrink-0">
+            <Button
+              size="sm"
+              variant="ghost"
+              icon="flag"
+              onClick={() => {
+                const lastFriendMsg = [...serverMessages].find((m) => !m.isMine)
+                if (lastFriendMsg) {
+                  onReportMessage(lastFriendMsg)
+                }
+              }}
+            >
+              举报
+            </Button>
+          </div>
         )}
       </div>
 
@@ -222,10 +230,10 @@ export function ChatRoom({
       {isFrozen && (
         <div
           data-testid="chat-frozen-banner"
-          className="border-border bg-surface-sunken text-tiny text-muted flex items-center justify-center gap-2 border-b px-4 py-2 text-center font-semibold"
+          className="border-border bg-surface-sunken text-tiny text-muted flex w-full max-w-full min-w-0 items-center justify-center gap-2 border-b px-4 py-2 text-center font-semibold"
         >
-          <Icon name="user-x" size={14} />
-          <span>双方已解除好友关系，历史聊天记录仅供存档查阅</span>
+          <Icon name="user-x" size={14} className="shrink-0" />
+          <span className="truncate">双方已解除好友关系，历史聊天记录仅供存档查阅</span>
         </div>
       )}
 
@@ -233,16 +241,16 @@ export function ChatRoom({
       {moderationNotice && (
         <div
           data-testid="chat-moderation-notice"
-          className="bg-danger-soft text-danger-ink border-danger/20 text-tiny flex items-center justify-between border-b px-4 py-2 font-semibold"
+          className="bg-danger-soft text-danger-ink border-danger/20 text-tiny flex w-full max-w-full min-w-0 items-center justify-between gap-2 border-b px-4 py-2 font-semibold"
         >
-          <div className="flex items-center gap-1.5">
-            <Icon name="alert" size={14} />
-            <span>{moderationNotice}</span>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Icon name="alert" size={14} className="shrink-0" />
+            <span className="break-words">{moderationNotice}</span>
           </div>
           <button
             type="button"
             onClick={() => setModerationNotice(null)}
-            className="text-tiny cursor-pointer hover:underline"
+            className="text-tiny shrink-0 cursor-pointer hover:underline"
           >
             知道了
           </button>
@@ -250,7 +258,7 @@ export function ChatRoom({
       )}
 
       {/* 4. 消息气泡流区域 */}
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="min-h-0 w-full max-w-full min-w-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-x-none p-4">
         {isLoading ? (
           <div className="text-tiny text-muted flex h-48 items-center justify-center">
             加载聊天记录中…
@@ -270,7 +278,7 @@ export function ChatRoom({
         ) : (
           <>
             <div className="text-center">
-              <span className="bg-surface-sunken text-tiny text-muted inline-block rounded-full px-3 py-1">
+              <span className="bg-surface-sunken text-tiny text-muted inline-block max-w-full truncate rounded-full px-3 py-1">
                 仅展示纯文本与治愈表情 · 服务器零媒体落盘
               </span>
             </div>
@@ -282,9 +290,19 @@ export function ChatRoom({
                 <div
                   key={m.id}
                   data-testid={`chat-message-${m.id}`}
-                  className={cn('flex items-end gap-2', isMe ? 'justify-end' : 'justify-start')}
+                  className={cn(
+                    'flex w-full min-w-0 items-end gap-2',
+                    isMe ? 'justify-end' : 'justify-start',
+                  )}
                 >
-                  {!isMe && <Avatar name={displayNickname} avatar={displayAvatar} size="sm" />}
+                  {!isMe && (
+                    <Avatar
+                      name={displayNickname}
+                      avatar={displayAvatar}
+                      size="sm"
+                      className="shrink-0"
+                    />
+                  )}
 
                   {/* 我方消息：左侧外部状态机（已读 / 已送达 + 时间） */}
                   {isMe && (
@@ -313,13 +331,15 @@ export function ChatRoom({
                   {/* 消息气泡本体 */}
                   <div
                     className={cn(
-                      'max-w-[75%] rounded-2xl border px-3.5 py-2.5',
+                      'max-w-[75%] min-w-0 overflow-hidden rounded-2xl border px-3.5 py-2.5',
                       isMe
                         ? 'border-primary/20 bg-primary-soft text-foreground rounded-br-sm shadow-2xs'
                         : 'border-border/60 bg-surface shadow-soft text-foreground rounded-bl-sm',
                     )}
                   >
-                    <p className="text-caption leading-relaxed break-words">{m.content}</p>
+                    <p className="text-caption leading-relaxed [overflow-wrap:anywhere] break-words">
+                      {m.content}
+                    </p>
                   </div>
 
                   {/* 对方消息：右侧外部显示时间 */}
@@ -334,7 +354,7 @@ export function ChatRoom({
 
             {/* 本地乐观发送中的消息（左侧外部显示「发送中…」或「未送达·重试」） */}
             {localSending.map((m) => (
-              <div key={m.tempId} className="flex items-end justify-end gap-2">
+              <div key={m.tempId} className="flex w-full min-w-0 items-end justify-end gap-2">
                 {m.status === 'sending' ? (
                   <div
                     data-testid="chat-status-sending"
@@ -360,13 +380,15 @@ export function ChatRoom({
 
                 <div
                   className={cn(
-                    'max-w-[75%] rounded-2xl rounded-br-sm border px-3.5 py-2.5',
+                    'max-w-[75%] min-w-0 overflow-hidden rounded-2xl rounded-br-sm border px-3.5 py-2.5',
                     m.status === 'sending'
                       ? 'border-primary/15 bg-primary-soft/75 text-foreground'
                       : 'border-danger/50 bg-primary-soft/60 text-foreground',
                   )}
                 >
-                  <p className="text-caption leading-relaxed break-words">{m.content}</p>
+                  <p className="text-caption leading-relaxed [overflow-wrap:anywhere] break-words">
+                    {m.content}
+                  </p>
                 </div>
               </div>
             ))}
