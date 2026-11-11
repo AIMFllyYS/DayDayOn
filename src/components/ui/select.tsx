@@ -17,6 +17,7 @@ import { popupItemClass, popupSurfaceClass, triggerBoxClass } from './popup-styl
 export interface SelectOption<V extends string> {
   value: V
   label: string
+  description?: string
   disabled?: boolean
 }
 
@@ -74,7 +75,11 @@ export function Select<V extends string>({
         </BaseSelect.Icon>
       </BaseSelect.Trigger>
       <BaseSelect.Portal>
-        <BaseSelect.Positioner sideOffset={6} alignItemWithTrigger={false} className="z-10">
+        <BaseSelect.Positioner
+          sideOffset={6}
+          alignItemWithTrigger={false}
+          className="z-50 md:z-[60]"
+        >
           <BaseSelect.Popup
             className={cn(
               popupSurfaceClass,
@@ -89,8 +94,15 @@ export function Select<V extends string>({
                   disabled={o.disabled}
                   className={cn(popupItemClass, 'data-selected:font-semibold')}
                 >
-                  <BaseSelect.ItemText className="min-w-0 flex-1">{o.label}</BaseSelect.ItemText>
-                  <BaseSelect.ItemIndicator className="text-primary-ink">
+                  <div className="min-w-0 flex-1">
+                    <BaseSelect.ItemText className="block truncate">{o.label}</BaseSelect.ItemText>
+                    {o.description && (
+                      <span className="text-tiny text-muted mt-0.5 block leading-snug font-normal">
+                        {o.description}
+                      </span>
+                    )}
+                  </div>
+                  <BaseSelect.ItemIndicator className="text-primary-ink shrink-0">
                     <Icon name="check" size={18} />
                   </BaseSelect.ItemIndicator>
                 </BaseSelect.Item>

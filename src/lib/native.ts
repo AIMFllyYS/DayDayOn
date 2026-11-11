@@ -114,6 +114,8 @@ interface AndroidBridge {
   reselectPhotos?: () => string
   /** 打开安卓系统当前应用详情设置页（Settings.ACTION_APPLICATION_DETAILS_SETTINGS） */
   openAppSettings?: () => void
+  /** 打开安卓系统当前应用通知管理设置页（Settings.ACTION_APP_NOTIFICATION_SETTINGS） */
+  openNotificationSettings?: () => void
   /** 直接拉起安卓系统原生相机拍摄高清原图（返回同源流式地址或 dataUrl） */
   captureHighResPhoto?: () => void
   /** 读取手机相册/文件夹列表 JSON（首项固定为「全部」，后续按稳定可预期顺序排列） */
@@ -130,6 +132,8 @@ interface AndroidBridge {
   getTodaySteps?: () => number
   /** 注册或取消手机端每日定时提醒通知（HH:mm） */
   scheduleDailyReminder?: (remindAt: string, enabled: boolean) => boolean
+  /** 立即推送一条手机系统通知（用于通知权限检测与提醒测试） */
+  notify?: (title: string, body: string) => boolean | void
 }
 
 type PermListener = (perm: string, state: string) => void
@@ -384,6 +388,20 @@ export function openNativeAppSettings(): boolean {
     }
   }
   return false
+}
+
+/** 打开安卓系统的应用通知设置页（旧版壳自动回退至应用详情页） */
+export function openNativeNotificationSettings(): boolean {
+  const bridge = getBridge()
+  if (bridge?.openNotificationSettings) {
+    try {
+      bridge.openNotificationSettings()
+      return true
+    } catch {
+      return openNativeAppSettings()
+    }
+  }
+  return openNativeAppSettings()
 }
 
 /** 将 dataURL 转为内存 File 对象（不落盘） */
@@ -683,8 +701,8 @@ export async function getNativeTodaySteps(): Promise<number> {
 }
 
 /**
- * 同步手机端原生定时提醒（每天 remindAt 触发系统状态栏通知）。
- * - 在 APK 壳内：若开启则先请求通知权限，再调用 scheduleDailyReminder；
+ * 同步手机端定时提醒（每天 remindAt 触发系统状态栏通知）。
+ * - 在 APK 壳内：若开启则必须先获得通知权限（perm === 'granted'），再调用 scheduleDailyReminder；
  * - 在网页端：安全返回 false，不报错。
  */
 export async function syncNativeReminder(config: {
@@ -698,12 +716,46 @@ export async function syncNativeReminder(config: {
   try {
     if (config.enabled) {
       const perm = await requestNativePermission('notifications')
-      if (perm === 'denied') return false
+      if (perm !== 'granted') return false
     }
     return Boolean(bridge.scheduleDailyReminder(config.remindAt ?? '21:00', config.enabled))
   } catch {
     return false
   }
+}
+
+/**
+ * 立即发送一条测试提醒通知，确认系统通知权限与通知渠道工作正常。
+ */
+export async function sendNativeTestNotification(
+  title = '团团提醒你打卡啦～',
+  body = '手机通知已就绪，到设定时间会准时提醒你打卡！',
+): Promise<boolean> {
+  const perm = await requestNativePermission('notifications')
+  if (perm !== 'granted') return false
+
+  const bridge = getBridge()
+  if (bridge?.notify) {
+    try {
+      const res = bridge.notify(title, body)
+      return res !== false
+    } catch {
+      return false
+    }
+  }
+
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    try {
+      if (window.Notification.permission === 'granted') {
+        new window.Notification(title, { body })
+        return true
+      }
+    } catch {
+      return false
+    }
+  }
+
+  return false
 }
 
 /** 通知 Android 原生层揭开 0ms 开屏覆盖层（网页首屏水合就绪时调用） */
