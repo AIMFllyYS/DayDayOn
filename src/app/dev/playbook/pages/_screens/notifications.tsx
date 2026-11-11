@@ -101,15 +101,20 @@ export function NotificationsScreen() {
   }
 
   return (
-    <div className="@container -mx-4 md:-mx-8">
-      <div className="divide-border bg-background border-border/60 border-t @3xl:grid @3xl:min-h-[560px] @3xl:grid-cols-[310px_1fr] @3xl:divide-x">
+    <div className="@container -mx-4 overflow-hidden @3xl:-mx-8">
+      <div className="divide-border bg-background border-border/60 min-w-0 overflow-hidden border-t @3xl:grid @3xl:min-h-[560px] @3xl:grid-cols-[310px_minmax(0,1fr)] @3xl:divide-x">
         {/* 第 1 级：全屏消息首页（顶部双入口 + 下方好友聊天列表） */}
-        <div className={cn('bg-background flex flex-col', mobileLevel === 2 && 'hidden @3xl:flex')}>
-          <div className="border-border/60 flex items-center justify-between border-b px-4 py-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-caption font-bold">消息总览</span>
+        <div
+          className={cn(
+            'bg-background flex w-full max-w-full min-w-0 flex-col overflow-hidden',
+            mobileLevel === 2 && 'hidden @3xl:flex',
+          )}
+        >
+          <div className="border-border/60 flex w-full max-w-full min-w-0 items-center justify-between gap-2 overflow-hidden border-b px-4 py-2.5">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="text-caption truncate font-bold">消息总览</span>
               {totalUnread > 0 && (
-                <span className="bg-danger text-on-primary text-tiny inline-flex h-5 items-center justify-center rounded-full px-2 font-mono leading-none font-bold">
+                <span className="bg-danger text-on-primary text-tiny inline-flex h-5 shrink-0 items-center justify-center rounded-full px-2 font-mono leading-none font-bold">
                   {totalUnread}
                 </span>
               )}
@@ -118,41 +123,43 @@ export function NotificationsScreen() {
               type="button"
               onClick={markAllRead}
               disabled={totalUnread === 0}
-              className="text-tiny text-primary-ink disabled:text-subtle font-semibold"
+              className="text-tiny text-primary-ink disabled:text-subtle shrink-0 font-semibold"
             >
               全部已读
             </button>
           </div>
 
           {/* 顶部独立两项：打卡房间与动态 / 官方与系统通知 */}
-          <div className="border-border/60 bg-surface/60 grid grid-cols-2 gap-2.5 border-b px-4 py-3">
+          <div className="border-border/60 bg-surface/60 grid w-full max-w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2.5 overflow-hidden border-b px-4 py-3">
             {topCategories.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => openChannel(cat.id)}
                 className={cn(
-                  'border-border/80 bg-surface hover:bg-surface-sunken/70 flex min-w-0 flex-col gap-2 rounded-2xl border p-3 text-left transition-colors',
+                  'border-border/80 bg-surface hover:bg-surface-sunken/70 flex w-full max-w-full min-w-0 flex-col items-stretch gap-2 overflow-hidden rounded-2xl border p-3 text-left transition-colors',
                   cat.id === activeId && '@3xl:border-primary/50 @3xl:bg-primary-soft/35',
                 )}
               >
-                <div className="flex w-full items-center justify-between gap-2">
+                <div className="flex w-full max-w-full min-w-0 items-center justify-between gap-2">
                   <IconTile
                     icon={cat.kind === 'feed' ? 'sparkles' : 'megaphone'}
                     tone={cat.kind === 'feed' ? 'primary' : 'diet'}
                     size="md"
                   />
                   {cat.unread > 0 ? (
-                    <span className="bg-danger text-on-primary flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-mono text-[11px] leading-none font-bold">
+                    <span className="bg-danger text-on-primary flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 font-mono text-[11px] leading-none font-bold">
                       {cat.unread}
                     </span>
                   ) : (
                     <Icon name="chevron-right" size={16} className="text-subtle shrink-0" />
                   )}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-caption truncate font-bold">{cat.title}</p>
-                  <p className="text-tiny text-muted mt-0.5 truncate">{cat.subtitle}</p>
+                <div className="w-full max-w-full min-w-0 overflow-hidden">
+                  <p className="text-caption block w-full truncate font-bold">{cat.title}</p>
+                  <p className="text-tiny text-muted mt-0.5 block w-full truncate">
+                    {cat.subtitle}
+                  </p>
                 </div>
               </button>
             ))}
@@ -162,14 +169,14 @@ export function NotificationsScreen() {
           <div className="px-4 pt-3 pb-1.5">
             <span className="text-tiny text-muted font-semibold">和朋友聊天</span>
           </div>
-          <ul className="divide-border/50 divide-y">
+          <ul className="divide-border/50 w-full max-w-full min-w-0 divide-y overflow-hidden">
             {friendRows.map((row) => (
-              <li key={row.id}>
+              <li key={row.id} className="w-full max-w-full min-w-0 overflow-hidden">
                 <button
                   type="button"
                   onClick={() => openChannel(row.id)}
                   className={cn(
-                    'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
+                    'flex w-full max-w-full min-w-0 items-center gap-3 overflow-hidden px-4 py-3 text-left transition-colors',
                     row.id === activeId
                       ? '@3xl:bg-primary-soft/55 hover:bg-surface-sunken/70'
                       : 'hover:bg-surface-sunken/70',
@@ -187,18 +194,22 @@ export function NotificationsScreen() {
                     )}
                   </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1.5 truncate">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex w-full min-w-0 items-center justify-between gap-1">
+                      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
                         <span className="text-body truncate font-bold">{row.title}</span>
-                        {row.kind === 'unfriended' && <Badge tone="neutral">已解除</Badge>}
+                        {row.kind === 'unfriended' && (
+                          <Badge tone="neutral" className="shrink-0">
+                            已解除
+                          </Badge>
+                        )}
                       </div>
                       <span className="text-tiny text-subtle shrink-0 font-mono">{row.time}</span>
                     </div>
-                    <div className="mt-0.5 flex items-center justify-between gap-2">
+                    <div className="mt-0.5 flex w-full min-w-0 items-center justify-between gap-2">
                       <p
                         className={cn(
-                          'text-caption truncate',
+                          'text-caption min-w-0 flex-1 truncate',
                           row.unread > 0 ? 'text-foreground font-semibold' : 'text-muted',
                         )}
                       >
@@ -220,13 +231,13 @@ export function NotificationsScreen() {
         {/* 第 2 级：全屏通知流或好友 1v1 聊天室 */}
         <div
           className={cn(
-            'bg-background flex min-h-[460px] flex-col justify-between',
+            'bg-background flex min-h-[460px] w-full max-w-full min-w-0 flex-col justify-between overflow-hidden',
             mobileLevel === 1 && 'hidden @3xl:flex',
           )}
         >
-          <div className="border-border bg-surface/95 flex items-center justify-between gap-2 border-b px-4 py-2.5">
-            <div className="flex items-center gap-2">
-              <div className="@3xl:hidden">
+          <div className="border-border bg-surface/95 flex w-full max-w-full min-w-0 items-center justify-between gap-2 overflow-hidden border-b px-4 py-2.5">
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+              <div className="shrink-0 @3xl:hidden">
                 <IconButton
                   icon="chevron-left"
                   label="返回列表"
@@ -234,9 +245,9 @@ export function NotificationsScreen() {
                   onClick={() => setMobileLevel(1)}
                 />
               </div>
-              <div>
-                <h4 className="text-subhead font-bold">{activeChannel.title}</h4>
-                <p className="text-tiny text-muted">
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <h4 className="text-subhead truncate font-bold">{activeChannel.title}</h4>
+                <p className="text-tiny text-muted truncate">
                   {activeChannel.kind === 'feed'
                     ? '5 分钟聚合打卡动态与小窝互动'
                     : activeChannel.kind === 'system'

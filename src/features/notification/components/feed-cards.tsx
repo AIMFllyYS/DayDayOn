@@ -44,8 +44,11 @@ export function CheckinAggregateCard({
   const badgeLabel = count > 1 ? `5 分钟内连打 ${count} 项` : '完成今日打卡'
 
   return (
-    <Card variant="outline" className="flex flex-col justify-between gap-3">
-      <div className="flex items-start gap-3">
+    <Card
+      variant="outline"
+      className="flex w-full max-w-full min-w-0 flex-col justify-between gap-3 overflow-hidden"
+    >
+      <div className="flex min-w-0 items-start gap-3">
         <div className="relative shrink-0">
           <Avatar
             name={notification.actorNickname ?? '好友'}
@@ -57,10 +60,12 @@ export function CheckinAggregateCard({
             <span className="bg-danger ring-surface absolute -top-0.5 -left-0.5 size-2.5 rounded-full ring-2" />
           )}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-1.5">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-caption font-bold">{notification.actorNickname ?? '好友'}</span>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <span className="text-caption truncate font-bold">
+                {notification.actorNickname ?? '好友'}
+              </span>
               <Badge tone="exercise" icon="check">
                 {badgeLabel}
               </Badge>
@@ -68,21 +73,21 @@ export function CheckinAggregateCard({
             <span className="text-tiny text-subtle shrink-0 font-mono">{timeStr}</span>
           </div>
 
-          <p className="text-caption text-foreground mt-1 leading-relaxed">
+          <p className="text-caption text-foreground mt-1 leading-relaxed [overflow-wrap:anywhere] break-words">
             {notification.content || notification.title}
           </p>
 
           {/* 聚合明细列表 */}
           {expanded && checkins.length > 0 && (
-            <ul className="bg-surface-sunken mt-2.5 grid gap-1.5 rounded-xl p-2.5">
+            <ul className="bg-surface-sunken mt-2.5 grid min-w-0 gap-1.5 overflow-hidden rounded-xl p-2.5">
               {checkins.map((item, idx) => {
                 const tone = getModuleTone(item.module)
                 return (
                   <li
                     key={`${item.title}-${idx}`}
-                    className="flex items-center justify-between gap-2"
+                    className="flex min-w-0 items-center justify-between gap-2"
                   >
-                    <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                       <IconTile icon={moduleMeta[tone].icon} tone={tone} size="sm" />
                       <span className="text-tiny truncate font-semibold">{item.title}</span>
                     </div>
@@ -143,7 +148,10 @@ export function PetInteractionCard({
     : ''
 
   return (
-    <Card variant="outline" className="flex items-start gap-3">
+    <Card
+      variant="outline"
+      className="flex w-full max-w-full min-w-0 items-start gap-3 overflow-hidden"
+    >
       <div className="relative shrink-0">
         <Avatar
           name={notification.actorNickname ?? '好友'}
@@ -155,10 +163,10 @@ export function PetInteractionCard({
         </span>
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-1.5">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-caption font-bold">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <span className="text-caption truncate font-bold">
               {notification.actorNickname ?? '好友'} · 伙伴
             </span>
             <Badge tone="sleep" icon="megaphone">
@@ -168,7 +176,7 @@ export function PetInteractionCard({
           <span className="text-tiny text-subtle shrink-0 font-mono">{timeStr}</span>
         </div>
 
-        <p className="text-caption text-foreground mt-1 leading-relaxed">
+        <p className="text-caption text-foreground mt-1 leading-relaxed [overflow-wrap:anywhere] break-words">
           {notification.content || notification.title}
         </p>
 
@@ -197,12 +205,19 @@ export function PetInteractionCard({
  */
 export function VisitFootprintCard({ notification }: { notification: NotificationItem }) {
   return (
-    <Card variant="sunken" className="flex items-center justify-between gap-3 py-3">
-      <div className="flex min-w-0 items-center gap-2.5">
+    <Card
+      variant="sunken"
+      className="flex w-full max-w-full min-w-0 items-center justify-between gap-3 overflow-hidden py-3"
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden">
         <IconTile icon="footprints" tone="study" size="sm" />
-        <div className="min-w-0">
-          <p className="text-caption font-semibold">{notification.title}</p>
-          <p className="text-tiny text-muted">{notification.content}</p>
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <p className="text-caption font-semibold [overflow-wrap:anywhere] break-words">
+            {notification.title}
+          </p>
+          <p className="text-tiny text-muted [overflow-wrap:anywhere] break-words">
+            {notification.content}
+          </p>
         </div>
       </div>
       <Badge tone="neutral" className="shrink-0">
@@ -236,9 +251,9 @@ export function SystemNoticeCard({ notification }: { notification: NotificationI
   const unread = !notification.readAt
 
   return (
-    <Card variant="outline" className="space-y-2.5 p-4">
+    <Card variant="outline" className="w-full max-w-full min-w-0 space-y-2.5 overflow-hidden p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           {unread && <span className="bg-danger size-2 shrink-0 rounded-full" aria-label="未读" />}
           <Badge tone="diet" icon="megaphone">
             {tag}
@@ -248,12 +263,14 @@ export function SystemNoticeCard({ notification }: { notification: NotificationI
           )}
           {pinned && <Badge tone="study">置顶</Badge>}
         </div>
-        <span className="text-tiny text-subtle font-mono">
+        <span className="text-tiny text-subtle shrink-0 font-mono">
           {formatAnnouncementTime(notification.createdAt)}
         </span>
       </div>
-      <h4 className="text-subhead leading-snug font-bold">{notification.title}</h4>
-      <p className="text-caption text-muted leading-relaxed whitespace-pre-line">
+      <h4 className="text-subhead leading-snug font-bold [overflow-wrap:anywhere] break-words">
+        {notification.title}
+      </h4>
+      <p className="text-caption text-muted leading-relaxed [overflow-wrap:anywhere] break-words whitespace-pre-line">
         {notification.content}
       </p>
     </Card>
