@@ -1,6 +1,7 @@
 import 'server-only'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { cache } from 'react'
 import { loadAccountState } from './account-state'
 import { auth } from './auth'
 import { checkAccount, checkAdmin, checkOnboarded, isBanned as isBannedAt } from './guards'
@@ -31,11 +32,11 @@ export async function getSessionFromHeaders(headers: Headers): Promise<Session |
 
 /**
  * Server Component 里读取会话（内部 `auth.api.getSession({ headers: await headers() })`）。
- * 必须在 <Suspense> 内调用。没登录返回 null。
+ * 必须在 <Suspense> 内调用。同一请求内用 React cache() 去重。没登录返回 null。
  */
-export async function getSession(): Promise<Session | null> {
+export const getSession = cache(async (): Promise<Session | null> => {
   return getSessionFromHeaders(await headers())
-}
+})
 
 /**
  * 页面保护：未登录 redirect('/login')；被封 redirect('/login?banned=1')。返回用户。
@@ -45,8 +46,8 @@ export async function requireUser(): Promise<SessionUser> {
   return (await requirePageUser()).user
 }
 
-/** requireUser 的内部版本：顺带返回实时状态，requireOnboardedUser 不用再查一次 */
-async function requirePageUser() {
+/** requireUser 的内部版本：顺带返回实时状态，同一请求内用 cache() 去重，layout 与 page 不重复查库 */
+const requirePageUser = cache(async () => {
   const session = await getSession()
   if (!session) redirect('/login')
   const state = await loadAccountState(session.user.id)
@@ -54,7 +55,7 @@ async function requirePageUser() {
   if (error?.code === 'ACCOUNT_BANNED') redirect('/login?banned=1')
   if (error || !state) redirect('/login')
   return { user: session.user, state }
-}
+})
 
 /**
  * 页面保护：requireUser + 未完成引导 redirect('/onboarding')（PRD 7.1）
