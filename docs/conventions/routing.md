@@ -1,6 +1,6 @@
 # 路由统一规范
 
-> 日期：2026-10-31 · 状态：草案。第 2 节的页面路由已按 PRD v0.1 第 7.1 节修正（2026-11-01）。
+> 日期：2026-10-31 · 2026-11-16 按当前代码库路由同步修订 · 状态：现行。
 > Next.js 本身的约定（`params` 要 `await`、Cache Components 等）见 [nextjs-16-patterns.md](./nextjs-16-patterns.md)。
 
 ## 1. 原则
@@ -10,47 +10,61 @@
 - 不带结尾斜杠（Next 默认行为，不改）。
 - 一个页面只有一个地址。视图状态（筛选、范围、标签页）放查询参数，不另开路由。
 
-## 2. 页面路由（PRD v0.1）
+## 2. 页面与资源路由
 
-| 路径 | 页面 | 路由组 | 导航 |
+| 路径 | 页面 / 端点 | 路由组 / 目录 | 导航 |
 |---|---|---|---|
 | `/` | 主页（仪表盘） | `(app)` | 一级 |
 | `/todo` | 待办；`?view=log` 切换为时间日志 | `(app)` | 一级 |
 | `/rank` | 排行榜；`?range=week\|month` | `(app)` | 一级 |
 | `/me` | 我的 | `(app)` | 一级 |
 | `/me/profile` | 个人资料（身高、体重、时区…） | `(app)` | 二级 |
-| `/goals` | 我的目标列表 | `(app)` | 二级 |
-| `/goals/new` | 新建目标 | `(app)` | 二级 |
+| `/agent` | 团团（Agent 全屏对话页，与悬浮弹窗共用对话状态） | `(app)` | 二级 |
+| `/checkin/smart` | 智能识别与历史拍摄记录；`?action=capture\|upload&view=scanner\|history&sid=…&recordId=…` | `(app)` | 二级 |
+| `/notifications` | 消息与通知（打卡房间与动态、官方与系统通知、好友私聊） | `(app)` | 二级 |
+| `/goals` | 目标设置（默认渲染目标设置页；`?status=archived` 查看已归档目标列表） | `(app)` | 二级 |
+| `/goals/new` | 新建目标；`?module=…` | `(app)` | 二级 |
 | `/goals/[goalId]` | 目标详情与历史 | `(app)` | 二级 |
-| `/goals/[goalId]/checkin` | 打卡表单（手动 / AI 识别） | `(app)` | 二级 |
-| `/welcome` | 落地页（不要求登录；未登录打开 `/` 时由 proxy 送到这里，ADR-0022） | `(marketing)` | 无；应用内入口是「我的 → 关于 DayDayOn」 |
+| `/goals/[goalId]/checkin` | 打卡表单（手动 / 智能拍照 / 智能上传）；`?mode=photo&meal=…` | `(app)` | 二级 |
+| `/welcome` | 落地页（不要求登录；未登录打开 `/` 时由 proxy 送到这里，ADR-0022） | `(marketing)` | 无；应用内入口是「我的 → 数据与关于 → 关于 DayDayOn」 |
 | `/login` | 邮箱验证码登录 | `(auth)` | 无 |
 | `/onboarding` | 新人引导（六步） | `(auth)` | 无 |
 | `/privacy` | 隐私说明（静态，不要求登录） | `(auth)` | 无 |
 | `/admin` | 后台首页（额度监控） | `admin/` | 后台侧栏 |
 | `/admin/users`、`/admin/codes`、`/admin/settings` | 用户与封禁、兑换码、全站配置 | `admin/` | 后台侧栏 |
 | `/dev`、`/dev/playbook/*` | 调试区与设计系统 | `dev/` | 无，生产 404 |
+| `/download/[file]` | Android APK 安装包下载端点（支持 HTTP Range，仅放行 `download/manifest.json` 登记文件） | `download/` | Route Handler |
+| `/icons/[name]` | PWA / APK 图标与 SVG 源文件（构建时 `generateStaticParams` 预渲染） | `icons/` | Route Handler |
 
-- 偏好（主题、形象、上榜、日切换时间、提醒）在 `/me` 页内修改，不单独开 `/me/settings`（PRD 2.11）。
-- 打卡入口（"＋"弹层）是客户端状态，不是路由；选好板块后进入 `/goals/[goalId]/checkin`。
+- 偏好（主题、形象、上榜、日切换时间、提醒）在 `/me` 页内通过二级分组视图（「打卡与提醒」「外观与陪伴」等）修改，不单独开 `/me/settings`（PRD 2.11）。
+- 打卡入口（"＋"弹层）是客户端状态，不是路由；选好板块后进入 `/goals/[goalId]/checkin`，点智能拍照/上传入口进入 `/checkin/smart`。
 - 一级页面就是导航项，定义在 `src/components/layout/nav-items.ts`，改这里要同步改上表。
 
 ## 3. 目录约定
 
 ```
 src/app/
-├── (marketing)/       落地页 /welcome：顶栏品牌 + 页脚，不读会话（ADR-0022）
-├── (auth)/            登录、引导：无导航的简洁布局
-├── (app)/             登录后的应用：layout.tsx 是应用外壳（底栏 / 侧栏）
-│   ├── page.tsx       → /
-│   ├── todo/          → /todo
-│   └── goals/[goalId]/checkin/
-├── admin/             后台：独立布局，桌面优先，layout 里校验管理员身份（放在 Suspense 里）
-├── dev/               调试区：layout 里做生产守卫，挂批注工具
+├── (marketing)/              落地页 /welcome：顶栏品牌 + 页脚，不读会话（ADR-0022）
+├── (auth)/                   登录、引导、隐私说明：无导航的简洁布局
+├── (app)/                    登录后的应用：layout.tsx 是应用外壳（底栏 / 侧栏）
+│   ├── page.tsx              → /
+│   ├── agent/page.tsx        → /agent
+│   ├── checkin/smart/        → /checkin/smart
+│   ├── goals/                → /goals、/goals/new、/goals/[goalId]、/goals/[goalId]/checkin
+│   ├── me/                   → /me、/me/profile
+│   ├── notifications/        → /notifications
+│   ├── rank/                 → /rank
+│   └── todo/                 → /todo
+├── admin/                    后台：独立布局，桌面优先，layout 里校验管理员身份（放在 Suspense 里）
+├── dev/                      调试区：layout 里做生产守卫，挂批注工具（_annotate/）与 Playbook
+├── download/[file]/route.ts  Android APK 下载兜底路由
+├── icons/[name]/route.tsx    PWA 与 APK 静态生成图标路由
+├── manifest.ts               Web App Manifest
+├── icon.tsx / apple-icon.tsx 站点图标
 └── api/
-    ├── health/        健康检查
-    ├── auth/[...all]/ Better Auth
-    └── v1/            业务 REST 接口
+    ├── health/               健康检查
+    ├── auth/[...all]/        Better Auth
+    └── v1/[[...route]]/      业务 REST 接口（Hono）
 ```
 
 - 路由组 `(name)` 只用来共享布局，不出现在 URL 里。

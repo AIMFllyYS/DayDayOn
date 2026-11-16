@@ -50,6 +50,12 @@ Next.js App Router 支持 safe colocation by default，文件放在路由文件�
 - 本项目**不启用** `max-lines` / `max-lines-per-function` 等硬性 lint 规则，避免诱导机械式拆分
 - 这些阈值仅作为 code review 时的审视提示
 
+### 正式业务代码与 `/dev/playbook/` 演示代码的长度豁免边界
+
+- **正式业务代码**（`src/features/`、`src/server/`、`src/components/`、`src/lib/` 与 `src/app/` 正式路由）：严格适用上表审视阈值，超过软目标或拆分提示时需检查自然接缝。
+- **`/dev/playbook/` 演示与陈列代码**（`src/app/dev/playbook/**` 与 `src/app/dev/_annotate/**`）：用于集中展示设计 token、组件全量变体矩阵与多场景示例，**豁免于业务文件 400 / 800 行的长度审视阈值**，无需为了凑行数把同一主题的演示拆成零散碎片。
+- **豁免边界内的纪律**：`/dev/playbook/` 中可复用的展示外壳（如 `PageHeader`、`Section`）仍统一收口在 `src/app/dev/playbook/_components/`；正式代码严禁引用 `src/app/dev/` 下的任何文件。
+
 ## 三、文件放置决策树
 
 ```

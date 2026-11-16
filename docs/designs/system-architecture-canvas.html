@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DayDayOn · 五层软件工程架构与 PostgreSQL 18 数据血缘画布</title>
+    <title>DayDayOn v0.1.6 · 五层软件工程架构与 PostgreSQL 18 (36 表) 数据血缘画布</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -51,6 +51,9 @@
           </button>
           <button class="view-tab" data-view="social">
             <i data-lucide="users"></i><span>好友社交</span>
+          </button>
+          <button class="view-tab" data-view="native">
+            <i data-lucide="smartphone"></i><span>移动端与原生壳</span>
           </button>
           <button class="view-tab" data-view="all">
             <i data-lucide="compass"></i><span>全景</span>
@@ -225,36 +228,42 @@
           <i data-lucide="chevron-up"></i>
         </button>
         <div class="dropdown-panel dock-up" id="menuScenarioDock" style="min-width: 292px">
-          <div class="dropdown-section-title">选择业务打卡场景 (拓扑 Debug)</div>
+          <div class="dropdown-section-title">选择真实业务链路场景 (拓扑 Debug)</div>
           <div id="dockScenarioList">
             <button class="dropdown-item dock-scenario-item" data-scenario-id="S1">
               <span class="dropdown-item-left">
                 <i data-lucide="camera"></i>
-                <span>S1 · 拍照AI识别 → 裁判打分 → 确认入库</span>
+                <span>S1 · 全板块智能识图 → 流式裁判 → 饮食两阶段结算</span>
               </span>
             </button>
             <button class="dropdown-item dock-scenario-item" data-scenario-id="S2">
               <span class="dropdown-item-left">
                 <i data-lucide="clipboard-check"></i>
-                <span>S2 · 手动表单打卡 → 服务端重算 → 入库</span>
+                <span>S2 · 五板块同日 Upsert · 碎片学习累加 · 跳过豁免</span>
               </span>
             </button>
             <button class="dropdown-item dock-scenario-item" data-scenario-id="S3">
               <span class="dropdown-item-left">
-                <i data-lucide="message-square-warning"></i>
-                <span>S3 · 自然语言对话打卡 → 团团断链暴露</span>
+                <i data-lucide="bot"></i>
+                <span>S3 · 悬浮团团多轮对话 · 内联图表 · 增改删草稿确认</span>
               </span>
             </button>
             <button class="dropdown-item dock-scenario-item" data-scenario-id="S4">
               <span class="dropdown-item-left">
-                <i data-lucide="history"></i>
-                <span>S4 · 历史打卡修正 → 留痕对比与重算</span>
+                <i data-lucide="smartphone"></i>
+                <span>S4 · Android 硬件计步同步 · 本地闹钟 · 自托管更新</span>
               </span>
             </button>
             <button class="dropdown-item dock-scenario-item" data-scenario-id="S5">
               <span class="dropdown-item-left">
                 <i data-lucide="heart-handshake"></i>
-                <span>S5 · 好友萌宠互动 → 冷却校验与通知</span>
+                <span>S5 · 好友双向配对 · 小窝投喂冷却 · 私聊 DFA 风控</span>
+              </span>
+            </button>
+            <button class="dropdown-item dock-scenario-item" data-scenario-id="S6">
+              <span class="dropdown-item-left">
+                <i data-lucide="shield-check"></i>
+                <span>S6 · 手账点选验证登录 · 七步引导 · 兑换码与墓碑防刷</span>
               </span>
             </button>
           </div>
@@ -440,7 +449,7 @@
       </div>
       <div class="pop-section" id="popBugSection" style="display: none">
         <div class="pop-label" style="color: #8f2420">
-          <i data-lucide="triangle-alert"></i><span>现状问题 / 断链诊断</span>
+          <i data-lucide="triangle-alert"></i><span>跨层细节 / 待对齐提示</span>
         </div>
         <div class="pop-bug-box" id="popBugText"></div>
       </div>
@@ -620,7 +629,7 @@
           </div>
           <div class="insp-section insp-bug-section" id="inspBugSection" style="display: none">
             <div class="insp-section-title bug">
-              <i data-lucide="triangle-alert"></i><span>现状缺陷与断链诊断</span>
+              <i data-lucide="triangle-alert"></i><span>跨层细节与演进提示</span>
             </div>
             <div class="insp-bug-box" id="inspBugText"></div>
           </div>

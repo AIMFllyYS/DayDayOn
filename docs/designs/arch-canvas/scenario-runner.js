@@ -64,6 +64,7 @@
     let _playTimer = null
     let _speed = 1
     let _injectedBadges = []
+    let _savedCoreView = null
 
     // -------------------------------------------------------------
     // Helper: Enhance mock DOM querySelector if needed
@@ -360,6 +361,18 @@
         )
       })
 
+      if (
+        matchedEdge &&
+        !doc.querySelector(`[data-edge-id="${matchedEdge.id}"]`) &&
+        root.DDO_CORE &&
+        typeof root.DDO_CORE.setView === 'function'
+      ) {
+        if (!_savedCoreView && typeof root.DDO_CORE.getView === 'function') {
+          _savedCoreView = root.DDO_CORE.getView()
+        }
+        root.DDO_CORE.setView('all')
+      }
+
       const allEdgeEls = doc.querySelectorAll(
         '.edge-group, .edge-label, .edge-label-pill, [data-edge-id]',
       )
@@ -593,6 +606,11 @@
       const doc = getDoc()
       if (doc) {
         clearAllHighlights(doc)
+        if (_savedCoreView && root.DDO_CORE && typeof root.DDO_CORE.setView === 'function') {
+          const restoreView = _savedCoreView
+          _savedCoreView = null
+          root.DDO_CORE.setView(restoreView)
+        }
 
         // Update dropdown
         const scSelect = doc.getElementById('scenarioSelect')
@@ -714,6 +732,11 @@
       const doc = getDoc()
       if (doc) {
         clearAllHighlights(doc)
+        if (_savedCoreView && root.DDO_CORE && typeof root.DDO_CORE.setView === 'function') {
+          const restoreView = _savedCoreView
+          _savedCoreView = null
+          root.DDO_CORE.setView(restoreView)
+        }
 
         const descEl = doc.getElementById('scenarioStepDesc')
         if (descEl) {

@@ -21,3 +21,23 @@
 ```powershell
 powershell -ExecutionPolicy Bypass -File android/build-apk.ps1
 ```
+
+脚本使用持久化密钥库 `android/keystore/daydayon-release.jks`（受 `.gitignore` 保护不进 Git）签名，输出 `download/apk/DayDayOn.apk` 并在末尾打印 `Size` 与 `SHA256`。
+
+## APK 打包发版闭环
+
+1. **升级壳版本与网站版本**：
+   - 更新 `android/app/src/main/AndroidManifest.xml`（`android:versionCode` 递增、`android:versionName`）、`android/app/build.gradle.kts`（`versionCode` 递增、`versionName`）与 `android/app/src/main/kotlin/com/husteread/daydayon/MainActivity.kt` 中追加的 UA（`DayDayOnApp/<version>`）；
+   - 同步更新 `package.json`、`src/lib/app-version.ts`、`download/manifest.json`（`latest`、`publishedAt`、`android.version`、`android.sourceTag`）、`download/CHANGELOG.md` 与 `docs/updates/changelog.md`。
+2. **离线构建并回填校验信息**：执行上述 `android/build-apk.ps1`，将输出的 `Size` 与 `SHA256` 回填至 `download/manifest.json` 的 `android.size`、`android.sha256`。
+3. **双端分发（GitHub Release + 阿里云 ECS）**：
+   - **先上传 GitHub Release**：打 tag（匹配 `android.sourceTag`）并上传 `download/apk/DayDayOn.apk` 至 GitHub Release（防止 CI / PR 阶段 `scripts/build/pack-artifact.sh` 因服务器上还是旧包且 GitHub Release 找不到新包而校验失败）；
+   - **同步阿里云 ECS（`/www/wwwroot/daydayon/releases/`）**：
+     - **方式 A（随 `main` 部署同步）**：合并 `main` 后由 `.github/workflows/deploy.yml` 打包，经 `scripts/deploy/daydayon-deploy-gate.sh` 自动将 `manifest.json`、`CHANGELOG.md`、`apk/DayDayOn.apk` 写入 `/www/wwwroot/daydayon/releases/`；
+     - **方式 B（热更新或立即生效，需负责人许可的 `ssh MainECS` 操作）**：直接将 `download/apk/DayDayOn.apk`（及 `manifest.json`、`CHANGELOG.md`）上传至 `/www/wwwroot/daydayon/releases/`（属主 `daydayon`、权限 `0644`），立即生效，无需重启 PM2。
+4. **上线后校验**：
+   ```bash
+   curl -I https://daydayon.husteread.com/download/DayDayOn.apk
+   curl -fsS "https://daydayon.husteread.com/api/v1/app/update?web=0.1.0&shell=0.1.0"
+   ```
+   完整发版说明亦见 [download/README.md](../download/README.md) 与 [deploy-aliyun-ecs.md](../docs/ops/deploy-aliyun-ecs.md)。

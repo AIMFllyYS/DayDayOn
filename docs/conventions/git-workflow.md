@@ -59,10 +59,10 @@ docs(deploy): 补充回滚步骤
 
 ## Issue 与 PR
 
-- 创建 issue、拆 issue、开 PR 前，**先查 [skills-registry.md](../skills-registry.md) 并调用对应 skill**；issue / PR 正文注明引用了哪些 skill。
+- 创建 issue、拆 issue、开 PR 前，**先查 [skills-registry.md](../skills-registry.md) 并调用对应 skill**；issue / PR 正文注明引用了哪些 skill（`.github/pull_request_template.md` 已内置「引用的 Skills」填写栏）。
 - 创建 issue、拆分子 issue：使用 issue-creator skill。
 - 按 issue 做 PR：使用 issue-to-pr skill，**PR 目标分支是 `dev`**，正文末尾写 `Closes #<issue号>`。
-- PR 描述写清楚：改了什么、为什么、怎么验证的（含 ego-browser 截图或步骤）。
+- PR 描述写清楚：改了什么、为什么、怎么验证的（含 ego-browser 截图或步骤）以及引用的 Skills。
 
 ## 版本与发布
 

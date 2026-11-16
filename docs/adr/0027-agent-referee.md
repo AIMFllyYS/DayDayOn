@@ -1,8 +1,8 @@
 # ADR-0027：Agent 裁判与分数库
 
-- 状态：Proposed
+- 状态：Accepted（2026-11-05 评审通过并落地；2026-11-16 同步最新实现）
 - 日期：2026-11-05
-- 决策人：负责人（待拍板），Kiro 起草
+- 决策人：项目负责人
 - 关联：Epic #33，子任务 #35、#36、#37、#38；规范 [checkin-modules.md](../conventions/checkin-modules.md)
 
 ## 背景
@@ -22,9 +22,15 @@
 选 2。
 
 - 判据写在 `src/features/referee/rules/` 的纯函数里，前后端共用：前端用于即时预览，服务端在创建打卡时重算并以重算结果入库。
-- Agent 用 `ToolLoopAgent` 流式运行，最后必须调用 `submitVerdict(facts)`；`submitVerdict` 的入参是该板块的事实 schema，执行时调用纯函数得到结论。
-- 分数库：`checkins` 加 `score`、`is_valid`、`verdict`（jsonb）三列；`profiles` 加 `referee_tier`；`goals` 加 `referee_rules`（jsonb）与 `deadline_date`。老数据 `is_valid` 默认 true。
-- 统计（进度、完成度、连续天数、排行、好友动态）只在 `stats.ts` 过滤 `is_valid = false`。
+- **饮食全天结算与核心细则**：饮食未集齐早/午/晚三正餐时写入 `settlement: 'pending'`（`score = null, isValid = false`），集齐三餐或有加餐、修改、删除时经 `reconcileDailyDiet` 统一重算全天总分；干净饮食基础分 `3.8` 分（高于默认 `3.0` 有效线），`strict-fat-loss` 减脂档不设热量下限死线（低热量与空腹给予加分），膳食纤维采用纯奖励制（`≥ 10g` / `≥ 18g`），用户备注（`note`）享有空腹/免主食第一核心优先级。
+- **跳过豁免流与全局智能识别**：手动模式支持填写「跳过本次打卡（`skipReason`）」由 Agent 核验理由合理性后自动入库豁免；`/checkin/smart` 识别完成后原地复用同源 `CheckinFlow` 并直通裁判。
+- **统一 Agent 会话持久化**：Agent 用 `ToolLoopAgent` 流式运行（最多 6 步，最后一步强制 `submitVerdict(facts)`；入参 `Verdict.facts` 定义为 `FactsSchema.nullable()`，离线兜底为 `null`），传入 `conversation` 时分析回合同步写入 `agent_conversations` / `agent_messages`（「目标名 · 打卡分析」），实现全局只有一个 Agent。
+- **分数库与设置入口**：`checkins` 加 `score`、`is_valid`、`verdict`（jsonb）三列；`profiles` 加 `referee_tier`；`goals` 加 `referee_rules`（jsonb）与 `deadline_date`。老数据 `is_valid` 默认 true。`/goals`（`GoalSettingsView`）中个人体质 `TierSection` 作为独立分段置于板块选择与目标规则卡之间。
+- **各统计服务对 `isValid = false` 的过滤职责**：
+  - `stats.ts`：`goalDayProgress()`、`validDates()`、`countRankDays()` 只计入 `isValid = true`（饮食未终判前展示 `pending` 主餐阶段进度，`done = false`）；
+  - `rank/`（`index.ts`、`streaks.ts`、`board.ts`）：SQL 查询层过滤 `isValid = true`，排除未达标及 `pending` 记录；
+  - `goals/index.ts`：目标详情 `validDays` 在 SQL 查询层过滤 `isValid = true`；
+  - `insights/compute.ts`：`valid` / `validDays`（及 `custom` 序列）过滤 `isValid`，而 `total`、均值与 `topFailure` 汇总区间全部记录用于真实复盘。
 - AI 不可用（暂停、额度不足、模型没调 `submitVerdict`）时降级为离线判定，结论里标 `offline: true`，打卡不因此失败。
 
 ## 理由
