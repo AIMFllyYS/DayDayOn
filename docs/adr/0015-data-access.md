@@ -25,9 +25,9 @@
 
 Drizzle ORM + drizzle-kit + pg，版本 drizzle-orm 0.45.4、drizzle-kit 0.31.11、pg 8.23.1。
 
-- 封装层入口：src/server/db/（client.ts、schema/<领域>.ts、migrations/）；只有 src/server/ 可以 import drizzle-orm 和 pg
-- 迁移用 drizzle-kit generate 生成并提交，PR 里审 SQL；生产环境不用 push
-- Better Auth 的表用 npx auth generate 生成到 Drizzle schema
+- 封装层入口：src/server/db/（client.ts 通过 Proxy 懒初始化 db、schema/<领域>.ts、startup-migrate.ts、migrations/）；只有 src/server/（及 drizzle.config.ts、scripts/）可以 import drizzle-orm 和 pg
+- 迁移用 drizzle-kit generate 生成并提交，PR 里审 SQL；生产环境不用 push，由制品打包 migrations/ 并在部署闸门热备份后通过 instrumentation.ts 启动时幂等执行 startup-migrate.ts
+- Better Auth 的表通过 `pnpm dlx auth@1.7.14 generate --config src/server/auth/auth.cli.ts --output src/server/db/schema/auth.ts --yes` 生成自带索引的 Drizzle schema
 
 ## 理由
 

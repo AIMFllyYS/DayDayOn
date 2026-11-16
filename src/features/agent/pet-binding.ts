@@ -1,12 +1,16 @@
 'use client'
 
 import { useEffect, useSyncExternalStore } from 'react'
-import type { MascotCharacter } from '@/components/mascot/mascot-svg'
+import {
+  mascotCharacterName,
+  resolveMascotCharacter,
+  type MascotCharacter,
+} from '@/features/me/schemas'
 import { useMe } from '@/lib/api/queries/me'
 
 /*
  * 全局只有一个 Agent 形象（悬浮宠物）。这里放两件事：
- * 1. usePetIdentity：形象与名字跟随偏好设置（团团 / 墩墩），所有写到名字的地方都读它，不写死。
+ * 1. usePetIdentity：形象与名字跟随偏好设置（团团 / 墩墩 / 绵绵 / 柚柚），所有写到名字的地方都读它，不写死。
  * 2. 页面绑定：打卡页这类「默认在干一件事」的页面，把状态点和点按行为挂到这只宠物身上，
  *    不再自己画第二只。卸载时自动解绑，宠物回到「点一下打开对话」。
  */
@@ -18,8 +22,8 @@ export interface PetIdentity {
 
 export function usePetIdentity(): PetIdentity {
   const { data: me } = useMe()
-  const character: MascotCharacter = me?.preferences.mascot === 'dun' ? 'dun' : 'tuan'
-  return { character, name: character === 'dun' ? '墩墩' : '团团' }
+  const character = resolveMascotCharacter(me?.preferences.mascot)
+  return { character, name: mascotCharacterName(character) }
 }
 
 export interface PetBinding {

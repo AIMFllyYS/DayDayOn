@@ -34,6 +34,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/server/auth/session', () => ({ getSessionFromHeaders: async () => mocks.session }))
 vi.mock('@/server/auth/account-state', () => ({ loadAccountState: async () => mocks.state }))
+vi.mock('@/server/idempotency', () => ({
+  requestHash: async () => 'hash',
+  beginIdempotent: async () => ({ kind: 'new' }),
+  completeIdempotent: async () => undefined,
+  abortIdempotent: async () => undefined,
+}))
 vi.mock('@/server/services/chat', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/server/services/chat')>()
   return {
@@ -69,9 +75,14 @@ const { app } = await import('../app')
 
 const SAME_ORIGIN = { 'sec-fetch-site': 'same-origin' }
 
-const jsonInit = (method: string, body?: unknown) => ({
+const jsonInit = (method: string, body?: unknown, headers: Record<string, string> = {}) => ({
   method,
-  headers: { 'content-type': 'application/json', ...SAME_ORIGIN },
+  headers: {
+    'content-type': 'application/json',
+    'idempotency-key': crypto.randomUUID(),
+    ...SAME_ORIGIN,
+    ...headers,
+  },
   ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
 })
 
@@ -304,6 +315,102 @@ describe('1v1 私聊接口鉴权与路由校验', () => {
       jsonInit('POST', { content: '加油！' }),
     )
     expect(res.status).toBe(201)
+  })
+
+  it('POST /api/v1/chats/u2 与别名缺少 idempotency-key 返回 400 VALIDATION_FAILED', async () => {
+    login('u1')
+    for (const path of ['/api/v1/chats/u2', '/api/v1/friends/u2/chat']) {
+      const res = await app.request(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...SAME_ORIGIN },
+        body: JSON.stringify({ content: '你好' }),
+      })
+      expect(res.status).toBe(400)
+      expect(await res.json()).toMatchObject({ code: 'VALIDATION_FAILED' })
+    }
+    expect(mocks.service.sendChatMessage).not.toHaveBeenCalled()
+  })
+
+  it('GET /api/v1/chats/u2 空游标返回 400 VALIDATION_FAILED', async () => {
+    login('u1')
+    const res = await app.request('/api/v1/chats/u2?cursor=')
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({ code: 'VALIDATION_FAILED' })
+    expect(mocks.service.getChatHistory).not.toHaveBeenCalled()
+  })
+})
+
+describe('chat service 游标格式校验', () => {
+  const makeMockDb = (cursorMsgRows: Array<{ createdAt: Date }> = []) => {
+    let selectCall = 0
+    return {
+      select: vi.fn().mockImplementation(() => ({
+        from: vi.fn().mockImplementation(() => ({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi
+                .fn()
+                .mockResolvedValue([
+                  { name: '阿柚', nickname: '阿柚', avatar: null, mascot: 'tuan' },
+                ]),
+            }),
+          }),
+          where: vi.fn().mockImplementation(() => {
+            selectCall += 1
+            if (selectCall === 1) {
+              // friendships check
+              return { limit: vi.fn().mockResolvedValue([{ id: 'rel-1' }]) }
+            }
+            return {
+              // cursor message lookup
+              limit: vi.fn().mockResolvedValue(cursorMsgRows),
+              // chatMessages paginated query
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([]),
+              }),
+            }
+          }),
+        })),
+      })),
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    }
+  }
+
+  it.each(['invalid-cursor', '   ', '2026-13-45', '12345'])(
+    '非法游标 %s 抛出 400 VALIDATION_FAILED 而非静默忽略',
+    async (badCursor) => {
+      const actual =
+        await vi.importActual<typeof import('@/server/services/chat')>('@/server/services/chat')
+      const mockDb = makeMockDb()
+      await expect(
+        actual.getChatHistory(mockDb as never, 'u1', 'u2', { cursor: badCursor }),
+      ).rejects.toThrowError(expect.objectContaining({ code: 'VALIDATION_FAILED', status: 400 }))
+    },
+  )
+
+  it('UUID 游标不存在于当前会话时抛出 400 VALIDATION_FAILED', async () => {
+    const actual =
+      await vi.importActual<typeof import('@/server/services/chat')>('@/server/services/chat')
+    const mockDb = makeMockDb([])
+    await expect(
+      actual.getChatHistory(mockDb as never, 'u1', 'u2', {
+        cursor: '0193f6b2-0000-7000-8000-000000000001',
+      }),
+    ).rejects.toThrowError(expect.objectContaining({ code: 'VALIDATION_FAILED', status: 400 }))
+  })
+
+  it('合法 ISO 8601 时间游标正常放行', async () => {
+    const actual =
+      await vi.importActual<typeof import('@/server/services/chat')>('@/server/services/chat')
+    const mockDb = makeMockDb()
+    const res = await actual.getChatHistory(mockDb as never, 'u1', 'u2', {
+      cursor: '2026-11-02T10:00:00.000Z',
+    })
+    expect(res.messages).toEqual([])
   })
 })
 

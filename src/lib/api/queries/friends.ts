@@ -12,7 +12,7 @@ import type {
   PetInteractResult,
   PetInteractionsStatus,
 } from '@/features/friend/schemas'
-import { apiFetch } from '../fetcher'
+import { apiFetch, newIdempotencyKey } from '../fetcher'
 import { keys } from '../keys'
 
 /*
@@ -53,7 +53,12 @@ export function useFriendDashboard(friendUserId: string | null) {
 
 export function useCreateFriendInvite() {
   return useMutation({
-    mutationFn: () => apiFetch<FriendInvite>('/friends/invite', { method: 'POST', json: {} }),
+    mutationFn: (idempotencyKey?: string) =>
+      apiFetch<FriendInvite>('/friends/invite', {
+        method: 'POST',
+        json: {},
+        idempotencyKey: idempotencyKey ?? newIdempotencyKey(),
+      }),
   })
 }
 
@@ -70,11 +75,14 @@ export function usePreviewFriendInvite() {
 export function useAcceptFriendInvite() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (code: string) =>
-      apiFetch<FriendAcceptResult>('/friends/accept', {
+    mutationFn: (arg: string | { code: string; idempotencyKey?: string }) => {
+      const { code, idempotencyKey } = typeof arg === 'string' ? { code: arg } : arg
+      return apiFetch<FriendAcceptResult>('/friends/accept', {
         method: 'POST',
         json: { code },
-      }),
+        idempotencyKey: idempotencyKey ?? newIdempotencyKey(),
+      })
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: keys.friends.all })
     },
@@ -113,10 +121,19 @@ export function usePetInteractions(friendUserId: string | null) {
 export function useInteractWithPet() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ friendUserId, input }: { friendUserId: string; input: PetInteractInput }) =>
+    mutationFn: ({
+      friendUserId,
+      input,
+      idempotencyKey,
+    }: {
+      friendUserId: string
+      input: PetInteractInput
+      idempotencyKey?: string
+    }) =>
       apiFetch<PetInteractResult>(`/friends/${encodeURIComponent(friendUserId)}/interact`, {
         method: 'POST',
         json: input,
+        idempotencyKey: idempotencyKey ?? newIdempotencyKey(),
       }),
     onSuccess: (result, variables) => {
       queryClient.setQueryData(keys.friends.interactions(variables.friendUserId), result.status)

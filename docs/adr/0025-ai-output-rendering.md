@@ -1,8 +1,8 @@
 # ADR-0025 — AI 输出渲染：Markdown、KaTeX、Mermaid
 
-- 状态：Proposed
-- 日期：2026-11-02
-- 决策人：项目负责人（AI 整理，待拍板）
+- 状态：Accepted（已全量落地）
+- 日期：2026-11-02（2026-11-16 同步落地状态）
+- 决策人：项目负责人（AI 整理，已拍板落地）
 
 ## 背景
 
@@ -22,9 +22,9 @@ Agent 的回复需要全量渲染 Markdown（标题、列表、表格、引用�
 1. **`src/components/markdown/`** 独立组件层，对外只暴露 `<Markdown text streaming />`。内部拆 `index / elements / code / math / diagram` 五个文件。
 2. **Markdown**：`react-markdown@10` + `remark-gfm`。**流式**用 `remend@1`（零依赖，字符串补全）补全未闭合的 `**`、代码块、公式。不渲染原始 HTML；链接只允许 http/https/mailto、新窗口 + `noopener noreferrer`；**外部图片不加载**，转成「图片：域名」链接（避免把用户 IP 暴露给第三方）。
 3. **KaTeX**：`remark-math` + `rehype-katex` + `katex@0.19`。三级懒加载的第二级：文本含 `$`/`$$` 才 `next/dynamic` 加载；字体随制品打包，不走外部 CDN。
-4. **Mermaid**：`mermaid@12`，三级懒加载的第三级：代码块是 `mermaid` 才动态加载，`securityLevel: 'strict'`，配色映射 token，渲染失败降级显示源码。**elkjs 布局不启用**；打包后确认 elkjs（EPL/GPL 双许可）不进入任何 chunk 再合并。
+4. **Mermaid**：`mermaid@12`，三级懒加载的第三级：代码块是 `mermaid` 才动态加载，`securityLevel: 'strict'`，`diagram.tsx` 通过 `getMermaidThemeVariables()` 从 `document.documentElement` 实时读取 `--surface`、`--surface-sunken`、`--foreground`、`--primary`、`--primary-soft`、`--muted`、`--border`、`--exercise-soft`、`--sleep-soft` 等 CSS 变量配色，并经 `MutationObserver` 监听 `data-theme` / `class` / `style` 变更以同步主题配色；渲染失败降级显示源码。**elkjs 布局不启用**；打包后确认 elkjs（EPL/GPL 双许可）不进入任何 chunk 再合并。
 5. **代码块不高亮**：等宽字体 + 凹陷底色 + 语言标签 + 复制按钮。shiki 以后需要再按变更规则引入。
-6. **提示词白名单**：对比用表格；热量/BMI/运动消耗公式用 KaTeX；计划用 mindmap、流程用 flowchart、时间用 timeline。简单问题不画图。
+6. **提示词规则**（`src/server/ai/agent.ts`）：对比信息用表格，代码用代码块；热量、BMI、运动消耗等计算公式用 `$...$` 或 `$$...$$` KaTeX 行内/块级公式；步骤流程或计划拆解优先用 `flowchart TD` / `flowchart LR`，节点文字含括号或特殊字符时用双引号包裹（如 `id["跑步 (30分钟)"]`）。简单问题不画图。
 
 ## 理由
 

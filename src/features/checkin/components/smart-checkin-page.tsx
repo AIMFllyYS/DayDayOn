@@ -340,7 +340,7 @@ export function SmartCheckinPage({
     const def = moduleDef(g.module)
     const clock = {
       timeZone: me.data.profile.timeZone,
-      dayStartHour: 0,
+      dayStartHour: me.data.preferences.dayStartHour ?? 4,
     }
 
     const effectiveInitialSmart = resolveInitialSmartForGoal({

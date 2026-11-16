@@ -63,8 +63,11 @@ describe('splashScript', () => {
     expect(run({ standalone: true, played: true }).dataset.splash).toBeUndefined()
   })
 
-  it('记住的形象是墩墩时换成墩墩，其他值保持团团', () => {
+  it('记住的形象是墩墩/绵绵/柚柚时切换为对应角色，团团或其他值保持默认团团', () => {
     expect(run({ standalone: true, mascot: 'dun' }).dataset.splashChar).toBe('dun')
+    expect(run({ standalone: true, mascot: 'mian' }).dataset.splashChar).toBe('mian')
+    expect(run({ standalone: true, mascot: 'you' }).dataset.splashChar).toBe('you')
+    expect(run({ standalone: true, mascot: 'tuan' }).dataset.splashChar).toBeUndefined()
     expect(run({ standalone: true, mascot: 'x' }).dataset.splashChar).toBeUndefined()
   })
 

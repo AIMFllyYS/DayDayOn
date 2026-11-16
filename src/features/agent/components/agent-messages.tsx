@@ -6,6 +6,7 @@ import { Mascot } from '@/components/mascot/mascot'
 import type { MascotCharacter } from '@/components/mascot/mascot-svg'
 import { InsightCard, InsightGrid } from '@/features/insights/components/insight-card'
 import { InsightsSchema, type Insights } from '@/features/insights/schemas'
+import { mascotCharacterName, resolveMascotCharacter } from '@/features/me/schemas'
 import { VerdictCard } from '@/features/referee/components/verdict-card'
 import { AgentDraftSchema, type AgentDraft } from '../schemas'
 import { findVerdict } from '../use-referee-run'
@@ -167,7 +168,8 @@ export function AgentMessages({
 }) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const last = messages.at(-1)
-  const petName = character === 'dun' ? '墩墩' : '团团'
+  const resolvedCharacter = resolveMascotCharacter(character)
+  const petName = mascotCharacterName(resolvedCharacter)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
@@ -177,7 +179,7 @@ export function AgentMessages({
     if (isLoadingHistory) {
       return (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
-          <Mascot character={character} mood="thinking" size={64} />
+          <Mascot character={resolvedCharacter} mood="thinking" size={64} />
           <div className="text-caption text-muted flex items-center gap-1.5">
             <span>正在加载历史对话</span>
             <ThinkingDots />
@@ -188,7 +190,7 @@ export function AgentMessages({
 
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
-        <Mascot character={character} mood="happy" size={72} />
+        <Mascot character={resolvedCharacter} mood="happy" size={72} />
         <p className="text-body text-muted">我是{petName}，你的打卡搭子～</p>
         <p className="text-caption text-subtle max-w-xs">
           告诉我你做了什么，比如「今天跑了 3 公里」「中午吃了番茄炒蛋」，我帮你记下来
@@ -233,7 +235,7 @@ export function AgentMessages({
         return (
           <AgentTurn
             key={m.id}
-            character={character}
+            character={resolvedCharacter}
             turn={toTurnView(m, turnStatusFor(status, isLast), isLast ? errorText : undefined)}
             onRetry={isLast ? onRetry : undefined}
           >
@@ -250,14 +252,14 @@ export function AgentMessages({
       {last?.role === 'user' && (status === 'submitted' || status === 'streaming') && (
         <AgentTurn
           key="pending-turn"
-          character={character}
+          character={resolvedCharacter}
           turn={{ id: 'pending-turn', status: 'submitted', parts: [] }}
         />
       )}
       {last?.role === 'user' && status === 'error' && (
         <AgentTurn
           key="error-turn"
-          character={character}
+          character={resolvedCharacter}
           turn={{
             id: 'error-turn',
             status: 'error',

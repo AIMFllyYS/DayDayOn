@@ -6,8 +6,8 @@
  * Responsibilities:
  * 1. Unified JSON Schema v5 Serialization & Deserialization:
  *    - Captures all 5 zones (with isPinned synced from DDO_ZONE_MGR).
- *    - Captures all 71 nodes (with x, y, moduleAnnotation, and layers[i].annotation).
- *    - Captures 64 edges and activeScenarioId.
+ *    - Captures all 67 nodes (31 L1-L4 modules + 36 L5 tables, with x, y, moduleAnnotation, and layers[i].annotation).
+ *    - Captures 134 edges and activeScenarioId.
  *    - Full version history array.
  * 2. Git-like Version Snapshot Management:
  *    - saveNewVersion(name, isAutoArchive): saves immutable commit snapshot.
@@ -39,7 +39,7 @@
   function (root) {
     'use strict'
 
-    const STORAGE_KEY = 'ddo:arch-canvas:versions:v7'
+    const STORAGE_KEY = 'ddo:arch-canvas:versions:v8'
 
     let _versions = []
     let _activeVersionId = 'v0'
@@ -186,7 +186,7 @@
 
       return {
         id: 'v0',
-        name: 'v0 · 项目真实基线 (初始状态)',
+        name: 'v0 · v0.1.6 最新五层架构与 36 表基线 (初始状态)',
         createdAt: 1730894400000,
         isAutoArchive: false,
         zones: clone(initialZones),

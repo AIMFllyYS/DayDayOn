@@ -1,6 +1,6 @@
-# ADR-0024 — Agent 对话：悬浮团团、工具调用与联网搜索
+# ADR-0024 — Agent 对话：悬浮宠物、全量工具集与联网搜索
 
-- 状态：Accepted（2026-11-02 评审通过并优化落地）
+- 状态：Accepted（2026-11-02 评审通过并优化落地；2026-11-16 同步最新实现）
 - 日期：2026-11-02
 - 决策人：项目负责人（AI 整理落地）
 
@@ -22,24 +22,30 @@ ADR-0003 把「联网搜索」列为 v0.2 暂不做。本 ADR 推翻这一条：
 
 ## 决定
 
-1. **接入 ToolLoopAgent**：新增 `src/server/ai/agent.ts`（模型 + 指令 + 工具 + `stopWhen: isStepCount(12)`）与 `src/server/ai/run-agent.ts`（复用 `runAi` 的预占/结算账本）。流式接口 `POST /api/v1/agent/chat` 走 UI message stream，不走幂等中间件（流式响应体无法缓存），幂等由额度层的 `rejectReusedKey` 保证。
-2. **草稿 + 一键确认**：写工具只返回结构化草稿（`draftCheckin` / `draftTodo` / `draftWeight`），前端渲染成 `AiDraftCard`，用户确认后调普通创建接口。硬规则不变。
-3. **联网搜索**：DeepSeek 官方 `POST /v1/tools/search`、`POST /v1/tools/fetch`，由模型自己决定何时搜；饮食热量、运动 MET 等数值在提示词里写明「必须先搜」。每次成功约 5000 微元计入额度。每轮最多 10 次。
+1. **接入 ToolLoopAgent（20 步上限）**：`src/server/ai/agent.ts` 构建 `ToolLoopAgent`（`stopWhen: isStepCount(MAX_STEPS)`，`MAX_STEPS = 20`，每步 `MAX_OUTPUT_TOKENS_PER_STEP = 2000`），通过 `prepareStep` 在最后一步强制 `toolChoice: 'none'` 保证一定输出文字回答；`src/server/ai/run-agent.ts` 复用 `runAi` 的预占/结算账本。流式接口 `POST /api/v1/agent/chat` 走 UI message stream，请求体上限 `11 MB`（`AGENT_CHAT_MAX_BODY_BYTES`，支持最多 2 张内联 JPEG dataURL + 文本附件，由 `validateInlineJpegDataUrl` 校验），不走幂等中间件（流式响应体无法缓存），幂等由额度层的 `rejectReusedKey` 保证。
+2. **草稿 + 一键确认与全量工具集**：写工具只返回结构化草稿（`AgentDraft`），前端渲染成 `AiDraftCard` / `ChangeDraftCard`，用户确认后调普通接口。完整工具集（`agent-tools.ts` + `agent-checkin-tools.ts`）包括：
+   - **个人与状态读**：`getUserProfile`、`listGoals`、`getDaySummary`、`listTodos`、`listCheckins`、`getWeight`、`getCheckin`、`getCheckinHistory`；
+   - **近况图表**：`showStats`（直接返回 `Insights` 数据，前端通过 `STATS_TOOLS` 渲染为同款 `InsightCard`）；
+   - **打卡事实查询**：`lookupFoodNutrition`、`lookupMet`、`calcExerciseKcal`、`getRecentSleep`、`getTodayStudy`；
+   - **好友只读穿透**：`listFriends`、`getFriendStatus`（只读好友概览、仪表盘与近期打卡，禁止改/删或替打）；
+   - **联网搜索**：`webSearch`、`webFetch`（每轮上限 `10` 次）；
+   - **草稿写工具**：`draftCheckin`、`draftUpdateCheckin`（限今天/昨天且须填 `reason`）、`draftDeleteCheckin`（限今天/昨天且须填 `reason`）、`draftTodo`、`draftWeight`。
+3. **联网搜索**：DeepSeek 官方 `POST /v1/tools/search`、`POST /v1/tools/fetch`，由模型自己决定何时搜；饮食热量、运动 MET 等数值在提示词里写明「内置表查不到时必须先搜」。每次成功约 5000 微元计入额度。每轮最多 10 次。
 4. **思考模式**：默认 `thinking: disabled`；输入框浮动「深度思考」开关打开时用 `reasoningEffort: 'low'`（DeepSeek 最低档）；AI 正在生成时自动隐藏该开关以节省空间。
-5. **会话与消息**：新增 `agent_conversations` + `agent_messages`（parts jsonb）。用户图片永不落盘：入库前把 file part 换成文字说明。`AiPurpose` 增加 `agent-chat`。
-6. **纯 IP 悬浮桌宠（FloatingPet）**：
-   - **去除圆形底盘**：去除传统 FAB 按钮式的 `bg-surface/90 rounded-full` 白圈底托，直接以 IP（`MascotSvg`）本身作为可拖拽可点击的桌宠实体。
-   - **自然轮廓立体投影**：通过 SVG alpha 轮廓柔和投影（`filter: drop-shadow(...)`）营造轻盈立体浮空感，避免被拘束在生硬圆框内。
-   - **交互与吸附**：支持拖拽、双击转圈、长按晃悠；贴靠边缘时自然露半头或倒立探头，生动灵动；形象自动跟随用户在「我的」中选择的陪伴宠物（团团/墩墩）。
+5. **会话、消息与动态标题**：`agent_conversations` + `agent_messages`（`parts` jsonb）统一持久化对话与打卡裁判分析回合。用户图片永不落盘：入库前由 `stripFileParts` 换成「N 张照片（识别后不保存）」，仅在当次浏览器标签页内存保留预览。`AiPurpose` 包含 `agent-chat` 与 `referee`。对话标题动态显示：`AgentPanel` 顶栏优先展示当前会话标题（首条用户文本由 `titleFromFirstUserText` 取前 20 字，纯发图记为「图片打卡识别」，打卡裁判分析会话为「目标名 · 打卡分析」），无历史标题时动态回退为当前所选宠物名。
+6. **4 吉祥物全链路适配与纯 IP 悬浮桌宠（FloatingPet）**：
+   - **4 吉祥物全链路适配**：支持 `tuan`（团团）/ `dun`（墩墩）/ `mian`（绵绵）/ `you`（柚柚）四种陪伴形象（`resolveMascotCharacter` / `mascotCharacterName`），悬浮宠、弹窗与全屏欢迎页、系统提示词 `loadPetName()` 自称以及流式兜底错误提示全程同步跟随用户偏好。
+   - **去除圆形底盘与立体投影**：去除传统 FAB 白圈底托，直接以 IP（`PetAvatar`）本身作为可拖拽可点击的桌宠实体，配合 SVG alpha 轮廓柔和投影营造轻盈浮空感。
+   - **交互、吸附与隐藏规则**：支持拖拽、双击转圈、长按晃悠；贴靠边缘时自然露半头或倒立探头。由 `isFloatingPetHidden(pathname, viewingFriendId)` 严格控制隐藏规则——在 **`/agent` 全屏页及子路由**、**`/me` 我的页**（已有独立互动宠物）以及 **串门好友空间（`viewingFriendId !== null`，已有好友小窝舞台）** 时隐藏悬浮宠物（切回「我」恢复显示）；隐藏前通过 `useLayoutEffect` 同步 `blur()` 并改用原生 `inert`，杜绝焦点无障碍警告。
 7. **Agent 弹窗（AgentPanel）与全屏页**：
    - 弹窗定位优化为手机顶部留 1/4（25vh）、左侧留 1/5（20vw），空间充裕；桌面右下角卡片。
-   - 顶栏左上角为明确的放大全屏按钮，后接标题「团团」，右侧历史对话使用 Base UI Popover 挂载到 body Portal（`z-[60]`），配合视口碰撞检测彻底消除左侧截断。
-   - 输入框单行精致呈现（支持最大自适应扩展至 5 行），左侧拍照、中间文本、右侧紧凑圆圈发送按钮，输入框与消息流之间无多余分割线。
-   - 全屏页（`/agent`）顶栏左侧带箭头+「返回」文字，标题「团团 AI打卡搭子」，输入框真正吸底。
+   - 顶栏左上角为明确的放大全屏按钮，紧接动态会话标题（回退当前宠物名），右侧历史对话使用 Base UI Popover 挂载到 body Portal（`z-[60]`），配合视口碰撞检测彻底消除左侧截断。
+   - 输入框单行精致呈现（支持最大自适应扩展至 5 行），左侧支持原生文件多选（最多 2 张图片 + `.txt/.md/.csv` 文本附件）、中间文本、右侧紧凑圆圈发送按钮，输入框与消息流之间无多余分割线。
+   - 全屏页（`/agent`）顶栏左侧带箭头+「返回」文字，标题「{petName} AI打卡搭子」，输入框真正吸底。
 
 ## 理由
 
-- 复用现有账本（预占上限 = 12 步 × 单步输出 + 10 次联网）保证多步循环不会超扣。
+- 复用现有账本（预占上限 = 20 步 × 单步输出上限 + 10 次联网）保证多步复杂查询与多条草稿循环不会超扣。
 - 草稿 + 确认维持「用户是最终决定者」的产品原则，也避免 AI 直接写库带来的误记风险。
 - 去除白圈让桌宠自然融入 UI，边缘吸附露半头宛如探出手机边框，治愈感与生命感更强。
 - Popover 经 Portal 渲染彻底解决 `overflow-hidden` 容器裁剪问题。

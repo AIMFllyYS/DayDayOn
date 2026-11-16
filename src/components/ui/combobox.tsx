@@ -193,7 +193,7 @@ function TriggerButton() {
 function ComboboxPopup({ emptyText = '没有找到，换个词试试' }: { emptyText?: string }) {
   return (
     <BaseCombobox.Portal>
-      <BaseCombobox.Positioner sideOffset={6} className="z-10">
+      <BaseCombobox.Positioner sideOffset={6} className="z-50 md:z-[60]">
         <BaseCombobox.Popup
           className={cn(
             popupSurfaceClass,

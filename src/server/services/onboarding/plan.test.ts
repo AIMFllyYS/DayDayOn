@@ -76,6 +76,27 @@ describe('planOnboarding', () => {
     expect(plan.weightGrams).toBe(62_500)
   })
 
+  it('支持在引导里设定总打卡周期天数、截止日期、提醒时间与板块目标微调', () => {
+    const plan = planOnboarding(
+      input({
+        modules: ['exercise', 'diet'],
+        periodDays: 21,
+        remindAt: '21:30',
+        goalPlans: [
+          { module: 'exercise', target: { kind: 'duration', value: 2700 }, weekdays: [1, 3, 5] },
+        ],
+      }),
+      NOW,
+    )
+    expect(plan.profile.remindAt).toBe('21:30')
+    expect(plan.profile.remindMode).toBe('in-app')
+    // NOW = 2026-11-01T02:00Z -> 北京时间 10:00 -> today = 2026-11-01，21 天截止日为 2026-11-21
+    expect(plan.goals.every((g) => g.deadlineDate === '2026-11-21')).toBe(true)
+    const ex = plan.goals.find((g) => g.module === 'exercise')
+    expect(ex?.target).toEqual({ kind: 'duration', value: 2700 })
+    expect(ex?.weekdays).toEqual([1, 3, 5])
+  })
+
   it('schema 层：没有同意健康数据、没选板块、重复板块都不通过', () => {
     expect(OnboardingSchema.safeParse({ nickname: 'a', modules: ['diet'] }).success).toBe(false)
     expect(

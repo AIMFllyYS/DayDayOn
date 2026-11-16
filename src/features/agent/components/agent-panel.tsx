@@ -2,8 +2,8 @@
 
 import { forwardRef, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import type { MascotCharacter } from '@/components/mascot/mascot-svg'
 import { Icon } from '@/components/ui/icon'
+import { mascotCharacterName, resolveMascotCharacter } from '@/features/me/schemas'
 import { newIdempotencyKey } from '@/lib/api/fetcher'
 import { useAgentConversations } from '@/lib/api/queries/agent'
 import { useMe } from '@/lib/api/queries/me'
@@ -29,8 +29,8 @@ export function AgentPanel() {
   const { messages, status, error, isLoadingHistory, retry, send } = useAgentChat()
   const conversations = useAgentConversations()
   const { data: me } = useMe()
-  const character: MascotCharacter = me?.preferences.mascot === 'dun' ? 'dun' : 'tuan'
-  const petName = character === 'dun' ? '墩墩' : '团团'
+  const character = resolveMascotCharacter(me?.preferences.mascot)
+  const petName = mascotCharacterName(character)
   const timeZone = me?.profile.timeZone ?? BUSINESS_TIME_ZONE
   const panelRef = useRef<HTMLDivElement>(null)
 

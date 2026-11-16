@@ -59,3 +59,4 @@ export default async function Page({ params }: PageProps<'/goals/[id]'>) {
 - 用 `metadata` / `generateMetadata()` 管理页面元信息；`viewport` 单独导出
 - `next lint` 已移除，用 `eslint .`
 - `next dev` 会自动在 `AGENTS.md` 顶部写入 Next 的提示块，保留它即可
+- 首屏数据页面（如 `/`）在 `(app)/layout.tsx` 的单层 `<Suspense fallback={<PageSkeleton />}>` 内结合 `React.cache()`（`session.ts`）与 TanStack Query `HydrationBoundary` + `dehydrate(getQueryClient())` 完成服务端预取脱水，避免外层 `PageSkeleton` 后再出现客户端 `HomeSkeleton` 的二次骨架闪烁（同时保持 `useHasQueryClient` 等 `useContext` 逻辑留在 `'use client'` 文件 `provider.tsx` 内）

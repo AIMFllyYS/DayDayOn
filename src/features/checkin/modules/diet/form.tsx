@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/field'
 import { Icon } from '@/components/ui/icon'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { cn } from '@/lib/cn'
+import { BUSINESS_TIME_ZONE, isValidTimeZone, localTimeOf } from '@/lib/time'
 import type { CreateCheckinInput, MealType } from '../../schemas'
 import type { SmartRecognitionDraft } from '../../smart-schemas'
 import { FavoritesSheet, splitNames, TagRow, useFavorites } from '../../flow/fields/tags'
@@ -46,9 +47,8 @@ export function guessMainMeal(hour: number): MainMealType {
   return 'dinner'
 }
 
-function nowHHMM(): string {
-  const n = new Date()
-  return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`
+function nowHHMM(timeZone: string): string {
+  return localTimeOf(new Date(), timeZone)
 }
 
 interface SmartItem {
@@ -58,10 +58,14 @@ interface SmartItem {
 }
 
 export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
+  const timeZone =
+    props?.clock.timeZone && isValidTimeZone(props.clock.timeZone)
+      ? props.clock.timeZone
+      : BUSINESS_TIME_ZONE
   const enteredRef = useRef<string | null>(null)
   const clock = useSyncExternalStore(
     () => () => undefined,
-    () => (enteredRef.current ??= nowHHMM()),
+    () => (enteredRef.current ??= nowHHMM(timeZone)),
     () => '',
   )
   const [meal, setMeal] = useState<MealType | null>(props?.initialMeal ?? null)

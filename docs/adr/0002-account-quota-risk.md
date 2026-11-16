@@ -59,22 +59,24 @@
 - 拒绝本地部分带 `+` 的地址（如 `a+1@gmail.com`）。
 - Gmail 忽略本地部分的 `.`（`a.b@gmail.com` 与 `ab@gmail.com` 视为同一个邮箱）。
 
-## 4. 图片处理流程
+## 4. 图片处理流程（以 [ADR-0011](./0011-image-pipeline.md) JPEG 流水线为准）
+
+> 注：初版曾计划压缩为 WebP（长边 ≤ 1600px），因 Safari 不支持 `canvas` 编码 WebP，已由 [ADR-0011](./0011-image-pipeline.md) 正式取代为 JPEG 流水线。
 
 ```
-拍照 / 选图
-  → 浏览器压缩（长边 ≤ 1600px，WebP）
-  → POST /api/v1/...（multipart，限制大小）
-  → 服务端只在内存中处理：校验格式 → 发给 deepseek-flash
-  → 返回结构化草稿 + 解析文本
+拍照 / 选图（或对话内联选图，最多 2 张）
+  → 浏览器原生 canvas 压缩为 JPEG（质量 0.8，像素总量 ≤ 约 1300×1300，重编码剥离 EXIF/GPS）
+  → POST /api/v1/ai/...（multipart，单张 ≤ 4 MB）或 POST /api/v1/agent/chat（内联 dataURL，总请求体 ≤ 11 MB）
+  → 服务端只在内存中处理：校验 JPEG 文件头（FF D8 FF）→ 作为内联 file part 发给 deepseek-flash
+  → 返回结构化草稿 + 解析文本（或流式对话回复）
   → 用户确认或修改
-  → 入库：结构化字段 + 解析文本（不含图片）
+  → 入库：结构化字段 + 解析文本（对话图片替换为文字说明，均不含图片）
 ```
 
 规则：
 
-- 图片不写磁盘、不进数据库、不进日志（包括 base64）、不发给 DeepSeek 以外的任何服务。
-- 请求结束后图片数据随内存释放；不做服务端缓存。
+- 图片不写磁盘、不进数据库、不进日志（包括 base64）、不调用 `uploadFile` / DeepSeek Files API、不发给 DeepSeek 以外的任何服务。
+- 请求结束后图片数据随内存释放；不做服务端缓存或 Service Worker 缓存。
 - 解析失败或置信度低时，降级为手动填写。
 - 历史记录里看不到原图；识别有误只能手动改数值，不能事后重新解析。
 
@@ -105,6 +107,7 @@
   - **已预占未结算金额**。
 - 扣费顺序：先扣本周额度，用完再扣加购余额。
 - **新账号**：注册后本周额度先给 2 元；完成新人引导后，把当周额度补到 10 元（已用掉的照常计入）；从下一周起按正常的 10 元发放。
+- **注销防刷（`account_tombstones`）**：注销账号时保留 8 天（`TOMBSTONE_TTL_MS = 8 天`）的邮箱 HMAC 摘要快照，记录本周额度及近 24 小时内最多 200 条 `ai_runs` / `redeem_attempts` 引用；同邮箱 8 天内重新注册时沿用当周额度并重新关联风控记录，防止注销重注刷额度或绕过频控。
 - 每次调用：
   1. 按"预估输入 tokens × 未命中输入价 + 最大输出 tokens × 输出价"**预占**；余额不足直接拒绝。
   2. 调用结束按 DeepSeek 返回的实际用量**结算**，多退少补（预占上限保证不会超扣）。
@@ -125,17 +128,17 @@
 
 ## 6. 基础风控
 
-应用只监听 `127.0.0.1`，所有请求都经过宝塔 Nginx，所以只信任 Nginx 写入的 `X-Real-IP` / `X-Forwarded-For`。
+应用只监听 `127.0.0.1`，所有请求都经过宝塔 Nginx，所以只信任 Nginx 写入的 `X-Real-IP`。自 [ADR-0023](./0023-captcha.md) 接入自托管点选人机验证后，同 IP 限流阈值已按校园网/NAT 共用出口场景放宽；配置默认值以 `src/server/settings-schema.ts`（`DEFAULT_SETTINGS`）与 `src/server/auth/auth.ts` 为准：
 
-| 场景 | 限制（初始值，可调） |
+| 场景 | 限制（当前默认实现，后台可调项见 `AppSettingsSchema`） |
 |---|---|
-| 发送验证码 | 同一邮箱 60 秒 1 次、每天 10 次；同一 IP 每小时 5 次、每天 20 次 |
-| 新注册 | 同一 IP 每天最多 3 个账号 |
-| 验证码校验 | 同一邮箱连续错 5 次，该验证码作废 |
-| AI 调用 | 同一用户每小时 60 次，同时最多 2 个进行中 |
-| 兑换码 | 同一用户每小时 5 次失败后锁定 1 小时 |
+| 发送验证码 | 先校验自托管点选人机验证（未通过不消耗后续计数）；同一邮箱 60 秒 1 次、每天 `otpPerEmailDaily`（默认 `100` 次）；同一 IP 每小时 `100` 次（`auth.ts` `customRules`）、每天 `otpPerIpDaily`（默认 `500` 次） |
+| 验证码登录 / 校验 | 同一 IP 每分钟 `30` 次（`auth.ts` `customRules`）；同一验证码连续错 `8` 次作废（`emailOTP.allowedAttempts = 8`） |
+| 新注册 | 同一 IP 每天新注册账号数 `> 3` 时触发 `ip-multi-account` 管理员告警（每日去重），达到 `signupPerIpDaily`（默认 `100` 个）时拦截并返回 429 `RATE_LIMITED` |
+| AI 调用 | 同一用户每小时 `aiHourlyLimit`（默认 `60` 次，触发 `user-hourly-calls` 告警），同时最多 `aiConcurrency`（默认 `2` 个）进行中 |
+| 兑换码 | 同一用户每小时 `redeemFailLockThreshold`（默认 `5` 次）失败后锁定 1 小时（触发 `redeem-failures` 告警） |
 
-另外记录注册 IP、最近登录 IP，供后台按 IP 聚合查看。出现批量注册时再考虑接入阿里云验证码（按次计费，先不接）。
+> 注：业务限流通过 `rateLimit()` / `hooks.ts` 返给前端的 `retryAfterSeconds` 最高封顶 `1800` 秒（30 分钟），避免固定 UTC 日窗口在夜间触发时提示过长等待；另外记录注册 IP、最近登录 IP，供后台按 IP 聚合查看。
 
 ## 7. 后台管理（最简版）
 

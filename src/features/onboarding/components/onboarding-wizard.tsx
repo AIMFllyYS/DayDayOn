@@ -8,13 +8,16 @@ import type { MascotMood } from '@/components/mascot/mascot-svg'
 import { Button } from '@/components/ui/button'
 import { StepProgress } from '@/components/ui/progress'
 import { toast } from '@/components/ui/toast'
+import { RulesStep, type RulesStepValue } from '@/features/checkin/components/onboarding-rules-step'
+import { PeriodPlanPicker } from '@/features/goal/components/period-plan-picker'
+import { deadlineFromDays } from '@/features/goal/period'
 import { AvatarPicker } from '@/features/me/components/avatar-picker'
 import { NicknameSchema, OnboardingSchema } from '@/features/me/schemas'
 import { kgToGrams } from '@/features/me/units'
 import type { Module } from '@/features/shared/schemas'
 import { errorMessage, isApiError, newIdempotencyKey } from '@/lib/api'
 import { useCompleteOnboarding } from '@/lib/api/queries/me'
-import { RulesStep, type RulesStepValue } from '@/features/checkin/components/onboarding-rules-step'
+import { localDateOf } from '@/lib/time'
 import {
   ConsentStep,
   LeaderboardStep,
@@ -26,15 +29,15 @@ import {
 
 /*
  * 新人引导（PRD 2.2、7.1）：七步，最后一次 POST /me/onboarding，成功后回主页。
- * 「定个标准」一步复用目标设置页的规则面板（checkin-modules.md 第 5 节），整步可跳过。
- * 每步只校验自己的字段；最后提交前再用同一份 OnboardingSchema 整体校验。
+ * 「想打卡什么」与全局目标设置页共享板块选择与总周期/提醒配置；
+ * 「定个标准」复用目标设置页的规则面板（checkin-modules.md 第 5 节），整步可跳过。
  */
 
 const STEPS: { title: string; note: string; mood: MascotMood }[] = [
   { title: '先认识一下', note: '给自己起个昵称吧', mood: 'happy' },
   { title: '选个头像', note: '可以跳过，跳过就显示昵称首字', mood: 'love' },
   { title: '基础资料', note: '全部可选，之后在「我的」里也能改', mood: 'thinking' },
-  { title: '想打卡什么', note: '每选一个，团团帮你建一个默认目标', mood: 'cheer' },
+  { title: '想打卡什么 · 定总周期', note: '选好板块和坚持天数，团团帮你排好计划', mood: 'cheer' },
   { title: '定个标准', note: '吃睡动学各有达标规则，可以跳过', mood: 'thinking' },
   { title: '要不要上榜', note: '和朋友比一比打卡天数', mood: 'shy' },
   { title: '最后一步', note: '健康数据的使用说明', mood: 'happy' },
@@ -78,6 +81,9 @@ export function OnboardingWizard({ thisYear }: { thisYear: number }) {
     timeZone: 'Asia/Shanghai',
   })
   const [modules, setModules] = useState<Module[]>([])
+  const today = localDateOf(new Date(), basic.timeZone, 4)
+  const [deadlineDate, setDeadlineDate] = useState<string>(() => deadlineFromDays(today, 21))
+  const [remindAt, setRemindAt] = useState<string>('21:00')
   const [rulesStep, setRulesStep] = useState<RulesStepValue>({
     tier: 'balanced-glycemic',
     rules: {},
@@ -120,6 +126,8 @@ export function OnboardingWizard({ thisYear }: { thisYear: number }) {
       weightGrams: kgToGrams(basic.weightKg),
       timeZone: basic.timeZone,
       modules,
+      deadlineDate: deadlineDate || null,
+      remindAt: remindAt || null,
       refereeTier: rulesStep.tier,
       goalRules: Object.entries(rulesStep.rules)
         .filter(([m]) => modules.includes(m as Module))
@@ -183,7 +191,22 @@ export function OnboardingWizard({ thisYear }: { thisYear: number }) {
         {step === 2 && (
           <ProfileStep value={basic} onChange={setBasic} errors={errors} thisYear={thisYear} />
         )}
-        {step === 3 && <ModulesStep value={modules} onChange={setModules} error={errors.modules} />}
+        {step === 3 && (
+          <div className="flex flex-col gap-5">
+            <ModulesStep value={modules} onChange={setModules} error={errors.modules} />
+            <div className="border-border/70 border-t pt-4">
+              <PeriodPlanPicker
+                idPrefix="ob-period"
+                startDate={today}
+                today={today}
+                deadlineDate={deadlineDate}
+                onDeadlineChange={setDeadlineDate}
+                remindAt={remindAt}
+                onRemindAtChange={setRemindAt}
+              />
+            </div>
+          </div>
+        )}
         {step === 4 && (
           <RulesStep
             modules={modules}

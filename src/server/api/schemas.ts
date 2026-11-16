@@ -17,6 +17,7 @@ export const ErrorSchema = z
     previousWeightGrams: z.number().int().optional(),
     aiRunId: z.string().optional(),
     retryAfterSeconds: z.number().int().optional(),
+    draft: z.string().optional(),
   })
   .meta({ id: 'Error' })
 
@@ -38,8 +39,10 @@ export function errorResponses(...codes: ErrorCode[]) {
   return out
 }
 
-/** 每个需要登录的路由都会出现的错误 */
-export const AUTH_ERRORS = ['UNAUTHENTICATED', 'ACCOUNT_BANNED', 'ONBOARDING_REQUIRED'] as const
+/** 仅需登录（免引导检查）的路由错误 */
+export const AUTH_ONLY_ERRORS = ['UNAUTHENTICATED', 'ACCOUNT_BANNED'] as const
+/** 每个需要登录并完成引导的路由都会出现的错误 */
+export const AUTH_ERRORS = [...AUTH_ONLY_ERRORS, 'ONBOARDING_REQUIRED'] as const
 export const ADMIN_ERRORS = [
   'UNAUTHENTICATED',
   'ACCOUNT_BANNED',

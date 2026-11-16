@@ -14,7 +14,9 @@
 | 应用框架 | Next.js（App Router、自托管） | 16.4.3 | 是 | — | 架构基线 §0 | [nextjs](./lessons/nextjs.md) |
 | UI 运行时 | React | 19.3.1 | 是 | — | 同上 | — |
 | 语言 | TypeScript | 6.0.3（锁定，typescript-eslint 尚不支持 7） | 是 | — | 同上 | — |
-| 样式 | Tailwind CSS（`@tailwindcss/turbopack`） | 4.3.3 | 是 | `src/app/globals.css` | 同上 | — |
+| 样式 | Tailwind CSS（`tailwindcss` + `@tailwindcss/turbopack`） | 4.3.3 | 是 | `src/app/globals.css` | 同上 | — |
+| React 编译器 | `babel-plugin-react-compiler` | 1.0.0 | 是 | `next.config.ts`（`reactCompiler: true`） | — | — |
+| TS 脚本执行 | `tsx` | 4.23.15 | 是 | `scripts/dev/`（`package.json` 数据库与 OpenAPI 脚本） | — | — |
 | className 拼接 | 自研 `cn()`（不做冲突合并） | — | — | `src/lib/cn.ts` | [ADR-0004](./adr/0004-interaction-primitives.md) | — |
 | 字体加载 | `next/font/local` + 子集化 woff2 | 随 Next | — | `src/lib/fonts.ts` | — | — |
 | 图标 | 自研 `Icon`（手绘） | — | — | `src/components/ui/icon.tsx` | ui-design-system §6 | — |
@@ -26,13 +28,13 @@
 
 | # | 关注点 | 所有者 | 版本 | 已安装 | 封装层入口 | ADR | lessons |
 |---|---|---|---|---|---|---|---|
-| 1 | 交互原语（抽屉、对话框、选择器、组合框、滑块、数字输入、验证码输入、菜单、气泡） | Base UI（`@base-ui/react`） | 1.9.0 | 否（M1） | `src/components/ui/` | [0004](./adr/0004-interaction-primitives.md) | [base-ui](./lessons/base-ui.md) |
+| 1 | 交互原语（抽屉、对话框、选择器、组合框、滑块、数字输入、验证码输入、菜单、气泡） | Base UI（`@base-ui/react`） | 1.9.0 | 是 | `src/components/ui/` | [0004](./adr/0004-interaction-primitives.md) | [base-ui](./lessons/base-ui.md) |
 | 2 | 动效 | 不引入库：CSS 预设 + React `<ViewTransition>` | — | — | `src/app/globals.css` | [0005](./adr/0005-motion.md) | — |
-| 3 | 提示消息 | Base UI Toast | 同 #1 | 否（M1） | `src/components/ui/toast.tsx` | [0006](./adr/0006-toast.md) | 同 #1 |
-| 4 | 日期与时间选择 | 原生 input + React DayPicker（`react-day-picker`） | 10.0.2 | 否（M2） | `src/components/ui/calendar.tsx`、`date-field.tsx`、`time-range-field.tsx` | [0007](./adr/0007-date-time-picker.md) | [react-day-picker](./lessons/react-day-picker.md) |
-| 5 | 日期与时区计算 | `date-fns` + `@date-fns/tz` | 4.4.0 / 1.5.0 | 否（M1，Base UI 的 peer 依赖） | `src/lib/time/` | [0008](./adr/0008-date-time-calc.md) | [date-fns](./lessons/date-fns.md) |
+| 3 | 提示消息 | Base UI Toast | 同 #1 | 是 | `src/components/ui/toast.tsx` | [0006](./adr/0006-toast.md) | 同 #1 |
+| 4 | 日期与时间选择 | 原生 input + React DayPicker（`react-day-picker`） | 10.0.2 | 是 | `src/components/ui/calendar.tsx`、`date-field.tsx`、`time-field.tsx`、`time-range-field.tsx` | [0007](./adr/0007-date-time-picker.md) | [react-day-picker](./lessons/react-day-picker.md) |
+| 5 | 日期与时区计算 | `date-fns` + `@date-fns/tz` | 4.4.0 / 1.5.0 | 是 | `src/lib/time/` | [0008](./adr/0008-date-time-calc.md) | [date-fns](./lessons/date-fns.md) |
 | 6 | 表单与动态表单 | 不引入库：Base UI Form / Field + zod | 同 #1 | — | `src/components/ui/field.tsx`、`form.tsx`；`src/features/goal/components/schema-form.tsx` | [0009](./adr/0009-forms.md) | — |
-| 7 | 图表 | 自研 SVG + `d3-shape` | 3.2.0 | 否（M2） | `src/components/charts/` | [0010](./adr/0010-charts.md) | — |
+| 7 | 图表 | 自研 SVG + `d3-shape`（开发依赖 `@types/d3-shape`） | 3.2.0 / 3.2.0 | 是 | `src/components/charts/` | [0010](./adr/0010-charts.md) | — |
 | 8 | 图片压缩与传输 | 不引入库：原生 canvas 转 JPEG | — | — | `src/lib/image/`、`src/server/ai/image.ts` | [0011](./adr/0011-image-pipeline.md) | — |
 | 9 | 客户端数据请求 | TanStack Query（`@tanstack/react-query`） | 5.105.0 | 是 | `src/lib/api/` | [0012](./adr/0012-client-data.md) | [tanstack-query](./lessons/tanstack-query.md) |
 | 10 | 数据校验 | `zod` | 4.6.7 | 是 | 工具库豁免；schema 在 `src/features/<领域>/schemas.ts` | [0013](./adr/0013-validation.md) | [zod](./lessons/zod.md) |
@@ -43,17 +45,17 @@
 
 | # | 关注点 | 所有者 | 版本 | 已安装 | 封装层入口 | ADR | lessons |
 |---|---|---|---|---|---|---|---|
-| 11 | 鉴权与会话 | Better Auth（`better-auth`，含 emailOTP、admin、twoFactor 插件和 Drizzle 适配器） | 1.7.14 | 否（M3） | `src/server/auth/`、`src/lib/auth-client.ts` | [0014](./adr/0014-auth.md) | [better-auth](./lessons/better-auth.md) |
-| 12 | 数据访问 | `drizzle-orm` + `pg`；开发依赖 `drizzle-kit`、`@types/pg` | 0.45.4 / 8.23.1 / 0.31.11 | 否（M3） | `src/server/db/` | [0015](./adr/0015-data-access.md) | [drizzle](./lessons/drizzle.md) |
-| 13 | 接口层与契约 | `hono` + `@hono/zod-openapi` | 4.13.14 / 1.6.3 | 否（M3） | `src/server/api/`、`src/app/api/v1/[[...route]]/route.ts` | [0016](./adr/0016-api-layer.md) | [hono](./lessons/hono.md) |
-| 14 | SMTP 发信 | `nodemailer`（自带类型声明） | ≥ 10.3.1 | 否（M3） | `src/server/mail/` | [0017](./adr/0017-smtp.md) | [nodemailer](./lessons/nodemailer.md) |
-| 15 | 测试 | `vitest` + `vite`（开发依赖） | 5.0.5 / 8.x | 否（M3） | `vitest.config.ts` | [0018](./adr/0018-testing.md) | [vitest](./lessons/vitest.md) |
-| 16 | PWA | 不引入库：`app/manifest.ts` + 手写 `public/sw.js` | — | — | `src/app/manifest.ts`、`public/sw.js` | [0019](./adr/0019-pwa.md) | — |
+| 11 | 鉴权与会话 | Better Auth（`better-auth`，含 emailOTP、admin、twoFactor 插件和 Drizzle 适配器） | 1.7.14 | 是 | `src/server/auth/`、`src/lib/auth-client.ts`、`src/app/api/auth/[...all]/route.ts` | [0014](./adr/0014-auth.md) | [better-auth](./lessons/better-auth.md) |
+| 12 | 数据访问 | `drizzle-orm` + `pg`；开发依赖 `drizzle-kit`、`@types/pg` | 0.45.4 / 8.23.1 / 0.31.11 / 8.23.1 | 是 | `src/server/db/`、`drizzle.config.ts`、`scripts/**` | [0015](./adr/0015-data-access.md) | [drizzle](./lessons/drizzle.md) |
+| 13 | 接口层与契约 | `hono` + `@hono/zod-openapi` | 4.13.14 / 1.6.3 | 是 | `src/server/api/`、`src/app/api/v1/[[...route]]/route.ts` | [0016](./adr/0016-api-layer.md) | [hono](./lessons/hono.md) |
+| 14 | SMTP 发信 | `nodemailer`（自带类型声明） | 10.3.1 | 是 | `src/server/mail/` | [0017](./adr/0017-smtp.md) | [nodemailer](./lessons/nodemailer.md) |
+| 15 | 测试 | `vitest` + `vite`（开发依赖） | 5.0.5 / 8.3.5 | 是 | `vitest.config.ts` | [0018](./adr/0018-testing.md) | [vitest](./lessons/vitest.md) |
+| 16 | PWA | 不引入库：`app/manifest.ts` + 手写 `public/sw.js` | — | — | `src/app/manifest.ts`、`public/sw.js`（规划 M5，尚未创建） | [0019](./adr/0019-pwa.md) | — |
 | 17 | 定时任务 | 不引入库：周期键懒计算 + 系统 cron | — | — | `src/server/quota/` | [0020](./adr/0020-jobs.md) | — |
 | — | 数据库 | PostgreSQL（Docker） | 18.6 | 服务器已运行 | `src/server/db/` | [ADR-0001](./adr/0001-ecosystem-or-standalone.md) | — |
 | — | 部署 | 阿里云 ECS + PM2 + 宝塔 Nginx | — | 服务器已配置 | `scripts/deploy/` | ADR-0001 | [aliyun-ecs](./lessons/aliyun-ecs.md) |
 | — | AI 模型 | DeepSeek `deepseek-flash` | — | — | `src/server/ai/model.ts` | [ADR-0002](./adr/0002-account-quota-risk.md) | [ai-sdk](./lessons/ai-sdk.md) |
-| — | AI 编排 | Vercel AI SDK：`ai`、`@ai-sdk/deepseek`、`@ai-sdk/react` | 7.0.159 / 3.0.77 / 4.0.163（2026-10-31 registry） | 否（M3） | `src/server/ai/`、`src/features/agent/` | 负责人指定 | [ai-sdk](./lessons/ai-sdk.md) |
+| — | AI 编排 | Vercel AI SDK：`ai`、`@ai-sdk/deepseek`、`@ai-sdk/react` | 7.0.159 / 3.0.77 / 4.0.163 | 是 | `src/server/ai/`、`src/features/agent/` | 负责人指定 | [ai-sdk](./lessons/ai-sdk.md) |
 | — | 邮件服务 | 阿里云邮件推送（SMTP） | — | — | `src/server/mail/` | ADR-0002 | — |
 
 后台的数据表格不选型，用自研的简单表格（用户量小；TanStack Table 在 react.dev 的 incompatible-library 规则里被点名）。

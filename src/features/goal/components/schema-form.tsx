@@ -150,9 +150,9 @@ export function FieldControl({ id, field, value, invalid, onChange }: ControlPro
           onChange(e.target.value === '' ? undefined : e.target.value),
       }
       return long ? (
-        <Textarea {...props} rows={2} className="text-caption min-h-16 px-3 py-2" />
+        <Textarea {...props} rows={2} className="text-body md:text-caption min-h-16 px-3 py-2" />
       ) : (
-        <Input {...props} className="text-caption h-10 px-3" />
+        <Input {...props} className="text-body md:text-caption h-11 px-3 md:h-10" />
       )
     }
     case 'single-select':

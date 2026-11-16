@@ -192,5 +192,25 @@ describe('self-hosted point-and-click captcha', () => {
       }),
     )
     expect(postBadRes.status).toBe(422)
+
+    // 同一 challengeId 再次提交（即使在同进程或持久化兜底下）也必须被拒绝
+    const replayRes = await handleCaptchaRequest(
+      new Request('http://localhost:23329/api/auth/captcha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          challengeId: dto.challengeId,
+          clicks: [
+            { x: 0, y: 0 },
+            { x: 0, y: 0 },
+            { x: 0, y: 0 },
+          ],
+          durationMs: 500,
+        }),
+      }),
+    )
+    expect(replayRes.status).toBe(422)
+    const replayJson = (await replayRes.json()) as { code?: string }
+    expect(replayJson.code).toBe('EXPIRED_CHALLENGE')
   })
 })

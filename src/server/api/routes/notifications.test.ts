@@ -144,6 +144,19 @@ describe('/api/v1/notifications 接口调用与参数校验', () => {
     expect(body.fields?.limit).toBeDefined()
   })
 
+  it('GET /notifications 传入非法 cursor 时返回 400 VALIDATION_FAILED', async () => {
+    mocks.useRealService = true
+    try {
+      const res = await app.request('/api/v1/notifications?cursor=not-a-valid-date')
+      expect(res.status).toBe(400)
+      const body = (await res.json()) as { code: string; fields?: Record<string, string[]> }
+      expect(body.code).toBe('VALIDATION_FAILED')
+      expect(body.fields?.cursor).toBeDefined()
+    } finally {
+      mocks.useRealService = false
+    }
+  })
+
   it('POST /notifications/read 支持批量标记已读', async () => {
     mocks.service.markNotificationsRead.mockResolvedValue({
       success: true,

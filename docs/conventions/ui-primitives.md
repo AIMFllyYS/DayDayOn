@@ -7,11 +7,11 @@
 
 ## 1. 封装层
 
-| 原语 | 封装文件（`src/components/ui/`） | 基于 |
+| 原语 / 能力 | 封装文件（`src/components/ui/`） | 基于 |
 |---|---|---|
-| 底部抽屉 / 对话框 | `sheet.tsx`（对外接口不变） | Base UI Drawer（< 768px）/ Dialog（≥ 768px） |
-| 确认对话框 | `confirm-dialog.tsx` | AlertDialog |
-| 提示消息 | `toast.tsx` | Toast |
+| 底部抽屉 / 对话框 | `sheet.tsx`（内置 `useAnimatedOpen`） | Base UI Drawer（< 768px）/ Dialog（≥ 768px） |
+| 确认对话框 | `confirm-dialog.tsx`（内置 `useAnimatedOpen`） | AlertDialog |
+| 提示消息 | `toast.tsx`（导出 `ToastProvider`、`toastManager`、`toast`；手机端位于顶部、桌面端位于右下角） | Toast |
 | 下拉选择 | `select.tsx` | Select |
 | 组合框（可搜索、多选、可新建） | `combobox.tsx` | Combobox |
 | 菜单 | `menu.tsx` | Menu |
@@ -19,27 +19,29 @@
 | 滑块 | `slider.tsx` | Slider |
 | 数字输入 | `number-field.tsx` | NumberField |
 | 验证码输入 | `otp-field.tsx` | OTPField |
-| 表单与字段 | `form.tsx`、`field.tsx`（改造现有） | Form、Field |
+| 表单与字段 | `form.tsx`、`field.tsx` | Form、Field |
 | 复选框 | `checkbox.tsx` | Checkbox |
-| 日历 | `calendar.tsx` | React DayPicker |
-| 人机验证弹窗 | `turnstile.tsx` | Base UI Dialog + 自研手账点选 `<canvas>`（ADR-0023） |
-| 开关、分段控件、评分 | 现有 `switch.tsx`、`segmented-control.tsx`、`rating.tsx` | 保持自研 |
+| 日历与图例 | `calendar.tsx`（导出 `Calendar` 与 `CalendarLegend`） | React DayPicker |
+| 人机验证弹窗 | `turnstile.tsx`（导出 `TurnstileField`） | Base UI Dialog + 自研手账点选 `<canvas>`（ADR-0023） |
+| 媒体选择与安卓流式相册 | `use-media-picker.tsx`、`photo-album-sheet.tsx` | 自研平台自适应调度器 + `Sheet` / `Popover` |
+| 动画进场开关 Hook | `use-animated-open.ts` | 首帧 `false` 切 `true`，保证按需挂载触发 `data-starting-style` |
+| 开关、分段控件、评分 | `switch.tsx`、`segmented-control.tsx`（`role="radiogroup"`）、`rating.tsx` | 保持自研（不含未引入的 `Tooltip` / `Collapsible`） |
 
 - 只在 `src/components/ui/` 里 import Base UI，并且只用子路径：`import { Drawer } from '@base-ui/react/drawer'`。不从 `@base-ui/react` 包根导入。
 - 封装文件对外导出本项目的组件 API（例如 `<Select options value onValueChange />`），在内部组装好 Base UI 的部件。业务代码里不出现 `Select.Root`、`Select.Trigger` 这类 Base UI 部件名。
 - 样式只用设计 token 和语义字号。状态样式用 Base UI 的 data 属性（`data-open`、`data-disabled`、`data-highlighted`、`data-starting-style`、`data-ending-style`）配合 Tailwind 的 `data-*:` 变体。
 - 每个封装组件先在 `/dev/playbook` 有演示并通过批注定稿，再用到页面（ui-design-system.md 第 1 节）。
 
-## 2. 根布局的一次性设置（M1 安装时做）
+## 2. 根布局的一次性设置
 
 - 应用内容外包一层设置了 `isolation: isolate` 的根节点，让弹层始终在页面内容之上，`z-index` 不互相干扰（Base UI Quick start）。
 - 全局样式加 `body { position: relative; }`：iOS 26 起，Safari 的对话框遮罩要用 `position: absolute` 才能盖住整个可视区域。
-- 全站只有一个 `Toast.Provider`（带全局 toast 管理器），放在根布局。
-- 这几处要改 `src/app/layout.tsx` 和 `src/app/globals.css`，动手前先和正在改设计系统的会话对齐，避免互相覆盖。
+- 全站只有一个 `ToastProvider`（内部封装 `Toast.Provider` 与全局 `toastManager`），放在根布局 `src/app/layout.tsx`。
+- 这几处位于 `src/app/layout.tsx` 和 `src/app/globals.css`，改动时注意保留这些基础设置。
 
 ## 3. 懒加载与挂载生命周期
 
-- 弹层类组件（Drawer、Dialog、AlertDialog、Select、Combobox、Menu、Popover）在使用处用 `next/dynamic` 懒加载，或在第一次打开时加载。主页外壳的首屏不加载任何弹层代码（M1 完成标准）。
+- 弹层类组件（Drawer、Dialog、AlertDialog、Select、Combobox、Menu、Popover）在使用处用 `next/dynamic` 懒加载，或在第一次打开时加载。主页外壳的首屏不加载任何弹层代码。
 - **必须传 `loading: () => null`**：用 `next/dynamic` 懒加载弹层时，必须写 `dynamic(loader, { loading: () => null })`（块级占位用 `<Skeleton />`）。禁止裸调 `dynamic(loader)`——Next.js 16 在未传 `loading` 且未设 `ssr: false` 时不生成内部 `<Suspense>` 边界，首次挂载抛出的 Promise 会向上击穿页面级 `<Suspense fallback={<PageSkeleton />}>`，导致背景页面全屏闪屏。
 - **首次打开时挂载、关闭后保持挂载**：用 `loaded` 状态记录“是否打开过”（`if (open && !loaded) setLoaded(true); if (!loaded) return null`），关闭时只把 `open` 设为 `false`，由 Base UI 在退场动画结束后自动卸载 Portal DOM。禁止写 `{open && <Sheet open={open} />}` 或 `{open && <ConfirmDialog open={open} />}`，否则 `open` 变 `false` 瞬间组件被直接卸载，截断 `data-ending-style` 退场动画。
 - **重置表单的 `key` 放在抽屉内部**：需要每次打开抽屉时重置表单状态，必须把 `key` 挂在 `Sheet` 内部的表单子组件上（如 `<TodoSheetForm key={session} />`），禁止把 `key` 挂在 `<Sheet>` 或其外层懒加载包装组件上，否则每次打开都会销毁重建 `Drawer.Root`。
@@ -69,15 +71,15 @@
 
 ## 7. 图表
 
-- `src/components/charts/` 自研 SVG：`LineChart`（体重、花费）、`WeekHeatmap`、`Sparkline`；营养素环复用 `ProgressRing`。
-- `d3-shape` 只在这个目录里 import，只用 `line`、`area`、`arc` 和 `curveMonotoneX`。比例尺自己写几行线性映射，不引入 `d3-scale`。
-- 颜色只用板块色和状态色 token。每个图表都有文字替代：`aria-label`，或可见的数值摘要。
+- `src/components/charts/` 自研 SVG：`LineChart`（体重、花费）、`BarChart`（运动/睡眠/得分等按天柱状图）、`WeekHeatmap`（本周板块热力表）、`Sparkline`（迷你趋势线）；营养素环复用 `ProgressRing`。
+- `d3-shape` 只在这个目录里 import，只用 `line`、`area`、`arc` 和 `curveMonotoneX`。比例尺自己写几行线性映射（`scale.ts`），不引入 `d3-scale`。
+- 颜色只用板块色和状态色 token（`chart-tone.ts` / `tone.ts`）。每个图表都有文字替代：`aria-label`，或可见的数值摘要。
 
 ## 8. 头像
 
-- 只用预设头像（团团的不同表情 × 板块配色），没有选择头像时显示昵称首字。不支持上传（ADR-0021）。
+- 只用预设头像（`tuan` 团团、`dun` 墩墩、`mian` 绵绵、`you` 柚柚 4 只吉祥物的 9 种表情 × 6 种色调，`mascot:<character>:<mood>:<tone>`），没有选择头像时显示昵称首字。不支持上传（ADR-0021）。
 
-## 9. 工具强制（待落地，M1）
+## 9. 工具强制（已于 `eslint.config.mjs` 落地）
 
 | 规则 | 形式 |
 |---|---|

@@ -14,7 +14,8 @@ import { db } from '@/server/db/client'
 import * as friendsService from '@/server/services/friends'
 import type { AppEnv } from '../app'
 import { requireOnboarded, requireUser } from '../middleware/auth'
-import { AUTH_ERRORS, errorResponses } from '../schemas'
+import { idempotency } from '../middleware/idempotency'
+import { AUTH_ERRORS, errorResponses, IdempotencyHeadersSchema } from '../schemas'
 
 /*
  * 好友体系接口（ADR-0026）：
@@ -49,10 +50,18 @@ const createInviteRoute = createRoute({
   path: '/friends/invite',
   tags: ['friend'],
   summary: '获取或生成 10 分钟有效的 6 位好友配对码',
-  middleware: [requireUser, requireOnboarded] as const,
+  middleware: [requireUser, requireOnboarded, idempotency()] as const,
+  request: {
+    headers: IdempotencyHeadersSchema,
+  },
   responses: {
     200: { content: json(FriendInviteSchema), description: '6 位配对码与过期时间' },
-    ...errorResponses(...AUTH_ERRORS),
+    ...errorResponses(
+      ...AUTH_ERRORS,
+      'VALIDATION_FAILED',
+      'IDEMPOTENCY_KEY_REUSED',
+      'REQUEST_IN_PROGRESS',
+    ),
   },
 })
 
@@ -83,8 +92,9 @@ const acceptInviteRoute = createRoute({
   path: '/friends/accept',
   tags: ['friend'],
   summary: '确认接受好友邀请',
-  middleware: [requireUser, requireOnboarded] as const,
+  middleware: [requireUser, requireOnboarded, idempotency()] as const,
   request: {
+    headers: IdempotencyHeadersSchema,
     body: { content: json(FriendInviteCodeInputSchema), required: true },
   },
   responses: {
@@ -96,6 +106,8 @@ const acceptInviteRoute = createRoute({
       'FRIEND_SELF_INVITE',
       'FRIEND_ALREADY_EXISTS',
       'FRIEND_LIMIT_REACHED',
+      'IDEMPOTENCY_KEY_REUSED',
+      'REQUEST_IN_PROGRESS',
     ),
   },
 })

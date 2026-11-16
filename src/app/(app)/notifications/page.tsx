@@ -3,7 +3,7 @@ import { AppPage } from '@/components/layout/app-page'
 import { MessageCenter } from '@/features/notification'
 
 export const metadata: Metadata = {
-  title: '消息与通知 · DayDayOn',
+  title: '消息与通知',
 }
 
 /**

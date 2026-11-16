@@ -364,7 +364,7 @@
             label: '新增关联调用',
             kind: 'flow',
             timing: 1,
-            views: ['core', 'diet', 'agent', 'render', 'social', 'db', 'all'],
+            views: ['core', 'diet', 'agent', 'render', 'social', 'native', 'db', 'all'],
           })
           if (root.DDO_STORE && typeof root.DDO_STORE.markDirty === 'function') {
             root.DDO_STORE.markDirty()
@@ -424,7 +424,7 @@
               label: '关联调用',
               kind: 'flow',
               timing: 1,
-              views: ['core', 'diet', 'agent', 'render', 'social', 'db', 'all'],
+              views: ['core', 'diet', 'agent', 'render', 'social', 'native', 'db', 'all'],
             })
             state.connectSourceId = null
             if (root.DDO_STORE && typeof root.DDO_STORE.markDirty === 'function') {

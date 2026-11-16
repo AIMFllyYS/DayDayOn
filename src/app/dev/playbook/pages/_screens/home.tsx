@@ -30,6 +30,13 @@ const demo: DashboardToday = {
   timeZone: 'Asia/Shanghai',
   completion: { done: 3, planned: 4 },
   streak: 12,
+  overall: {
+    checkedDays: 12,
+    targetDays: 21,
+    startDate: '2026-10-21',
+    deadlineDate: '2026-11-10',
+    hasDeadline: true,
+  },
   hasGoals: true,
   goals: [
     {

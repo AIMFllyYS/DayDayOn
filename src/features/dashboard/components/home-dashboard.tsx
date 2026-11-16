@@ -88,6 +88,8 @@ export function HomeDashboard({
           completion={data.completion}
           streak={data.streak}
           feed={data.feed}
+          overall={data.overall}
+          readOnly={readOnly}
         />
         <ProgressCard goals={data.goals} readOnly={readOnly} />
         {insights && insights.items.length > 0 && (

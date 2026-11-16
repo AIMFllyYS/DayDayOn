@@ -182,7 +182,7 @@ export async function streamReferee(input: StreamRefereeInput): Promise<Response
           '[ai] 裁判流式分片出错',
           error instanceof Error ? error.message : String(error),
         )
-        return '团团裁判走神了一下，这次先按规则判定'
+        return `${input.petName ?? '团团'}裁判走神了一下，这次先按规则判定`
       },
     }),
   })

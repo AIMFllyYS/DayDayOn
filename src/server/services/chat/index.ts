@@ -1,5 +1,6 @@
 import 'server-only'
 import { and, count, desc, eq, isNull, lt, or } from 'drizzle-orm'
+import * as z from 'zod'
 import type {
   ChatHistoryQuery,
   ChatHistoryResponse,
@@ -216,21 +217,48 @@ export async function getChatHistory(
     ),
   ]
 
-  // 处理基于游标的分页
-  if (cursor) {
-    const [cursorMsg] = await db
-      .select({ createdAt: chatMessages.createdAt })
-      .from(chatMessages)
-      .where(eq(chatMessages.id, cursor))
-      .limit(1)
+  // 处理基于游标的分页（严格校验 UUID 或 ISO 8601 时间戳格式，禁止静默忽略非法游标）
+  if (cursor !== undefined) {
+    const trimmedCursor = cursor.trim()
+    if (z.uuid().safeParse(trimmedCursor).success) {
+      const [cursorMsg] = await db
+        .select({ createdAt: chatMessages.createdAt })
+        .from(chatMessages)
+        .where(
+          and(
+            eq(chatMessages.id, trimmedCursor),
+            or(
+              and(
+                eq(chatMessages.senderId, currentUserId),
+                eq(chatMessages.recipientId, friendUserId),
+              ),
+              and(
+                eq(chatMessages.senderId, friendUserId),
+                eq(chatMessages.recipientId, currentUserId),
+              ),
+            ),
+          ),
+        )
+        .limit(1)
 
-    if (cursorMsg) {
-      conditions.push(lt(chatMessages.createdAt, cursorMsg.createdAt))
-    } else {
-      const cursorDate = new Date(cursor)
-      if (!Number.isNaN(cursorDate.getTime())) {
-        conditions.push(lt(chatMessages.createdAt, cursorDate))
+      if (!cursorMsg) {
+        throw new ApiError('VALIDATION_FAILED', '游标无效', {
+          fields: { cursor: ['游标无效'] },
+        })
       }
+
+      conditions.push(
+        or(
+          lt(chatMessages.createdAt, cursorMsg.createdAt),
+          and(eq(chatMessages.createdAt, cursorMsg.createdAt), lt(chatMessages.id, trimmedCursor)),
+        ),
+      )
+    } else if (z.iso.datetime({ offset: true }).safeParse(trimmedCursor).success) {
+      conditions.push(lt(chatMessages.createdAt, new Date(trimmedCursor)))
+    } else {
+      throw new ApiError('VALIDATION_FAILED', '游标格式无效', {
+        fields: { cursor: ['游标格式无效'] },
+      })
     }
   }
 

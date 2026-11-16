@@ -698,13 +698,20 @@ html[data-splash='skip'] .splash {
 }
 /* 形象与问候：内联脚本写 data-splash-char / data-splash-greet，CSS 只显示对应的那一份 */
 .splash-char-dun,
+.splash-char-mian,
+.splash-char-you,
 .splash-greet {
   display: none;
 }
-html[data-splash-char='dun'] .splash-char-tuan {
+html[data-splash-char='dun'] .splash-char-tuan,
+html[data-splash-char='mian'] .splash-char-tuan,
+html[data-splash-char='you'] .splash-char-tuan {
   display: none;
 }
-html[data-splash-char='dun'] .splash-char-dun {
+html[data-splash-char='dun'] .splash-char-dun,
+html[data-splash-char='mian'] .splash-char-mian,
+html[data-splash-char='you'] .splash-char-you,
+.splash[data-preview] .splash-char {
   display: inline-flex;
 }
 html[data-splash-greet='morning'] .splash-greet-morning,

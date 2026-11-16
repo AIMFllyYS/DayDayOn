@@ -1,43 +1,77 @@
 # AI 调用、额度与图片规范
 
-> 日期：2026-10-31 · 状态：初版。本文档由初始化时联网调研生成，条目未经实战验证，踩坑后按 [lessons 机制](../lessons/README.md)修订。
-> 依据：[ADR-0002](../adr/0002-account-quota-risk.md)（额度、计价、风控）、[ADR-0011](../adr/0011-image-pipeline.md)（图片）、[ADR-0020](../adr/0020-jobs.md)（周期键）、[ADR-0003](../adr/0003-project-scope.md)（MVP：饮食拍照识别）。
-> 官方资料（2026-10-31 抓取）：AI SDK 的 DeepSeek provider 页与 Testing 页、DeepSeek「模型 & 价格」页。库的坑见 [lessons/ai-sdk.md](../lessons/ai-sdk.md)。
+> 日期：2026-10-31（2026-11-16 同步最新实现）· 状态：已落地。本文档与仓库源码、ESLint 硬约束及 [ADR-0002](../adr/0002-account-quota-risk.md) 保持同步，踩坑后按 [lessons 机制](../lessons/README.md) 修订。
+> 依据：[ADR-0002](../adr/0002-account-quota-risk.md)（额度、计价、风控）、[ADR-0011](../adr/0011-image-pipeline.md)（图片）、[ADR-0020](../adr/0020-jobs.md)（周期键）、[ADR-0024](../adr/0024-agent-chat.md)（Agent 对话与联网）、[ADR-0027](../adr/0027-agent-referee.md)（Agent 裁判）。
+> 官方资料：AI SDK 的 DeepSeek provider 页与 Testing 页、DeepSeek「模型 & 价格」页。库的坑见 [lessons/ai-sdk.md](../lessons/ai-sdk.md)。
 
 ## 1. 文件
 
 ```
 src/server/ai/
-├── model.ts             唯一的模型实例
-├── run.ts               runAi()：检查 → 预占 → 调用 → 结算或释放 → 写 ai_runs。所有 AI 调用的唯一入口
-├── pricing.ts           价格表（微元 / 百万 tokens）与费用计算，纯函数
-├── image.ts             上传的图片 → 内联 file part（只在内存里）
-└── prompts/<用途>.ts    每个用途一个文件：id、version、system、输出 schema、maxOutputTokens、thinking
-src/server/quota/
-├── period.ts            周期键（依赖 src/lib/time/）
-├── ledger.ts            预占、结算、释放、兑换（事务 + 原子更新）
-└── guard.ts             全站日上限、AI 暂停开关、单用户并发与频率
-src/lib/image/compress.ts   浏览器端压缩
-src/features/agent/         前端 Agent 组件（AgentTurn、AiDraftCard、额度条）
+├── model.ts                 唯一的模型实例：getFlashModel()、isAiConfigured()、hashedUserId()
+├── run.ts                   runAi() 与 preflight() / checkUserLimits() / finishRun() / reconcileStaleRuns() / rejectReusedKey() / afterSpend()
+├── call-model.ts            底层模型调用封装（超时控制 + Zod 输出校验）
+├── recovery.ts              结算事务重试与流水恢复纯函数
+├── run-agent.ts             streamAgentChat() 与 reserveAgentRun() / settleAgentRun()（对话与裁判共用账本）
+├── agent.ts                 buildAgent()（ToolLoopAgent，20 步上限，最后一步禁工具保底文字输出）
+├── agent-tools.ts           对话 Agent 工具集（读资料/目标/进度/好友、showStats、联网、草稿写）
+├── agent-checkin-tools.ts   对话 Agent 打卡专项工具（查询、留痕、增改删草稿）
+├── checkin-lookups.ts       内置食物营养表、运动 MET 表等查询封装
+├── web-search.ts            DeepSeek 官方 Search / Fetch 封装
+├── pricing.ts               价格表（微元 / 百万 tokens）与费用计算，纯函数
+├── image.ts                 multipart 图片转内联 file part + 对话内联 JPEG dataURL 校验（只在内存里）
+├── prompts/<用途>.ts        diet-recognition.ts、smart-recognition.ts
+└── referee/                 打卡裁判 Agent（index.ts、prompt.ts、tools.ts、food-table.ts）
+
+src/server/quota/            （已无 guard.ts；全站/单人检查在 ai/run.ts，告警去重在 quota/alerts.ts）
+├── period.ts                周期键与花费日键（依赖 src/lib/time/）
+├── ledger.ts                预占、结算、释放、兑换、补足（事务 + 原子更新）
+├── money.ts                 余额分配、结算拆分、周期重置、补足差额纯函数
+├── alerts.ts                maybeAlert() 阈值告警与按日按类型去重（alerts_sent）
+├── redeem-code.ts           兑换码生成、规范化、SHA-256 哈希与前缀
+└── tombstone.ts / tombstone-store.ts   account_tombstones 8 天注销防刷规则与存取
+
+src/lib/image/               compress.ts（浏览器端压缩）、size.ts（含文件头魔数嗅探）
+src/features/quota/          schemas.ts（AI_PURPOSES 等契约）、format.ts、components/（额度卡、侧栏额度条）
+src/features/agent/          前端 Agent 组件与 hook（AgentTurn、AiDraftCard、ChangeDraftCard、FloatingPet、AgentPanel、AgentFullscreen、useRefereeRun 等）
 ```
 
-- 只有 `src/server/ai/` 可以 import `ai` 和 `@ai-sdk/deepseek`。前端只有 `src/features/agent/` 可以 import `@ai-sdk/react`。
-- 业务 service 不直接调用 `generateText` / `streamText`，一律通过 `runAi()`。
+- 只有 `src/server/ai/` 可以 import `@ai-sdk/deepseek`；`ai` 只允许在 `src/server/ai/` 与 `src/features/agent/`（前端类型与 `DefaultChatTransport`）import；前端只有 `src/features/agent/` 可以 import `@ai-sdk/react`。
+- 业务 service 不直接调用 `generateText` / `streamText`，单次结构化识别一律通过 `runAi()`，流式多步循环一律通过 `run-agent.ts` / `referee/`。
+- `AI_PURPOSES`（`src/features/quota/schemas.ts`）固定为四类：`diet-recognition`、`smart-recognition`、`agent-chat`、`referee`。
 
 ## 2. 模型
 
-- 只用 `deepseek-flash`（DeepSeek 当前的 Flash 模型名，支持图像理解）。模型 id 写死在 `model.ts`，不从环境变量读取。
-- 必须用 provider 实例创建模型：
+- 只用 `deepseek-flash`（DeepSeek 当前的 Flash 模型名，支持图像理解）。模型 id 写死在 `model.ts`（`MODEL_ID = 'deepseek-flash'`），不从环境变量读取。
+- 必须通过 `model.ts` 暴露的 `isAiConfigured()` 与 `getFlashModel()` 获取模型实例（懒创建，测试里由 `model` 参数注入 `MockLanguageModelV4`）：
 
 ```ts
 // src/server/ai/model.ts
 import 'server-only'
 import { createDeepSeek } from '@ai-sdk/deepseek'
+import type { LanguageModel } from 'ai'
+import { sha256Hex } from '@/server/crypto'
 import { env } from '@/server/env'
 
-const deepSeek = createDeepSeek({ apiKey: env.DEEPSEEK_API_KEY })
+export const MODEL_ID = 'deepseek-flash' as const
 
-export const flash = deepSeek('deepseek-flash')
+export function isAiConfigured(): boolean {
+  return Boolean(env.DEEPSEEK_API_KEY)
+}
+
+let flash: LanguageModel | undefined
+
+export function getFlashModel(): LanguageModel {
+  if (flash) return flash
+  const apiKey = env.DEEPSEEK_API_KEY
+  if (!apiKey) throw new Error('DEEPSEEK_API_KEY 未配置')
+  flash = createDeepSeek({ apiKey })(MODEL_ID)
+  return flash
+}
+
+export async function hashedUserId(userId: string): Promise<string> {
+  return sha256Hex(userId)
+}
 ```
 
 - 禁止 `model: 'deepseek/deepseek-flash'` 这类字符串写法：AI SDK 对字符串模型默认走 Vercel AI Gateway。
@@ -70,13 +104,18 @@ export const flash = deepSeek('deepseek-flash')
 
 - 费用 = Σ（tokens × 单价）÷ 1,000,000，结果**向上取整**到整数微元。全程整数运算，不用浮点。
 
-## 5. 图片
+## 5. 图片与多模态附件
 
 规则来自 ADR-0011，取代 ADR-0002 第 4 节的旧参数。
 
-- **浏览器**（`src/lib/image/compress.ts`）：`createImageBitmap` 解码 → canvas 缩放到像素总量不超过约 1300×1300 → `canvas.toBlob(…, 'image/jpeg', 0.8)`。重新编码会去掉 EXIF（包括 GPS 位置）。解码失败（例如桌面 Chrome 打不开 HEIC）时提示"这张图打不开，换一张或截个图试试"。
-- **上传**：`multipart/form-data`，字段 `image`，只接受 `image/jpeg`，接口上限 4 MB（api-conventions.md 第 11 节）。
-- **服务端**（`src/server/ai/image.ts`）：`await file.arrayBuffer()` → 校验 JPEG 文件头和大小 → 作为 `{ type: 'file', mediaType: 'image/jpeg', data }` 内联发给模型。需要调识别精度时用 file part 的 `providerOptions.deepseek.imageDetail`（`low` / `high` / `original` / `auto`）。
+- **浏览器**（`src/lib/image/compress.ts`）：`createImageBitmap` 解码 → canvas 缩放到像素总量不超过约 1300×1300 → `canvas.toBlob(…, 'image/jpeg', 0.8)`。重新编码会去掉 EXIF（包括 GPS 位置）。解码失败（例如桌面 Chrome 打不开 HEIC）时提示"这张图打不开，换一张或截个图试试"。`sniffIsImageFile` 通过文件头魔数识别真实图片格式。
+- **识别类上传（双图 + 文本提纯）**：
+  - `POST /api/v1/ai/diet-recognitions` 与 `POST /api/v1/ai/smart-recognitions` 走 `multipart/form-data`，支持 `image` + 可选 `image2`（最多同时上传 **2 张** JPEG，单张 ≤ 4 MB，接口 `bodyLimit` 4 MB + 64 KB）。
+  - `smart-recognitions` 同时支持 `textContent`：前端在选中 `.txt/.md/.csv/.html` 等文本附件时通过 `extractCleanText()` 自动剥离 `<script>`/`<style>` 与 HTML 标签提纯正文后上送（二进制文档如 PDF/Office/音视频直接拒绝）。
+- **Agent 对话内联 JPEG（11 MB limit）**：
+  - `POST /api/v1/agent/chat` 请求体上限为 **`11 MB`**（`AGENT_CHAT_MAX_BODY_BYTES = 11 * 1024 * 1024`），单条消息最多同时携带 **2 张** 内联 `data:image/jpeg;base64,...`，由 `validateInlineJpegDataUrl()` 校验 JPEG 文件头 `FF D8 FF` 与解码后体积 ≤ 4 MB（异常详情严禁包含 base64 片段）。
+  - 对话持久化到 `agent_messages` 前经 `stripFileParts()` 剥离全部 `file` part 并替换为「N 张照片（识别后不保存）」文字说明；图片预览仅存在当前标签页内存（`sessionMessageImages`），关闭即释放。
+- **服务端**（`src/server/ai/image.ts`）：`await file.arrayBuffer()` → 校验 JPEG 文件头（`FF D8 FF`）和大小 → 作为 `{ type: 'file', mediaType: 'image/jpeg', data }` 内联发给模型。需要调识别精度时用 file part 的 `providerOptions.deepseek.imageDetail`（`low` / `high` / `original` / `auto`）。
 - **禁止**：
   - 写临时文件，或在 `src/server/ai/` 里 import `node:fs` / `fs`；
   - 把图片放进任何缓存（内存缓存、Service Worker、CDN）；
@@ -99,34 +138,39 @@ export const flash = deepSeek('deepseek-flash')
 - system prompt 里不放用户数据。用户输入放在 user message 里，不拼接进 system。
 - prompt 用中文写，要求模型输出中文。
 
-## 8. 全站保护
+## 8. 全站保护与注销防刷
 
 - 全站每日花费上限：默认 10 元，后台可改。按北京时间的日期键累计。达到后当天所有 AI 调用返回 503 `AI_PAUSED`，并给管理员发一封告警邮件；次日 00:00 自动恢复，或由管理员手动恢复（ADR-0002 第 5.4 节）。
-- 管理员手动暂停开关同样返回 `AI_PAUSED`。
-- 异常阈值（单人单日超过 5 元、每小时超过 60 次、同 IP 超过 3 个账号）只标记并告警，不自动封号。告警按"每天每种一次"去重。
+- 未配置 `DEEPSEEK_API_KEY`（`!isAiConfigured()`）或管理员手动暂停开关打开时，同样返回 `AI_PAUSED`。
+- 异常阈值（单人单日超过 5 元、每小时超过 60 次、同 IP 每日新注册超过 3 个账号、兑换码失败过多）只标记并告警，不自动封号。告警通过 `alerts.ts` 的 `maybeAlert()` 按"每天每种一次"（`alerts_sent(kind, dayKey)`）去重。
+- **`account_tombstones` 8 天注销防刷机制**（`src/server/quota/tombstone.ts` / `tombstone-store.ts`）：账号注销删除 `user` 行前，在同一事务写入 `account_tombstones`（保留 `TOMBSTONE_TTL_MS = 8 天`，记录邮箱 HMAC 摘要、本周额度快照以及近 24 小时内最多 `200` 条 `ai_runs` / `redeem_attempts` id）。同一邮箱 8 天内重新注册时，通过 `claimTombstone()` 在同一额度周期内沿用注销前的本周额度上限与已用额（不重新发放首周额度），并将风控流水重新关联回新账号，防止通过"注销重注"刷额度或重置频控计数。
 
-## 9. Agent 对话与联网搜索（v0.2 提前启用，ADR-0024）
+## 9. Agent 对话、裁判与联网搜索（ADR-0024、ADR-0027）
 
-Agent 对话（悬浮团团）走 `ToolLoopAgent` 流式，`POST /api/v1/agent/chat`；记账复用 `runAi` 同一套账本（`src/server/ai/run-agent.ts`）：预占 = 12 步 × 单步输出上限 + 10 次联网，按实际 token + 联网次数结算。会话与消息存 `agent_conversations` / `agent_messages`（图片入库前换成文字说明，不落盘）。
+Agent 对话（悬浮宠物 / `/agent`）与打卡裁判均走 `ToolLoopAgent` 流式，记账复用 `runAi` 同一套账本（`src/server/ai/run-agent.ts` 的 `reserveAgentRun` / `settleAgentRun`）：
+
+- **Agent 对话**（`POST /api/v1/agent/chat`）：步数上限 **`20` 步**（`MAX_STEPS = 20`，每步 `MAX_OUTPUT_TOKENS_PER_STEP = 2000`，最后一步通过 `prepareStep` 设为 `toolChoice: 'none'` 保证一定给出文字回答）；预占 = `20` 步 × 单步输出上限 + `10` 次联网，按实际 token + 联网次数结算。会话与消息存 `agent_conversations` / `agent_messages`（图片入库前由 `stripFileParts` 换成文字说明，不落盘）。
+- **打卡裁判**（`POST /api/v1/goals/{goalId}/referee`）：步数上限 **`6` 步**（`REFEREE_MAX_STEPS = 6`，每步 `1500` tokens，最后一步强制调用 `submitVerdict`），联网最多 `3` 次；当传入 `conversation` 时分析回合同样写入 `agent_conversations` / `agent_messages`。
 
 联网用 DeepSeek 官方 Search / Fetch（`src/server/ai/web-search.ts`）：
 
 - `POST /v1/tools/search` `{ query, count?, need_content? }` → `{ results: [{ title, url, snippet, summary, site_name, date, authority }] }`；`summary` 是给模型读的字段。
 - `POST /v1/tools/fetch` `{ url }` → `{ title, content(markdown) }`。
-- 每次成功约 0.005 元 = 5000 微元，计入额度账本；每轮对话最多 10 次（`MAX_SEARCHES_PER_TURN`）。
-- 思考模式默认关，输入框「深度思考」开关打开时 `reasoningEffort: 'low'`（DeepSeek 最低档）。
+- 每次成功约 0.005 元 = 5000 微元，计入额度账本；Agent 对话每轮最多 10 次（`MAX_SEARCHES_PER_TURN`），裁判每次最多 3 次（`MAX_REFEREE_SEARCHES`）。
+- 思考模式默认关，对话输入框「深度思考」开关打开时 `reasoningEffort: 'low'`（DeepSeek 最低档）。
 
 ## 10. 测试
 
 - `pricing.ts`：各类 tokens 的计费、向上取整、零用量。
-- `ledger.ts` 里的金额逻辑：预占、结算多退少补、失败释放、本周额度与加购余额的扣减顺序、周期切换。
-- `runAi()`：用 `ai/test` 的 `MockLanguageModelV4` 测成功、模型报错、输出校验失败三条路径。测试不调用真实 DeepSeek。
+- `money.ts` / `ledger.ts` 里的金额逻辑：预占、结算多退少补、失败释放、本周额度与加购余额的扣减顺序、周期切换。
+- `tombstone.ts` / `tombstone-store.ts`：8 天保留期、同周恢复与跨周重置、风控引用重新关联。
+- `runAi()`：用 `ai/test` 的 `MockLanguageModelV4` 测成功、模型报错、输出校验失败、超时路径。测试不调用真实 DeepSeek。
 
-## 11. 工具强制（待落地，M3）
+## 11. 工具强制（ESLint）
 
 | 规则 | 形式 |
 |---|---|
-| `ai`、`@ai-sdk/deepseek` 只在 `src/server/ai/` import；`@ai-sdk/react` 只在 `src/features/agent/` | ESLint `no-restricted-imports` |
+| `ai` 只在 `src/server/ai/` 与 `src/features/agent/` import；`@ai-sdk/deepseek` 只在 `src/server/ai/`；`@ai-sdk/react` 只在 `src/features/agent/` | ESLint `no-restricted-imports` |
 | 禁止 import 其他 AI provider（`@ai-sdk/openai`、`@ai-sdk/anthropic`…） | ESLint `no-restricted-imports` |
 | 禁止从 `ai` 导入 `uploadFile` | ESLint `no-restricted-imports`（`importNames`） |
 | `src/server/ai/**` 禁止 import `fs`、`node:fs`、`fs/promises`、`node:fs/promises` | ESLint `no-restricted-imports` |

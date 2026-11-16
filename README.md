@@ -1,40 +1,40 @@
 # DayDayOn
 
-和朋友一起每天打卡：运动、饮食、睡眠、学习，以及你自己定义的小目标。
+A daily habit check-in app with friends: fitness, diet, sleep, study, and custom personal goals.
 
-手机、电脑都能用，可以安装到桌面（PWA）。拍照或上传截图后，AI 帮你识别并整理成记录；图片本身不会上传保存。
+Works across mobile and desktop, installable as a PWA. Take photos or upload screenshots, and AI helps parse and organize them into records; user images are never stored on disk or server.
 
-> 状态：初始化阶段（v0.1.0），功能尚未上线。
+> Status: Initialization phase (v0.1.0), features not yet live.
 
-## 规划中的功能
+## Planned Features
 
-- **五类打卡**：运动（AI 估算消耗热量，可上传运动软件记录）、饮食（拍照识别、热量缺口）、睡眠（手动或截图解析）、学业规划（逐条记录）、其他目标（自定义表单或自定义 AI 解析）
-- **评估指标**：每天按板块打满意度分，体重等精确指标
-- **待办**：to-do 清单与 DDL，可切换为时间日志
-- **仪表盘**：汇总各项指标，可自定义布局
-- **排行榜**：所有用户进入总榜，可以选择是否公开
+- **Five Check-in Modules**: Fitness (AI estimated caloric burn, support for workout app screenshots), Diet (photo recognition, calorie deficit), Sleep (manual input or screenshot parsing), Study Planning (itemized logging), Custom Goals (custom forms or custom AI parsing)
+- **Evaluation Metrics**: Daily satisfaction scores per module, plus precise metrics like body weight
+- **To-Do**: To-do lists and deadlines, toggleable into a time log view
+- **Dashboard**: Aggregates all key metrics with customizable layouts
+- **Leaderboard**: Global rankings for all users, with options to keep data private or public
 
-## 技术栈
+## Tech Stack
 
-- 前端：Next.js 16 · React 19 · TypeScript 6 · Tailwind CSS 4 · Base UI · TanStack Query · zod
-- 服务端：PostgreSQL 18 · Drizzle ORM · Better Auth · Hono（`/api/v1`，OpenAPI）· Nodemailer（阿里云邮件推送）
-- AI：Vercel AI SDK 7 + DeepSeek（只用 `deepseek-flash`）
-- 部署：阿里云 ECS + PM2 + Nginx，GitHub Actions 构建制品
+- Frontend: Next.js 16 · React 19 · TypeScript 6 · Tailwind CSS 4 · Base UI · TanStack Query · zod
+- Server: PostgreSQL 18 · Drizzle ORM · Better Auth · Hono (`/api/v1`, OpenAPI) · Nodemailer (Alibaba Cloud DirectMail)
+- AI: Vercel AI SDK 7 + DeepSeek (strictly `deepseek-flash`)
+- Deployment: Alibaba Cloud ECS + PM2 + Nginx, GitHub Actions artifact builds
 
-每个库为什么选、怎么用，见 [docs/libraries.md](./docs/libraries.md) 和 [docs/conventions/](./docs/conventions/README.md)。除 Next.js、React、Tailwind 外，其余库按 [路线图](./docs/plans/roadmap.md) 在后续里程碑安装。
+For library selection rationales and usage guidelines, see [docs/libraries.md](./docs/libraries.md) and [docs/conventions/](./docs/conventions/README.md). Except for Next.js, React, and Tailwind, remaining libraries will be installed across subsequent milestones per the [Roadmap](./docs/plans/roadmap.md).
 
-## 本地开发
+## Local Development
 
-需要 Node 24 和 pnpm 11（`corepack enable` 后会按 `packageManager` 字段自动使用正确版本）。
+Requires Node 24 and pnpm 11 (`corepack enable` will automatically use the correct version specified in `packageManager`).
 
 ```powershell
 pnpm install
 pnpm dev
 ```
 
-提交前会自动运行 ESLint、Prettier 和密钥扫描；提交信息需符合 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/)。
+Pre-commit hooks will automatically run ESLint, Prettier, and secret detection. Commit messages must follow [Conventional Commits](https://www.conventionalcommits.org/en/).
 
-## 文档
+## Documentation
 
-- [AGENTS.md](./AGENTS.md) — 开发规范索引（AI 编码代理与人类开发者共用）
-- [docs/](./docs/) — 规范、设计决策、运维文档
+- [AGENTS.md](./AGENTS.md) — Development conventions index (shared by AI coding agents and human developers)
+- [docs/](./docs/) — Conventions, architectural decision records (ADRs), and ops guides

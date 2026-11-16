@@ -13,12 +13,20 @@ import { friendActions } from '@/features/friend/friend-store'
 import type { FriendSummary } from '@/features/friend/schemas'
 import { useChatThreads, useMarkChatRead } from '@/lib/api/queries/chat'
 import { useFriendsList } from '@/lib/api/queries/friends'
+import { useMe } from '@/lib/api/queries/me'
 import {
   useMarkNotificationsRead,
   useNotificationsList,
   useNotificationSummary,
 } from '@/lib/api/queries/notifications'
 import { cn } from '@/lib/cn'
+import {
+  BUSINESS_TIME_ZONE,
+  calendarDateOf,
+  formatMonthDay,
+  isValidTimeZone,
+  localTimeOf,
+} from '@/lib/time'
 import {
   CheckinAggregateCard,
   PetInteractionCard,
@@ -49,10 +57,32 @@ export interface ChannelItem {
  * - 下侧按社交会话流排布「和朋友聊天」列表；
  * - 手机端点击进入全屏二级页面（支持左上角返回与系统侧滑返回），桌面端（@3xl）左右全屏双栏联动。
  */
+function safeFormatTime(iso: string, timeZone: string): string {
+  try {
+    return localTimeOf(iso, timeZone)
+  } catch {
+    return ''
+  }
+}
+
+function safeFormatMonthDay(iso: string, timeZone: string): string {
+  try {
+    return formatMonthDay(calendarDateOf(iso, timeZone))
+  } catch {
+    return ''
+  }
+}
+
 export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: string }) {
   const router = useRouter()
   const [activeChannelId, setActiveChannelId] = useState<string>(initialChannel)
   const [mobileLevel, setMobileLevel] = useState<1 | 2>(1)
+
+  const { data: me } = useMe()
+  const timeZone =
+    me?.profile.timeZone && isValidTimeZone(me.profile.timeZone)
+      ? me.profile.timeZone
+      : BUSINESS_TIME_ZONE
 
   const { data: summary } = useNotificationSummary()
   const { data: feedData, isLoading: feedLoading } = useNotificationsList({ channel: 'feed' })
@@ -103,12 +133,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
           ? `今日完成 ${friendInfo.todayDone}/${friendInfo.todayPlanned} 项 · 连续 ${friendInfo.streak} 天`
           : '给好友发一句今日鼓励吧'
 
-    const timeStr = thread.lastMessage
-      ? new Date(thread.lastMessage.createdAt).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      : ''
+    const timeStr = thread.lastMessage ? safeFormatTime(thread.lastMessage.createdAt, timeZone) : ''
 
     friendChannels.push({
       id: thread.friendUserId,
@@ -146,12 +171,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
       kind: 'feed',
       title: '打卡房间与动态',
       subtitle: latestFeed ? latestFeed.title : '好友打卡聚合与小窝串门动态',
-      time: latestFeed
-        ? new Date(latestFeed.createdAt).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-        : '',
+      time: latestFeed ? safeFormatTime(latestFeed.createdAt, timeZone) : '',
       unread: feedUnread,
     },
     {
@@ -159,12 +179,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
       kind: 'system',
       title: '官方与系统通知',
       subtitle: latestSystem ? latestSystem.title : '版本更新公告与服务通知',
-      time: latestSystem
-        ? new Date(latestSystem.createdAt).toLocaleDateString([], {
-            month: 'numeric',
-            day: 'numeric',
-          })
-        : '',
+      time: latestSystem ? safeFormatMonthDay(latestSystem.createdAt, timeZone) : '',
       unread: systemUnread,
     },
   ]
@@ -415,6 +430,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
               friendAvatar={activeChannel.avatar ?? null}
               friendStreak={activeChannel.friend?.streak}
               isFrozenProp={activeChannel.isFrozen}
+              timeZone={timeZone}
               showBackButton={mobileLevel === 2}
               onBack={handleBackToLevel1}
             />
@@ -498,6 +514,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                             <CheckinAggregateCard
                               key={item.id}
                               notification={item}
+                              timeZone={timeZone}
                               onGoToRoom={handleGoToFriendRoom}
                             />
                           )
@@ -507,6 +524,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                             <PetInteractionCard
                               key={item.id}
                               notification={item}
+                              timeZone={timeZone}
                               onReplyPoke={handleGoToFriendRoom}
                             />
                           )
@@ -542,7 +560,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                 ) : (
                   <div className="w-full min-w-0 space-y-3">
                     {systemItems.map((item) => (
-                      <SystemNoticeCard key={item.id} notification={item} />
+                      <SystemNoticeCard key={item.id} notification={item} timeZone={timeZone} />
                     ))}
                   </div>
                 )}

@@ -48,3 +48,16 @@
 
 - 第一个 APK 发布时（改 `APK_AVAILABLE`，确认 UA 标识与图标接入）。
 - 朋友试用两周后按 ADR-0003 重审范围时。
+
+## 演进记录（2026-11 落地更新）
+
+随着 Android Kotlin 混合客户端与自有服务器分发体系正式上线，对上述初始决定作出如下演进与补充（原决定第 3、5、6 条部分修订）：
+
+1. **下载改为「自有服务器直出 + GitHub Release」双源，落地页状态更新**：
+   - `src/features/welcome/download.ts` 已切换为 `APK_AVAILABLE = true`，`APK_DOWNLOAD_URL` 统一指向自有服务器同域路径 `/download/DayDayOn.apk`（生产环境由武汉 ECS Nginx `location = /download/DayDayOn.apk` 从 `/www/wwwroot/daydayon/releases/apk/DayDayOn.apk` 静态直出并支持 HTTP Range 断点续传；GitHub Release 作为备用源与 CI 制品构建拉取源，不再把用户引导至 GitHub 外链）。
+   - 当用户已在 APK 壳或已安装的 PWA（`native` / `standalone`）打开 `/welcome` 时，不再整块隐藏下载区，而是保留 `#download` 锚点并展示「DayDayOn 客户端已就绪」（附当前版本号与前往 `/me` 检查更新的入口，见 `src/features/welcome/components/welcome-download.tsx`）。
+2. **Android 壳改用原生 0ms 开屏，网页开屏脚本跳过 `DayDayOnApp/`**：
+   - Android 原生层 `MainActivity` 在冷启动 0ms 立即展示 `nativeSplashOverlay`（含时段问候与品牌微动效），WebView 加载水合完成后平滑揭开；
+   - `src/lib/splash.ts` 的 `splashScript` 显式检测 UA 中的 `DayDayOnApp/` 标识并直接 `return`，避免原生开屏与网页 CSS `.splash` 重复叠加播放。
+3. **官方图标升级确认**：
+   - `src/components/layout/logo-svg.ts` 已定稿为「05 连击热力·五彩织锦（Streak Heatmap & Mosaic）」，底色 `#fff8f0`，`app/icon.tsx`、`app/apple-icon.tsx`、`app/icons/[name]` 与 Android 端共享同一图标资产源。

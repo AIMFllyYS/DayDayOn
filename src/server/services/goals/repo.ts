@@ -3,7 +3,7 @@ import { and, count, eq, ne, sql } from 'drizzle-orm'
 import type { FieldDef, Goal, GoalStatus, TargetKind } from '@/features/goal/schemas'
 import { RefereeRulesSchema, type RefereeRules } from '@/features/referee/schemas'
 import type { LocalDate, Module } from '@/features/shared/schemas'
-import { DEFAULT_DAY_START_HOUR, localDateOf } from '@/lib/time'
+import { localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import type { DbOrTx, Tx } from '@/server/db/client'
 import { goalFieldVersions, goals, profiles } from '@/server/db/schema'
@@ -15,6 +15,8 @@ import { ACTIVE_SLEEP_CONSTRAINT, checkActivation, isUniqueViolation } from './r
  */
 
 const DEFAULT_TIME_ZONE = 'Asia/Shanghai'
+/** 与 profiles.dayStartHour 默认值一致，避免没有资料行时退回 0 点换日 */
+const DEFAULT_DAY_START_HOUR = 4
 
 /** 今天的打卡日：按资料里的时区与日切换时间（PRD 3）；没有资料行时用默认值 */
 export async function userToday(db: DbOrTx, userId: string, now: Date): Promise<LocalDate> {

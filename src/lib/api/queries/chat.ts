@@ -9,7 +9,7 @@ import type {
   SendChatMessageInput,
   SendChatMessageResponse,
 } from '@/features/chat/schemas'
-import { apiFetch } from '../fetcher'
+import { apiFetch, newIdempotencyKey } from '../fetcher'
 import { keys } from '../keys'
 
 /*
@@ -63,10 +63,19 @@ export function useChatMessages({
 export function useSendChatMessage() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ friendUserId, input }: { friendUserId: string; input: SendChatMessageInput }) =>
+    mutationFn: ({
+      friendUserId,
+      input,
+      idempotencyKey,
+    }: {
+      friendUserId: string
+      input: SendChatMessageInput
+      idempotencyKey?: string
+    }) =>
       apiFetch<SendChatMessageResponse>(`/chats/${encodeURIComponent(friendUserId)}`, {
         method: 'POST',
         json: input,
+        idempotencyKey: idempotencyKey ?? newIdempotencyKey(),
       }),
     onSuccess: (_data, variables) => {
       // 成功后失效私聊历史与会话列表缓存

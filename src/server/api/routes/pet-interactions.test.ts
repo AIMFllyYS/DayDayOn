@@ -18,15 +18,26 @@ vi.mock('@/server/services/pet-interactions', () => mocks.service)
 vi.mock('@/server/db/client', () => ({
   db: { transaction: (fn: (tx: unknown) => unknown) => fn({}) },
 }))
+vi.mock('@/server/idempotency', () => ({
+  requestHash: async () => 'hash',
+  beginIdempotent: async () => ({ kind: 'new' }),
+  completeIdempotent: async () => undefined,
+  abortIdempotent: async () => undefined,
+}))
 
 const { app } = await import('../app')
 const { ApiError } = await import('../errors')
 
 const SAME_ORIGIN = { 'sec-fetch-site': 'same-origin' }
 
-const jsonInit = (method: string, body: unknown) => ({
+const jsonInit = (method: string, body: unknown, headers: Record<string, string> = {}) => ({
   method,
-  headers: { 'content-type': 'application/json', ...SAME_ORIGIN },
+  headers: {
+    'content-type': 'application/json',
+    'idempotency-key': crypto.randomUUID(),
+    ...SAME_ORIGIN,
+    ...headers,
+  },
   body: JSON.stringify(body),
 })
 
@@ -102,6 +113,17 @@ describe('/api/v1/friends/{friendUserId}/interactions 路由功能', () => {
       'u2',
       expect.any(Date),
     )
+  })
+
+  it('POST /friends/u2/interact 缺少 idempotency-key → 400 VALIDATION_FAILED', async () => {
+    const res = await app.request('/api/v1/friends/u2/interact', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...SAME_ORIGIN },
+      body: JSON.stringify({ kind: 'poke' }),
+    })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({ code: 'VALIDATION_FAILED' })
+    expect(mocks.service.interactWithFriendPet).not.toHaveBeenCalled()
   })
 
   it('POST /friends/u2/interact 参数校验失败（非法 kind）→ 400 VALIDATION_FAILED', async () => {

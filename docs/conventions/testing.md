@@ -9,10 +9,11 @@
 | 层 | 工具 | 覆盖什么 |
 |---|---|---|
 | 单元测试 | Vitest | 纯函数：时间、计价与额度、邮箱策略、动态表单 schema、热量计算、连续打卡、排行榜计分 |
-| 接口测试 | Vitest + Hono 的 `app.request()` | 鉴权、入参校验、错误码。M3 起，至少一个受保护接口 |
-| 界面验收 | ego-browser | 手机 390px、桌面 1280px 实际操作（AGENTS.md Definition of Done 第 3 条） |
+| 纯组件静态渲染测试 | Vitest + `react-dom/server` | 纯组件或无浏览器副作用的 UI 片段：在 Node 环境用 `renderToStaticMarkup` 核对角色名称、ARIA 属性、条件显隐与关键文案（`.test.tsx`） |
+| 接口测试 | Vitest + Hono 的 `app.request()` | 鉴权、入参校验、错误码 |
+| 界面验收 | ego-browser | 手机 390px、桌面 1280px 实际操作（AGENTS.md Definition of Done 第 4 条） |
 
-- 不写组件单元测试，不安装 jsdom、Testing Library、`@vitejs/plugin-react`。界面靠 Playbook 批注和 ego-browser 验收；以后需要时走依赖变更流程。
+- 不安装 `jsdom`、Testing Library、`@vitejs/plugin-react`。可用 `react-dom/server` 的 `renderToStaticMarkup` 在 Node 环境对纯组件做 `.test.tsx` 静态渲染测试（配合 `vi.mock` 隔离路由或数据 hook）；完整交互与视觉验收靠 Playbook 批注和 ego-browser。
 - Vitest 不支持 async Server Component（Next 文档），这类组件只做 ego-browser 验收。
 
 ## 2. 必须有测试的代码
@@ -39,10 +40,10 @@
 
 - `vitest.config.ts`：
   - `resolve.tsconfigPaths: true`：Vite 8 内置，用来解析 `@/` 别名，不安装 `vite-tsconfig-paths`；
-  - `test.environment: 'node'`；
-  - `resolve.alias` 把 `server-only` 指向一个空模块：项目没有安装 `server-only` 包（Next 在内部处理它），Vitest 里不加别名会解析失败。
+  - `test.environment: 'node'`、`test.include: ['src/**/*.test.{ts,tsx}']`（同时覆盖 `.test.ts` 与 `.test.tsx`）；
+  - `resolve.alias` 把 `server-only` 指向空模块 `src/test/server-only-stub.ts`：项目没有安装 `server-only` 包（Next 在内部处理它），Vitest 里不加别名会解析失败。
 - `vite` 安装 8.x（vitest 5 的 peer 依赖接受 6 / 7 / 8；`resolve.tsconfigPaths` 是 Vite 8 文档里的选项）。
 - 脚本：`"test": "vitest run"`。`vitest` 不带 `run` 默认进入监听模式，会让 CI 和代理环境挂住；本地需要监听时手动执行 `pnpm vitest`。
-- M3 把 `pnpm test` 加进 CI 的 `verify` job，并在 AGENTS.md 的 Definition of Done 加一条"`pnpm test` 退出码为 0"。
+- `pnpm test` 已接入 CI 的 `verify` job，并写入 AGENTS.md 的 Definition of Done。
 - v0.1 不设覆盖率门槛。
 

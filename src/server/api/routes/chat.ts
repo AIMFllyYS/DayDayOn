@@ -14,7 +14,8 @@ import { db } from '@/server/db/client'
 import * as chatService from '@/server/services/chat'
 import type { AppEnv } from '../app'
 import { requireOnboarded, requireUser } from '../middleware/auth'
-import { AUTH_ERRORS, errorResponses } from '../schemas'
+import { idempotency } from '../middleware/idempotency'
+import { AUTH_ERRORS, errorResponses, IdempotencyHeadersSchema } from '../schemas'
 
 /*
  * 1v1 好友私聊接口（Issue #25 · #26 · M6 · Decision #4 & #6）：
@@ -67,9 +68,10 @@ const sendChatMessageRoute = createRoute({
   path: '/chats/{friendUserId}',
   tags: ['chat'],
   summary: '向指定好友发送 1v1 私聊消息',
-  middleware: [requireUser, requireOnboarded] as const,
+  middleware: [requireUser, requireOnboarded, idempotency()] as const,
   request: {
     params: FriendIdParamSchema,
+    headers: IdempotencyHeadersSchema,
     body: { content: json(SendChatMessageInputSchema), required: true },
   },
   responses: {
@@ -81,6 +83,8 @@ const sendChatMessageRoute = createRoute({
       'CONTENT_SENSITIVE',
       'USER_MUTED',
       'FORBIDDEN',
+      'IDEMPOTENCY_KEY_REUSED',
+      'REQUEST_IN_PROGRESS',
     ),
   },
 })
@@ -121,9 +125,10 @@ const sendFriendsChatMessageRoute = createRoute({
   path: '/friends/{friendUserId}/chat',
   tags: ['chat'],
   summary: '向指定好友发送 1v1 私聊消息（别名）',
-  middleware: [requireUser, requireOnboarded] as const,
+  middleware: [requireUser, requireOnboarded, idempotency()] as const,
   request: {
     params: FriendIdParamSchema,
+    headers: IdempotencyHeadersSchema,
     body: { content: json(SendChatMessageInputSchema), required: true },
   },
   responses: {
@@ -135,6 +140,8 @@ const sendFriendsChatMessageRoute = createRoute({
       'CONTENT_SENSITIVE',
       'USER_MUTED',
       'FORBIDDEN',
+      'IDEMPOTENCY_KEY_REUSED',
+      'REQUEST_IN_PROGRESS',
     ),
   },
 })
@@ -159,11 +166,12 @@ export const chatRoutes = new OpenAPIHono<AppEnv>()
   .openapi(sendChatMessageRoute, async (c) => {
     const { friendUserId } = c.req.valid('param')
     const body = c.req.valid('json')
+    const idempotencyKey = body.idempotencyKey ?? c.req.valid('header')['idempotency-key']
     const data = await chatService.sendChatMessage(
       db,
       c.get('user').id,
       friendUserId,
-      body,
+      { ...body, idempotencyKey },
       new Date(),
     )
     return c.json(data, 201)
@@ -188,11 +196,12 @@ export const chatRoutes = new OpenAPIHono<AppEnv>()
   .openapi(sendFriendsChatMessageRoute, async (c) => {
     const { friendUserId } = c.req.valid('param')
     const body = c.req.valid('json')
+    const idempotencyKey = body.idempotencyKey ?? c.req.valid('header')['idempotency-key']
     const data = await chatService.sendChatMessage(
       db,
       c.get('user').id,
       friendUserId,
-      body,
+      { ...body, idempotencyKey },
       new Date(),
     )
     return c.json(data, 201)

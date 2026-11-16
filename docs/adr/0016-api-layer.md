@@ -24,9 +24,9 @@
 
 Hono + @hono/zod-openapi，版本 hono 4.13.14、@hono/zod-openapi 1.6.3。
 
-- 封装层入口：src/app/api/v1/[[...route]]/route.ts 挂载；路由按领域写在 src/server/api/<领域>.ts；错误码登记在 src/server/api/errors.ts
-- handler 只做四件事：解析入参 → requireUser() → 调 service → 映射结果
-- OpenAPI 导出到 docs/specs/api/openapi.json 并提交，CI 检查与代码一致
+- 封装层入口：src/app/api/v1/[[...route]]/route.ts 挂载（非生产环境拦截 GET /api/v1/doc 输出 OpenAPI JSON）；根应用 src/server/api/app.ts 统一挂 csrf、defaultHook、onError、notFound；路由按领域写在 src/server/api/routes/<领域>.ts；错误码登记在 src/server/api/errors.ts
+- handler 只做四件事：解析入参 → 鉴权中间件（requireUser / requireAdmin + requireOnboarded）→ 调 service → 映射结果
+- OpenAPI 导出到 docs/specs/api/openapi.json 并提交（含流式接口 text/event-stream 与 multipart 文件字段）
 
 ## 理由
 

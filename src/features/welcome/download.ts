@@ -5,7 +5,7 @@
  */
 
 export const APK_AVAILABLE = true
-export const APK_VERSION = 'v0.1.6'
+export const APK_VERSION = 'v0.1.11'
 
 export const GITHUB_REPO_URL = 'https://github.com/AIMFllyYS/DayDayOn'
 export const APK_FILE_NAME = 'DayDayOn.apk'

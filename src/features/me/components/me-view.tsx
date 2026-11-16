@@ -45,7 +45,7 @@ const SelectRemindMode = dynamic(
 
 const SelectDayStart = dynamic(
   () => import('@/components/ui/select').then((m) => m.Select<string>),
-  { loading: () => <Skeleton className="h-10 w-32 rounded-xl" /> },
+  { loading: () => <Skeleton className="h-11 w-36 rounded-xl md:h-10" /> },
 )
 
 export type MeSubSection = 'checkin' | 'appearance' | 'permissions' | 'about' | 'account'
@@ -468,7 +468,7 @@ export function MeView({
                         options={DAY_START_OPTIONS}
                         value={String(prefs.dayStartHour)}
                         onValueChange={(v) => onPreferencesChange({ dayStartHour: Number(v) })}
-                        className="text-caption h-10 w-32 shrink-0 px-3 sm:w-36"
+                        className="text-body md:text-caption h-11 w-36 shrink-0 px-3 sm:w-40 md:h-10 md:w-36"
                       />
                     }
                   />

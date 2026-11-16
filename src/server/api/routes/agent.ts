@@ -1,8 +1,7 @@
 import 'server-only'
-import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import { createRoute, OpenAPIHono, type z } from '@hono/zod-openapi'
-import * as zz from 'zod'
+import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
+import * as z from 'zod'
 import {
   AgentConversationDetailSchema,
   AgentConversationListSchema,
@@ -35,18 +34,20 @@ import { AUTH_ERRORS, errorResponses } from '../schemas'
 
 const json = <T extends z.ZodType>(schema: T) => ({ 'application/json': { schema } })
 
-const ChatRequestSchema = zz.object({
-  /** 会话 id（客户端 crypto.randomUUID()，不存在时服务端自动创建） */
-  id: zz.string().uuid(),
-  /** 本条用户消息（UIMessage） */
-  message: zz.object({
-    id: zz.string().min(1).max(128),
-    role: zz.enum(['user', 'assistant']),
-    parts: zz.array(zz.unknown()),
-  }),
-  deepThink: zz.boolean().default(false),
-  idempotencyKey: zz.string().uuid(),
-})
+const ChatRequestSchema = z
+  .object({
+    /** 会话 id（客户端 crypto.randomUUID()，不存在时服务端自动创建） */
+    id: z.uuid(),
+    /** 本条用户消息（UIMessage） */
+    message: z.object({
+      id: z.string().min(1).max(128),
+      role: z.enum(['user', 'assistant']),
+      parts: z.array(z.unknown()),
+    }),
+    deepThink: z.boolean().default(false),
+    idempotencyKey: z.uuid(),
+  })
+  .meta({ id: 'AgentChatRequest' })
 
 const listRoute = createRoute({
   method: 'get',
@@ -129,44 +130,40 @@ function validateChatMessageFileParts(parts: readonly unknown[]): void {
   }
 }
 
-/** 流式接口单独挂：`.post()` 会丢失 OpenAPIHono 的类型，合并到 OpenAPI 子应用里 */
-const agentChat = new Hono<AppEnv>().post(
-  '/agent/chat',
-  requireUser,
-  requireOnboarded,
-  bodyLimit({
-    maxSize: AGENT_CHAT_MAX_BODY_BYTES,
-    onError: (c) => c.json(chatTooLarge.toBody(), chatTooLarge.status),
-  }),
-  rateLimit({ rule: { name: 'agent-chat-minute', windowSeconds: 60, max: 6 }, by: 'user' }),
-  async (c) => {
-    const raw = await c.req.json().catch(() => null)
-    const parsed = ChatRequestSchema.safeParse(raw)
-    if (!parsed.success) {
-      return c.json(
-        {
-          code: 'VALIDATION_FAILED',
-          detail: '请求体校验失败',
-          fields: zz.flattenError(parsed.error).fieldErrors as Record<string, string[]>,
-        },
-        400,
-      )
-    }
-    const { id, message, deepThink, idempotencyKey } = parsed.data
-    validateChatMessageFileParts(message.parts)
-    const previous = await loadConversationMessages(c.get('user').id, id, { allowMissing: true })
-    const history = previous.filter((m) => m.id !== message.id)
-    type ChatMessage = Parameters<typeof streamAgentChat>[0]['messages'][number]
-    return streamAgentChat({
-      userId: c.get('user').id,
-      ip: c.get('ip'),
-      idempotencyKey,
-      conversationId: id,
-      messages: [...history, message as unknown as ChatMessage],
-      deepThink,
-    })
+const chatRoute = createRoute({
+  method: 'post',
+  path: '/agent/chat',
+  tags: ['agent'],
+  summary: 'Agent 流式对话（SSE）',
+  middleware: [
+    requireUser,
+    requireOnboarded,
+    bodyLimit({
+      maxSize: AGENT_CHAT_MAX_BODY_BYTES,
+      onError: (c) => c.json(chatTooLarge.toBody(), chatTooLarge.status),
+    }),
+    rateLimit({ rule: { name: 'agent-chat-minute', windowSeconds: 60, max: 6 }, by: 'user' }),
+  ] as const,
+  request: {
+    body: { content: json(ChatRequestSchema), required: true },
   },
-)
+  responses: {
+    200: {
+      content: { 'text/event-stream': { schema: z.string() } },
+      description: '流式对话响应（UI message stream）',
+    },
+    ...errorResponses(
+      ...AUTH_ERRORS,
+      'VALIDATION_FAILED',
+      'QUOTA_INSUFFICIENT',
+      'IDEMPOTENCY_KEY_REUSED',
+      'REQUEST_IN_PROGRESS',
+      'PAYLOAD_TOO_LARGE',
+      'RATE_LIMITED',
+      'AI_PAUSED',
+    ),
+  },
+})
 
 export const agentRoutes = new OpenAPIHono<AppEnv>()
   .openapi(listRoute, async (c) => {
@@ -193,4 +190,18 @@ export const agentRoutes = new OpenAPIHono<AppEnv>()
     await deleteConversation(c.get('user').id, conversationId)
     return c.body(null, 204)
   })
-  .route('/', agentChat)
+  .openapi(chatRoute, async (c) => {
+    const { id, message, deepThink, idempotencyKey } = c.req.valid('json')
+    validateChatMessageFileParts(message.parts)
+    const previous = await loadConversationMessages(c.get('user').id, id, { allowMissing: true })
+    const history = previous.filter((m) => m.id !== message.id)
+    type ChatMessage = Parameters<typeof streamAgentChat>[0]['messages'][number]
+    return streamAgentChat({
+      userId: c.get('user').id,
+      ip: c.get('ip'),
+      idempotencyKey,
+      conversationId: id,
+      messages: [...history, message as unknown as ChatMessage],
+      deepThink,
+    })
+  })
