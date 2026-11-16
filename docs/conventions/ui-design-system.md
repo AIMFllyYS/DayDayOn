@@ -20,10 +20,11 @@
 | 层 | 位置 | 内容 |
 |---|---|---|
 | 设计 token | `src/app/globals.css` | 颜色、字号、圆角、阴影、缓动、动画预设 |
-| 原子组件 | `src/components/ui/` | 无业务逻辑：按钮、卡片、徽章、进度、表单控件、弹层、反馈、日历、图标 |
-| 图表组件 | `src/components/charts/` | 热力图（Heatmap）、折线图（LineChart）、柱状图（BarChart）与线性比例尺 |
-| 布局组件 | `src/components/layout/` | 应用外壳：底部导航、侧栏、顶栏、导航项配置 |
-| 吉祥物 | `src/components/mascot/` | 团团的绘制（MascotSvg）、静态版（Mascot）、互动版（InteractivePet） |
+| 原子组件 | `src/components/ui/` | 无业务逻辑：按钮、卡片、徽章、进度、表单控件、滑块、弹层、人机验证、媒体选择、反馈、日历、图标 |
+| Markdown 渲染 | `src/components/markdown/` | AI 输出渲染 `<Markdown>`（GFM、流式语法补全、`math.tsx` KaTeX 懒加载、`diagram.tsx` Mermaid 懒加载） |
+| 图表组件 | `src/components/charts/` | 周热力图（`WeekHeatmap`）、折线图（`LineChart`）、柱状图（`BarChart`）、迷你趋势线（`Sparkline`）与线性比例尺 |
+| 布局组件 | `src/components/layout/` | 应用外壳、底部导航、侧栏、顶栏、导航项配置、开屏（`Splash`） |
+| 吉祥物 | `src/components/mascot/` | 4 只吉祥物绘制（`MascotSvg`）、静态版（`Mascot`）、互动版（`InteractivePet`）、预设头像（`PresetAvatar`） |
 | 领域组件 | `src/features/<领域>/components/` | 带业务含义：Agent、打卡、目标 |
 | 页面 | `src/app/(app)/…` | 只做组合 |
 | Playbook | `src/app/dev/playbook/` | 只展示，正式代码不得引用 |
@@ -52,7 +53,7 @@
 2. 实底只用深而柔的低饱和色，上面用奶油色字，对比度 ≥ 4.8:1。
 3. 同一色相分浅（soft）/ 中（base）/ 深（ink）三档。一个区域只有一个实底主按钮，其他操作用 `soft`、`secondary` 或 `ghost`。
 
-**主题色**：用户可选，只换主色这一组（按钮、当前态、开关、焦点环、主色投影），板块色、状态色、底色不随主题变。色值在 `globals.css` 的 `[data-theme]` 块里，id 和名称在 `src/lib/theme.ts`，选择器是 `ThemePicker`。偏好暂存在 localStorage（`daydayon:theme:v1`），接入账号后改存用户设置，并在根布局提前写 `data-theme` 避免闪一下默认色。任何元素加 `data-theme` 都能局部换色。
+**主题色**：用户可选，只换主色这一组（按钮、当前态、开关、焦点环、主色投影），板块色、状态色、底色不随主题变。色值在 `globals.css` 的 `[data-theme]` 块里，id 和名称在 `src/lib/theme.ts`，选择器是 `ThemePicker`（正式页面位于「我的 → 外观与陪伴」）。偏好存于用户设置（`GET /me`、`PATCH /me/preferences`），由 `ThemeSync` 同步写入 localStorage（`daydayon:theme:v1`），并在根布局 `<head>` 内联脚本提前写入 `data-theme` 避免闪一下默认色。任何元素加 `data-theme` 都能局部换色。
 
 | 主题 | primary | soft | ink | 奶油字对比度 |
 |---|---|---|---|---|
@@ -139,7 +140,7 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 
 **缓动**：`ease-standard` 普通过渡；`ease-out-soft` 进场；`ease-in-soft` 退场；`ease-spring` 按压回弹、开关、选中（有过冲）。
 
-**预设**：`animate-fade-in`、`fade-out`、`fade-up`、`pop-in`、`sheet-up`、`sheet-down`、`stamp`、`wiggle`、`shake`、`wave-bob`、`confetti`，以及循环类的 `breathe`、`float`、`shimmer`、`spin-slow`。
+**预设**（`globals.css` `@theme`）：`--animate-fade-in`、`--animate-fade-out`、`--animate-fade-up`、`--animate-pop-in`、`--animate-sheet-up`、`--animate-sheet-down`、`--animate-stamp`、`--animate-wiggle`、`--animate-shake`、`--animate-wave-bob`、`--animate-confetti`、`--animate-caret`（流式光标闪烁）、`--animate-scan-sweep`（智能识别扫描线往复扫光）、`--animate-splash-hop` 与 `--animate-splash-out`（开屏起跳与圆心挖洞退场），以及循环类的 `--animate-breathe`、`--animate-float`、`--animate-shimmer`、`--animate-spin-slow`。
 
 **统一手感**：
 
@@ -169,34 +170,41 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 | `Field` / `Input` / `Textarea` | `field.tsx` | Base UI Field / Input：标签、提示、错误自动关联；错误文案替换提示；`aria-invalid` 驱动错误样式 |
 | `Form` | `form.tsx` | Base UI Form：接收客户端 zod `fieldErrors` 或服务端 `fields`，对应 `name` 的字段改动后自动清除错误 |
 | `Select` / `Combobox` | `select.tsx`、`combobox.tsx` | Base UI Select / Combobox：单选下拉与可筛选/可新建（`creatable`）组合框；弹层类页面级懒加载 |
+| `Slider` | `slider.tsx` | Base UI Slider：拖动选择数值（运动强度、饱腹感等），支持 `formatValue`、板块色 `tone` 与 `onValueCommitted` |
 | `NumberField` | `number-field.tsx` | Base UI NumberField：步进按钮 + 滚轮微调 + 单位后缀；关闭原生 HTML5 `step` 校验，范围由 zod 把关 |
 | `OTPField` | `otp-field.tsx` | 6 位数字验证码输入：支持粘贴、自动跳格、退格回退，填满自动触发 `onComplete` |
 | `Checkbox` | `checkbox.tsx` | Base UI Checkbox：待办勾选与多选框，外层保证 44×44px 触控区 |
 | `DateField` / `TimeField` / `TimeRangeField` | `date-field.tsx`、`time-field.tsx`、`time-range-field.tsx` | 原生日期与时间输入（ADR-0007）；`TimeRangeField` 跨午夜自动标"次日"并实时计算睡眠时长 |
-| `ImagePicker` | `image-picker.tsx` | 选图 / 拍照 + 内存 Canvas 压缩预览（最长边 ≤ 1280px，WebP/JPEG ≤ 800KB），不落盘 |
+| `ImagePicker` | `image-picker.tsx` | 接入 `useMediaPicker` 选图 / 拍照（支持同时上传 2 张）+ 内存 Canvas 压缩预览（仅 JPEG 0.8、像素面积 ≤ 1300×1300、上限 4MB，ADR-0011），不落盘 |
+| `PhotoAlbumSheet` | `photo-album-sheet.tsx` | 安卓客户端专属流式缩略图无限下滑多选相册，支持目录筛选、1..`maxSelect` 顺序点选与 Android 14+ 部分照片授权增选 |
+| `useMediaPicker` | `use-media-picker.tsx` | 跨平台媒体选择调度器：网页端同步拉起原生 `<input type="file">`，安卓壳内优先调用原生高清相机或 `PhotoAlbumSheet` |
+| `TurnstileField` | `turnstile.tsx` | 自托管手账点选人机验证弹窗（ADR-0023）：Base UI Dialog + `<canvas>` 错版印刷图标点选，通过 `ref.open()` 唤起 |
 | `Switch` | `switch.tsx` | Base UI Switch，`role="switch"`，外层 44px 触控区 |
-| `SegmentedControl` | `segmented-control.tsx` | Base UI Tabs 驱动的页面内视图切换，方向键可切换 |
+| `SegmentedControl` | `segmented-control.tsx` | 自研 `role="radiogroup"` 页面内视图切换，支持等宽滑块平移与方向键切换 |
 | `Rating` | `rating.tsx` | 满意度 1–5，选中项用板块色；选中时有情绪反馈（第 5 节），`feedback={false}` 关闭 |
 | `MenuList` / `MenuItem` | `menu-list.tsx` | 设置列表；`danger` 用于退出登录、注销 |
 | `Sheet` | `sheet.tsx` | Base UI Drawer（`<768px` 底部抽屉，支持下滑关闭）+ Dialog（`≥768px` 居中对话框），`z-40`，打开时锁住背景滚动；内置 `useAnimatedOpen` 保障按需首次挂载时的 `360ms` 底部上拉过渡 |
 | `ConfirmDialog` | `confirm-dialog.tsx` | Base UI AlertDialog（`z-50`）：高危或丢数据操作二次确认（点遮罩不关闭），支持异步 `onConfirm` 与按需挂载进场过渡 |
-| `Popover` / `Tooltip` / `Menu` / `Collapsible` | `popover.tsx`、`tooltip.tsx`、`menu.tsx`、`collapsible.tsx` | Base UI 浮层、行内操作菜单与折叠面板，统一 `z-50` 与 `data-starting-style` / `data-ending-style` 过渡 |
-| `ToastViewport` / `toast` | `toast.tsx` | Base UI Toast：`toast.success / error / info`，手机在底栏上方、桌面在右下角 |
-| `Calendar` | `calendar.tsx` | `react-day-picker` 唯一封装入口：周一起始、中文月份、板块色调选中态，支持补卡日期范围限制 |
+| `useAnimatedOpen` | `use-animated-open.ts` | 弹层首次按需挂载进场动画 Hook：首帧以 `false` 初始化并在下一动画帧切为 `true`，确保 100% 触发 `data-starting-style` |
+| `Popover` / `Menu` | `popover.tsx`、`menu.tsx` | Base UI 浮层与行内操作菜单，统一 `z-50`（`Popover` 桌面端 `md:z-[60]`）与 `data-starting-style` / `data-ending-style` 过渡 |
+| `ToastProvider` / `toastManager` / `toast` | `toast.tsx` | Base UI Toast：`toast.success / error / info / promise / undo`，手机端位于顶部（不挡底栏）、桌面端位于右下角 |
+| `Calendar` / `CalendarLegend` | `calendar.tsx` | `react-day-picker` 唯一封装入口：周一起始、中文月份（`zhCN`）、板块色调选中态，支持补卡日期范围限制；配套 `CalendarLegend` 图例 |
 | `EmptyState` / `ErrorState` | `empty-state.tsx`、`error-state.tsx` | 空状态（配静态吉祥物 + 主操作）与加载失败重试卡片 |
 | `ThemePicker` | `theme-picker.tsx` | 主题色单选；每个色块自带 `data-theme`，组件里不写色值；`compact` 只显示色块 |
-| `Avatar` / `AvatarStack` | `avatar.tsx` | 支持预设头像（`preset:*`）或昵称首字；`ring` 表示连续打卡中 |
+| `Avatar` / `AvatarStack` | `avatar.tsx` | 支持 4 只吉祥物预设头像（`mascot:<character>:<mood>:<tone>`）或昵称首字；`ring` 表示连续打卡中 |
 | `Stamp` | `stamp.tsx` | 打卡印章，`animate` 只在刚完成时播放 |
 | `Skeleton` | `skeleton.tsx` | 形状接近真实内容，不用转圈代替 |
 | `Icon` | `icon.tsx` | 手绘双层图标，见下文；当前态描边加粗到 2.4px |
 
-此外，`src/components/charts/` 提供三类数据展示组件（只引 `d3-shape` 算路径，SVG 自绘，详见 [ui-primitives.md](./ui-primitives.md) 第 7 节）：
+此外，`src/components/charts/` 与 `src/components/markdown/` 提供数据展示与 AI 输出渲染组件（图表只引 `d3-shape` 算路径，SVG 自绘，详见 [ui-primitives.md](./ui-primitives.md) 第 7 节）：
 
 | 组件 | 文件 | 要点 |
 |---|---|---|
-| `Heatmap` | `heatmap.tsx` | 周一到周日 × N 周打卡热力格，4 档强度（0 / 1–49% / 50–99% / ≥100%），点击格子看当天明细 |
-| `LineChart` | `line-chart.tsx` | 单折线 + 渐变面积图（体重趋势、每日 AI 花费），非负数据 Y 轴下界不低于 0，参考线支持目标值 |
-| `BarChart` | `bar-chart.tsx` | 按天/周柱状图（运动时长、睡眠时长），达标柱用板块主色、未达标用浅档 |
+| `WeekHeatmap` | `charts/week-heatmap.tsx` | 周一到周日 × 板块本周热力表（`<table>`），4 档完成度（0 / (0, 0.5) / [0.5, 1) / ≥1）与未达标存档虚线斜纹格 |
+| `LineChart` | `charts/line-chart.tsx` | 单折线 + 渐变面积图（体重趋势、每日 AI 花费），非负数据 Y 轴下界不低于 0 |
+| `BarChart` | `charts/bar-chart.tsx` | 按天柱状图（运动时长、睡眠时长、得分），支持虚线门槛（`threshold`），达标柱用板块实色、未达标用浅色 |
+| `Sparkline` | `charts/sparkline.tsx` | 卡片内迷你趋势线（主页体重卡），固定尺寸无刻度，跳过 `null` 点并高亮末点 |
+| `Markdown` | `markdown/index.tsx`（含 `elements.tsx`、`code.tsx`、`math.tsx`、`diagram.tsx`） | AI 输出统一渲染入口（ADR-0025）：支持 GFM、`remend` 流式语法补全、KaTeX 公式与 Mermaid 图示按需懒加载、外链白名单与外图降级 |
 
 - 组件对外的 `className` 只用来补充布局（间距、宽度）。`cn()` 目前不合并冲突类名，不要用它覆盖组件的颜色和尺寸。
 - 没有 hooks 的组件不加 `'use client'`，由使用它的客户端组件传入事件处理函数；只有 `Sheet` 这类用到 effect 的组件是客户端组件。
@@ -219,9 +227,9 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 - `BottomNav`、`SideNav`、`TopBar` 本身不定位，由应用外壳负责 `fixed` / `sticky` 和安全区（`--safe-top`、`--safe-bottom`）。
 - 导航项只在 `src/components/layout/nav-items.ts` 定义一次，手机和桌面共用；高亮规则见 `isNavActive()`（主页精确匹配，其余按前缀匹配）。
 - 一级页面显示主导航；二级页面隐藏底栏，顶栏带返回按钮。导航文字和页面标题一致，当前项加 `aria-current="page"`。
-- **移动端顶栏（TopBar）**：上下内边距紧凑（44px 紧凑外壳），页面标题严格手机居中。一级页面（主页、待办、排行）左上角放置用户小头像（34px，点击前往「我的」），右上角并列放置通知按钮与加号操作菜单（支持「添加好友」、「立即打卡」、「设置目标」）。
-- **移动端底栏（BottomNav）**：选中高亮为包裹图标与文字的 52px 胶囊/圆形色块，并配置弹性缓动平移滑块（Spring glide），切换 tab 时高亮圆球平滑缓动至目标位置。
-- **「我的」页面**：隐藏顶栏（`hideTopBar`），顶部贴纸大卡片直接置顶；「外观」设置项与账号、偏好设置对齐，统一复用 `MenuList` / `MenuItem` 样式（左侧色块/宠物头像 + 右侧名称），点击展开 Bottom Sheet 抽屉供用户切换。
+- **移动端顶栏（TopBar）**：上下内边距紧凑，页面标题手机端严格居中、桌面端居左。一级页面（主页、待办、排行）左上角放置 `TopBarUserAvatar`（`AvatarStack + Popover` 好友视角切换与管理面板：点击切换本人/好友打卡仪表盘，长按或右键在面板内展开「进入好友空间 / 删除此好友」二级菜单），右上角并列放置通知按钮与加号操作菜单（支持「添加好友」、「立即打卡」、「设置目标」）。
+- **移动端底栏（BottomNav）**：选中高亮为包裹图标与文字的圆形色块，并配置弹性缓动平移滑块（Spring glide），切换 tab 时高亮圆球平滑缓动至目标位置。
+- **「我的」页面**：隐藏顶栏（`hideTopBar`），顶部贴纸大卡片直接置顶；设置采用一级分组目录 + 「打卡与提醒」「外观与陪伴」「权限管理」「数据与关于」「账号与安全」二级子视图（支持浏览器与手机侧滑返回），其中「外观与陪伴」二级视图内复用 `MenuList` / `MenuItem` 切换主题配色与 4 只陪伴伙伴。
 - 弹层里不再打开弹层。底栏之外的悬浮按钮不放在右下角。
 - 全站隐藏滚动条（`globals.css` 的 base 层），滚动本身不受影响；需要提示"还能滚"时露出半张卡片或加渐隐，不靠滚动条。
 
@@ -236,18 +244,18 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 | 区块 | 来源 | 规则 |
 |---|---|---|
 | 活动条 `ActivityTrail` | reasoning + tool | 进行中默认展开成时间线，回答完成后自动收起（用户手动开合过就以用户为准）。收起时只占一行：左边说明正在做什么（"正在搜索等 3 件事"）或完成摘要（"12 个工具 · 11 秒"），右边是工具小方块。同一步并行的方块叠在一起，步与步之间留空；只显示最近 5 个，其余折成 +N；失败的方块带红点。点开是按步排列的时间线：思考是一段灰色小字（两行截断，点击展开），每个工具一行（图标、中文名、摘要、耗时），点行看参数和结果 |
-| 正文 `AnswerText` | text | 回答是视觉重点。流式输出时末尾有闪烁光标；只支持空行分段和 `**加粗**`，按纯文本渲染，不用 innerHTML |
+| 正文 `AnswerText` | text | 回答是视觉重点。已全面接入 `<Markdown text streaming />`（支持标题、列表、表格、引用、代码块、KaTeX 公式、Mermaid 图示，`remend` 流式语法补全），流式输出时末尾有闪烁光标（`animate-caret`）；不使用 `innerHTML` 直接拼接模型文本 |
 | 产物 | 业务组件 | AI 草稿卡、图表等，放在正文后面 |
 | 来源 | source | 联网时引用的网页，去重后编号，显示域名 |
 | 错误 | status = error | 原因 + 重试按钮 |
 
-头像用团团：思考中 `thinking`，完成 `happy`，出错 `sad`。
+头像与自称随用户所选陪伴形象同步（`tuan` 团团 / `dun` 墩墩 / `mian` 绵绵 / `you` 柚柚）：思考中 `thinking`，完成 `happy`，出错 `sad`。
 
 **其他组件**
 
 | 组件 | 规则 |
 |---|---|
-| `UserMessage` | 用户消息，主色浅底靠右；附件只写说明（"1 张照片 · 识别后不保存"），不显示原图 |
+| `UserMessage` | 用户消息，主色浅底靠右；当次会话内存中存在压缩图片预览（`imageUrls`）时，在气泡上方展示圆角缩略图（仅存于浏览器页面内存，不落盘、不入库，刷新释放），底部保留附件说明（如"1 张照片（识别后不保存）"） |
 | `AiDraftCard` AI 草稿 | AI 结果先是草稿，主按钮永远是"确认记录"，不自动保存。把握度低于 0.6 时提示核对并提供"手动填写"；热量、睡眠类结果标注"估算结果，非医疗建议" |
 | `QuotaMeter` AI 额度 | 显示"还剩多少"；金额以整数微元传入，展示时才换算成元；剩余低于 20% 用警告色 |
 | `ThinkingDots` | 生成中的三个呼吸点，颜色跟随文字 |
@@ -262,14 +270,16 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 - 过程里不显示 token 数、模型名等技术细节。
 - 不展示用户上传的原图（图片不落盘，见 ADR-0002 第 4 节）。
 
-## 9. 吉祥物：团团与墩墩
+## 9. 吉祥物：团团、墩墩、绵绵、柚柚
 
-两只糯米团子，用户在新人引导里选一只，之后在「我的 → 外观」里随时换（`MascotSvg` / `Mascot` / `InteractivePet` 的 `character` 属性，`'tuan' | 'dun'`）。身体、表情、手臂、动作完全共用：
+四只糯米团子，用户在新人引导或「我的 → 外观与陪伴」二级视图里随时切换（`MascotSvg` / `Mascot` / `InteractivePet` 的 `character` 属性，`'tuan' | 'dun' | 'mian' | 'you'`）。身体、表情、手臂、动作完全共用，通过头饰、五官微特征与默认休息手势区分性格：
 
-- **团团**（默认，偏女孩）：头顶两片圆叶小芽，樱花粉波点蝴蝶结别在头顶右上。
-- **墩墩**（偏男孩）：雾蓝棒球帽（帽檐朝右）+ 黄色小星星徽章，帽顶一片小叶子；短粗眉毛，腮红淡 40%。
+- **团团**（`tuan`，默认）：头顶两片圆叶小芽，樱花粉波点蝴蝶结别在头顶右上。
+- **墩墩**（`dun`）：雾蓝棒球帽（帽檐朝右）+ 黄色小星星徽章，帽顶一片小叶子；短粗眉毛，腮红淡 40%。
+- **绵绵**（`mian`）：薰衣草紫软垂云朵睡帽 + 奶油白绒球 + 弯月胸针；眼角带柔和弯睫，腮红 85%。
+- **柚柚**（`you`）：暖黄油色小画家贝雷帽 + 蜜柚果蒂配薄荷双叶；脸颊带两颗小雀斑。
 
-全站用用户选的那一只，AI 回复头像、空状态也跟着换。代码在 `src/components/mascot/`：
+全站用用户选的那一只，AI 回复头像与自称、开屏、空状态也跟着换。代码在 `src/components/mascot/`：
 
 | 文件 | 作用 |
 |---|---|
@@ -300,7 +310,7 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 - 互动版只出现在「我的」页和打卡成功时；列表、头像用静态版。一屏不放两只互动团团。
 - 不遮挡内容或按钮；不用团团传达错误详情，错误说明写在文字里。
 
-**悬浮团团（Agent 入口，ADR-0024）**：应用内常驻一只 `FloatingPet`（`src/features/agent/`），以 **纯 IP 形象（`MascotSvg`）直接作为悬浮按钮**，不画生硬的圆形白圈底托，通过 SVG alpha 轮廓柔和投影呈现轻盈立体浮空感。点开 Agent 弹窗、拖动、长按晃悠、双击转圈，边缘吸附露半头、顶部倒立、底部受 Dock 栏阻挡。形象与用户偏好（团团/墩墩）实时同步。它是「互动版」的特例：全站显示，但在「我的」页（已有一只互动团团）和全屏 Agent 页隐藏，遵守「一屏不放两只互动团团」；位置记在 localStorage。弹窗 `AgentPanel` 手机顶部留 1/4（25vh）、左侧留 1/5（20vw），桌面右下角卡片；顶栏左上角为明确的全屏放大按钮，右侧接标题「团团」，历史对话使用 Popover 挂载至 Portal 顶层（`z-[60]`）并带有防截断碰撞检测；底部输入框为单行紧凑布局，浮动「深度思考」开关在 AI 输出时自动隐藏。这同时取代第 7 节「底栏之外的悬浮按钮不放右下角」——悬浮团团是唯一的例外。
+**悬浮宠物（Agent 入口，ADR-0024）**：应用内常驻一只 `FloatingPet`（`src/features/agent/`），以 **纯 IP 形象（`MascotSvg`）直接作为悬浮按钮**，不画生硬的圆形白圈底托，通过 SVG alpha 轮廓柔和投影呈现轻盈立体浮空感。点开 Agent 弹窗、拖动、长按晃悠、双击转圈，边缘吸附露半头、顶部倒立、底部受 Dock 栏阻挡。形象与名字实时同步用户偏好（`tuan` 团团 / `dun` 墩墩 / `mian` 绵绵 / `you` 柚柚）。它是「互动版」的特例：全站显示，但在「我的」页（已有一只互动宠物）、好友空间视角和全屏 `/agent` 页隐藏，遵守「一屏不放两只互动宠物」；位置记在 localStorage。弹窗 `AgentPanel` 手机顶部留 1/4（25vh）、左侧留 1/5（20vw），桌面右下角卡片；顶栏左上角为明确的全屏放大按钮，右侧接标题（默认取当前伙伴名），历史对话使用 Popover 挂载至 Portal 顶层（`z-[60]`）并带有防截断碰撞检测；底部输入框为单行紧凑布局，浮动「深度思考」开关在 AI 输出时自动隐藏。这同时取代第 7 节「底栏之外的悬浮按钮不放右下角」——悬浮宠物是唯一的例外。
 
 ## 10. 可访问性
 
@@ -363,6 +373,6 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 | 图标库 | 不引入。2026-10-31 决定所有图标手绘（第 6 节） | — |
 | clsx + tailwind-merge | 已定不引入：`cn()` 只做拼接（tailwind-merge 会吞掉语义字号，见 libraries.md） | — |
 | 动效库 | 已定不引入（ADR-0005） | — |
-| 团团形象、logo | 团团已细化（第 9 节）；logo 已升级定稿（ADR-0022、2026-11-03 评审决议）：唯一源 `src/components/layout/logo-svg.ts`，采用【05 连击热力·五彩织锦】方案，底色统一为晨曦奶油纸底 `#fff8f0`。App 图标为四色板块积木环抱连击火种，标签页图标与 `BrandMark` 聚焦核心连击色块，保留 08 纸飞机为备用社交资产 | 已完成定稿并在 `/dev/playbook/foundations` 接入演示 |
+| 团团等吉祥物形象、logo | 4 只吉祥物（`tuan` 团团、`dun` 墩墩、`mian` 绵绵、`you` 柚柚）已定稿（第 9 节）；logo 已升级定稿（ADR-0022、2026-11-03 评审决议）：唯一源 `src/components/layout/logo-svg.ts`，采用【05 连击热力·五彩织锦】方案，底色统一为晨曦奶油纸底 `#fff8f0`。App 图标为四色板块积木环抱连击火种，标签页图标与 `BrandMark` 聚焦核心连击色块，保留 08 纸飞机为备用社交资产 | 已完成定稿并在 `/dev/playbook/foundations` 接入演示 |
 | 深色模式 | 未做；token 已分层 | 浅色定稿后 |
 | Prettier 类名排序 | `prettier-plugin-tailwindcss` 没有配置 `tailwindStylesheet`，自定义 token 类会被排到最前 | 在 `.prettierrc.json` 加 `"tailwindStylesheet": "./src/app/globals.css"` |

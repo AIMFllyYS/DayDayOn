@@ -20,14 +20,27 @@
 
 ```
 src/lib/api/
-├── index.ts           对业务代码的唯一出口：re-export useQuery、useMutation、useQueryClient 等，以及下面各文件
+├── index.ts           对业务代码的唯一出口：
+│                        - TanStack Query：dehydrate, HydrationBoundary, keepPreviousData, queryOptions,
+│                          infiniteQueryOptions, useInfiniteQuery, useIsFetching, useIsMutating,
+│                          useMutation, useQueries, useQuery, useQueryClient, useSuspenseQuery,
+│                          QueryClient, QueryKey, useHasQueryClient
+│                        - 客户端与响应：api, unwrap, InferResponseType, SuccessOf
+│                        - 请求与错误：API_BASE, ApiError, apiFetch, isApiError, newIdempotencyKey,
+│                          parseResponse, ApiErrorBody, ApiFetchOptions
+│                        - 错误文案：errorMessage, errorMessages, FALLBACK_MESSAGE
+│                        - Key 与失效：keys, afterCheckinChange
+│                        - Provider 与配置：ApiProvider, getQueryClient, makeQueryClient, STALE_TIME_MS
 ├── client.ts          类型化客户端：hono/client 的 hc，类型来自 `import type { AppType } from '@/server/api/app'`
 ├── fetcher.ts         统一处理：带 cookie、把错误体解析成 ApiError({ status, code, detail, fields })、401 跳登录页
-├── keys.ts            query key 工厂，全项目唯一来源
+├── keys.ts            query key 工厂与联动失效集（afterCheckinChange），全项目唯一来源
 ├── query-client.ts    QueryClient 默认配置：服务端每个请求新建一个，浏览器端单例
 ├── provider.tsx       'use client'；QueryClientProvider，挂在 (app) 布局
 ├── error-messages.ts  错误码 → 中文文案
-└── queries/<领域>.ts  每个领域的 queryOptions 与 mutation hooks
+└── queries/           每个领域的 queryOptions 与 mutation hooks，共 16 个模块：
+                       admin.ts, agent.ts, ai.ts, app-update.ts, chat.ts, checkins.ts,
+                       dashboard.ts, friends.ts, goals.ts, insights.ts, me.ts, metrics.ts,
+                       notifications.ts, quota.ts, rank.ts, todos.ts
 ```
 
 - 业务组件不直接 `fetch('/api/v1/…')`，也不直接 import `@tanstack/react-query`，一律从 `@/lib/api` 导入。
@@ -35,10 +48,10 @@ src/lib/api/
 
 ## 3. Query key
 
-- 全部由 `keys.ts` 生成，形如 `['goals', 'list', { range }]`、`['goals', 'detail', goalId]`、`['me', 'quota']`。
-- 第一段是领域名。失效时按前缀：`queryClient.invalidateQueries({ queryKey: keys.goals.all })`。
+- 全部由 `keys.ts` 生成，形如 `['goals', 'list', { status }]`、`['goals', 'detail', goalId]`、`['me', 'quota']`。
+- 第一段是领域名。失效时按前缀：`queryClient.invalidateQueries({ queryKey: keys.goals.all })`；打卡类写操作统一遍历 `afterCheckinChange` 失效 `checkins`、`goals`、`dashboard`、`rank` 与 `me.detail()`。
 - key 里不放 userId：一个浏览器同时只有一个登录用户，退出登录时调用 `queryClient.clear()`。
-- 每个查询用 `queryOptions({ queryKey, queryFn })` 定义在 `queries/<领域>.ts`，组件、预取、失效都引用同一个定义。
+- 每个查询用 `queryOptions({ queryKey, queryFn })`（分页列表用 `infiniteQueryOptions` / `useInfiniteQuery`）定义在 `queries/<领域>.ts`，组件、预取、失效都引用同一个定义。
 
 ## 4. 默认配置
 
@@ -48,18 +61,18 @@ src/lib/api/
 
 ## 5. 写操作
 
-- 用 `useMutation`。成功后按前缀失效相关查询。
+- 用 `useMutation`。成功后按前缀失效相关查询（`unwrap(api.api.v1....)` 或 `apiFetch`）。
 - 打卡、勾选待办这类高频操作用乐观更新：`onMutate` 先取消相关查询、记下旧值、写入新值；`onError` 回滚并弹出错误提示；`onSettled` 失效刷新。
-- 需要幂等键的写操作（api-conventions.md 第 9 节）：用户每次点击生成一个 `crypto.randomUUID()` 放进 mutation 变量，重试时复用同一个键。
+- 需要幂等键的写操作（api-conventions.md 第 9 节）：用户每次点击调用 `@/lib/api` 导出的 `newIdempotencyKey()` 放进 mutation 变量，重试时复用同一个键。
 - 错误处理：有 `fields` 的交给表单（第 6 节），其余按 `code` 弹出 Toast，文案只来自 `error-messages.ts`。未知 `code` 显示"出了点小状况，稍后再试试"。
 
 ## 6. 表单
 
-- 结构：Base UI `Form` + 本项目的 `Field`（`src/components/ui/field.tsx`，M1 改为基于 Base UI Field）。不引入表单库。
+- 结构：Base UI `Form` + 本项目的 `Field`（`src/components/ui/field.tsx`，基于 Base UI Field）。不引入表单库。
 - 取值：简单表单用 `onFormSubmit` 直接拿到值对象（它会自动 `preventDefault`）；需要联动的字段用普通 `useState` 受控。
 - 校验：提交时用与接口相同的 zod schema `safeParse`，失败时把 `z.flattenError(result.error).fieldErrors` 交给 `Form` 的 `errors`。服务端返回 400 `VALIDATION_FAILED` 时，把响应里的 `fields` 同样交给 `errors`。字段改动后错误会自动清除。
 - 校验时机：默认 `validationMode="onSubmit"`（提交后再改动会即时重新校验）；验证码、体重这类单字段可以用 `onBlur`。
-- 数字：体重、时长用 `NumberField`（M1），界面单位是千克（一位小数）和分钟，提交前换算成接口单位（克、秒）。
+- 数字：体重、时长用 `NumberField`，界面单位是千克（一位小数）和分钟，提交前换算成接口单位（克、秒）。
 - 提交中：按钮显示 loading 并禁止重复提交。抽屉里有未保存的修改时，关闭前用 `ConfirmDialog` 确认。
 - 动态表单（自定义目标）：字段类型是固定清单（数字、文本、单选、多选、布尔、时长、评分）。由字段定义生成 zod schema（`buildSchema(fields)`），渲染和校验共用同一份定义，代码放在 `src/features/goal/`。
 
@@ -72,6 +85,6 @@ src/lib/api/
 
 ## 8. 提示消息
 
-- 全局一个 toast 管理器（`Toast.createToastManager()`），`Toast.Provider` 放在根布局。
-- 业务代码从 `@/components/ui/toast` 调用封装好的方法（成功、错误、promise 三态、带撤销），不直接用 Base UI 的 Toast 部件。具体 API 在 M1 的 Playbook 里定稿。
+- 全局一个 toast 管理器（`toastManager`，由 `Toast.createToastManager()` 创建），`ToastProvider` 放在根布局。
+- 业务代码从 `@/components/ui/toast` 调用 `toast.success / error / info / promise / undo`，不直接用 Base UI 的 Toast 部件。手机端提示位于顶部（不挡底栏），桌面端位于右下角（见 [ui-design-system.md](./ui-design-system.md) 第 6 节）。
 

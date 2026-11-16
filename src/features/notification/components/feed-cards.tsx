@@ -8,6 +8,20 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { moduleMeta, type ModuleTone } from '@/components/ui/tone'
 import type { NotificationItem } from '@/features/notification/schemas'
+import { BUSINESS_TIME_ZONE, calendarDateOf, isValidTimeZone, localTimeOf } from '@/lib/time'
+
+function resolveZone(timeZone?: string): string {
+  return timeZone && isValidTimeZone(timeZone) ? timeZone : BUSINESS_TIME_ZONE
+}
+
+function safeFormatTime(iso: string | undefined, timeZone?: string): string {
+  if (!iso) return ''
+  try {
+    return localTimeOf(iso, resolveZone(timeZone))
+  } catch {
+    return ''
+  }
+}
 
 function getModuleTone(mod: string): ModuleTone {
   if (mod in moduleMeta) {
@@ -22,9 +36,11 @@ function getModuleTone(mod: string): ModuleTone {
 export function CheckinAggregateCard({
   notification,
   onGoToRoom,
+  timeZone,
 }: {
   notification: NotificationItem
   onGoToRoom?: (actorId: string) => void
+  timeZone?: string
 }) {
   const [expanded, setExpanded] = useState(true)
 
@@ -33,12 +49,7 @@ export function CheckinAggregateCard({
     ? (meta.checkins as Array<{ title: string; module: string; time: string }>)
     : []
 
-  const timeStr = notification.createdAt
-    ? new Date(notification.createdAt).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : ''
+  const timeStr = safeFormatTime(notification.createdAt, timeZone)
 
   const count = checkins.length > 0 ? checkins.length : 1
   const badgeLabel = count > 1 ? `5 分钟内连打 ${count} 项` : '完成今日打卡'
@@ -134,18 +145,15 @@ export function CheckinAggregateCard({
 export function PetInteractionCard({
   notification,
   onReplyPoke,
+  timeZone,
 }: {
   notification: NotificationItem
   onReplyPoke?: (actorId: string) => void
+  timeZone?: string
 }) {
   const [replied, setReplied] = useState(false)
 
-  const timeStr = notification.createdAt
-    ? new Date(notification.createdAt).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : ''
+  const timeStr = safeFormatTime(notification.createdAt, timeZone)
 
   return (
     <Card
@@ -227,22 +235,26 @@ export function VisitFootprintCard({ notification }: { notification: Notificatio
   )
 }
 
-function formatAnnouncementTime(iso: string): string {
+function formatAnnouncementTime(iso: string, timeZone?: string): string {
   if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  const hh = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd} ${hh}:${min}`
+  try {
+    const zone = resolveZone(timeZone)
+    return `${calendarDateOf(iso, zone)} ${localTimeOf(iso, zone)}`
+  } catch {
+    return ''
+  }
 }
 
 /**
  * 系统与官方公告卡片（支持数据库 announcements 表多行正文、标签、版本号与置顶态）
  */
-export function SystemNoticeCard({ notification }: { notification: NotificationItem }) {
+export function SystemNoticeCard({
+  notification,
+  timeZone,
+}: {
+  notification: NotificationItem
+  timeZone?: string
+}) {
   const meta = notification.metadata ?? {}
   const tag = typeof meta.tag === 'string' && meta.tag.trim() ? meta.tag.trim() : '官方公告'
   const version =
@@ -264,7 +276,7 @@ export function SystemNoticeCard({ notification }: { notification: NotificationI
           {pinned && <Badge tone="study">置顶</Badge>}
         </div>
         <span className="text-tiny text-subtle shrink-0 font-mono">
-          {formatAnnouncementTime(notification.createdAt)}
+          {formatAnnouncementTime(notification.createdAt, timeZone)}
         </span>
       </div>
       <h4 className="text-subhead leading-snug font-bold [overflow-wrap:anywhere] break-words">

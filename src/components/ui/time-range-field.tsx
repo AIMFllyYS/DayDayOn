@@ -114,7 +114,7 @@ export function TimeRangeField({
             onChange={(e) => onStartChange(e.target.value)}
             aria-invalid={invalid || undefined}
             aria-describedby={msgId}
-            className="text-caption h-10 px-3 tabular-nums"
+            className="text-body md:text-caption h-11 px-3 tabular-nums md:h-10"
           />
         </div>
         <div className="flex min-w-0 flex-col gap-1">
@@ -136,7 +136,7 @@ export function TimeRangeField({
             onChange={(e) => onEndChange(e.target.value)}
             aria-invalid={invalid || undefined}
             aria-describedby={msgId}
-            className="text-caption h-10 px-3 tabular-nums"
+            className="text-body md:text-caption h-11 px-3 tabular-nums md:h-10"
           />
         </div>
       </div>

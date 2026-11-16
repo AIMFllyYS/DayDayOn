@@ -257,4 +257,83 @@ describe('防刷频控（10s 内 >5 条消息）与静音逻辑', () => {
       status: 403,
     })
   })
+
+  it('支持通过 rateLimitCounters 持久化频控与冷静期，进程内存清空后依然拦截', async () => {
+    const testUserId = 'test_persisted_spam_user'
+    const now = new Date('2026-11-02T12:00:00.000Z')
+    const store = new Map<string, { count: number; expiresAt: Date }>()
+
+    const persistedMockDb = {
+      select: (fields?: Record<string, unknown>) => ({
+        from: () => ({
+          where: () => {
+            const keys = Object.keys(fields ?? {})
+            if (keys.includes('expiresAt')) {
+              const row = store.get(`mod-mute:${testUserId}`)
+              const active = row && row.expiresAt > now ? [{ expiresAt: row.expiresAt }] : []
+              return { limit: () => Promise.resolve(active) }
+            }
+            if (keys.includes('count')) {
+              const spamEntry = Array.from(store.entries()).find(([k]) =>
+                k.startsWith(`mod-spam:${testUserId}:`),
+              )
+              const active =
+                spamEntry && spamEntry[1].expiresAt > now ? [{ count: spamEntry[1].count }] : []
+              return { limit: () => Promise.resolve(active) }
+            }
+            return { orderBy: () => Promise.resolve([]) }
+          },
+        }),
+      }),
+      insert: () => ({
+        values: (val: { key: string; count: number; expiresAt: Date }) => ({
+          onConflictDoUpdate: () => {
+            const existing = store.get(val.key)
+            store.set(val.key, {
+              count: existing ? existing.count + 1 : val.count,
+              expiresAt: val.expiresAt,
+            })
+            return Promise.resolve([])
+          },
+        }),
+      }),
+    } as unknown as Tx
+
+    for (let i = 0; i < 5; i++) {
+      await expect(
+        assertTextClean(`消息 ${i}`, {
+          userId: testUserId,
+          action: 'chat',
+          now: new Date(now.getTime() + i * 1000),
+          db: persistedMockDb,
+        }),
+      ).resolves.toBeUndefined()
+    }
+
+    // 模拟进程重启（清空进程内 Map）
+    resetModerationState()
+
+    // 第 6 条消息仍读取持久化计数并触发 24h 冷静期
+    await expect(
+      assertTextClean('重启后第 6 条刷屏', {
+        userId: testUserId,
+        action: 'chat',
+        now: new Date(now.getTime() + 6000),
+        db: persistedMockDb,
+      }),
+    ).rejects.toMatchObject({
+      code: 'USER_MUTED',
+      status: 403,
+    })
+
+    // 再次模拟重启后查询静音状态仍生效
+    resetModerationState()
+    const status = await getUserMuteStatus(
+      testUserId,
+      new Date(now.getTime() + 15000),
+      persistedMockDb,
+    )
+    expect(status.isMuted).toBe(true)
+    expect(status.retryAfterSeconds).toBeGreaterThan(0)
+  })
 })

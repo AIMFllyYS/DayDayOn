@@ -30,16 +30,17 @@
 
 - 业务代码不直接 import `date-fns`、`@date-fns/tz`，也不自己做日期加减。缺函数就在 `src/lib/time/` 里加，并补测试。
 - 需要"现在"的函数把 `now` 作为参数传入，方便测试。
-- 首批函数（M2 写好，全部带测试）：
+- 首批函数（已全部带测试）：
 
 | 函数 | 作用 |
 |---|---|
-| `localDateOf(instant, timeZone, dayStartHour = 4)` | 时刻 → 打卡日。凌晨 4 点前算前一天，熬夜打卡不会记到第二天。`dayStartHour` 可在偏好设置里改 |
+| `localDateOf(instant, timeZone, dayStartHour = DEFAULT_DAY_START_HOUR)` | 时刻 → 打卡日。纯函数默认参数 `DEFAULT_DAY_START_HOUR = 0`（零点换日）；数据库 `profiles.dayStartHour` 默认为 `4`（凌晨 4 点前算前一天，用户可在「我的 → 打卡与提醒」配置 `0–6`，服务端 `loadClock()` 读库无资料行时回落 `PROFILE_DEFAULT_DAY_START_HOUR = 4`） |
 | `dayKey(instant)` | 北京时间的日期键 `2026-10-31`（全站日上限） |
 | `weekKey(instant)` | 北京时间的 ISO 周键 `2026-W44`（每周额度、周榜） |
 | `monthKey(instant)` | 北京时间的月键 `2026-10`（月榜） |
 | `combineLocal(date, time, timeZone)` | 本地日期 + 本地时间 → 时刻 |
 | `sleepRange(bedDate, bedTime, wakeTime, timeZone)` | 起床时间早于入睡时间时算作次日；返回两个时刻和时长秒数 |
+| `sleepRangeForDay(checkinDate, bedTime, wakeTime, timeZone, dayStartHour = DEFAULT_DAY_START_HOUR)` | 按打卡日组合睡眠区间；纯函数默认 `DEFAULT_DAY_START_HOUR = 0`，业务侧传入用户 `clock.dayStartHour` |
 | `secondsBetween(a, b)` | 两个时刻之间的秒数 |
 
 - 一周从周一开始。周键使用 ISO 周（年末、年初的那一周按 ISO 规则归属）。
@@ -56,12 +57,12 @@
 - 原生控件的值是本地字符串（`2026-10-31`、`23:30`），提交前用 `combineLocal()` 转成时刻。
 - 待办的 DDL 用 `datetime-local`。
 - 睡眠区间用两个 `time` 输入，起床早于入睡时显示"次日"，并实时显示时长（`time-range-field.tsx`）。
-- 日历视图（打卡日历）只经 `src/components/ui/calendar.tsx` 使用 React DayPicker：`weekStartsOn={1}`，中文 locale 从 `react-day-picker/locale/zh-CN` 子路径导入（导出名在安装后核对）。
+- 日历视图（打卡日历）只经 `src/components/ui/calendar.tsx` 使用 React DayPicker：`weekStartsOn={1}`，中文 locale 从 `react-day-picker/locale/zh-CN` 子路径导入（导出名 `zhCN`）。
 
 ## 6. 测试必须覆盖
 
-- 跨午夜：23:59 与 00:00。
-- 换日边界：`dayStartHour = 4` 时的 03:59 与 04:00。
+- 跨午夜：23:59 与 00:00（以及 `DEFAULT_DAY_START_HOUR = 0` 默认行为）。
+- 换日边界：用户默认 `dayStartHour = 4` 时的 03:59 与 04:00，以及 `0–6` 可配区间与 `loadClock` 回落 `4` 的口径。
 - 周一切换：北京时间周日 23:59:59 与周一 00:00:00。
 - 跨年的 ISO 周。
 - 用户时区不是北京时间时，打卡日与周期键各自正确。

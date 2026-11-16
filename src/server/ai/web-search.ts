@@ -54,9 +54,9 @@ async function post(path: string, body: unknown): Promise<{ status: number; json
   return { status: res.status, json }
 }
 
-function detail(json: unknown): string {
+function detail(status: number, json: unknown): string {
   const e = (json as ApiErrorBody | null)?.error
-  return e?.message ?? e?.code ?? `HTTP ${'unknown'}`
+  return e?.message ?? e?.code ?? `HTTP ${status}`
 }
 
 /** 搜索：返回精简结果（summary 是给模型看的字段）。失败返回空数组并带原因 */
@@ -69,7 +69,7 @@ export async function searchWeb(
     count: Math.min(Math.max(count, 1), 10),
     need_content: false,
   })
-  if (status !== 200) return { ok: false, reason: detail(json) }
+  if (status !== 200) return { ok: false, reason: detail(status, json) }
   const results = ((json as { results?: unknown[] }).results ?? []).map((r) => {
     const o = r as Record<string, unknown>
     return {
@@ -90,7 +90,7 @@ export async function fetchWeb(
   url: string,
 ): Promise<{ ok: true; page: FetchedPage } | { ok: false; reason: string }> {
   const { status, json } = await post('/v1/tools/fetch', { url: url.slice(0, 8192) })
-  if (status !== 200) return { ok: false, reason: detail(json) }
+  if (status !== 200) return { ok: false, reason: detail(status, json) }
   const o = json as { title?: unknown; content?: unknown }
   const content = String(o.content ?? '')
   return {

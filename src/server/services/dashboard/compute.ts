@@ -27,6 +27,8 @@ export interface DashboardGoal {
   title: string
   sortOrder: number
   history: readonly TargetVersion[]
+  createdLocalDate?: LocalDate
+  deadlineDate?: LocalDate | null
 }
 
 /** 统计用的一条打卡，带所属目标 */

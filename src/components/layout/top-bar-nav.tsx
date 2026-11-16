@@ -328,7 +328,7 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
             friendActions.dismissHintBubble()
             setPanelOpen(true)
           }}
-          className="bg-primary text-primary-foreground shadow-float animate-bounce-in absolute top-[calc(100%+0.5rem)] left-0 z-40 flex items-center gap-1.5 rounded-2xl px-3 py-1.5 whitespace-nowrap"
+          className="bg-primary text-on-primary shadow-float animate-pop-in absolute top-[calc(100%+0.5rem)] left-0 z-40 flex items-center gap-1.5 rounded-2xl px-3 py-1.5 whitespace-nowrap"
         >
           <span className="bg-primary absolute -top-1 left-4 size-2.5 rotate-45" />
           <Icon name="custom" size={14} className="relative z-10 shrink-0" />

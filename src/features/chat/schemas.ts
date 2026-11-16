@@ -33,7 +33,7 @@ export type SendChatMessageInput = z.infer<typeof SendChatMessageInputSchema>
  * 查询私聊历史分页请求参数
  */
 export const ChatHistoryQuerySchema = z.object({
-  cursor: z.string().optional(),
+  cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(30),
 })
 export type ChatHistoryQuery = z.infer<typeof ChatHistoryQuerySchema>

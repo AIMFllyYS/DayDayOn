@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { GoalSettingsContent } from '@/features/checkin/components/goal-settings-view'
 import { DEFAULT_GOALS } from '@/features/goal/defaults'
 import { GoalDetailContent } from '@/features/goal/components/goal-detail-view'
 import { GoalForm } from '@/features/goal/components/goal-form'
@@ -103,9 +104,10 @@ const demoGoals: GoalDetail[] = [
   }),
 ]
 
-type View = 'list' | 'new' | 'form' | 'detail' | 'schema'
+type View = 'settings' | 'list' | 'new' | 'form' | 'detail' | 'schema'
 
 const VIEWS = [
+  { value: 'settings', label: '目标设置' },
   { value: 'list', label: '列表' },
   { value: 'new', label: '选板块' },
   { value: 'form', label: '表单' },
@@ -113,21 +115,60 @@ const VIEWS = [
   { value: 'schema', label: '动态表单' },
 ] as const
 
+const demoMe = {
+  profile: {
+    nickname: '小满',
+    avatar: 'mascot:tuan:happy:primary',
+    gender: null,
+    birthYear: null,
+    heightCm: null,
+    timeZone: 'Asia/Shanghai',
+  },
+  preferences: {
+    theme: 'caramel' as const,
+    mascot: 'tuan' as const,
+    leaderboardOptIn: true,
+    dayStartHour: 4,
+    remindAt: '21:00',
+    remindMode: 'in-app' as const,
+    refereeTier: 'balanced-glycemic' as const,
+  },
+}
+
+const demoOverall = {
+  checkedDays: 12,
+  targetDays: 21,
+  startDate: '2026-10-21',
+  deadlineDate: '2026-11-10',
+  hasDeadline: true,
+}
+
 export function GoalsScreen() {
-  const [view, setView] = useState<View>('list')
+  const [view, setView] = useState<View>('settings')
   const [values, setValues] = useState<FieldValues>({ f1: 6 })
   const custom = DEFAULT_GOALS.custom
 
   return (
     <ApiProvider>
-      <div className="flex flex-col gap-4" data-ann="playbook.pages.goals">
-        <SegmentedControl
-          label="目标页面"
-          size="sm"
-          options={VIEWS}
-          value={view}
-          onValueChange={setView}
-        />
+      <div className="flex w-full min-w-0 flex-col gap-4" data-ann="playbook.pages.goals">
+        <div className="max-w-full overflow-x-auto pb-1">
+          <SegmentedControl
+            label="目标页面"
+            size="sm"
+            options={VIEWS}
+            value={view}
+            onValueChange={setView}
+          />
+        </div>
+        {view === 'settings' && (
+          <GoalSettingsContent
+            active={demoGoals}
+            archived={[]}
+            me={demoMe}
+            today="2026-11-01"
+            overall={demoOverall}
+          />
+        )}
         {view === 'list' && <GoalListContent items={demoGoals} status="active" />}
         {view === 'new' && <ModulePicker hrefFor={() => '#'} />}
         {view === 'form' && (

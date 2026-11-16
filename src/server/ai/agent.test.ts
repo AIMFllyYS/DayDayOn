@@ -76,6 +76,20 @@ describe('buildSystemPrompt', () => {
       '今日打卡日（localDate）：2026-11-01（昨天：2026-10-31，明天：2026-11-02）',
     )
   })
+
+  it('未传 clock 时兜底与 profiles 一致的 04:00 换日，传入 dayStartHour=0 时按零点换日', () => {
+    const lateNight = new Date('2026-11-01T18:30:00.000Z') // 北京时间 11-02 02:30
+    const fallbackPrompt = buildSystemPrompt(lateNight)
+    expect(fallbackPrompt).toContain('每日凌晨 04:00 切换新打卡日')
+    expect(fallbackPrompt).toContain('今日打卡日（localDate）：2026-11-01')
+
+    const midnightPrompt = buildSystemPrompt(lateNight, {
+      timeZone: 'Asia/Shanghai',
+      dayStartHour: 0,
+    })
+    expect(midnightPrompt).toContain('每日凌晨 00:00 切换新打卡日')
+    expect(midnightPrompt).toContain('今日打卡日（localDate）：2026-11-02')
+  })
 })
 
 describe('buildAgentTools: 待办 / 体重草稿与联网工具（打卡工具见 agent-checkin-tools.test.ts）', () => {

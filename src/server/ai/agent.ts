@@ -5,7 +5,6 @@ import {
   addDays,
   BUSINESS_TIME_ZONE,
   calendarDateOf,
-  DEFAULT_DAY_START_HOUR,
   formatTime,
   formatWeekday,
   localDateOf,
@@ -67,10 +66,13 @@ ${Object.values(REFEREE_SKILLS).join('\n\n')}
 - 草稿里的把握度低（<0.6）时要提醒用户核对，并说"热量/时长是估算的，非医疗建议"。
 - 一句话能说清就不啰嗦。`
 
+/** 未传入 clock 时的兜底：与 profiles 默认值（Asia/Shanghai，4 点换日）对齐 */
+const DEFAULT_CLOCK: Clock = { timeZone: BUSINESS_TIME_ZONE, dayStartHour: 4 }
+
 /** 生成包含用户当前时区、当地时刻与所属打卡日的系统提示词 */
 export function buildSystemPrompt(
   now: Date,
-  clock: Clock = { timeZone: BUSINESS_TIME_ZONE, dayStartHour: DEFAULT_DAY_START_HOUR },
+  clock: Clock = DEFAULT_CLOCK,
   petName = '团团',
 ): string {
   const calendarDate = calendarDateOf(now, clock.timeZone)
@@ -99,16 +101,13 @@ export interface BuildAgentInput {
   search: SearchBudget
   now: Date
   clock?: Clock
-  /** 用户选的形象名（墩墩 / 团团），Agent 用它称呼自己 */
+  /** 用户选的形象名（团团 / 墩墩 / 绵绵 / 柚柚），Agent 用它称呼自己 */
   petName?: string
 }
 
 /** 构建一轮对话的 agent（工具闭包捕获 userId / now / clock / 搜索预算） */
 export function buildAgent(input: BuildAgentInput) {
-  const clock = input.clock ?? {
-    timeZone: BUSINESS_TIME_ZONE,
-    dayStartHour: DEFAULT_DAY_START_HOUR,
-  }
+  const clock = input.clock ?? DEFAULT_CLOCK
   const ctx: AgentToolContext = {
     userId: input.userId,
     now: input.now,

@@ -268,7 +268,7 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
           '[ai] agent 流式分片出错',
           error instanceof Error ? error.message : String(error),
         )
-        return '团团刚刚走神了一下，点重试再叫我一次吧'
+        return `${petName}刚刚走神了一下，点重试再叫我一次吧`
       },
       onEnd: async ({ messages }) => {
         try {

@@ -27,12 +27,13 @@
 - **交互形态（按需弹窗）**：登录页默认不展示验证画布；用户填好邮箱点击「发送验证码」（或验证码页点击「重新发送」）后，弹出独立的 Base UI `Dialog` 安全验证弹窗。用户按顶部提示顺次点选 3 个手账图标后，0.2 秒自动关闭弹窗并立即触发发码请求。
 - **前端封装层入口**：`src/components/ui/turnstile.tsx`（导出 `TurnstileField` 与 `TurnstileFieldRef`，通过 `ref.current?.open()` 唤起弹窗、`onTokenChange(token)` 回调一次性通行令牌）。
 - **服务端题库与校验入口**：
-  - `src/server/auth/captcha-shapes.ts`：定义 6 种高辨识度手账风矢量图标（月亮、爱心、星星、太阳、铃铛、小房），每次出题随机抽取 3 个目标 + 1 个干扰项 + 手绘噪点线条，在服务端完成随机位置、旋转（`±26°`）、缩放（`0.88–1.12`）仿射变换并烘焙为纯画布坐标。
+  - `src/server/auth/captcha-shapes.ts`：定义 6 种高辨识度手账风矢量图标（月亮、爱心、星星、太阳、铃铛、小房），每次出题随机抽取 3 个目标 + 1 个干扰项 + 手绘噪点线条，在服务端完成随机位置、旋转（`±18°`）、缩放（`1.28–1.42`）仿射变换并烘焙为纯画布坐标。
   - `src/server/auth/captcha.ts`（挂载于 `/api/auth/captcha`）：
     1. `GET /api/auth/captcha`：下发题干 `prompt`、混淆后的画布 `strokes` 与 AES-256-GCM 加密的 `challengeId`（目标中心坐标只存在于服务端密文中，前端 JSON 与 DOM 不含任何明文坐标或图标名称）。
     2. `POST /api/auth/captcha`：校验 3 次顺次点击坐标的欧氏距离（`≤ 28px`）与人类操作耗时（`180ms–120s`）；**单次 `challengeId` 无论答对答错立即销毁**（防单题坐标穷举），通过后签发一次性 `passToken`。
-    3. `enforceTurnstile` / `verifyTurnstileToken`：在 `src/server/auth/hooks.ts` 的 `beforeHook` 最前面校验 `x-captcha-response` 请求头中的 `passToken` 并一次性消费。
-- **先验签、后计数**：人机验证未通过时直接返回 `400 MISSING_RESPONSE` 或 `403 VERIFICATION_FAILED`，不消耗用户的邮箱 60 秒冷却与每日发送次数。
+    3. `enforceTurnstile` / `verifyTurnstileToken`：在 `src/server/auth/hooks.ts` 的 `beforeHook` 中，**先完成邮箱格式与白名单校验**，再调用 `enforceTurnstile` 校验并一次性消费 `x-captcha-response` 请求头中的 `passToken`，通过后才进入限流计数。
+    4. **持久化一次性 nonce 防重放**：`challengeId`（`captcha-nonce:c:<id>`）与 `passToken`（`captcha-nonce:p:<id>`）的一次性消费均通过 `tryConsumeNonceInDb()` 原子写入 PostgreSQL `rate_limit_counters` 表（`INSERT … ON CONFLICT DO UPDATE RETURNING count`，仅 `count === 1` 放行），并辅以进程内 `Map` 缓存（非生产环境无库时降级为进程内缓存），防止并发多实例或服务重启后令牌重放。
+- **先邮箱校验与验签、后限流计数**：邮箱不合法直接返回 `400 EMAIL_DOMAIN_NOT_ALLOWED` 或 `VALIDATION_FAILED`，人机验证未通过直接返回 `400 MISSING_RESPONSE` 或 `403 VERIFICATION_FAILED`，均不消耗用户的邮箱 60 秒冷却与每日发送次数。
 - **零额外环境变量**：直接基于现有的 `BETTER_AUTH_SECRET`（SHA-256 派生密钥）执行 AES-256-GCM 认证加密，本地开发、CI 与生产环境开箱即用。
 - **同步放宽 IP 限流基线**：
   - 发送验证码同 IP 每小时上限：`20` → `100`（`auth.ts` `customRules`）

@@ -54,5 +54,5 @@ export const REFEREE_SKILLS: Record<Module, string> = {
 }
 
 export function refereeSystemPrompt(module: Module, petName = '团团'): string {
-  return `${BASE.replace('团团', petName)}\n\n${REFEREE_SKILLS[module]}`
+  return `${BASE.replaceAll('团团', petName)}\n\n${REFEREE_SKILLS[module]}`
 }

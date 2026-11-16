@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { BUSINESS_TIME_ZONE, calendarDateOf, isValidTimeZone } from '@/lib/time'
 import type { SmartRecognitionResult } from './smart-schemas'
 
 /*
@@ -65,10 +66,10 @@ export function buildRelativeMediaPath(
   fileName: string,
   mode: SmartInputMode,
   now: Date = new Date(),
+  timeZone: string = BUSINESS_TIME_ZONE,
 ): string {
-  const yyyy = now.getFullYear()
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const dd = String(now.getDate()).padStart(2, '0')
+  const zone = isValidTimeZone(timeZone) ? timeZone : BUSINESS_TIME_ZONE
+  const dateStr = calendarDateOf(now, zone)
   const folder = mode === 'smart-capture' ? 'captures' : 'uploads'
   const cleanName =
     fileName
@@ -76,7 +77,7 @@ export function buildRelativeMediaPath(
       .replace(/[\\/:*?"<>|]+/g, '_')
       .replace(/\s+/g, '_')
       .slice(0, 60) || (mode === 'smart-capture' ? 'camera_shot.jpg' : 'smart_upload.jpg')
-  return `${folder}/${yyyy}-${mm}-${dd}/${cleanName}`
+  return `${folder}/${dateStr}/${cleanName}`
 }
 
 export function setPendingSmartCapture(

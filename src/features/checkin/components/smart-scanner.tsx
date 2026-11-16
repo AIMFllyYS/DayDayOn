@@ -471,7 +471,7 @@ export function SmartScannerLens({
     hintModule
       ? `自动提取「${moduleMeta[hintModule].label}」板块结构化字段`
       : '自动判别所属打卡方向并匹配进行中目标',
-    '流式填充至下方表单，经团团裁判核验后入库',
+    `流式填充至下方表单，经${pet.name}裁判核验后入库`,
   ]
 
   const hasContent = Boolean(preview || draft || errorText)

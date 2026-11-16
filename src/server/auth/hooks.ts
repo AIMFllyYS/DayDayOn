@@ -28,6 +28,7 @@ import { AUTH_PATHS } from './paths'
 const PATHS = AUTH_PATHS
 
 const EMAIL_REJECT_MESSAGE = '暂时只支持 QQ、网易、Gmail、Outlook、iCloud 和华科邮箱'
+const IP_MULTI_ACCOUNT_ALERT_THRESHOLD = 3
 
 function rateLimited(rule: RateLimitRule, retryAfterSeconds: number): APIError {
   // 冷却时间封顶：避免固定 UTC 自然日窗口导致用户在夜间触发限流时被要求等待十几个小时
@@ -186,8 +187,10 @@ export const databaseHooks: DatabaseHooks = {
           max: settings.signupPerIpDaily,
         }
         const r = await consume(rule, ip)
-        if (!r.ok) {
+        if (r.count > IP_MULTI_ACCOUNT_ALERT_THRESHOLD) {
           void maybeAlert('ip-multi-account', spendDayKey(new Date()), { ip, count: r.count })
+        }
+        if (!r.ok) {
           throw rateLimited(rule, r.retryAfterSeconds)
         }
       },

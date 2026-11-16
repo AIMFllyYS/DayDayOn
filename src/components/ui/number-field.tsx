@@ -71,7 +71,7 @@ export function NumberField({
     },
     [step],
   )
-  const stepperSize = size === 'sm' ? 'size-9' : 'size-10'
+  const stepperSize = size === 'sm' ? 'size-10 md:size-9' : 'size-10'
   return (
     <BaseNumberField.Root
       id={id}
@@ -92,7 +92,7 @@ export function NumberField({
       <BaseNumberField.Group
         className={cn(
           'border-border bg-surface flex min-w-0 items-center rounded-xl border px-0.5',
-          size === 'sm' ? 'h-10' : 'h-11',
+          size === 'sm' ? 'h-11 md:h-10' : 'h-11',
           'hover:border-border-strong transition-[border-color,box-shadow] duration-(--dur-fast)',
           'focus-within:border-primary focus-within:ring-primary-soft focus-within:ring-4',
           'has-[[aria-invalid=true]]:border-danger has-[[data-disabled]]:opacity-50',
@@ -108,7 +108,7 @@ export function NumberField({
             placeholder={placeholder}
             className={cn(
               'text-foreground placeholder:text-subtle w-full min-w-0 bg-transparent text-center font-semibold tabular-nums outline-none',
-              size === 'sm' ? 'text-caption' : 'text-body',
+              size === 'sm' ? 'text-body md:text-caption' : 'text-body',
             )}
           />
           {unit && <span className="text-tiny text-muted shrink-0 pr-1">{unit}</span>}

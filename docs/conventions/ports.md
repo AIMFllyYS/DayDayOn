@@ -30,7 +30,9 @@
 | `scripts/deploy/ecosystem.config.cjs` | PM2 的 `PORT` |
 | `scripts/deploy/daydayon-deploy-gate.sh` | 健康检查地址 `HEALTH_URL` |
 | `scripts/deploy/nginx-daydayon.conf` | `proxy_pass` |
-| `scripts/deploy/docker-compose.db.yml` | 数据库端口映射 |
+| `scripts/deploy/docker-compose.db.yml` | 生产数据库端口映射 |
+| `scripts/dev/docker-compose.db.yml` | 本地开发数据库端口映射（`127.0.0.1:23432:5432`） |
+| `src/server/env.ts` | 构建期环境变量兜底占位（`BUILD_PLACEHOLDERS` 中的 `23432` / `23329`） |
 | `scripts/setup/provision-server.sh` | 生成的 `DATABASE_URL` |
 | 服务器 `/www/wwwroot/daydayon/.env` | `DATABASE_URL`（已有文件不会被初始化脚本覆盖，需手动改） |
 | [deploy-aliyun-ecs.md](../ops/deploy-aliyun-ecs.md)、[local-setup.md](../ops/local-setup.md) | 文档中的地址 |

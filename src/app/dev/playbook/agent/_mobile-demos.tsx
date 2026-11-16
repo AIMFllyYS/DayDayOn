@@ -1,7 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import type { MascotCharacter } from '@/components/mascot/mascot-svg'
+import {
+  characterName,
+  mascotCharacters,
+  type MascotCharacter,
+} from '@/components/mascot/mascot-svg'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
 import { AgentTurn } from '@/features/agent/components/agent-turn'
@@ -110,27 +114,24 @@ const mobileTurnData: AgentTurnView = {
 export function MobilePreviewDemo() {
   const [character, setCharacter] = useState<MascotCharacter>('dun')
   const [traceOpen, setTraceOpen] = useState(false)
+  const petName = characterName(character)
 
   return (
     <div className="flex flex-col gap-4">
       {/* 顶部控制栏 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-caption text-muted font-semibold">切换形象：</span>
-          <Button
-            size="sm"
-            variant={character === 'dun' ? 'primary' : 'secondary'}
-            onClick={() => setCharacter('dun')}
-          >
-            墩墩
-          </Button>
-          <Button
-            size="sm"
-            variant={character === 'tuan' ? 'primary' : 'secondary'}
-            onClick={() => setCharacter('tuan')}
-          >
-            团团
-          </Button>
+          {mascotCharacters.map((c) => (
+            <Button
+              key={c.id}
+              size="sm"
+              variant={character === c.id ? 'primary' : 'secondary'}
+              onClick={() => setCharacter(c.id)}
+            >
+              {c.name}
+            </Button>
+          ))}
         </div>
         <Button size="sm" variant="secondary" onClick={() => setTraceOpen(!traceOpen)}>
           {traceOpen ? '收起活动条时间线' : '展开活动条时间线'}
@@ -189,7 +190,7 @@ export function MobilePreviewDemo() {
                   <Icon name="camera" size={15} lineOnly />
                 </span>
                 <p className="text-caption text-subtle min-w-0 flex-1 truncate px-1 py-0 leading-6">
-                  和{character === 'dun' ? '墩墩' : '团团'}说点什么…
+                  和{petName}说点什么…
                 </p>
                 <span className="bg-primary text-on-primary flex size-7 shrink-0 items-center justify-center rounded-full shadow-sm">
                   <Icon name="arrow" size={13} lineOnly />
@@ -211,8 +212,7 @@ export function MobilePreviewDemo() {
                 <span className="font-bold">✓</span>
                 <div>
                   <strong>头部身份栏独立置顶</strong>： 头像由 34px 微调为 24px，右侧清晰标注「
-                  {character === 'dun' ? '墩墩' : '团团'} · AI打卡搭子」，正文整体靠左下沉，释放
-                  44px 横向宽度。
+                  {petName} · AI打卡搭子」，正文整体靠左下沉，释放 44px 横向宽度。
                 </div>
               </div>
 

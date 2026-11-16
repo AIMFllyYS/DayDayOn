@@ -35,6 +35,23 @@ export const ReminderSchema = z
   .meta({ id: 'Reminder' })
 export type Reminder = z.infer<typeof ReminderSchema>
 
+/** 总打卡周期进度（主页首卡总览环：已打卡天数 / 目标坚持天数） */
+export const OverallProgressSchema = z
+  .object({
+    /** 当前进行中目标的去重有效打卡天数 */
+    checkedDays: z.number().int().min(0),
+    /** 目标坚持天数（已设截止日期按 起始→截止总天数；未设则按 7/14/21/30… 阶段里程碑） */
+    targetDays: z.number().int().min(1),
+    /** 周期起始打卡日（最早进行中目标建立日）；无目标时为 null */
+    startDate: LocalDateSchema.nullable(),
+    /** 最晚截止日期；null 表示暂未设固定周期 */
+    deadlineDate: LocalDateSchema.nullable(),
+    /** 是否显式设定了目标截止日期 */
+    hasDeadline: z.boolean(),
+  })
+  .meta({ id: 'OverallProgress' })
+export type OverallProgress = z.infer<typeof OverallProgressSchema>
+
 export const DashboardTodaySchema = z
   .object({
     localDate: LocalDateSchema,
@@ -43,6 +60,8 @@ export const DashboardTodaySchema = z
     /** 1 今日总览：完成的目标数 / 今天计划的目标数 */
     completion: z.object({ done: z.number().int(), planned: z.number().int() }),
     streak: z.number().int().min(0),
+    /** 1 总坚持进度：已打卡天数 / 目标坚持天数 */
+    overall: OverallProgressSchema.optional(),
     /** 没有任何进行中目标时为 false，显示空状态 */
     hasGoals: z.boolean(),
     /** 2 今日进度：今天计划内的目标 */

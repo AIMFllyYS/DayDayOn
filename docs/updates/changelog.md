@@ -4,6 +4,28 @@
 
 ---
 
+## [v0.1.11] - 2026-11-16（目标周期统一闭环、单次骨架加载、全量规范同步与双端发版）
+
+### ✨ 核心体验与闭环升级（目标周期统一与单次骨架首屏加载）
+- **目标周期、总坚持进度与全局设置重构**：新增 `src/features/goal/period.ts` 与共享组件 `PeriodPlanPicker`（支持 7 / 14 / 21 / 30 / 60 / 100 天与截止日期双向联动 + 每日总提醒时间），同步接入新人引导「想打卡什么 · 定总周期」与全局「目标设置」（重构为顶部总览卡 +「板块与周期」「目标与计划」「达标规则」三页签手风琴结构，并支持直接调整每日目标量、每周几天与计划时段）；主页首卡 `SummaryCard` 同步新增「总打卡进度」环形图展示 `已打卡天数 / 目标坚持天数`。
+- **根治进入首页两类骨架屏连续加载两次问题**：通过 `React.cache()` 复用服务端会话校验并在 `src/app/(app)/page.tsx` 内并行预取 `dashboardToday` 与 `insights` 经 `HydrationBoundary` 脱水给客户端 `HomeView`，将认证与首屏数据收敛至 `(app)/layout.tsx` 单层 `<Suspense>` 边界内，消除 `PageSkeleton` → `HomeSkeleton` 二次加载闪烁。
+
+### 🛠️ 深度一致性缺陷修复（5 项）
+- **`dayStartHour` 时钟全链路对齐用户偏好**：`loadClock`、`goals/repo.ts`、`rank`、`insights`、`pet-interactions`、`agent` 与 `checkin-flow` 等全链路统一读取 `profiles.dayStartHour`（默认 `4` 点）与 `timeZone`，消除硬编码换日点或遗漏字段导致的跨日偏差。
+- **OpenAPI 流式路由与 `ErrorSchema.draft` / 幂等中间件对齐**：将流式接口（`/agent/chat`、`/goals/{goalId}/referee`）及 `ErrorSchema.draft` 敏感词草稿回传字段完整纳入 OpenAPI 契约校验，与 `idempotency` 中间件及流式 `rejectReusedKey` 防重放语义保持一致。
+- **4 吉祥物全链路与开屏适配**：全站同步支持 `tuan`（团团）/ `dun`（墩墩）/ `mian`（绵绵）/ `you`（柚柚）四种陪伴形象（含引导、偏好设置、悬浮宠物、Agent 对话自称、裁判提示词、好友小窝舞台及 Web/原生开屏形象）。
+- **时间格式化收敛与持久风控告警修复**：将散落的日期时间格式化统一收敛至 `src/lib/time/` 封装层；将聊天防刷静音冷静期持久化至 PostgreSQL `rate_limit_counters`（替代纯内存状态）；修复注册钩子中同 IP 超过 `3` 个账号触发 `ip-multi-account` 告警（达到 `signupPerIpDaily` 才拦截）及幂等防重放边界。
+- **UI 失效 Token、层级、退场动画与 Mermaid 动态主题修复**：清理界面失效样式 Token；提升 `Combobox` 浮层层级；补全弹层退场过渡动画；修复 `MermaidDiagram` 监听 `data-theme` / `class` / `style` 变更后实时读取根元素 CSS 变量同步渲染主题配色。
+
+### 📚 全量规范文档与 ADR 系统性对齐
+- **规范与 ADR 全面同步代码现状**：同步更新 `ai-and-quota.md`、`checkin-modules.md`、`ADR-0002`、`ADR-0024`、`ADR-0027`、`ADR-0022`、`ADR-0025` 等核心文档，消除接口路径、工具列表、步数上限、风控阈值与文件目录漂移。
+- **修订 `ADR-0026` 好友体系规范**：正式修订原"放弃站内聊天"决定，确认已上线的可控 1v1 好友私聊（本地 DFA 敏感词过滤 + PostgreSQL 持久化防刷冷静期 + 解除好友只读归档），并补全 `50` 人好友上限、串门小窝动态舞台与轻互动（戳戳/6 格零食架投喂/提醒打卡、30 分钟冷却与 24h 静默造访足迹）、顶栏 `AvatarStack`（`max = 4`）及长按二级管理菜单。
+
+### 📱 Android APK 打包与双端同步发版流程对齐
+- **本地离线签名构建与双端分发闭环**：完整对齐双端发版流——升版 `package.json`、`src/lib/app-version.ts`、`download/manifest.json` 与 `download/CHANGELOG.md` → 运行 `powershell -ExecutionPolicy Bypass -File android/build-apk.ps1`（使用持久化密钥库 `android/keystore/daydayon-release.jks` 离线签名产出 `download/apk/DayDayOn.apk` 并回填 `sha256` / `size`）→ 同步上传至 **GitHub Release** 与阿里云 ECS 持久化直出目录 **`/www/wwwroot/daydayon/releases/`**（配合启动/部署校验与 `sha256` 核对，保证网页与安卓壳双端一致更新）。
+
+---
+
 ## [v0.1.10] - 2026-11-12（通知页顶部双卡片防溢出与防左右滑动、智能上传系统文件直传 AI 根因修复）
 
 ### 🛠️ 交互与布局边界热修（安装包壳 v0.1.10 / `versionCode = 7`）

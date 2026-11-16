@@ -21,12 +21,6 @@ export {
   type QueryClient,
   type QueryKey,
 } from '@tanstack/react-query'
-import { QueryClientContext } from '@tanstack/react-query'
-import { useContext } from 'react'
-
-export function useHasQueryClient(): boolean {
-  return Boolean(useContext(QueryClientContext))
-}
 
 export { api, unwrap } from './client'
 export {
@@ -41,5 +35,5 @@ export type { ApiErrorBody, ApiFetchOptions } from './fetcher'
 export type { InferResponseType, SuccessOf } from './client'
 export { errorMessage, errorMessages, FALLBACK_MESSAGE } from './error-messages'
 export { afterCheckinChange, keys } from './keys'
-export { ApiProvider } from './provider'
+export { ApiProvider, useHasQueryClient } from './provider'
 export { getQueryClient, makeQueryClient, STALE_TIME_MS } from './query-client'

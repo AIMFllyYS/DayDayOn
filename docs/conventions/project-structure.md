@@ -9,54 +9,97 @@
 ```
 .
 ├── src/
+│   ├── proxy.ts                    # Next.js 16 请求代理：入口重定向（未登录 / → /welcome，其余 → /login）
+│   ├── instrumentation.ts          # Next.js 服务启动钩子：幂等执行 Drizzle 数据库迁移
 │   ├── app/                        # 路由层：只放路由文件
-│   │   ├── layout.tsx              # 根 layout（含 <html> <body>）
-│   │   ├── page.tsx
+│   │   ├── layout.tsx              # 根 layout（含 <html> <body> 与开屏内联脚本）
 │   │   ├── loading.tsx / error.tsx / not-found.tsx / global-error.tsx
 │   │   ├── globals.css
-│   │   ├── (auth)/                 # 规划：登录、注册、新人引导
-│   │   ├── (app)/                  # 规划：登录后的应用（底部导航 / 侧边导航）
+│   │   ├── manifest.ts             # PWA Web App Manifest
+│   │   ├── icon.tsx / apple-icon.tsx
+│   │   ├── (marketing)/            # 公开营销与落地页
+│   │   │   └── welcome/            # 落地页（/welcome，含 APK 下载与功能演示）
+│   │   ├── (auth)/                 # 登录、新人引导、隐私说明（login / onboarding / privacy）
+│   │   ├── (app)/                  # 登录后的应用（底部导航 / 侧边导航）
 │   │   │   ├── layout.tsx          # 应用外壳
 │   │   │   ├── page.tsx            # 主页（仪表盘）
+│   │   │   ├── agent/              # AI 助手（对话与智能识图打卡）
+│   │   │   ├── checkin/            # 打卡页（含 smart 智能识图打卡）
+│   │   │   ├── goals/              # 目标管理（列表、新建、详情）
 │   │   │   ├── todo/               # 待办
 │   │   │   ├── rank/               # 排行榜
-│   │   │   └── me/                 # 我的（设置、版本信息）
-│   │   ├── admin/                  # 规划：后台管理（额度监控、封禁、兑换码）
+│   │   │   ├── notifications/      # 全屏消息中心与官方通知
+│   │   │   └── me/                 # 我的（设置、个人资料、检查更新）
+│   │   ├── admin/                  # 后台管理（用户、兑换码、系统设置）
 │   │   ├── dev/                    # 调试区（/dev/*），production 返回 404
 │   │   │   ├── playbook/           # 设计系统：token、原子组件、动效、导航、Agent 组件
 │   │   │   └── _annotate/          # 调试批注工具与草图画板（只挂在 /dev 下）
+│   │   ├── download/[file]/        # APK 本地开发与回源兜底下载 Route Handler（支持 Range）
+│   │   ├── icons/[name]/           # 多尺寸图标与 Android 自适应前景图生成路由
 │   │   └── api/
 │   │       ├── health/route.ts     # 部署健康检查
-│   │       ├── auth/[...all]/      # 规划：Better Auth
-│   │       └── v1/[[...route]]/    # 规划：只把请求转给 Hono（src/server/api/），见 api-conventions.md
+│   │       ├── auth/[...all]/      # Better Auth + 自托管人机验证 /api/auth/captcha
+│   │       └── v1/[[...route]]/    # 只把请求转给 Hono（src/server/api/），见 api-conventions.md
 │   ├── components/
 │   │   ├── ui/                     # 原子组件：无业务逻辑（组件库选型见 docs/libraries.md）
-│   │   ├── layout/                 # 应用外壳：底部导航、侧栏、顶栏、导航项配置
-│   │   ├── mascot/                 # 吉祥物团团：绘制、静态版、互动版
-│   │   ├── charts/                 # 规划：自研 SVG 图表，d3-shape 的唯一入口
-│   │   └── <domain>/               # 其他第三方库封装层：每个目录是对应库的唯一入口（登记在 docs/libraries.md）
+│   │   ├── layout/                 # 应用外壳：底部导航、侧栏、顶栏、开屏控制器、品牌图标
+│   │   ├── mascot/                 # 吉祥物团团：绘制、静态版、互动版、预设头像
+│   │   ├── charts/                 # 自研 SVG 图表，d3-shape 的唯一入口
+│   │   └── markdown/               # AI 输出渲染：react-markdown / KaTeX / Mermaid 唯一封装入口
 │   ├── assets/
 │   │   └── fonts/                  # 子集化后的 woff2 与 OFL 许可证（next/font/local 加载）
-│   ├── features/                   # 业务领域模块（跨路由复用时才提升）
-│   │   └── <domain>/
-│   │       ├── components/         # 该领域的客户端组件
-│   │       ├── schemas.ts          # zod schema（前后端共用）
-│   │       └── types.ts
+│   ├── features/                   # 21 个业务领域模块（跨路由复用时才提升）
+│   │   ├── admin/                  # 后台管理（用户、兑换码、设置表单、TOTP、金额）
+│   │   ├── agent/                  # AI 对话、工具流展示与多模态输入
+│   │   ├── app-update/             # 版本检查、更新日志解析与端内更新弹窗
+│   │   ├── auth/                   # 登录、验证码、人机校验交互
+│   │   ├── chat/                   # 好友聊天与打卡房间消息
+│   │   ├── checkin/                # 打卡记录、智能识图打卡与动态表单
+│   │   ├── dashboard/              # 仪表盘与今日概览卡片
+│   │   ├── diet/                   # 饮食打卡与 AI 饮食识别草稿
+│   │   ├── friend/                 # 好友关系与互动
+│   │   ├── goal/                   # 目标配置、周期规则与 SchemaForm
+│   │   ├── insights/               # 趋势统计与图表分析
+│   │   ├── me/                     # 个人资料、主题/吉祥物偏好、设置多级菜单
+│   │   ├── metric/                 # 量化指标记录（体重、步数等）
+│   │   ├── notification/           # 消息通知中心与官方公告
+│   │   ├── onboarding/             # 新用户初始化引导
+│   │   ├── quota/                  # AI 额度查看与兑换
+│   │   ├── rank/                   # 好友排行榜
+│   │   ├── referee/                # AI 裁判规则与判定
+│   │   ├── shared/                 # 跨领域共享辅助组件与常量
+│   │   ├── todo/                   # 待办清单
+│   │   └── welcome/                # 落地页展示模块与下载信息
 │   ├── server/                     # server-only 代码，文件顶部 import 'server-only'
-│   │   ├── env.ts                  # 规划：zod 校验环境变量，服务端只从这里读
-│   │   ├── api/                    # 规划：Hono 应用、路由、中间件、错误码（api-conventions.md）
+│   │   ├── env.ts                  # zod 校验环境变量，服务端只从这里读
+│   │   ├── api/                    # Hono 应用、路由、中间件、错误码（api-conventions.md）
 │   │   ├── services/               # 业务逻辑：纯 TS 函数，不 import next/*、hono
 │   │   ├── db/                     # Drizzle schema、连接、迁移（database.md）
 │   │   ├── auth/                   # Better Auth 配置；对外只暴露 getSession / requireUser / requireAdmin（auth.md）
 │   │   ├── ai/                     # 模型实例、runAi、计价、图片、prompts（ai-and-quota.md）
 │   │   ├── quota/                  # AI 额度预占、结算、释放、周期键
-│   │   ├── rate-limit.ts           # 规划：限流计数，/api/v1 与 Better Auth hook 共用
-│   │   └── mail/                   # 阿里云邮件推送（SMTP，Nodemailer）
-│   └── lib/                        # 前后端通用的工具函数与 hooks
-│       ├── api/                    # 规划：TanStack Query 与类型化接口客户端（client-data-and-forms.md）
-│       ├── time/                   # 规划：日期与时区计算的唯一入口（time-and-dates.md）
-│       ├── image/                  # 规划：浏览器端图片压缩
-│       └── auth-client.ts          # 规划：Better Auth 浏览器客户端
+│   │   ├── moderation/             # 内容安全：DFA 敏感词过滤
+│   │   ├── mail/                   # 阿里云邮件推送（SMTP，Nodemailer）
+│   │   ├── crypto.ts               # 服务端加解密工具
+│   │   ├── idempotency.ts          # 幂等键校验与去重
+│   │   ├── rate-limit.ts           # 限流计数，/api/v1 与 Better Auth hook 共用
+│   │   └── settings.ts / settings-schema.ts  # 运行时系统设置读写与校验
+│   ├── lib/                        # 前后端通用的工具函数与 hooks
+│   │   ├── api/                    # TanStack Query 与类型化接口客户端（client-data-and-forms.md）
+│   │   ├── time/                   # 日期与时区计算的唯一入口（time-and-dates.md）
+│   │   ├── image/                  # 浏览器端图片压缩与文件头魔数嗅探
+│   │   ├── app-version.ts          # 网页构建版本号（与 package.json / manifest.json 同步）
+│   │   ├── auth-client.ts          # Better Auth 浏览器客户端
+│   │   ├── cn.ts                   # 自研 className 拼接
+│   │   ├── entry-redirect.ts       # 入口路由重定向纯规则函数
+│   │   ├── fonts.ts                # next/font/local 字体配置
+│   │   ├── native.ts               # Android 原生能力桥（window.DayDayOnNative）唯一封装层
+│   │   ├── semver.ts               # SemVer 版本号比较
+│   │   ├── splash.ts               # PWA 开屏判断与内联脚本
+│   │   └── theme.ts                # 主题与吉祥物偏好读写
+│   └── test/                       # Vitest 测试桩（如 server-only-stub.ts）
+├── android/                        # Android Kotlin 原生混合外壳工程与离线构建脚本（build-apk.ps1）
+├── download/                       # 版本清单（manifest.json）、更新日志（CHANGELOG.md）与本地 APK 输出（apk/）
 ├── docs/
 │   ├── plans/                      # 计划、路线图、里程碑
 │   ├── conventions/                # 规范
@@ -76,11 +119,12 @@
 │   ├── setup/                      # 环境初始化
 │   ├── build/                      # 构建辅助、制品打包与检查
 │   ├── deploy/                     # 部署辅助
-│   └── dev/                        # 开发辅助、mock 数据
-├── public/                         # 静态资源（保持小体积，见下文）
+│   └── dev/                        # 开发辅助、数据库迁移/种子、OpenAPI 导出
+├── public/                         # 规划（M5 待建）：静态资源（sw.js 等，保持小体积，见下文）
 ├── .github/workflows/              # CI 与部署
 ├── AGENTS.md
 ├── commitlint.config.mjs
+├── drizzle.config.ts
 ├── lefthook.yml
 ├── next.config.ts
 └── package.json

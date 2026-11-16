@@ -1,4 +1,10 @@
 import { useId } from 'react'
+import {
+  MASCOT_CHARACTER_NAMES,
+  mascotCharacterName,
+  type MascotCharacter,
+  type MascotRegistryCharacter,
+} from '@/features/me/schemas'
 import { cn } from '@/lib/cn'
 
 /*
@@ -86,15 +92,7 @@ export interface MascotSvgProps {
  * - 柚柚（you · M0 试点新形象）：暖黄油色画家贝雷帽 + 蜜柚果蒂薄荷叶 + 机灵小雀斑。
  * 身体、表情、手臂完全共用，通过头饰与五官微特征区分角色性格。
  */
-export type MascotCharacter = 'tuan' | 'dun' | 'mian' | 'you'
-export type MascotRegistryCharacter = MascotCharacter
-
-export const mascotCharacters: { id: MascotCharacter; name: string; note: string }[] = [
-  { id: 'tuan', name: '团团', note: '樱花蝴蝶结，软软糯糯' },
-  { id: 'dun', name: '墩墩', note: '小棒球帽，元气满满' },
-  { id: 'mian', name: '绵绵', note: '云朵睡帽，安静治愈' },
-  { id: 'you', name: '柚柚', note: '黄油贝雷帽，机灵认真' },
-]
+export type { MascotCharacter, MascotRegistryCharacter }
 
 export const mascotRegistryCharacters: {
   id: MascotRegistryCharacter
@@ -107,7 +105,7 @@ export const mascotRegistryCharacters: {
 }[] = [
   {
     id: 'tuan',
-    name: '团团',
+    name: MASCOT_CHARACTER_NAMES.tuan,
     note: '樱花蝴蝶结，软软糯糯',
     tone: 'custom',
     details: ['樱花粉波点蝴蝶结别在头顶右上', '两片圆叶嫩芽，软萌治愈', '腮红饱满，温柔鼓励型伙伴'],
@@ -115,7 +113,7 @@ export const mascotRegistryCharacters: {
   },
   {
     id: 'dun',
-    name: '墩墩',
+    name: MASCOT_CHARACTER_NAMES.dun,
     note: '小棒球帽，元气满满',
     tone: 'study',
     details: [
@@ -127,7 +125,7 @@ export const mascotRegistryCharacters: {
   },
   {
     id: 'mian',
-    name: '绵绵',
+    name: MASCOT_CHARACTER_NAMES.mian,
     note: '云朵睡帽，安静治愈',
     tone: 'sleep',
     isPilot: true,
@@ -140,7 +138,7 @@ export const mascotRegistryCharacters: {
   },
   {
     id: 'you',
-    name: '柚柚',
+    name: MASCOT_CHARACTER_NAMES.you,
     note: '黄油贝雷帽，机灵认真',
     tone: 'diet',
     isPilot: true,
@@ -153,8 +151,11 @@ export const mascotRegistryCharacters: {
   },
 ]
 
-export const characterName = (c: MascotRegistryCharacter) =>
-  mascotRegistryCharacters.find((m) => m.id === c)?.name ?? '团团'
+export const mascotCharacters: { id: MascotCharacter; name: string; note: string }[] =
+  mascotRegistryCharacters.map(({ id, name, note }) => ({ id, name, note }))
+
+export const characterName = (c: MascotRegistryCharacter | string | null | undefined) =>
+  mascotCharacterName(c)
 
 const INK = 'var(--foreground)'
 const SKIN = '#fbead8'

@@ -40,6 +40,7 @@ const AUTO_CHECK_SESSION_KEY = 'daydayon:auto-update-checked:v1'
 export function useCheckUpdate() {
   const [checking, setChecking] = useState(false)
   const [update, setUpdate] = useState<AppUpdate | null>(null)
+  const [lastUpdate, setLastUpdate] = useState<AppUpdate | null>(null)
 
   const check = useCallback(
     async (silent = false) => {
@@ -51,6 +52,7 @@ export function useCheckUpdate() {
         if (result.kind === 'none') {
           if (!silent) toast.success(`已是最新版本 v${result.latest}`)
         } else {
+          setLastUpdate(result)
           setUpdate(result)
         }
       } catch (e) {
@@ -64,11 +66,12 @@ export function useCheckUpdate() {
     [checking],
   )
 
-  const dialog = update ? (
+  const dialog = lastUpdate ? (
     <UpdateDialog
-      update={update}
+      open={Boolean(update)}
+      update={lastUpdate}
       onOpenChange={(open) => {
-        if (!open && update.required) return
+        if (!open && lastUpdate.required) return
         if (!open) setUpdate(null)
       }}
     />
@@ -104,9 +107,11 @@ function formatKb(bytes: number): string {
 }
 
 export function UpdateDialog({
+  open = true,
   update,
   onOpenChange,
 }: {
+  open?: boolean
   update: AppUpdate
   onOpenChange: (open: boolean) => void
 }) {
@@ -277,7 +282,7 @@ export function UpdateDialog({
 
   return (
     <ConfirmDialog
-      open
+      open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen && isDownloading) {
           toast.info('正在后台继续下载更新，完成后将自动调起安装')

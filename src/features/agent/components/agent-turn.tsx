@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { MascotSvg, type MascotCharacter, type MascotMood } from '@/components/mascot/mascot-svg'
 import { Button } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
+import { mascotCharacterName, resolveMascotCharacter } from '@/features/me/schemas'
 import { cn } from '@/lib/cn'
 import { hostOf, turnSources, turnText } from '../turn'
 import type { AgentTurnView } from '../types'
@@ -44,7 +45,8 @@ export function AgentTurn({
     turn.status === 'submitted' ||
     turn.parts.some((p) => p.type === 'reasoning' || p.type === 'tool') ||
     (turn.status === 'streaming' && text.length === 0)
-  const petName = character === 'dun' ? '墩墩' : '团团'
+  const resolvedCharacter = resolveMascotCharacter(character)
+  const petName = mascotCharacterName(resolvedCharacter)
   const statusTag =
     turn.status === 'streaming' ? '思考中…' : turn.status === 'submitted' ? '准备中…' : 'AI打卡搭子'
 
@@ -57,7 +59,7 @@ export function AgentTurn({
       {/* 头部身份行：IP 头像 + 角色名称 + 状态/副标题 */}
       <header className="flex items-center gap-2 px-0.5">
         <span className="bg-surface shadow-soft shrink-0 rounded-full p-0.5">
-          <MascotSvg character={character} mood={avatarMood[turn.status]} size={24} />
+          <MascotSvg character={resolvedCharacter} mood={avatarMood[turn.status]} size={24} />
         </span>
         <span className="text-caption text-foreground font-semibold">{petName}</span>
         <span className="text-tiny text-muted">{statusTag}</span>

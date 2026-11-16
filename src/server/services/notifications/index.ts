@@ -8,6 +8,8 @@ import type {
   NotificationListResponse,
   NotificationSummary,
 } from '@/features/notification/schemas'
+import { BUSINESS_TIME_ZONE, isValidTimeZone, localTimeOf } from '@/lib/time'
+import { ApiError } from '@/server/api/errors'
 import { db as defaultDb, type DbOrTx } from '@/server/db/client'
 import {
   announcementReads,
@@ -26,18 +28,15 @@ const FEED_KINDS: NotificationKind[] = [
 ]
 const SYSTEM_KINDS: NotificationKind[] = ['system']
 
-/** 格式化简短时间 HH:mm */
-function formatTimeHM(d: Date): string {
-  const hours = String(d.getHours()).padStart(2, '0')
-  const minutes = String(d.getMinutes()).padStart(2, '0')
-  return `${hours}:${minutes}`
+function resolveTimeZone(timeZone: string | null | undefined): string {
+  return timeZone && isValidTimeZone(timeZone) ? timeZone : BUSINESS_TIME_ZONE
 }
 
-/** 批量获取用户公开昵称与头像 */
+/** 批量获取用户公开昵称、头像与时区 */
 async function loadPublicUsers(
   db: DbOrTx,
   userIds: string[],
-): Promise<Map<string, { nickname: string; avatar: string | null }>> {
+): Promise<Map<string, { nickname: string; avatar: string | null; timeZone: string | null }>> {
   const uniqueIds = Array.from(new Set(userIds.filter(Boolean)))
   if (uniqueIds.length === 0) return new Map()
 
@@ -47,15 +46,19 @@ async function loadPublicUsers(
       name: user.name,
       nickname: profiles.nickname,
       avatar: profiles.avatar,
+      timeZone: profiles.timeZone,
     })
     .from(user)
     .leftJoin(profiles, eq(profiles.userId, user.id))
     .where(inArray(user.id, uniqueIds))
 
-  const map = new Map<string, { nickname: string; avatar: string | null }>()
+  const map = new Map<
+    string,
+    { nickname: string; avatar: string | null; timeZone: string | null }
+  >()
   for (const r of rows) {
     const nickname = r.nickname?.trim() || r.name?.trim() || 'DayDayOn 伙伴'
-    map.set(r.userId, { nickname, avatar: r.avatar ?? null })
+    map.set(r.userId, { nickname, avatar: r.avatar ?? null, timeZone: r.timeZone ?? null })
   }
   return map
 }
@@ -110,8 +113,15 @@ export async function listNotifications(
   const channel = options.channel ?? 'all'
   const unreadOnly = options.unreadOnly ?? false
   const cursor = options.cursor
-  const cursorDate = cursor ? new Date(cursor) : null
-  const validCursor = cursorDate && !Number.isNaN(cursorDate.getTime()) ? cursorDate : null
+  let validCursor: Date | null = null
+  if (cursor !== undefined && cursor !== '') {
+    const trimmed = cursor.trim()
+    const cursorDate = trimmed ? new Date(trimmed) : null
+    if (!cursorDate || Number.isNaN(cursorDate.getTime()) || !/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      throw new ApiError('VALIDATION_FAILED', 'cursor 无效', { fields: { cursor: ['游标无效'] } })
+    }
+    validCursor = cursorDate
+  }
 
   const conditions = [eq(notifications.userId, userId)]
 
@@ -343,11 +353,12 @@ export async function recordCheckinNotification(
   if (recipientUserId === actorUserId) return null
 
   const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000)
-  const timeStr = checkin.time ?? formatTimeHM(checkin.occurredAt ?? now)
 
-  // 查 actor 昵称
-  const userMap = await loadPublicUsers(db, [actorUserId])
+  // 查 actor 昵称与接收者时区
+  const userMap = await loadPublicUsers(db, [actorUserId, recipientUserId])
   const actorName = userMap.get(actorUserId)?.nickname ?? '好友'
+  const timeZone = resolveTimeZone(userMap.get(recipientUserId)?.timeZone)
+  const timeStr = checkin.time ?? localTimeOf(checkin.occurredAt ?? now, timeZone)
 
   // 查找最近 5 分钟内、未读的打卡聚合通知
   const [existing] = await db
@@ -436,10 +447,11 @@ export async function recordVisitFootprint(
   if (ownerUserId === visitorUserId) return null
 
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-  const timeStr = formatTimeHM(now)
 
-  const userMap = await loadPublicUsers(db, [visitorUserId])
+  const userMap = await loadPublicUsers(db, [visitorUserId, ownerUserId])
   const visitorName = userMap.get(visitorUserId)?.nickname ?? '好友'
+  const timeZone = resolveTimeZone(userMap.get(ownerUserId)?.timeZone)
+  const timeStr = localTimeOf(now, timeZone)
 
   // 查找 24 小时内的造访记录
   const [existing] = await db

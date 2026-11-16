@@ -1,10 +1,13 @@
 import * as z from 'zod'
 import { RefereeRulesSchema, RefereeTierSchema } from '@/features/referee/schemas'
+import { TargetSchema } from '@/features/goal/schemas'
 import {
   InstantSchema,
+  LocalDateSchema,
   LocalTimeSchema,
   ModuleSchema,
   UserIdSchema,
+  WeekdaysSchema,
 } from '@/features/shared/schemas'
 import { WeightGramsSchema } from '@/features/metric/schemas'
 
@@ -16,11 +19,31 @@ export const THEME_IDS = ['caramel', 'terracotta', 'matcha', 'haze', 'berry'] as
 export const ThemeSchema = z.enum(THEME_IDS, { error: '主题不存在' }).meta({ id: 'Theme' })
 export type Theme = z.infer<typeof ThemeSchema>
 
+export const MASCOT_IDS = ['tuan', 'dun', 'mian', 'you'] as const
 export const MascotCharacterSchema = z
-  .enum(['tuan', 'dun', 'mian', 'you'], { error: '形象不存在' })
+  .enum(MASCOT_IDS, { error: '形象不存在' })
   .meta({ id: 'MascotCharacter' })
 export type MascotCharacter = z.infer<typeof MascotCharacterSchema>
 export type MascotRegistryCharacter = MascotCharacter
+
+export const MASCOT_CHARACTER_NAMES: Record<MascotCharacter, string> = {
+  tuan: '团团',
+  dun: '墩墩',
+  mian: '绵绵',
+  you: '柚柚',
+}
+
+/** 归一化陪伴形象 id：未知或空值安全回退为默认形象团团 */
+export function resolveMascotCharacter(value: unknown): MascotCharacter {
+  return typeof value === 'string' && (MASCOT_IDS as readonly string[]).includes(value)
+    ? (value as MascotCharacter)
+    : 'tuan'
+}
+
+/** 按单一映射返回陪伴形象中文名（团团 / 墩墩 / 绵绵 / 柚柚） */
+export function mascotCharacterName(value: unknown): string {
+  return MASCOT_CHARACTER_NAMES[resolveMascotCharacter(value)]
+}
 
 export const GenderSchema = z.enum(['female', 'male', 'other']).meta({ id: 'Gender' })
 export type Gender = z.infer<typeof GenderSchema>
@@ -137,6 +160,14 @@ export type Me = z.infer<typeof MeSchema>
 // POST /me/onboarding（六步一次提交，PRD 2.2、7.1）
 // ---------------------------------------------------------------------------
 
+export const OnboardingGoalPlanSchema = z.object({
+  module: ModuleSchema,
+  target: TargetSchema.optional(),
+  weekdays: WeekdaysSchema.optional(),
+  plannedTime: LocalTimeSchema.nullable().optional(),
+})
+export type OnboardingGoalPlan = z.infer<typeof OnboardingGoalPlanSchema>
+
 export const OnboardingSchema = z
   .object({
     nickname: NicknameSchema,
@@ -153,6 +184,14 @@ export const OnboardingSchema = z
       .min(1, { error: '至少选一个板块' })
       .max(5)
       .refine((m) => new Set(m).size === m.length, { error: '板块不能重复' }),
+    /** 统一的目标坚持天数（可选，如 21 天）；若传 deadlineDate 则优先使用 deadlineDate */
+    periodDays: z.number().int().min(1).max(3650).nullable().optional(),
+    /** 统一的截止日期（可选） */
+    deadlineDate: LocalDateSchema.nullable().optional(),
+    /** 每日总打卡提醒时间（可选，HH:mm） */
+    remindAt: LocalTimeSchema.nullable().optional(),
+    /** 各板块每日目标量与计划微调（可选，不传用 DEFAULT_GOALS） */
+    goalPlans: z.array(OnboardingGoalPlanSchema).max(5).optional(),
     leaderboardOptIn: z.boolean().default(false),
     /** 饮食的人群档位；跳过就是默认档（checkin-modules.md 第 5 节「新人引导」） */
     refereeTier: RefereeTierSchema.default('balanced-glycemic'),
