@@ -30,7 +30,7 @@ import { judgeInputOf } from '@/features/referee/subject'
 import type { Module } from '@/features/shared/schemas'
 import { newIdempotencyKey } from '@/lib/api'
 import { cn } from '@/lib/cn'
-import { sleepRangeForDay } from '@/lib/time'
+import { calendarDateOf, sleepRangeForDay } from '@/lib/time'
 import type { CheckinClock, CheckinGoal, SmartFillContext } from '../components/form-types'
 import {
   CheckinModeTabs,
@@ -135,13 +135,22 @@ function buildSkipFallbackInput(
         note: cleanNote,
       }
     case 'sleep': {
-      const r = sleepRangeForDay(today, '23:00', '07:00', clock.timeZone, clock.dayStartHour)
-      const wakeAt = r ? r.wakeAt : new Date()
-      const bedAt = r ? r.bedAt : new Date(wakeAt.getTime() - 8 * 3600_000)
+      const r =
+        sleepRangeForDay(today, '23:00', '07:00', clock.timeZone, clock.dayStartHour) ??
+        sleepRangeForDay(
+          calendarDateOf(new Date(), clock.timeZone),
+          '23:00',
+          '07:00',
+          clock.timeZone,
+          clock.dayStartHour,
+        )
+      if (!r) {
+        throw new RangeError('无法构造默认睡眠区间')
+      }
       return {
         module: 'sleep',
-        bedAt: bedAt.toISOString(),
-        wakeAt: wakeAt.toISOString(),
+        bedAt: r.bedAt.toISOString(),
+        wakeAt: r.wakeAt.toISOString(),
         quality: 3,
         note: cleanNote,
       }

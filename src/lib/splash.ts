@@ -1,3 +1,4 @@
+import { MASCOT_IDS } from '@/features/me/schemas'
 import { NATIVE_UA_TOKEN } from './native'
 
 /*
@@ -14,7 +15,7 @@ import { NATIVE_UA_TOKEN } from './native'
  */
 
 export const SPLASH_PLAYED_KEY = 'daydayon:splash-played:v1'
-/** 上次用的形象（团团 / 墩墩），登录后由 ThemeSync 写入，开屏用它挑那一只 */
+/** 上次用的形象（团团 / 墩墩 / 绵绵 / 柚柚），登录后由 ThemeSync 写入，开屏用它挑那一只 */
 export const SPLASH_MASCOT_KEY = 'daydayon:mascot:v1'
 
 export type SplashGreeting = 'morning' | 'day' | 'night'
@@ -41,8 +42,10 @@ export function rememberSplashMascot(character: string) {
   }
 }
 
+const NON_DEFAULT_MASCOTS = MASCOT_IDS.filter((id) => id !== 'tuan')
+
 /*
  * 内联脚本。逻辑与上面的注释一致；问候分档与 splashGreeting 一致（单测会执行这段脚本核对）。
  * 任何一步出错都不播放开屏，页面照常显示。
  */
-export const splashScript = `(function(){try{var w=window,d=document.documentElement,n=w.navigator,ua=n.userAgent||"";if(ua.indexOf(${JSON.stringify(NATIVE_UA_TOKEN)})>-1)return;var sa=w.matchMedia("(display-mode: standalone)").matches||n.standalone===true;if(!sa||!w.matchMedia("(pointer: coarse)").matches)return;var s=w.sessionStorage;if(s.getItem(${JSON.stringify(SPLASH_PLAYED_KEY)}))return;s.setItem(${JSON.stringify(SPLASH_PLAYED_KEY)},"1");if(w.localStorage.getItem(${JSON.stringify(SPLASH_MASCOT_KEY)})==="dun")d.dataset.splashChar="dun";var h=new Date().getHours();d.dataset.splashGreet=h<5||h>=22?"night":h<11?"morning":"day";d.dataset.splash="1"}catch(e){}})()`
+export const splashScript = `(function(){try{var w=window,d=document.documentElement,n=w.navigator,ua=n.userAgent||"";if(ua.indexOf(${JSON.stringify(NATIVE_UA_TOKEN)})>-1)return;var sa=w.matchMedia("(display-mode: standalone)").matches||n.standalone===true;if(!sa||!w.matchMedia("(pointer: coarse)").matches)return;var s=w.sessionStorage;if(s.getItem(${JSON.stringify(SPLASH_PLAYED_KEY)}))return;s.setItem(${JSON.stringify(SPLASH_PLAYED_KEY)},"1");var c=w.localStorage.getItem(${JSON.stringify(SPLASH_MASCOT_KEY)});if(${JSON.stringify(NON_DEFAULT_MASCOTS)}.indexOf(c)>-1)d.dataset.splashChar=c;var h=new Date().getHours();d.dataset.splashGreet=h<5||h>=22?"night":h<11?"morning":"day";d.dataset.splash="1"}catch(e){}})()`

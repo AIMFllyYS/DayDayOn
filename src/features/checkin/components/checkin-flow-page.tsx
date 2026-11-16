@@ -5,8 +5,8 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
+import { goalPeriodProgress } from '@/features/goal/period'
 import { GoalLinkButton } from '@/features/goal/components/goal-link-button'
-import { daysBetween } from '@/lib/time'
 import { errorMessage, isApiError, newIdempotencyKey, useQuery } from '@/lib/api'
 import {
   checkinDayQuery,
@@ -25,15 +25,9 @@ import type { CheckinInputMode } from './smart-scanner'
  * 每次确认生成新的幂等键：一次 Agent 裁判对应一次入库，重复点击由按钮 loading 拦住。
  */
 
-const MILESTONES = [7, 14, 21, 30, 60, 100, 200, 365]
-
 /** 周期环：设了截止日期按 起始 → 截止；没设就取下一个里程碑（7、14、21、30…天） */
 export function periodOf(validDays: number, startDate: string, deadline: string | null) {
-  if (deadline && deadline >= startDate) {
-    return { done: validDays, total: Math.max(1, daysBetween(startDate, deadline) + 1) }
-  }
-  const total = MILESTONES.find((m) => m > validDays) ?? validDays + 1
-  return { done: validDays, total }
+  return goalPeriodProgress(validDays, startDate, deadline)
 }
 
 export function CheckinFlowPage({
@@ -103,7 +97,7 @@ export function CheckinFlowPage({
   const def = moduleDef(g.module)
   const clock = {
     timeZone: me.data.profile.timeZone,
-    dayStartHour: 0,
+    dayStartHour: me.data.preferences.dayStartHour ?? 4,
   }
   const startDate = g.createdAt.slice(0, 10)
 

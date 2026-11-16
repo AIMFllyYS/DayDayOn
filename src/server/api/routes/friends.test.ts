@@ -24,15 +24,26 @@ vi.mock('@/server/services/friends', () => mocks.service)
 vi.mock('@/server/db/client', () => ({
   db: { transaction: (fn: (tx: unknown) => unknown) => fn({}) },
 }))
+vi.mock('@/server/idempotency', () => ({
+  requestHash: async () => 'hash',
+  beginIdempotent: async () => ({ kind: 'new' }),
+  completeIdempotent: async () => undefined,
+  abortIdempotent: async () => undefined,
+}))
 
 const { app } = await import('../app')
 const { ApiError } = await import('../errors')
 
 const SAME_ORIGIN = { 'sec-fetch-site': 'same-origin' }
 
-const jsonInit = (method: string, body: unknown) => ({
+const jsonInit = (method: string, body: unknown, headers: Record<string, string> = {}) => ({
   method,
-  headers: { 'content-type': 'application/json', ...SAME_ORIGIN },
+  headers: {
+    'content-type': 'application/json',
+    'idempotency-key': crypto.randomUUID(),
+    ...SAME_ORIGIN,
+    ...headers,
+  },
   body: JSON.stringify(body),
 })
 
@@ -101,6 +112,28 @@ describe('/api/v1/friends 业务与校验', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual(invite)
     expect(mocks.service.getOrCreateInviteCode.mock.calls[0]?.[1]).toBe('u1')
+  })
+
+  it('POST /friends/invite 缺少 idempotency-key 返回 400 VALIDATION_FAILED', async () => {
+    const res = await app.request('/api/v1/friends/invite', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...SAME_ORIGIN },
+      body: JSON.stringify({}),
+    })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({ code: 'VALIDATION_FAILED' })
+    expect(mocks.service.getOrCreateInviteCode).not.toHaveBeenCalled()
+  })
+
+  it('POST /friends/accept 缺少 idempotency-key 返回 400 VALIDATION_FAILED', async () => {
+    const res = await app.request('/api/v1/friends/accept', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...SAME_ORIGIN },
+      body: JSON.stringify({ code: '839204' }),
+    })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({ code: 'VALIDATION_FAILED' })
+    expect(mocks.service.acceptInviteCode).not.toHaveBeenCalled()
   })
 
   it('POST /friends/invite/preview 非 6 位数字返回 400 VALIDATION_FAILED', async () => {

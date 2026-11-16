@@ -284,6 +284,9 @@
           },
           "retryAfterSeconds": {
             "type": "integer"
+          },
+          "draft": {
+            "type": "string"
           }
         },
         "required": [
@@ -345,6 +348,63 @@
             "minItems": 1,
             "maxItems": 5
           },
+          "periodDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 3650
+          },
+          "deadlineDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "remindAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "goalPlans": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "$ref": "#/components/schemas/Module"
+                },
+                "target": {
+                  "$ref": "#/components/schemas/Target"
+                },
+                "weekdays": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 7
+                  },
+                  "minItems": 1,
+                  "maxItems": 7
+                },
+                "plannedTime": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                }
+              },
+              "required": [
+                "module"
+              ]
+            },
+            "maxItems": 5
+          },
           "leaderboardOptIn": {
             "type": "boolean",
             "default": false
@@ -389,6 +449,30 @@
           "sleep",
           "study",
           "custom"
+        ]
+      },
+      "Target": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/TargetKind"
+          },
+          "value": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ]
+      },
+      "TargetKind": {
+        "type": "string",
+        "enum": [
+          "duration",
+          "count"
         ]
       },
       "RefereeRules": {
@@ -906,30 +990,6 @@
           "deadlineDate",
           "createdAt",
           "updatedAt"
-        ]
-      },
-      "Target": {
-        "type": "object",
-        "properties": {
-          "kind": {
-            "$ref": "#/components/schemas/TargetKind"
-          },
-          "value": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 86400
-          }
-        },
-        "required": [
-          "kind",
-          "value"
-        ]
-      },
-      "TargetKind": {
-        "type": "string",
-        "enum": [
-          "duration",
-          "count"
         ]
       },
       "GoalStatus": {
@@ -3584,6 +3644,9 @@
             "type": "integer",
             "minimum": 0
           },
+          "overall": {
+            "$ref": "#/components/schemas/OverallProgress"
+          },
           "hasGoals": {
             "type": "boolean"
           },
@@ -3632,6 +3695,43 @@
           "heatmap",
           "feed",
           "reminder"
+        ]
+      },
+      "OverallProgress": {
+        "type": "object",
+        "properties": {
+          "checkedDays": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "targetDays": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "startDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "deadlineDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "hasDeadline": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "checkedDays",
+          "targetDays",
+          "startDate",
+          "deadlineDate",
+          "hasDeadline"
         ]
       },
       "WeekHeatmap": {
@@ -5066,6 +5166,94 @@
           "title"
         ]
       },
+      "AgentChatRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "message": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "assistant"
+                ]
+              },
+              "parts": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "id",
+              "role",
+              "parts"
+            ]
+          },
+          "deepThink": {
+            "type": "boolean",
+            "default": false
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id",
+          "message",
+          "idempotencyKey"
+        ]
+      },
+      "RefereeRequest": {
+        "type": "object",
+        "properties": {
+          "checkin": {
+            "$ref": "#/components/schemas/CreateCheckin"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "conversation": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "messageId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "id",
+              "messageId",
+              "text"
+            ]
+          }
+        },
+        "required": [
+          "checkin",
+          "idempotencyKey"
+        ]
+      },
       "RedeemResult": {
         "type": "object",
         "properties": {
@@ -5619,7 +5807,7 @@
             }
           },
           "403": {
-            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "description": "ACCOUNT_BANNED",
             "content": {
               "application/json": {
                 "schema": {
@@ -5666,7 +5854,7 @@
             }
           },
           "403": {
-            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "description": "ACCOUNT_BANNED",
             "content": {
               "application/json": {
                 "schema": {
@@ -5733,7 +5921,7 @@
             }
           },
           "403": {
-            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "description": "ACCOUNT_BANNED",
             "content": {
               "application/json": {
                 "schema": {
@@ -5891,7 +6079,7 @@
             }
           },
           "403": {
-            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "description": "ACCOUNT_BANNED",
             "content": {
               "application/json": {
                 "schema": {
@@ -7411,6 +7599,17 @@
           "friend"
         ],
         "summary": "获取或生成 10 分钟有效的 6 位好友配对码",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
         "responses": {
           "200": {
             "description": "6 位配对码与过期时间",
@@ -7418,6 +7617,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FriendInvite"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -7434,6 +7643,16 @@
           },
           "403": {
             "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
             "content": {
               "application/json": {
                 "schema": {
@@ -7531,6 +7750,17 @@
           "friend"
         ],
         "summary": "确认接受好友邀请",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -7583,7 +7813,7 @@
             }
           },
           "409": {
-            "description": "FRIEND_ALREADY_EXISTS",
+            "description": "FRIEND_ALREADY_EXISTS | IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
             "content": {
               "application/json": {
                 "schema": {
@@ -7877,7 +8107,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             },
             "required": false,
             "name": "cursor",
@@ -8056,6 +8287,15 @@
             "required": true,
             "name": "friendUserId",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -8173,6 +8413,16 @@
               }
             }
           },
+          "409": {
+            "description": "IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "CONTENT_SENSITIVE",
             "content": {
@@ -8278,7 +8528,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             },
             "required": false,
             "name": "cursor",
@@ -8457,6 +8708,15 @@
             "required": true,
             "name": "friendUserId",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -8574,6 +8834,16 @@
               }
             }
           },
+          "409": {
+            "description": "IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "CONTENT_SENSITIVE",
             "content": {
@@ -8675,6 +8945,15 @@
             "required": true,
             "name": "friendUserId",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -8730,6 +9009,16 @@
           },
           "404": {
             "description": "FRIEND_NOT_FOUND | USER_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
             "content": {
               "application/json": {
                 "schema": {
@@ -10014,6 +10303,237 @@
           },
           "404": {
             "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent/chat": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Agent 流式对话（SSE）",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "流式对话响应（UI message stream）",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "QUOTA_INSUFFICIENT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI_PAUSED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/goals/{goalId}/referee": {
+      "post": {
+        "tags": [
+          "referee"
+        ],
+        "summary": "打卡裁判分析（流式 SSE）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "goalId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefereeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "流式裁判响应（UI message stream）",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "QUOTA_INSUFFICIENT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "GOAL_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI_PAUSED",
             "content": {
               "application/json": {
                 "schema": {

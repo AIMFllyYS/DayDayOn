@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useId, useState, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,13 +9,17 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Field, Input } from '@/components/ui/field'
 import { Form, type FormErrors } from '@/components/ui/form'
 import { MenuItem, MenuList } from '@/components/ui/menu-list'
-import { Sheet } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
 import { formatYuan } from '@/features/agent/format'
 import { formatBusinessDateTime, formatRelative, BUSINESS_TIME_ZONE } from '@/lib/time'
 import { formatRunCost, PURPOSE_LABEL, RUN_STATUS_LABEL } from '../format'
 import type { AiRunItem, QuotaView } from '../schemas'
+
+const Sheet = dynamic(() => import('@/components/ui/sheet').then((m) => m.Sheet), {
+  ssr: false,
+  loading: () => null,
+})
 
 /*
  * 「我的」页额度卡（PRD 2.7、2.11）的纯展示：QuotaMeter + 加购余额 + "兑换额度"抽屉 + "使用记录"抽屉。
@@ -45,10 +50,18 @@ export interface QuotaCardViewProps {
 
 export function QuotaCardView({ quota, runs, onRunsOpen, redeem, now }: QuotaCardViewProps) {
   const [sheet, setSheet] = useState<'redeem' | 'runs' | null>(null)
+  const [redeemLoaded, setRedeemLoaded] = useState(false)
+  const [runsLoaded, setRunsLoaded] = useState(false)
 
   function open(next: 'redeem' | 'runs') {
-    if (next === 'runs') onRunsOpen?.()
-    if (next === 'redeem') redeem.onReset()
+    if (next === 'runs') {
+      setRunsLoaded(true)
+      onRunsOpen?.()
+    }
+    if (next === 'redeem') {
+      setRedeemLoaded(true)
+      redeem.onReset()
+    }
     setSheet(next)
   }
 
@@ -72,23 +85,27 @@ export function QuotaCardView({ quota, runs, onRunsOpen, redeem, now }: QuotaCar
         />
       </MenuList>
 
-      <Sheet
-        open={sheet === 'redeem'}
-        onOpenChange={(o) => setSheet(o ? 'redeem' : null)}
-        title="兑换额度"
-        description="一个兑换码加 10 元，长期有效，本周额度用完后再扣"
-      >
-        <RedeemForm {...redeem} />
-      </Sheet>
+      {redeemLoaded && (
+        <Sheet
+          open={sheet === 'redeem'}
+          onOpenChange={(o) => setSheet(o ? 'redeem' : null)}
+          title="兑换额度"
+          description="一个兑换码加 10 元，长期有效，本周额度用完后再扣"
+        >
+          <RedeemForm {...redeem} />
+        </Sheet>
+      )}
 
-      <Sheet
-        open={sheet === 'runs'}
-        onOpenChange={(o) => setSheet(o ? 'runs' : null)}
-        title="使用记录"
-        description="照片只用来识别，识别后不保存"
-      >
-        <RunList runs={runs} now={now} />
-      </Sheet>
+      {runsLoaded && (
+        <Sheet
+          open={sheet === 'runs'}
+          onOpenChange={(o) => setSheet(o ? 'runs' : null)}
+          title="使用记录"
+          description="照片只用来识别，识别后不保存"
+        >
+          <RunList runs={runs} now={now} />
+        </Sheet>
+      )}
     </div>
   )
 }

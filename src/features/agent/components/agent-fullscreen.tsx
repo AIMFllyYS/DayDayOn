@@ -1,8 +1,8 @@
 'use client'
 
 import { AppPage } from '@/components/layout/app-page'
-import type { MascotCharacter } from '@/components/mascot/mascot-svg'
 import { IconButton } from '@/components/ui/button'
+import { mascotCharacterName, resolveMascotCharacter } from '@/features/me/schemas'
 import { newIdempotencyKey } from '@/lib/api/fetcher'
 import { useMe } from '@/lib/api/queries/me'
 import { BUSINESS_TIME_ZONE } from '@/lib/time'
@@ -23,8 +23,8 @@ export function AgentFullscreen() {
   const { deepThink } = useAgentUiState()
   const ui = useAgentUi()
   const { data: me } = useMe()
-  const character: MascotCharacter = me?.preferences.mascot === 'dun' ? 'dun' : 'tuan'
-  const petName = character === 'dun' ? '墩墩' : '团团'
+  const character = resolveMascotCharacter(me?.preferences.mascot)
+  const petName = mascotCharacterName(character)
   const timeZone = me?.profile.timeZone ?? BUSINESS_TIME_ZONE
 
   return (

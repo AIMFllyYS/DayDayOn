@@ -158,7 +158,7 @@ function AlbumBucketMenu({
           aria-label={`切换相册文件夹，当前：${activeBucketName}`}
           className={cn(
             'text-foreground hover:bg-surface-sunken active:bg-surface-sunken inline-flex min-h-9 max-w-full items-center gap-2 rounded-full border px-3 py-1.5 transition-colors outline-none',
-            'border-border bg-surface-sunken/65 focus-visible:ring-ring focus-visible:ring-2',
+            'border-border bg-surface-sunken/65 focus-visible:ring-primary focus-visible:ring-2',
           )}
         >
           <Icon name="album" size={18} className="text-primary shrink-0" />
@@ -193,7 +193,7 @@ function AlbumBucketMenu({
               onClick={() => onSelectBucket(bucket.id)}
               className={cn(
                 'flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2 text-left transition-colors outline-none',
-                'focus-visible:ring-ring focus-visible:ring-2',
+                'focus-visible:ring-primary focus-visible:ring-2',
                 active
                   ? 'bg-primary-soft text-primary-ink font-semibold'
                   : 'text-foreground hover:bg-surface-sunken',

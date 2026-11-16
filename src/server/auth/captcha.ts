@@ -1,6 +1,9 @@
 import 'server-only'
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
 import { APIError } from 'better-auth/api'
+import { sql } from 'drizzle-orm'
+import { db } from '@/server/db/client'
+import { rateLimitCounters } from '@/server/db/schema'
 import { env } from '@/server/env'
 import {
   CAPTCHA_HEIGHT,
@@ -50,6 +53,48 @@ function consumeNonceOnce(nonce: string, nowMs: number): boolean {
   }
   consumedNonces.set(nonce, nowMs + CHALLENGE_TTL_MS + PASS_TTL_MS)
   return true
+}
+
+/**
+ * 持久化一次性消费 nonce（写入 PostgreSQL rate_limit_counters，防进程重启或并发多实例重放）。
+ * 非生产环境未配置或无法连接数据库时返回 null，由调用方降级到进程内缓存。
+ */
+async function tryConsumeNonceInDb(
+  nonce: string,
+  expiresAtMs: number,
+  nowMs: number,
+): Promise<boolean | null> {
+  try {
+    const expiresAt = new Date(Math.max(expiresAtMs, nowMs) + 60_000)
+    const [row] = await db
+      .insert(rateLimitCounters)
+      .values({ key: `captcha-nonce:${nonce}`, count: 1, expiresAt })
+      .onConflictDoUpdate({
+        target: rateLimitCounters.key,
+        set: { count: sql`${rateLimitCounters.count} + 1`, updatedAt: new Date(nowMs) },
+      })
+      .returning({ count: rateLimitCounters.count })
+    return (row?.count ?? 0) === 1
+  } catch (error) {
+    if (process.env.NODE_ENV === 'production') {
+      throw error
+    }
+    return null
+  }
+}
+
+async function consumeNoncePersisted(
+  nonce: string,
+  expiresAtMs: number,
+  nowMs: number,
+  memoryOnly: boolean,
+): Promise<boolean> {
+  if (memoryOnly) {
+    return consumeNonceOnce(nonce, nowMs)
+  }
+  const dbResult = await tryConsumeNonceInDb(nonce, expiresAtMs, nowMs)
+  if (dbResult === false) return false
+  return consumeNonceOnce(nonce, nowMs)
 }
 
 function resolveSecret(secretKey?: string): string {
@@ -278,7 +323,7 @@ export async function verifyTurnstileToken({
     return { ok: false, code: 'VERIFICATION_FAILED', errorCodes: ['ip-mismatch'] }
   }
 
-  if (!consumeNonceOnce(`p:${decoded.id}`, nowMs)) {
+  if (!(await consumeNoncePersisted(`p:${decoded.id}`, decoded.exp, nowMs, Boolean(secretKey)))) {
     return { ok: false, code: 'VERIFICATION_FAILED', errorCodes: ['timeout-or-duplicate'] }
   }
 
@@ -338,12 +383,28 @@ export async function handleCaptchaRequest(request: Request): Promise<Response> 
         durationMs?: number
         action?: string
       }
+      const targetAction = body.action ?? action
+      const nowMs = Date.now()
+      if (typeof body.challengeId === 'string') {
+        const decoded = openPayload<ChallengeTokenPayload>(body.challengeId, resolveSecret())
+        if (decoded && decoded.k === 'c' && decoded.act === targetAction && nowMs <= decoded.exp) {
+          const dbOk = await tryConsumeNonceInDb(`c:${decoded.id}`, decoded.exp, nowMs)
+          if (dbOk === false) {
+            const challenge = createCaptchaChallenge({ action: targetAction, remoteIp: ip, nowMs })
+            return new Response(
+              JSON.stringify({ ok: false, code: 'EXPIRED_CHALLENGE', challenge }),
+              { status: 422, headers: jsonHeaders },
+            )
+          }
+        }
+      }
       const res = solveCaptchaChallenge({
         challengeId: body.challengeId,
         clicks: body.clicks,
         durationMs: body.durationMs,
-        action: body.action ?? action,
+        action: targetAction,
         remoteIp: ip,
+        nowMs,
       })
       return new Response(JSON.stringify(res), {
         status: res.ok ? 200 : 422,

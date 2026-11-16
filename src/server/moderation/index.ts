@@ -1,9 +1,10 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
-import { and, desc, eq, gte } from 'drizzle-orm'
+import { and, desc, eq, gt, gte, sql } from 'drizzle-orm'
 import { ApiError } from '@/server/api/errors'
 import { db as defaultDb, type DbOrTx } from '@/server/db/client'
-import { moderationViolations, type ModerationAction } from '@/server/db/schema'
+import { moderationViolations, rateLimitCounters, type ModerationAction } from '@/server/db/schema'
+import { counterKey, windowOf } from '@/server/rate-limit'
 import { checkText, type ModerationCheckResult } from './dfa'
 
 export * from './dfa'
@@ -36,6 +37,22 @@ interface UserSpamState {
 
 const userSpamStates = new Map<string, UserSpamState>()
 
+function canUseRateLimitStore(targetDb: DbOrTx): boolean {
+  return typeof (targetDb as { insert?: unknown }).insert === 'function'
+}
+
+function modMuteKey(userId: string): string {
+  return `mod-mute:${userId}`
+}
+
+function modSpamKey(userId: string, now: Date): { key: string; end: Date } {
+  const win = windowOf({ windowSeconds: SPAM_WINDOW_SECONDS }, now)
+  return {
+    key: counterKey({ name: 'mod-spam' }, userId, win.start),
+    end: win.end,
+  }
+}
+
 /**
  * 重置防刷与静音内存状态（用于自动化测试）
  */
@@ -60,14 +77,32 @@ export async function getUserMuteStatus(
 ): Promise<UserMuteStatus> {
   const nowMs = now.getTime()
 
-  // 1. 检查频控静音状态
-  const spamState = userSpamStates.get(userId)
-  if (spamState?.mutedUntil && spamState.mutedUntil > nowMs) {
-    const retryAfterSeconds = Math.max(1, Math.ceil((spamState.mutedUntil - nowMs) / 1000))
-    return {
-      isMuted: true,
-      retryAfterSeconds,
-      reason: '发言过于频繁触发冷静期',
+  // 1. 检查频控静音状态（优先查持久化 rate_limit_counters，精简 mockDb 时回落内存）
+  if (canUseRateLimitStore(db)) {
+    const [muteRow] = await db
+      .select({ expiresAt: rateLimitCounters.expiresAt })
+      .from(rateLimitCounters)
+      .where(
+        and(eq(rateLimitCounters.key, modMuteKey(userId)), gt(rateLimitCounters.expiresAt, now)),
+      )
+      .limit(1)
+    if (muteRow) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((muteRow.expiresAt.getTime() - nowMs) / 1000))
+      return {
+        isMuted: true,
+        retryAfterSeconds,
+        reason: '发言过于频繁触发冷静期',
+      }
+    }
+  } else {
+    const spamState = userSpamStates.get(userId)
+    if (spamState?.mutedUntil && spamState.mutedUntil > nowMs) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((spamState.mutedUntil - nowMs) / 1000))
+      return {
+        isMuted: true,
+        retryAfterSeconds,
+        reason: '发言过于频繁触发冷静期',
+      }
     }
   }
 
@@ -117,32 +152,74 @@ export async function assertTextClean(
   const nowMs = now.getTime()
   const { userId, action } = options
 
+  const useDbRateLimit = canUseRateLimitStore(targetDb)
+  const spamWindow = useDbRateLimit ? modSpamKey(userId, now) : null
+
   // 1. 频控频次与静音校验
-  let spamState = userSpamStates.get(userId)
-  if (!spamState) {
-    spamState = { timestamps: [] }
-    userSpamStates.set(userId, spamState)
-  }
+  if (useDbRateLimit && spamWindow) {
+    const [muteRow] = await targetDb
+      .select({ expiresAt: rateLimitCounters.expiresAt })
+      .from(rateLimitCounters)
+      .where(
+        and(eq(rateLimitCounters.key, modMuteKey(userId)), gt(rateLimitCounters.expiresAt, now)),
+      )
+      .limit(1)
+    if (muteRow) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((muteRow.expiresAt.getTime() - nowMs) / 1000))
+      throw new ApiError('USER_MUTED', '发言过于频繁或多次触发违规，已暂时静音，请稍后再试', {
+        retryAfterSeconds,
+      })
+    }
 
-  // 检查是否正处于频控冷静期中
-  if (spamState.mutedUntil && spamState.mutedUntil > nowMs) {
-    const retryAfterSeconds = Math.max(1, Math.ceil((spamState.mutedUntil - nowMs) / 1000))
-    throw new ApiError('USER_MUTED', '发言过于频繁或多次触发违规，已暂时静音，请稍后再试', {
-      retryAfterSeconds,
-    })
-  }
+    const [spamRow] = await targetDb
+      .select({ count: rateLimitCounters.count })
+      .from(rateLimitCounters)
+      .where(and(eq(rateLimitCounters.key, spamWindow.key), gt(rateLimitCounters.expiresAt, now)))
+      .limit(1)
+    if ((spamRow?.count ?? 0) >= SPAM_MAX_MESSAGES) {
+      const mutedUntil = new Date(nowMs + MUTE_COOLING_SECONDS * 1000)
+      await targetDb
+        .insert(rateLimitCounters)
+        .values({ key: modMuteKey(userId), count: 1, expiresAt: mutedUntil })
+        .onConflictDoUpdate({
+          target: rateLimitCounters.key,
+          set: {
+            count: sql`${rateLimitCounters.count} + 1`,
+            expiresAt: mutedUntil,
+            updatedAt: now,
+          },
+        })
+      throw new ApiError('USER_MUTED', '发言过于频繁或多次触发违规，已暂时静音，请稍后再试', {
+        retryAfterSeconds: MUTE_COOLING_SECONDS,
+      })
+    }
+  } else {
+    let spamState = userSpamStates.get(userId)
+    if (!spamState) {
+      spamState = { timestamps: [] }
+      userSpamStates.set(userId, spamState)
+    }
 
-  // 检查 10 秒滑动窗口内的发送频次
-  spamState.timestamps = spamState.timestamps.filter(
-    (ts) => nowMs - ts <= SPAM_WINDOW_SECONDS * 1000,
-  )
-  if (spamState.timestamps.length >= SPAM_MAX_MESSAGES) {
-    // 超过频次限制，触发 24 小时冷静期静音
-    spamState.mutedUntil = nowMs + MUTE_COOLING_SECONDS * 1000
-    const retryAfterSeconds = MUTE_COOLING_SECONDS
-    throw new ApiError('USER_MUTED', '发言过于频繁或多次触发违规，已暂时静音，请稍后再试', {
-      retryAfterSeconds,
-    })
+    // 检查是否正处于频控冷静期中
+    if (spamState.mutedUntil && spamState.mutedUntil > nowMs) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((spamState.mutedUntil - nowMs) / 1000))
+      throw new ApiError('USER_MUTED', '发言过于频繁或多次触发违规，已暂时静音，请稍后再试', {
+        retryAfterSeconds,
+      })
+    }
+
+    // 检查 10 秒滑动窗口内的发送频次
+    spamState.timestamps = spamState.timestamps.filter(
+      (ts) => nowMs - ts <= SPAM_WINDOW_SECONDS * 1000,
+    )
+    if (spamState.timestamps.length >= SPAM_MAX_MESSAGES) {
+      // 超过频次限制，触发 24 小时冷静期静音
+      spamState.mutedUntil = nowMs + MUTE_COOLING_SECONDS * 1000
+      const retryAfterSeconds = MUTE_COOLING_SECONDS
+      throw new ApiError('USER_MUTED', '发言过于频繁或多次触发违规，已暂时静音，请稍后再试', {
+        retryAfterSeconds,
+      })
+    }
   }
 
   // 2. 检查 24 小时内违规记录次数
@@ -189,6 +266,19 @@ export async function assertTextClean(
     })
   }
 
-  // 4. 审核通过，记录本次发送时间戳
-  spamState.timestamps.push(nowMs)
+  // 4. 审核通过，记录本次发送时间戳或持久化频控计数
+  if (useDbRateLimit && spamWindow) {
+    await targetDb
+      .insert(rateLimitCounters)
+      .values({ key: spamWindow.key, count: 1, expiresAt: spamWindow.end })
+      .onConflictDoUpdate({
+        target: rateLimitCounters.key,
+        set: { count: sql`${rateLimitCounters.count} + 1`, updatedAt: now },
+      })
+  } else {
+    const spamState = userSpamStates.get(userId)
+    if (spamState) {
+      spamState.timestamps.push(nowMs)
+    }
+  }
 }

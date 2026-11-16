@@ -11,7 +11,8 @@ import { db } from '@/server/db/client'
 import * as petInteractionsService from '@/server/services/pet-interactions'
 import type { AppEnv } from '../app'
 import { requireOnboarded, requireUser } from '../middleware/auth'
-import { AUTH_ERRORS, errorResponses } from '../schemas'
+import { idempotency } from '../middleware/idempotency'
+import { AUTH_ERRORS, errorResponses, IdempotencyHeadersSchema } from '../schemas'
 
 const json = <T extends z.ZodType>(schema: T) => ({ 'application/json': { schema } })
 
@@ -39,9 +40,10 @@ const interactPetRoute = createRoute({
   path: '/friends/{friendUserId}/interact',
   tags: ['friend', 'pet'],
   summary: '对好友小窝宠物执行互动（戳戳、投喂、提醒打卡）',
-  middleware: [requireUser, requireOnboarded] as const,
+  middleware: [requireUser, requireOnboarded, idempotency()] as const,
   request: {
     params: FriendIdParamSchema,
+    headers: IdempotencyHeadersSchema,
     body: { content: json(PetInteractInputSchema), required: true },
   },
   responses: {
@@ -54,6 +56,8 @@ const interactPetRoute = createRoute({
       'INTERACTION_COOLDOWN',
       'INTERACTION_DAILY_LIMIT_EXCEEDED',
       'REMIND_NOT_APPLICABLE',
+      'IDEMPOTENCY_KEY_REUSED',
+      'REQUEST_IN_PROGRESS',
     ),
   },
 })

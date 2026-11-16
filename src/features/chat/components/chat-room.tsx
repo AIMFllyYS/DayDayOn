@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button, IconButton } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
 import type { ChatMessageDto } from '@/features/chat/schemas'
-import { isApiError } from '@/lib/api'
+import { isApiError, newIdempotencyKey } from '@/lib/api'
 import { useChatMessages, useSendChatMessage } from '@/lib/api/queries/chat'
 import { cn } from '@/lib/cn'
+import { BUSINESS_TIME_ZONE, isValidTimeZone, localTimeOf } from '@/lib/time'
 
 export interface ChatRoomProps {
   friendUserId: string
@@ -17,6 +18,7 @@ export interface ChatRoomProps {
   friendAvatar: string | null
   friendStreak?: number
   isFrozenProp?: boolean
+  timeZone?: string
   onBack?: () => void
   showBackButton?: boolean
   onReportMessage?: (message: ChatMessageDto) => void
@@ -24,6 +26,7 @@ export interface ChatRoomProps {
 
 interface LocalOptimisticMessage {
   tempId: string
+  idempotencyKey: string
   content: string
   createdAt: string
   status: 'sending' | 'error'
@@ -38,13 +41,9 @@ const HEALING_PHRASES = [
   '给你的坚持比个大拇指👍',
 ]
 
-function formatTime(isoString: string): string {
+function formatTime(isoString: string, timeZone: string): string {
   try {
-    const d = new Date(isoString)
-    if (Number.isNaN(d.getTime())) return ''
-    const h = String(d.getHours()).padStart(2, '0')
-    const m = String(d.getMinutes()).padStart(2, '0')
-    return `${h}:${m}`
+    return localTimeOf(isoString, timeZone)
   } catch {
     return ''
   }
@@ -64,10 +63,12 @@ export function ChatRoom({
   friendAvatar,
   friendStreak,
   isFrozenProp = false,
+  timeZone,
   onBack,
   showBackButton = false,
   onReportMessage,
 }: ChatRoomProps) {
+  const zone = timeZone && isValidTimeZone(timeZone) ? timeZone : BUSINESS_TIME_ZONE
   const [draft, setDraft] = useState('')
   const [showPhrases, setShowPhrases] = useState(false)
   const [moderationNotice, setModerationNotice] = useState<string | null>(null)
@@ -98,8 +99,10 @@ export function ChatRoom({
     setModerationNotice(null)
 
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const idempotencyKey = newIdempotencyKey()
     const optimisticMsg: LocalOptimisticMessage = {
       tempId,
+      idempotencyKey,
       content: trimmed,
       createdAt: new Date().toISOString(),
       status: 'sending',
@@ -111,6 +114,7 @@ export function ChatRoom({
       await sendMutation.mutateAsync({
         friendUserId,
         input: { content: trimmed },
+        idempotencyKey,
       })
       // 成功发送：清空草稿与当前临时消息
       setDraft('')
@@ -156,6 +160,7 @@ export function ChatRoom({
       await sendMutation.mutateAsync({
         friendUserId,
         input: { content: msg.content },
+        idempotencyKey: msg.idempotencyKey,
       })
       setLocalSending((prev) => prev.filter((m) => m.tempId !== msg.tempId))
       void refetch()
@@ -324,7 +329,7 @@ export function ChatRoom({
                           <span>已送达</span>
                         </span>
                       )}
-                      <span className="font-mono">{formatTime(m.createdAt)}</span>
+                      <span className="font-mono">{formatTime(m.createdAt, zone)}</span>
                     </div>
                   )}
 
@@ -345,7 +350,7 @@ export function ChatRoom({
                   {/* 对方消息：右侧外部显示时间 */}
                   {!isMe && (
                     <span className="text-subtle shrink-0 pb-0.5 font-mono text-[10px] leading-none">
-                      {formatTime(m.createdAt)}
+                      {formatTime(m.createdAt, zone)}
                     </span>
                   )}
                 </div>
@@ -364,7 +369,7 @@ export function ChatRoom({
                       <Icon name="clock" size={11} />
                       <span>发送中…</span>
                     </span>
-                    <span className="font-mono">{formatTime(m.createdAt)}</span>
+                    <span className="font-mono">{formatTime(m.createdAt, zone)}</span>
                   </div>
                 ) : (
                   <button
@@ -457,7 +462,7 @@ export function ChatRoom({
               maxLength={300}
               onChange={(e) => setDraft(e.target.value)}
               placeholder={`给 ${displayNickname} 发一句鼓励吧（≤300字）…`}
-              className="border-border bg-surface-sunken text-caption focus:border-primary h-10 min-w-0 flex-1 rounded-full border px-4 outline-none"
+              className="border-border bg-surface-sunken text-body focus:border-primary h-10 min-w-0 flex-1 rounded-full border px-4 outline-none"
             />
 
             <Button

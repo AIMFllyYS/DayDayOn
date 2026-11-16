@@ -15,7 +15,7 @@ import { completeOnboarding } from '@/server/services/onboarding'
 import type { AppEnv } from '../app'
 import { requireOnboarded, requireUser } from '../middleware/auth'
 import { idempotency } from '../middleware/idempotency'
-import { AUTH_ERRORS, errorResponses, IdempotencyHeadersSchema } from '../schemas'
+import { AUTH_ERRORS, AUTH_ONLY_ERRORS, errorResponses, IdempotencyHeadersSchema } from '../schemas'
 
 /*
  * 账号路由（PRD 2.2、2.11、7.1、7.5）。D1。路径写完整路径，app.ts 统一挂在根上。
@@ -36,7 +36,7 @@ const getMe = createRoute({
   method: 'get',
   path: '/me',
   middleware: [requireUser] as const,
-  responses: { 200: meResponse, ...errorResponses(...AUTH_ERRORS) },
+  responses: { 200: meResponse, ...errorResponses(...AUTH_ONLY_ERRORS) },
 })
 
 const postOnboarding = createRoute({
@@ -47,7 +47,7 @@ const postOnboarding = createRoute({
   responses: {
     200: { ...meResponse, description: '引导完成' },
     ...errorResponses(
-      ...AUTH_ERRORS,
+      ...AUTH_ONLY_ERRORS,
       'VALIDATION_FAILED',
       'ALREADY_ONBOARDED',
       'GOAL_LIMIT_REACHED',
@@ -88,7 +88,7 @@ const getExport = createRoute({
       content: { 'application/json': { schema: ExportSchema } },
       description: 'JSON 附件（Content-Disposition: attachment），只含本人数据',
     },
-    ...errorResponses(...AUTH_ERRORS),
+    ...errorResponses(...AUTH_ONLY_ERRORS),
   },
 })
 
@@ -99,7 +99,7 @@ const deleteMe = createRoute({
   request: { body: jsonBody(DeleteMeSchema) },
   responses: {
     204: { description: '已注销：业务数据级联删除，账本去关联保留，会话一并删除' },
-    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED'),
+    ...errorResponses(...AUTH_ONLY_ERRORS, 'VALIDATION_FAILED'),
   },
 })
 

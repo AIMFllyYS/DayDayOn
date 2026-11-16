@@ -1,9 +1,9 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { IconButton } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Icon } from '@/components/ui/icon'
 import { toast } from '@/components/ui/toast'
 import {
@@ -12,6 +12,11 @@ import {
   useUnconfirmedSmartRecord,
 } from '@/features/checkin/smart-handoff'
 import { cn } from '@/lib/cn'
+
+const ConfirmDialog = dynamic(
+  () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+  { ssr: false, loading: () => null },
+)
 
 interface BackButtonProps {
   fallbackHref: string
@@ -35,6 +40,7 @@ export function BackButton({
   const router = useRouter()
   const unconfirmed = useUnconfirmedSmartRecord()
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmLoaded, setConfirmLoaded] = useState(false)
 
   function navigateBack() {
     if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -52,6 +58,7 @@ export function BackButton({
       return
     }
     if (unconfirmed) {
+      setConfirmLoaded(true)
       setConfirmOpen(true)
       return
     }
@@ -82,7 +89,7 @@ export function BackButton({
         />
       )}
 
-      {confirmOpen && (
+      {confirmLoaded && (
         <ConfirmDialog
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
