@@ -1,9 +1,10 @@
 import 'server-only'
-import { and, asc, desc, eq, gte, inArray, lte } from 'drizzle-orm'
+import { and, asc, countDistinct, desc, eq, gte, inArray, lte } from 'drizzle-orm'
 import type { DashboardToday } from '@/features/dashboard/schemas'
+import { computeOverallPeriod } from '@/features/goal/period'
 import type { StepEntry, WeightEntry } from '@/features/metric/schemas'
 import type { LocalDate } from '@/features/shared/schemas'
-import { addDays, localDateOf, localTimeOf, weekDates } from '@/lib/time'
+import { addDays, compareLocalDate, localDateOf, localTimeOf, weekDates } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import type { DbOrTx } from '@/server/db/client'
 import {
@@ -81,6 +82,7 @@ async function loadGoals(db: DbOrTx, userId: string, zone: ProfileZone): Promise
       targetKind: goals.targetKind,
       targetValue: goals.targetValue,
       weekdays: goals.weekdays,
+      deadlineDate: goals.deadlineDate,
       createdAt: goals.createdAt,
     })
     .from(goals)
@@ -95,21 +97,45 @@ async function loadGoals(db: DbOrTx, userId: string, zone: ProfileZone): Promise
     rows.map((r) => r.id),
   )
 
-  return rows.map((r) => ({
-    id: r.id,
-    module: r.module,
-    title: r.title,
-    sortOrder: r.sortOrder,
-    // 正常情况下每个目标至少有一行 goal_targets；缺失时用 goals 上的冗余副本兜底（从建目标那天起生效）
-    history: byGoal.get(r.id) ?? [
-      {
-        effectiveFrom: localDateOf(r.createdAt, zone.timeZone, zone.dayStartHour),
-        kind: r.targetKind,
-        value: r.targetValue,
-        weekdays: r.weekdays,
-      },
-    ],
-  }))
+  return rows.map((r) => {
+    const createdLocalDate = localDateOf(r.createdAt, zone.timeZone, zone.dayStartHour)
+    return {
+      id: r.id,
+      module: r.module,
+      title: r.title,
+      sortOrder: r.sortOrder,
+      createdLocalDate,
+      deadlineDate: r.deadlineDate,
+      // 正常情况下每个目标至少有一行 goal_targets；缺失时用 goals 上的冗余副本兜底（从建目标那天起生效）
+      history: byGoal.get(r.id) ?? [
+        {
+          effectiveFrom: createdLocalDate,
+          kind: r.targetKind,
+          value: r.targetValue,
+          weekdays: r.weekdays,
+        },
+      ],
+    }
+  })
+}
+
+async function loadOverallCheckedDays(
+  db: DbOrTx,
+  userId: string,
+  goalIds: readonly string[],
+): Promise<number> {
+  if (goalIds.length === 0) return 0
+  const [row] = await db
+    .select({ days: countDistinct(checkins.localDate) })
+    .from(checkins)
+    .where(
+      and(
+        eq(checkins.userId, userId),
+        inArray(checkins.goalId, [...goalIds]),
+        eq(checkins.isValid, true),
+      ),
+    )
+  return row?.days ?? 0
 }
 
 async function loadWeekCheckins(
@@ -290,20 +316,29 @@ export async function getDashboardToday(
   const monday = days[0] ?? today
 
   const userGoals = await loadGoals(db, userId, profile)
-  const [weekRows, weight, mood, steps, streak, feed] = await Promise.all([
-    loadWeekCheckins(
-      db,
-      userId,
-      userGoals.map((g) => g.id),
-      monday,
-      today,
-    ),
+  const goalIds = userGoals.map((g) => g.id)
+  const [weekRows, overallCheckedDays, weight, mood, steps, streak, feed] = await Promise.all([
+    loadWeekCheckins(db, userId, goalIds, monday, today),
+    loadOverallCheckedDays(db, userId, goalIds),
     loadWeight(db, userId, today),
     loadMood(db, userId, today),
     loadSteps(db, userId, today),
     loadStreak(db, userId, today),
     getRankFeed(db, now),
   ])
+
+  let startDate: LocalDate | null = null
+  for (const g of userGoals) {
+    const d = g.createdLocalDate
+    if (d && (startDate === null || compareLocalDate(d, startDate) < 0)) {
+      startDate = d
+    }
+  }
+  const overall = computeOverallPeriod({
+    checkedDays: overallCheckedDays,
+    startDate,
+    deadlineDates: userGoals.map((g) => g.deadlineDate ?? null),
+  })
 
   const index = indexCheckins(weekRows)
   const todaySection = buildToday(userGoals, index, today)
@@ -312,6 +347,7 @@ export async function getDashboardToday(
     timeZone: profile.timeZone,
     completion: todaySection.completion,
     streak,
+    overall,
     hasGoals: userGoals.length > 0,
     goals: todaySection.goals,
     weight,
