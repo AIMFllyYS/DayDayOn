@@ -13,13 +13,12 @@ import { deckClass } from '../../_components/deck'
 // ============================================================================
 // 睡眠双门槛科学裁判纯函数：
 // 门槛 1：入睡时刻不晚于设定红线（如 23:30，允许 18:00 至红线之间入睡；00:00–12:00 均属跨零点熬夜）
-// 门槛 2：有效睡眠时长在 6.5 小时（390 分钟）至 9.5 小时（570 分钟）之间
+// 门槛 2：有效睡眠时长不少于 6.5 小时（390 分钟），不设上限
 // ============================================================================
 
 export type CurfewOption = '22:30' | '23:00' | '23:30'
 
 const MIN_VALID_SLEEP_MINUTES = 390 // 6.5 小时
-const MAX_VALID_SLEEP_MINUTES = 570 // 9.5 小时
 
 /**
  * 将入睡时刻归一化到「傍晚 18:00 起算的分钟轴」以便比较是否超过熬夜红线：
@@ -55,8 +54,7 @@ export function evaluateSleepCheckin(
 
   const lateByMinutes = bedAxis !== null ? Math.max(0, bedAxis - curfewAxis) : 0
   const bedtimePassed = bedAxis !== null && bedAxis <= curfewAxis
-  const durationPassed =
-    durationMinutes >= MIN_VALID_SLEEP_MINUTES && durationMinutes <= MAX_VALID_SLEEP_MINUTES
+  const durationPassed = durationMinutes >= MIN_VALID_SLEEP_MINUTES
   const isValidCheckin = bedtimePassed && durationPassed
 
   if (isValidCheckin) {
@@ -84,17 +82,14 @@ export function evaluateSleepCheckin(
   }
 
   if (bedtimePassed && !durationPassed) {
-    const reason =
-      durationMinutes < MIN_VALID_SLEEP_MINUTES
-        ? `睡眠时长仅 ${formatSpanMinutes(durationMinutes)}（不足 6.5 小时最低修复门槛）`
-        : `睡眠时长达 ${formatSpanMinutes(durationMinutes)}（超过 9.5 小时，过度赖床易引发节律惰性）`
+    const reason = `睡眠时长仅 ${formatSpanMinutes(durationMinutes)}（不足 6.5 小时最低修复门槛）`
     return {
       bedtimePassed: true,
       durationPassed: false,
       isValidCheckin: false,
       lateByMinutes: 0,
       durationMinutes,
-      verdictTitle: '时长未在有效区间 · 仅存档不盖章',
+      verdictTitle: '时长不足 · 仅存档不盖章',
       verdictDetail: `你在 ${bed} 按时入睡很棒！但${reason}，本次仅归档睡眠记录，不计有效打卡。`,
     }
   }
@@ -105,8 +100,8 @@ export function evaluateSleepCheckin(
     isValidCheckin: false,
     lateByMinutes,
     durationMinutes,
-    verdictTitle: '入睡过晚且时长异常 · 仅记录数据',
-    verdictDetail: `入睡时刻 ${bed} 晚于 ${curfew} 红线，且时长 ${formatSpanMinutes(durationMinutes)} 未达 6.5–9.5 小时区间，已为你诚实归档睡眠曲线。`,
+    verdictTitle: '入睡过晚且时长不足 · 仅记录数据',
+    verdictDetail: `入睡时刻 ${bed} 晚于 ${curfew} 红线，且时长 ${formatSpanMinutes(durationMinutes)} 未满 6.5 小时，已为你诚实归档睡眠曲线。`,
   }
 }
 
@@ -162,22 +157,22 @@ export function SleepDualThresholdRulesDemo() {
             />
           </div>
 
-          {/* 门槛 2：有效睡眠时长走廊 */}
+          {/* 门槛 2：有效睡眠时长下限 */}
           <div className="bg-surface-sunken flex flex-col gap-2 rounded-2xl p-3.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-caption font-bold">门槛 02 · 有效睡眠时长区间</span>
+              <span className="text-caption font-bold">门槛 02 · 有效睡眠时长下限</span>
               <span className="font-display text-sleep-ink bg-sleep-soft text-tiny rounded-full px-2.5 py-0.5 font-bold tabular-nums">
-                6.5h – 9.5h
+                ≥ 6.5h
               </span>
             </div>
             <p className="text-tiny text-muted leading-relaxed">
-              成人完整经历 4–5 个 90 分钟睡眠周期需 6.5–9.5 小时。少于 6.5 小时修复不足，多于 9.5
-              小时易导致昼夜节律迟滞。
+              成人完整经历 4 个以上 90 分钟睡眠周期至少需 6.5 小时；少于 6.5
+              小时修复不足，睡得更充裕不设上限。
             </p>
             <div className="bg-surface border-border flex items-center justify-between rounded-xl border px-3 py-2">
               <span className="text-tiny text-muted">判定公式</span>
               <span className="text-tiny text-sleep-ink font-mono font-bold">
-                入睡 ≤ {curfew} AND 6.5h ≤ 时长 ≤ 9.5h
+                入睡 ≤ {curfew} AND 时长 ≥ 6.5h
               </span>
             </div>
           </div>
@@ -320,7 +315,7 @@ export function SleepRefereeComparisonMatrix() {
                 <span className="bg-success-soft text-success-ink text-tiny flex size-5 shrink-0 items-center justify-center rounded-full font-bold">
                   ✓
                 </span>
-                <span className="text-caption font-semibold">有效时长核验（6.5–9.5h）</span>
+                <span className="text-caption font-semibold">有效时长核验（≥ 6.5h）</span>
               </div>
               <span className="font-display text-sleep-ink text-caption font-bold tabular-nums">
                 7小时55分 · 深睡 24%
@@ -397,7 +392,7 @@ export function SleepRefereeComparisonMatrix() {
                 <span className="bg-success-soft text-success-ink text-tiny flex size-5 shrink-0 items-center justify-center rounded-full font-bold">
                   ✓
                 </span>
-                <span className="text-caption font-semibold">睡眠总时长（6.5–9.5h）</span>
+                <span className="text-caption font-semibold">睡眠总时长（≥ 6.5h）</span>
               </div>
               <span className="font-display text-foreground text-caption font-bold tabular-nums">
                 8小时15分（时长达标）

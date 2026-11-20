@@ -113,7 +113,7 @@ export const MODULE_SPECS: readonly ModuleSpec[] = [
     title: '早点睡',
     short: '睡眠',
     tagline: '入睡红线 + 有效时长，双门槛',
-    threshold: '入睡不晚于红线（如 23:30），且睡满 6.5–9.5 小时',
+    threshold: '入睡不晚于红线（如 23:30），且睡满 6.5 小时以上',
     pass: '23:15 入睡 → 07:10 起 · 7h55m',
     block: '02:15 入睡 → 10:30 起，属熬夜补觉，仅存档',
     dos: [

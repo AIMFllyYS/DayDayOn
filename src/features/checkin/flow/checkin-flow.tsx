@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import {
   useCallback,
   useEffect,
@@ -10,6 +11,7 @@ import {
   type ReactNode,
 } from 'react'
 import { Mascot } from '@/components/mascot/mascot'
+import { MascotSvg } from '@/components/mascot/mascot-svg'
 import { IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -54,6 +56,11 @@ import {
   normalizeManualSubject,
 } from './smart-session'
 import type { FillSectionSpec } from './types'
+
+const ReportShareSheet = dynamic(
+  () => import('@/components/ui/report-share-sheet').then((m) => m.ReportShareSheet),
+  { loading: () => null },
+)
 
 /*
  * 打卡页骨架（checkin-modules.md 第 5 节）。它就是整页，不套手机外框：
@@ -256,6 +263,9 @@ export function CheckinFlow(props: CheckinFlowProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState<Checkin | null>(savedFromDb)
   const [popup, setPopup] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareLoaded, setShareLoaded] = useState(false)
+  if (shareOpen && !shareLoaded) setShareLoaded(true)
   const [skipReason, setSkipReason] = useState('')
 
   // 切换子维度（如从早餐切到午餐）或初始数据库记录到位时，同步当前子维度的已入库状态并清理旧识别上下文
@@ -547,7 +557,8 @@ export function CheckinFlow(props: CheckinFlowProps) {
   }
 
   const canSubmit = form.canSubmit || (!isSmart && skipReason.trim().length > 0)
-  const report = verdict && subject ? def.buildReport(verdict, subject, goal) : null
+  const report =
+    verdict && subject ? def.buildReport(verdict, subject, goal, { todayCheckins }) : null
   const activeVerdict = saved?.verdict ?? verdict
   const isPendingSettlement = activeVerdict?.settlement === 'pending'
   const savedValid = saved?.isValid ?? verdict?.isValid ?? false
@@ -832,9 +843,23 @@ export function CheckinFlow(props: CheckinFlowProps) {
           </>
         )}
 
-        {page === 'report' && report && verdict && (
+        {page === 'report' && report && verdict && subject && (
           <>
-            <PageBar title={report.title} onBack={back} />
+            <PageBar
+              title={report.title}
+              onBack={back}
+              action={
+                <Button
+                  size="sm"
+                  variant="soft"
+                  icon="share"
+                  onClick={() => setShareOpen(true)}
+                  className="shrink-0"
+                >
+                  分享
+                </Button>
+              }
+            />
             <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-4 pb-6">
               <div
                 className={cn(
@@ -994,6 +1019,40 @@ export function CheckinFlow(props: CheckinFlowProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {shareLoaded && report && verdict && subject && (
+        <ReportShareSheet
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          title={report.title}
+          fileBaseName={`DayDayOn-${moduleMeta[tone].label}-${today}`}
+          renderKey={`${goal.id}:${today}:${verdict.score ?? 'na'}:${verdict.isValid}:${verdict.settlement ?? 'settled'}:${pet.character}`}
+          offscreenSvg={
+            <MascotSvg
+              character={pet.character}
+              mood={
+                verdict.isValid ? 'cheer' : verdict.settlement === 'pending' ? 'happy' : 'sleepy'
+              }
+              size={160}
+            />
+          }
+          renderPoster={async ({ orientation, svgDataUrl }) => {
+            const { renderReportPosterPng } = await import('../share/report-poster')
+            return renderReportPosterPng({
+              module: tone,
+              goal,
+              verdict,
+              subject,
+              todayCheckins,
+              today,
+              period: { done: effectiveDoneDays, total: period.total },
+              pet,
+              mascotDataUrl: svgDataUrl,
+              orientation,
+            })
+          }}
+        />
       )}
 
       {form.overlay}

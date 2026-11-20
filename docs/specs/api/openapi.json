@@ -554,12 +554,6 @@
                 "minimum": 3,
                 "maximum": 12,
                 "default": 6.5
-              },
-              "maxHours": {
-                "type": "number",
-                "minimum": 4,
-                "maximum": 14,
-                "default": 9.5
               }
             },
             "required": [

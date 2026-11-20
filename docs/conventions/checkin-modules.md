@@ -74,7 +74,7 @@ src/server/api/routes/referee.ts      POST /goals/{goalId}/referee（OpenAPIHono
 |---|---|
 | diet | `passScore`（3.0，固定 > 该分才有效） |
 | exercise | `distanceMinMinutes` 20、`distanceMinKm` 2、`countMinMinutes` 15、`countMinSets` 4 |
-| sleep | `bedtimeBy` "23:30"、`minHours` 6.5、`maxHours` 9.5 |
+| sleep | `bedtimeBy` "23:30"、`minHours` 6.5（不设时长上限） |
 | study | `minFocusMinutes` 25、`minNoteChars` 10 |
 | custom | `conditions`：`[{ key, op: 'gte'\|'lte'\|'eq'\|'filled', value? }]`，`aiCriteria`：可选的一句话判卷标准 |
 

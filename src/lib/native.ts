@@ -136,6 +136,12 @@ interface AndroidBridge {
   scheduleDailyReminder?: (remindAt: string, enabled: boolean) => boolean
   /** 立即推送一条手机系统通知（用于通知权限检测与提醒测试） */
   notify?: (title: string, body: string) => boolean | void
+  /** 将生成的打卡分享海报 PNG dataUrl 保存到手机相册 Pictures/DayDayOn，返回 JSON `{ ok, message }` */
+  saveShareImage?: (dataUrl: string, fileName: string) => string
+  /** 将生成的打卡分享海报 PNG dataUrl 复制到系统剪贴板，返回 JSON `{ ok, message }` */
+  copyShareImage?: (dataUrl: string, fileName: string) => string
+  /** 将生成的打卡分享海报 PNG dataUrl 拉起安卓系统原生分享面板，返回 JSON `{ ok, message }` */
+  shareImage?: (dataUrl: string, fileName: string, title: string) => string
 }
 
 type PermListener = (perm: string, state: string) => void
@@ -970,5 +976,104 @@ export function subscribeNativeApkUpdateProgress(listener: UpdateProgressListene
   updateProgressListeners.add(listener)
   return () => {
     updateProgressListeners.delete(listener)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 打卡分享报告海报：安卓原生保存相册 / 复制图片 / 系统分享桥接（v0.1.12+）
+// ---------------------------------------------------------------------------
+
+export interface NativeImageActionResult {
+  ok: boolean
+  message: string
+}
+
+export interface NativeImageShareCapabilities {
+  save: boolean
+  copy: boolean
+  share: boolean
+}
+
+function parseNativeActionResult(raw: unknown, fallbackError: string): NativeImageActionResult {
+  if (typeof raw === 'boolean') {
+    return { ok: raw, message: raw ? '操作成功' : fallbackError }
+  }
+  try {
+    const parsed = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+      ok?: unknown
+      message?: unknown
+    }
+    const ok = parsed?.ok === true
+    const message =
+      typeof parsed?.message === 'string' && parsed.message.trim()
+        ? parsed.message.trim()
+        : ok
+          ? '操作成功'
+          : fallbackError
+    return { ok, message }
+  } catch {
+    return { ok: false, message: fallbackError }
+  }
+}
+
+/** 探测当前 APK 壳是否支持原生图片保存 / 复制 / 系统分享桥接（旧版壳安全返回全 false） */
+export function getNativeImageShareCapabilities(): NativeImageShareCapabilities {
+  const bridge = getBridge()
+  return {
+    save: Boolean(bridge?.saveShareImage),
+    copy: Boolean(bridge?.copyShareImage),
+    share: Boolean(bridge?.shareImage),
+  }
+}
+
+/** 在 APK 壳内将生成的 PNG 海报保存至系统相册 Pictures/DayDayOn */
+export function saveNativeShareImage(dataUrl: string, fileName: string): NativeImageActionResult {
+  const bridge = getBridge()
+  if (!bridge?.saveShareImage) {
+    return { ok: false, message: '当前客户端版本不支持原生存相册' }
+  }
+  try {
+    return parseNativeActionResult(
+      bridge.saveShareImage(dataUrl, fileName),
+      '保存相册失败，请稍后重试',
+    )
+  } catch {
+    return { ok: false, message: '保存相册失败，请稍后重试' }
+  }
+}
+
+/** 在 APK 壳内将生成的 PNG 海报复制到安卓系统剪贴板 */
+export function copyNativeShareImage(dataUrl: string, fileName: string): NativeImageActionResult {
+  const bridge = getBridge()
+  if (!bridge?.copyShareImage) {
+    return { ok: false, message: '当前客户端版本不支持原生复制图片' }
+  }
+  try {
+    return parseNativeActionResult(
+      bridge.copyShareImage(dataUrl, fileName),
+      '复制图片失败，请稍后重试',
+    )
+  } catch {
+    return { ok: false, message: '复制图片失败，请稍后重试' }
+  }
+}
+
+/** 在 APK 壳内拉起安卓系统原生分享面板（支持微信、QQ、小红书等） */
+export function shareNativeImage(
+  dataUrl: string,
+  fileName: string,
+  title: string,
+): NativeImageActionResult {
+  const bridge = getBridge()
+  if (!bridge?.shareImage) {
+    return { ok: false, message: '当前客户端版本不支持系统分享' }
+  }
+  try {
+    return parseNativeActionResult(
+      bridge.shareImage(dataUrl, fileName, title),
+      '调起系统分享失败，请稍后重试',
+    )
+  } catch {
+    return { ok: false, message: '调起系统分享失败，请稍后重试' }
   }
 }
