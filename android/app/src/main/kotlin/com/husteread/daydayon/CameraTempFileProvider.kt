@@ -16,7 +16,9 @@ import java.io.FileNotFoundException
  * - 通道 1（相机单次临时输出）：`content://com.husteread.daydayon.cameraprovider/shot_<ts>.jpg`
  *   严格限制在 `cacheDir/camera_shots/` 目录内，MainActivity 读取压缩进内存后立即删除临时文件，绝不持久化保留用户原图；
  * - 通道 2（应用内更新安装包）：`content://com.husteread.daydayon.cameraprovider/apk/DayDayOn.apk`
- *   严格限制在 `cacheDir/apk_updates/` 目录内，供 Android 系统 PackageInstaller 读取并完成应用覆盖升级。
+ *   严格限制在 `cacheDir/apk_updates/` 目录内，供 Android 系统 PackageInstaller 读取并完成应用覆盖升级；
+ * - 通道 3（打卡分析报告海报分享）：`content://com.husteread.daydayon.cameraprovider/share/<name>.png`
+ *   严格限制在 `cacheDir/share_exports/` 目录内，只存放原生矢量生成的报告 PNG，供系统分享与剪贴板使用。
  */
 class CameraTempFileProvider : ContentProvider() {
 
@@ -27,9 +29,15 @@ class CameraTempFileProvider : ContentProvider() {
         if (segs != null && segs.size == 2 && segs[0] == APK_PATH_PREFIX) {
             return "application/vnd.android.package-archive"
         }
+        if (segs != null && segs.size == 2 && segs[0] == SHARE_PATH_PREFIX) {
+            return "image/png"
+        }
         val last = uri.lastPathSegment ?: ""
         if (last.endsWith(".apk", ignoreCase = true)) {
             return "application/vnd.android.package-archive"
+        }
+        if (last.endsWith(".png", ignoreCase = true)) {
+            return "image/png"
         }
         return "image/jpeg"
     }
@@ -44,10 +52,10 @@ class CameraTempFileProvider : ContentProvider() {
         val file = resolveSafeFile(uri)
         val cols = projection ?: arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)
         val cursor = MatrixCursor(cols, 1)
-        val defaultName = if (getType(uri) == "application/vnd.android.package-archive") {
-            "DayDayOn.apk"
-        } else {
-            "camera_shot.jpg"
+        val defaultName = when (getType(uri)) {
+            "application/vnd.android.package-archive" -> "DayDayOn.apk"
+            "image/png" -> "DayDayOn-report.png"
+            else -> "camera_shot.jpg"
         }
         val row = Array<Any?>(cols.size) { idx ->
             when (cols[idx]) {
@@ -100,11 +108,16 @@ class CameraTempFileProvider : ContentProvider() {
         val ctx = context ?: return null
         val segs = uri.pathSegments ?: return null
         val isApk = segs.size == 2 && segs[0] == APK_PATH_PREFIX
-        val name = if (isApk) segs[1] else uri.lastPathSegment
+        val isShare = segs.size == 2 && segs[0] == SHARE_PATH_PREFIX
+        val name = if (isApk || isShare) segs[1] else uri.lastPathSegment
         if (name.isNullOrBlank() || name.contains('/') || name.contains('\\') || name.contains("..")) {
             return null
         }
-        val dir = if (isApk) ensureApkDir(ctx) else ensureDir(ctx)
+        val dir = when {
+            isApk -> ensureApkDir(ctx)
+            isShare -> ensureShareDir(ctx)
+            else -> ensureDir(ctx)
+        }
         val target = File(dir, name)
         return try {
             val dirPath = dir.canonicalPath
@@ -120,6 +133,8 @@ class CameraTempFileProvider : ContentProvider() {
         private const val SUB_DIR = "camera_shots"
         private const val APK_SUB_DIR = "apk_updates"
         private const val APK_PATH_PREFIX = "apk"
+        private const val SHARE_SUB_DIR = "share_exports"
+        private const val SHARE_PATH_PREFIX = "share"
 
         fun ensureDir(context: Context): File {
             val dir = File(context.cacheDir, SUB_DIR)
@@ -137,6 +152,14 @@ class CameraTempFileProvider : ContentProvider() {
             return dir
         }
 
+        fun ensureShareDir(context: Context): File {
+            val dir = File(context.cacheDir, SHARE_SUB_DIR)
+            if (!dir.exists()) {
+                dir.mkdirs()
+            }
+            return dir
+        }
+
         fun createTempShotFile(context: Context): File {
             val dir = ensureDir(context)
             return File(dir, "shot_${System.currentTimeMillis()}.jpg")
@@ -146,6 +169,15 @@ class CameraTempFileProvider : ContentProvider() {
             val safeName = fileName.replace(Regex("[^A-Za-z0-9._-]"), "")
                 .ifBlank { "DayDayOn.apk" }
             return File(ensureApkDir(context), safeName)
+        }
+
+        fun createShareImageFile(context: Context, fileName: String): File {
+            val dir = ensureShareDir(context)
+            val base = fileName.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                .trim('_')
+                .ifBlank { "daydayon_report" }
+            val withExt = if (base.endsWith(".png", ignoreCase = true)) base else "$base.png"
+            return File(dir, "${System.currentTimeMillis()}_$withExt")
         }
 
         fun uriForFile(file: File): Uri {
@@ -165,19 +197,30 @@ class CameraTempFileProvider : ContentProvider() {
                 .build()
         }
 
+        fun uriForShareFile(file: File): Uri {
+            return Uri.Builder()
+                .scheme("content")
+                .authority(AUTHORITY)
+                .appendPath(SHARE_PATH_PREFIX)
+                .appendPath(file.name)
+                .build()
+        }
+
         fun cleanupStaleFiles(context: Context) {
-            try {
-                val dir = File(context.cacheDir, SUB_DIR)
-                if (!dir.exists()) return
-                dir.listFiles()?.forEach { f ->
-                    try {
-                        f.delete()
-                    } catch (_: Throwable) {
-                        // ignore
+            for (sub in listOf(SUB_DIR, SHARE_SUB_DIR)) {
+                try {
+                    val dir = File(context.cacheDir, sub)
+                    if (!dir.exists()) continue
+                    dir.listFiles()?.forEach { f ->
+                        try {
+                            f.delete()
+                        } catch (_: Throwable) {
+                            // ignore
+                        }
                     }
+                } catch (_: Throwable) {
+                    // ignore
                 }
-            } catch (_: Throwable) {
-                // ignore
             }
         }
     }

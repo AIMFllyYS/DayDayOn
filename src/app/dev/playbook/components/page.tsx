@@ -12,6 +12,7 @@ import {
   FieldDemo,
   MenuDemo,
   RatingDemo,
+  ReportShareDemo,
   SegmentedDemo,
   SheetDemo,
   SwitchDemo,
@@ -280,6 +281,13 @@ export default function ComponentsPage() {
 
       <Section ann="playbook.components.states" title="加载与空状态">
         <div className="grid gap-3 md:grid-cols-2">
+          <Specimen
+            ann="playbook.components.share-sheet"
+            label="ReportShareSheet · 原生报告分享与底部 Dock"
+            note="默认 16:9 横版手账跨页（可切 9:16 竖版），附带真实扫码二维码与端侧自适应底部 Dock"
+          >
+            <ReportShareDemo />
+          </Specimen>
           <Specimen
             ann="playbook.components.states.skeleton"
             label="Skeleton"

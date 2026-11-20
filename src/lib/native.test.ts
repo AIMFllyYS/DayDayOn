@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { hasImageMagicBytes, sniffIsImageFile } from './image'
 import {
+  copyNativeShareImage,
   dataUrlToFile,
   detectPlatform,
   dismissNativeSplash,
   getNativeApkUpdateStatus,
+  getNativeImageShareCapabilities,
   getNativePermissions,
   getNativeTodaySteps,
   hasNativeApkUpdater,
@@ -21,7 +23,9 @@ import {
   openNativeNotificationSettings,
   pickNativeSystemFiles,
   requestNativePermission,
+  saveNativeShareImage,
   sendNativeTestNotification,
+  shareNativeImage,
   sortAlbumPhotosNewestFirst,
   startNativeApkUpdate,
   subscribeNativeApkUpdateProgress,
@@ -500,5 +504,46 @@ describe('getNativePermissions & requestNativePermission & dataUrlToFile', () =>
       type: 'application/octet-stream',
     })
     expect(await sniffIsImageFile(textDoc)).toBe(false)
+  })
+})
+
+describe('打卡分享报告原生图片导出桥接（v0.1.12+）', () => {
+  it('纯网页环境或旧版壳能力探测安全返回全 false，调用零报错降级', () => {
+    expect(getNativeImageShareCapabilities()).toEqual({ save: false, copy: false, share: false })
+    expect(saveNativeShareImage('data:image/png;base64,AA==', 'report.png').ok).toBe(false)
+    expect(copyNativeShareImage('data:image/png;base64,AA==', 'report.png').ok).toBe(false)
+    expect(shareNativeImage('data:image/png;base64,AA==', 'report.png', '标题').ok).toBe(false)
+  })
+
+  it('新版 APK 壳注入桥接后支持保存相册、复制图片与系统分享', () => {
+    const g = globalThis as unknown as { window?: Window }
+    const prevWindow = g.window
+    g.window = {
+      DayDayOnNative: {
+        saveShareImage: (_dataUrl: string, fileName: string) =>
+          JSON.stringify({ ok: true, message: `已保存 ${fileName}` }),
+        copyShareImage: () => JSON.stringify({ ok: true, message: '已复制图片' }),
+        shareImage: (_dataUrl: string, _fileName: string, title: string) =>
+          JSON.stringify({ ok: true, message: `已分享 ${title}` }),
+      },
+    } as unknown as Window
+
+    try {
+      expect(getNativeImageShareCapabilities()).toEqual({ save: true, copy: true, share: true })
+      expect(saveNativeShareImage('data:image/png;base64,AA==', 'diet.png')).toEqual({
+        ok: true,
+        message: '已保存 diet.png',
+      })
+      expect(copyNativeShareImage('data:image/png;base64,AA==', 'diet.png')).toEqual({
+        ok: true,
+        message: '已复制图片',
+      })
+      expect(shareNativeImage('data:image/png;base64,AA==', 'diet.png', '饮食总评')).toEqual({
+        ok: true,
+        message: '已分享 饮食总评',
+      })
+    } finally {
+      g.window = prevWindow
+    }
   })
 })
