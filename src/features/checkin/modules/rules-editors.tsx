@@ -86,9 +86,7 @@ export function SleepRulesEditor({ rules, onChange }: RulesEditorProps<'sleep'>)
               type="button"
               role="radio"
               aria-checked={rules.minHours === h}
-              onClick={() =>
-                onChange({ ...rules, minHours: h, maxHours: Math.max(rules.maxHours, h + 1) })
-              }
+              onClick={() => onChange({ ...rules, minHours: h })}
               className={cn(
                 'text-tiny min-h-8 rounded-full border px-3 font-semibold transition-colors',
                 rules.minHours === h
@@ -101,7 +99,7 @@ export function SleepRulesEditor({ rules, onChange }: RulesEditorProps<'sleep'>)
           ))}
         </div>
       </div>
-      <Hint>入睡不晚于红线、且睡够时长才算早睡；睡超过 {rules.maxHours} 小时也不算有效。</Hint>
+      <Hint>入睡不晚于红线、且睡满最短时长即算有效早睡，不设时长上限。</Hint>
     </div>
   )
 }

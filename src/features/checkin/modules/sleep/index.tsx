@@ -206,7 +206,12 @@ function buildSleepReport(verdict: Verdict, input: CreateCheckinInput): ReportSp
       tone: late !== null && late > 0 ? 'warning' : 'success',
     },
     { label: '起床', value: String(m.wakeLocal ?? '—') },
-    { label: '时长', value: `${m.hours ?? 0} 小时`, ratio: minutes / 570, tone: 'sleep' },
+    {
+      label: '时长',
+      value: `${m.hours ?? 0} 小时`,
+      ratio: Math.min(1, minutes / 480),
+      tone: 'sleep',
+    },
   ]
   const stages: FolderRow[] = adv
     ? [
@@ -272,8 +277,8 @@ function buildSleepReport(verdict: Verdict, input: CreateCheckinInput): ReportSp
 function sleepDocs(rules: RulesOf<'sleep'>): ModuleDocs {
   return {
     glance: {
-      threshold: `入睡不晚于 ${rules.bedtimeBy}，且睡满 ${rules.minHours}–${rules.maxHours} 小时`,
-      tagline: '入睡红线 + 有效时长，双门槛',
+      threshold: `入睡不晚于 ${rules.bedtimeBy}，且睡满 ${rules.minHours} 小时以上`,
+      tagline: '入睡红线 + 最短时长，双门槛',
       pass: '23:15 入睡 → 07:10 起 · 7h55m',
       block: '02:15 入睡 → 10:30 起，属熬夜补觉，仅存档',
     },
@@ -284,7 +289,7 @@ function sleepDocs(rules: RulesOf<'sleep'>): ModuleDocs {
           heading: '双门槛，缺一不可',
           items: [
             `入睡不晚于 ${rules.bedtimeBy}`,
-            `有效睡眠 ${rules.minHours}–${rules.maxHours} 小时`,
+            `有效睡眠不少于 ${rules.minHours} 小时（不设上限）`,
             '红线和时长在「我的 → 目标设置」里改',
           ],
         },

@@ -270,6 +270,23 @@ const icons = {
     tint: <path d="m15.6 6.6 4 4-9.5 9.5h-4v-4z" />,
   },
   download: { line: <path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" /> },
+  share: {
+    line: (
+      <>
+        <circle cx="17.5" cy="5.5" r="2.5" />
+        <circle cx="6.5" cy="12" r="2.5" />
+        <circle cx="17.5" cy="18.5" r="2.5" />
+        <path d="m8.7 10.7 6.6-3.9M8.7 13.3l6.6 3.9" />
+      </>
+    ),
+    tint: (
+      <>
+        <circle cx="18.5" cy="6.5" r="2.5" />
+        <circle cx="7.5" cy="13" r="2.5" />
+        <circle cx="18.5" cy="19.5" r="2.5" />
+      </>
+    ),
+  },
   copy: {
     line: (
       <>

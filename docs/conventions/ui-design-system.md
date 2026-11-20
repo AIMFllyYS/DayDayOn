@@ -184,6 +184,7 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 | `Rating` | `rating.tsx` | 满意度 1–5，选中项用板块色；选中时有情绪反馈（第 5 节），`feedback={false}` 关闭 |
 | `MenuList` / `MenuItem` | `menu-list.tsx` | 设置列表；`danger` 用于退出登录、注销 |
 | `Sheet` | `sheet.tsx` | Base UI Drawer（`<768px` 底部抽屉，支持下滑关闭）+ Dialog（`≥768px` 居中对话框），`z-40`，打开时锁住背景滚动；内置 `useAnimatedOpen` 保障按需首次挂载时的 `360ms` 底部上拉过渡 |
+| `ReportShareSheet` | `report-share-sheet.tsx` | 原生报告 PNG 分享弹层（支持 16:9 横版 / 9:16 竖版预览切换 + 底部原生风格小 Dock 栏，APK 壳走相册/剪贴板/系统分享原生桥，网页端走下载/复制/Web Share 兼容方案） |
 | `ConfirmDialog` | `confirm-dialog.tsx` | Base UI AlertDialog（`z-50`）：高危或丢数据操作二次确认（点遮罩不关闭），支持异步 `onConfirm` 与按需挂载进场过渡 |
 | `useAnimatedOpen` | `use-animated-open.ts` | 弹层首次按需挂载进场动画 Hook：首帧以 `false` 初始化并在下一动画帧切为 `true`，确保 100% 触发 `data-starting-style` |
 | `Popover` / `Menu` | `popover.tsx`、`menu.tsx` | Base UI 浮层与行内操作菜单，统一 `z-50`（`Popover` 桌面端 `md:z-[60]`）与 `data-starting-style` / `data-ending-style` 过渡 |

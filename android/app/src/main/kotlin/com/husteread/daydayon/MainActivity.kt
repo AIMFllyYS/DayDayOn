@@ -50,7 +50,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * DayDayOn 安卓客户端主 Activity（Kotlin 混合架构，v0.1.11 / versionCode 8）：
  * - 冷启动 0ms 立即展示原生开屏覆盖层 `nativeSplashOverlay`（含时段问候与品牌微动效），后台并行初始化 WebView 并加载站点，水合完成后硬件加速平滑揭开；
- * - 在 WebView User-Agent 末尾追加 `DayDayOnApp/0.1.11`；
+ * - 在 WebView User-Agent 末尾追加 `DayDayOnApp/0.1.12`；
  * - 通过 `shouldInterceptRequest` 拦截同源虚拟路径 `/__native__/media/...`，在后台 IO 线程池流式返回系统硬件缩略图与高清内存字节流（兼容 RAW/DNG/HEIC）；
  * - 注入 `window.DayDayOnNative` (@JavascriptInterface)，提供：
  *   1. 原生开屏收尾：dismissSplash
@@ -129,7 +129,7 @@ class MainActivity : Activity() {
         settings.allowContentAccess = true
         settings.mediaPlaybackRequiresUserGesture = false
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-        settings.userAgentString = "${settings.userAgentString} DayDayOnApp/0.1.11"
+        settings.userAgentString = "${settings.userAgentString} DayDayOnApp/0.1.12"
 
         CookieManager.getInstance().apply {
             setAcceptCookie(true)
@@ -1200,6 +1200,26 @@ class MainActivity : Activity() {
                 title = title,
                 body = body,
                 notificationId = LocalReminderScheduler.TEST_NOTIFICATION_ID,
+            )
+        }
+
+        @JavascriptInterface
+        fun saveShareImage(dataUrl: String, fileName: String): String {
+            return NativeImageShareHelper.savePngToGallery(this@MainActivity, dataUrl, fileName)
+        }
+
+        @JavascriptInterface
+        fun copyShareImage(dataUrl: String, fileName: String): String {
+            return NativeImageShareHelper.copyPngToClipboard(this@MainActivity, dataUrl, fileName)
+        }
+
+        @JavascriptInterface
+        fun shareImage(dataUrl: String, fileName: String, title: String): String {
+            return NativeImageShareHelper.sharePngViaSystemSheet(
+                this@MainActivity,
+                dataUrl,
+                fileName,
+                title,
             )
         }
 

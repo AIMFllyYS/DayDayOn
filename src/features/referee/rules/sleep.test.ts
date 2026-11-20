@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_RULES } from '../defaults'
+import { DEFAULT_RULES, effectiveRules } from '../defaults'
 import { bedtimeAxis, judgeSleep } from './sleep'
 
 const ctx = { rules: DEFAULT_RULES.sleep, tier: 'balanced-glycemic' as const, facts: null }
@@ -27,6 +27,22 @@ describe('睡眠双门槛', () => {
     expect(judgeSleep({ bedLocal: '22:40', wakeLocal: '06:20', minutes: 460 }, ctx).isValid).toBe(
       true,
     )
+  })
+
+  it('不设睡眠时长上限：22:30 → 09:00（10.5 小时）按时入睡算有效', () => {
+    const v = judgeSleep({ bedLocal: '22:30', wakeLocal: '09:00', minutes: 630 }, ctx)
+    expect(v.isValid).toBe(true)
+    expect(v.checks.every((c) => c.ok)).toBe(true)
+  })
+
+  it('兼容历史数据库里存有 maxHours 的规则配置', () => {
+    const rules = effectiveRules('sleep', {
+      module: 'sleep',
+      bedtimeBy: '23:00',
+      minHours: 7,
+      maxHours: 9.5,
+    })
+    expect(rules).toEqual({ module: 'sleep', bedtimeBy: '23:00', minHours: 7 })
   })
 
   it('跨午夜的红线：00:30 红线下 00:10 入睡算按时', () => {

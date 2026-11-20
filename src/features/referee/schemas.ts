@@ -38,18 +38,13 @@ export const ExerciseRulesSchema = z.object({
   countMinSets: z.number().int().min(1).max(50).default(4),
 })
 
-export const SleepRulesSchema = z
-  .object({
-    module: z.literal('sleep'),
-    /** 最晚入睡时刻（HH:mm，中午前的时刻视为过了午夜） */
-    bedtimeBy: LocalTimeSchema.default('23:30'),
-    minHours: z.number().min(3).max(12).default(6.5),
-    maxHours: z.number().min(4).max(14).default(9.5),
-  })
-  .refine((r) => r.minHours < r.maxHours, {
-    error: '最短时长要小于最长时长',
-    path: ['maxHours'],
-  })
+export const SleepRulesSchema = z.object({
+  module: z.literal('sleep'),
+  /** 最晚入睡时刻（HH:mm，中午前的时刻视为过了午夜） */
+  bedtimeBy: LocalTimeSchema.default('23:30'),
+  /** 最短有效睡眠时长（小时），不设上限 */
+  minHours: z.number().min(3).max(12).default(6.5),
+})
 
 export const StudyRulesSchema = z.object({
   module: z.literal('study'),

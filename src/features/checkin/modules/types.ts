@@ -66,6 +66,11 @@ export interface RulesEditorProps<M extends Module = Module> {
   goal: CheckinGoal
 }
 
+export interface ReportBuildContext {
+  /** 今天已入库的全部同目标打卡记录（如饮食三餐汇总报告用来汇总早/午/晚/加餐） */
+  todayCheckins?: readonly Checkin[]
+}
+
 export interface CheckinModuleDef<M extends Module = Module> {
   module: M
   tone: ModuleTone
@@ -79,5 +84,10 @@ export interface CheckinModuleDef<M extends Module = Module> {
   /** 规则 → 二级页文档（阈值随用户设置变化） */
   docs: (rules: RulesOf<M>, goal: CheckinGoal) => ModuleDocs
   /** 裁判结论 + 请求体 → 分析页的文件夹 */
-  buildReport: (verdict: Verdict, input: CreateCheckinInput, goal: CheckinGoal) => ReportSpec
+  buildReport: (
+    verdict: Verdict,
+    input: CreateCheckinInput,
+    goal: CheckinGoal,
+    ctx?: ReportBuildContext,
+  ) => ReportSpec
 }
