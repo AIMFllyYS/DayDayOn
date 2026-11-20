@@ -129,7 +129,7 @@ function evaluate(d: Data) {
   // 中午前的入睡时刻算「过了午夜」，轴上加 24 小时
   const axis = bed === null ? null : bed < 12 * 60 ? bed + 1440 : bed
   const earlyOk = axis !== null && axis <= REDLINE
-  const durOk = span !== null && span.minutes >= 390 && span.minutes <= 570
+  const durOk = span !== null && span.minutes >= 390
   return { span, axis, earlyOk, durOk, passed: earlyOk && durOk }
 }
 
@@ -142,7 +142,7 @@ const CONFIG: PhoneFlowConfig = {
     sections: [
       {
         heading: '双门槛，缺一不可',
-        items: ['入睡不晚于红线（默认 23:30）', '有效睡眠 6.5–9.5 小时'],
+        items: ['入睡不晚于红线（默认 23:30）', '有效睡眠不少于 6.5 小时（不设上限）'],
       },
       {
         heading: '没达标怎么办',
@@ -203,16 +203,16 @@ function buildReport(d: Data): ReportSpec {
         tone: 'sleep',
         headline: `${e.span ? formatSpanMinutes(minutes) : '—'} · ${d.start} → ${d.end}${e.span?.nextDay ? '（次日）' : ''}`,
         badge: {
-          text: e.durOk ? '时长够' : minutes < 390 ? '偏短' : '偏长',
+          text: e.durOk ? '时长够' : '偏短',
           tone: e.durOk ? 'success' : 'warning',
         },
         rows: [
           {
             label: '总时长',
             value: e.span ? formatSpanMinutes(minutes) : '—',
-            ratio: minutes / 570,
+            ratio: Math.min(1, minutes / 480),
             tone: e.durOk ? 'sleep' : 'warning',
-            sub: '有效范围 6.5–9.5 小时',
+            sub: '有效门槛 ≥ 6.5 小时（不设上限）',
           },
         ],
       },
@@ -265,7 +265,7 @@ function buildReport(d: Data): ReportSpec {
         badge: { text: e.passed ? '达标' : '未达标', tone: e.passed ? 'success' : 'warning' },
         checks: [
           { text: '入睡不晚于 23:30', ok: e.earlyOk },
-          { text: '睡眠时长在 6.5–9.5 小时', ok: e.durOk },
+          { text: '睡眠时长不少于 6.5 小时', ok: e.durOk },
           { text: '识别时刻与表盘一致', ok: true, source: '手环 / 截图' },
         ],
       },
@@ -425,7 +425,7 @@ export function SleepFlowSandbox() {
       ? `${e.span ? formatSpanMinutes(e.span.minutes) : ''}，早于 23:30 红线，有效早睡`
       : !e.earlyOk
         ? '入睡晚于 23:30 红线，属熬夜补觉，仅存档'
-        : '睡眠时长不在 6.5–9.5 小时，仅存档',
+        : '睡眠时长未满 6.5 小时，仅存档',
   }
 
   const sections: FillSectionSpec[] = [

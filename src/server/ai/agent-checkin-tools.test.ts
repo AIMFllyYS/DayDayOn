@@ -55,7 +55,7 @@ const verdict = {
   score: null,
   scoreMax: null,
   detail: '睡够了',
-  checks: [{ id: 'c', text: '7–9.5 小时', ok: true }],
+  checks: [{ id: 'c', text: '不少于 6.5 小时', ok: true }],
   metrics: {},
   facts: null,
   citations: [],

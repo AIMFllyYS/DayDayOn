@@ -36,8 +36,7 @@ export function judgeSleep(
   const lateBy = bed !== null && red !== null ? bed - red : null
   const earlyOk = lateBy !== null && lateBy <= 0
   const minM = Math.round(rules.minHours * 60)
-  const maxM = Math.round(rules.maxHours * 60)
-  const durOk = subject.minutes >= minM && subject.minutes <= maxM
+  const durOk = subject.minutes >= minM
   const isValid = earlyOk && durOk
   const hours = round1(subject.minutes / 60)
 
@@ -48,7 +47,6 @@ export function judgeSleep(
     )
   }
   if (subject.minutes < minM) advice.push('睡眠偏短，午间可以小睡 20 分钟补一补')
-  if (subject.minutes > maxM) advice.push('睡太久反而更困，定个固定的起床闹钟')
   if (facts?.regularityMinutes != null && facts.regularityMinutes > 60) {
     advice.push('最近入睡时间波动很大，固定作息比偶尔早睡更重要')
   }
@@ -60,13 +58,13 @@ export function judgeSleep(
       : !earlyOk && durOk
         ? `睡够了，但入睡晚于 ${rules.bedtimeBy}，属于熬夜补觉，仅存档`
         : earlyOk && !durOk
-          ? `按时入睡，但 ${hours} 小时不在 ${rules.minHours}–${rules.maxHours} 小时内`
-          : `入睡晚于 ${rules.bedtimeBy}，时长也不在有效范围内`,
+          ? `按时入睡，但 ${hours} 小时未满 ${rules.minHours} 小时`
+          : `入睡晚于 ${rules.bedtimeBy}，且时长未满 ${rules.minHours} 小时`,
     checks: [
       { id: 'bedtime', text: `入睡不晚于 ${rules.bedtimeBy}`, ok: earlyOk },
       {
         id: 'duration',
-        text: `睡眠时长 ${rules.minHours}–${rules.maxHours} 小时`,
+        text: `睡眠时长不少于 ${rules.minHours} 小时`,
         ok: durOk,
         source: '褪黑素分泌高峰与慢波深睡集中在前半夜',
       },
