@@ -60,7 +60,22 @@ export const keys = {
   },
   todos: {
     all: ['todos'] as const,
-    list: (status: TodoStatus) => ['todos', 'list', { status }] as const,
+    overview: (tag?: string) => ['todos', 'overview', { tag: tag ?? null }] as const,
+    groups: () => ['todos', 'groups'] as const,
+    tags: () => ['todos', 'tags'] as const,
+    list: (
+      status: TodoStatus,
+      filter?: {
+        groupId?: string
+        priority?: string
+        tag?: string
+        keyword?: string
+        archivedOutcome?: string
+      },
+    ) => ['todos', 'list', { status, ...(filter ?? {}) }] as const,
+    detail: (todoId: string) => ['todos', 'detail', todoId] as const,
+    events: (filter?: { todoId?: string; eventType?: string }) =>
+      ['todos', 'events', filter ?? {}] as const,
   },
   agent: {
     all: ['agent'] as const,

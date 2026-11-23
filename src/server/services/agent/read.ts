@@ -16,7 +16,6 @@ import { checkinColumns, loadFields, loadGoal, toCheckinDto } from '@/server/ser
 import { listRecentRevisions, listRevisions } from '@/server/services/checkins/revisions'
 import { getFriendDashboard, listFriends } from '@/server/services/friends'
 import { weightTrend } from '@/server/services/metrics/weight'
-import { listTodos } from '@/server/services/todos'
 
 /*
  * Agent 读工具的数据来源。每个函数都是只读查询、带 userId 条件，返回可直接 JSON 序列化的结果。
@@ -75,11 +74,6 @@ export async function listGoals(userId: string) {
 /** 今天（含体重、心情、各目标进度、完成度） */
 export async function getTodaySummary(userId: string, now: Date) {
   return checkinToday(db, userId, now)
-}
-
-/** 待办（进行中） */
-export async function getOpenTodos(userId: string, now: Date) {
-  return listTodos(db, userId, { status: 'open', limit: 50 }, now)
 }
 
 /** 最近 days 天体重 + 最近一条 + 7 天差值 */

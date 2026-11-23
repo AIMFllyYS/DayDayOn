@@ -11,8 +11,8 @@ android {
         applicationId = "com.husteread.daydayon"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.1.12"
+        versionCode = 10
+        versionName = "0.1.13"
     }
 
     compileOptions {

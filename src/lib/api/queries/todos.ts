@@ -6,109 +6,109 @@ import {
   type InfiniteData,
   type QueryClient,
 } from '@tanstack/react-query'
-import type { CreateTodo, Todo, TodoList, UpdateTodo } from '@/features/todo/schemas'
-import { compareDoneTodos, sortOpenTodos } from '@/features/todo/rules'
+import type {
+  CreateTodo,
+  CreateTodoGroup,
+  ReorderTodoGroups,
+  ReorderTodos,
+  Todo,
+  TodoEventList,
+  TodoEventType,
+  TodoGroup,
+  TodoGroupList,
+  TodoList,
+  TodoOverview,
+  TodoPriority,
+  TodoStatus,
+  UpdateTodo,
+  UpdateTodoGroup,
+} from '@/features/todo/schemas'
 import { api, unwrap } from '../client'
-import { apiFetch, isApiError } from '../fetcher'
+import { isApiError } from '../fetcher'
 import { keys } from '../keys'
 
 /*
- * 待办的查询与写操作（client-data-and-forms.md 第 3、5 节，PRD 2.10）。
- * - 进行中：一次取全（上限 500）；已完成：游标分页（最近 30 天）。
- * - 勾选是乐观更新：先把条目在两个列表之间挪动，失败回滚，结束后失效刷新。
- * - 删除是"延迟删除"：界面先隐藏（features/todo/pending-delete.ts），5 秒撤销窗口过后才真正发 DELETE。
+ * 待办查询与写操作（Todo v2，独立收口于 queries/todos.ts）：
+ * - 首屏仅发 todoOverviewQuery（staleTime 60s），返回分组目录+计数+「默认待办」首批 20 条；
+ * - 其他自定义分组、已过期、已完成、已放弃均走按需 infiniteQuery（折叠时不发请求）；
+ * - 所有变更结束后使用 refetchType: 'active' 精准失效，避免唤醒未展开的折叠面板重拉。
  */
 
 const v1 = api.api.v1
 
-export const openTodosQuery = () =>
+export const TODO_PAGE_SIZE = 20
+export const TODO_TIMELINE_PAGE_SIZE = 30
+export const TODO_OVERVIEW_STALE_MS = 60_000
+
+export const todoOverviewQuery = (tag?: string) =>
   queryOptions({
-    queryKey: keys.todos.list('open'),
-    queryFn: () => unwrap(v1.todos.$get({ query: { status: 'open' } })),
+    queryKey: keys.todos.overview(tag),
+    queryFn: () =>
+      unwrap(
+        v1.todos.overview.$get({
+          query: tag ? { tag } : {},
+        }),
+      ) as Promise<TodoOverview>,
+    staleTime: TODO_OVERVIEW_STALE_MS,
   })
 
-export const DONE_PAGE_SIZE = 20
+export interface TodoBucketFilter {
+  groupId?: string
+  priority?: TodoPriority
+  tag?: string
+  keyword?: string
+  archivedOutcome?: 'done' | 'abandoned'
+}
 
-export const doneTodosQuery = () =>
+export const todoListQuery = (status: TodoStatus, filter: TodoBucketFilter = {}) =>
   infiniteQueryOptions({
-    queryKey: keys.todos.list('done'),
+    queryKey: keys.todos.list(status, filter),
     queryFn: ({ pageParam }) =>
       unwrap(
         v1.todos.$get({
           query: {
-            status: 'done',
-            limit: String(DONE_PAGE_SIZE),
+            status,
+            limit: String(TODO_PAGE_SIZE),
+            ...(filter.groupId ? { groupId: filter.groupId } : {}),
+            ...(filter.priority ? { priority: filter.priority } : {}),
+            ...(filter.tag ? { tag: filter.tag } : {}),
+            ...(filter.keyword ? { keyword: filter.keyword } : {}),
+            ...(filter.archivedOutcome ? { archivedOutcome: filter.archivedOutcome } : {}),
             ...(pageParam ? { cursor: pageParam } : {}),
           },
         }),
-      ),
+      ) as Promise<TodoList>,
     initialPageParam: null as string | null,
     getNextPageParam: (last: TodoList) => last.nextCursor,
   })
 
-type DonePages = InfiniteData<TodoList, string | null>
-
-interface Snapshot {
-  open: TodoList | undefined
-  done: DonePages | undefined
-}
-
-async function snapshot(qc: QueryClient): Promise<Snapshot> {
-  await qc.cancelQueries({ queryKey: keys.todos.all })
-  return {
-    open: qc.getQueryData<TodoList>(keys.todos.list('open')),
-    done: qc.getQueryData<DonePages>(keys.todos.list('done')),
-  }
-}
-
-function restore(qc: QueryClient, s: Snapshot) {
-  qc.setQueryData(keys.todos.list('open'), s.open)
-  qc.setQueryData(keys.todos.list('done'), s.done)
-}
-
-/** 从两个列表里拿掉某条 */
-function removeEverywhere(qc: QueryClient, todoId: string) {
-  qc.setQueryData<TodoList>(keys.todos.list('open'), (old) =>
-    old ? { ...old, items: old.items.filter((t) => t.id !== todoId) } : old,
-  )
-  qc.setQueryData<DonePages>(keys.todos.list('done'), (old) =>
-    old
-      ? {
-          ...old,
-          pages: old.pages.map((p) => ({ ...p, items: p.items.filter((t) => t.id !== todoId) })),
-        }
-      : old,
-  )
-}
-
-/** 把一条放进它所属的列表（按 doneAt 判断），保持排序 */
-function placeTodo(qc: QueryClient, todo: Todo) {
-  removeEverywhere(qc, todo.id)
-  if (todo.doneAt === null) {
-    qc.setQueryData<TodoList>(keys.todos.list('open'), (old) =>
-      old ? { ...old, items: sortOpenTodos([...old.items, todo]) } : old,
-    )
-    return
-  }
-  qc.setQueryData<DonePages>(keys.todos.list('done'), (old) => {
-    if (!old) return old
-    const [first, ...rest] = old.pages
-    if (!first) return old
-    const items = [...first.items, todo].sort(compareDoneTodos)
-    return { ...old, pages: [{ ...first, items }, ...rest] }
+export const todoDetailQuery = (todoId: string) =>
+  queryOptions({
+    queryKey: keys.todos.detail(todoId),
+    queryFn: () => unwrap(v1.todos[':todoId'].$get({ param: { todoId } })) as Promise<Todo>,
   })
-}
 
-function findTodo(qc: QueryClient, todoId: string): Todo | undefined {
-  const open = qc.getQueryData<TodoList>(keys.todos.list('open'))
-  const hit = open?.items.find((t) => t.id === todoId)
-  if (hit) return hit
-  const done = qc.getQueryData<DonePages>(keys.todos.list('done'))
-  for (const page of done?.pages ?? []) {
-    const d = page.items.find((t) => t.id === todoId)
-    if (d) return d
-  }
-  return undefined
+export const todoEventsQuery = (filter: { todoId?: string; eventType?: TodoEventType } = {}) =>
+  infiniteQueryOptions({
+    queryKey: keys.todos.events(filter),
+    queryFn: ({ pageParam }) =>
+      unwrap(
+        v1.todos.events.$get({
+          query: {
+            limit: String(TODO_TIMELINE_PAGE_SIZE),
+            ...(filter.todoId ? { todoId: filter.todoId } : {}),
+            ...(filter.eventType ? { eventType: filter.eventType } : {}),
+            ...(pageParam ? { cursor: pageParam } : {}),
+          },
+        }),
+      ) as Promise<TodoEventList>,
+    initialPageParam: null as string | null,
+    getNextPageParam: (last: TodoEventList) => last.nextCursor,
+  })
+
+/** 仅刷新当前活跃（已展开/已挂载）的待办相关查询，绝不惊动已折叠面板 */
+function invalidateActiveTodos(qc: QueryClient) {
+  return qc.invalidateQueries({ queryKey: keys.todos.all, refetchType: 'active' })
 }
 
 export function useCreateTodo() {
@@ -118,8 +118,7 @@ export function useCreateTodo() {
       unwrap(
         v1.todos.$post({ json: input, header: { 'idempotency-key': idempotencyKey } }),
       ) as Promise<Todo>,
-    onSuccess: (todo) => placeTodo(qc, todo),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.todos.all }),
+    onSettled: () => invalidateActiveTodos(qc),
   })
 }
 
@@ -128,61 +127,206 @@ export interface UpdateTodoVars {
   patch: UpdateTodo
 }
 
-/** 修改 / 勾选：乐观更新，失败回滚 */
+/** 乐观移除/替换当前活跃列表中的对应待办（点击打卡圆圈或放弃时零延迟反馈） */
+function applyOptimisticUpdate(qc: QueryClient, todoId: string, patch: UpdateTodo) {
+  const targetStatus =
+    patch.status ?? (patch.done !== undefined ? (patch.done ? 'done' : 'open') : undefined)
+  if (targetStatus === undefined) return
+
+  // 更新概览缓存中的默认组条目与计数
+  const overviewEntries = qc.getQueriesData<TodoOverview>({ queryKey: ['todos', 'overview'] })
+  for (const [key, data] of overviewEntries) {
+    if (!data) continue
+    const existed = data.defaultGroupTodos.items.find((t) => t.id === todoId)
+    if (!existed) continue
+    if (targetStatus !== 'open') {
+      const nextItems = data.defaultGroupTodos.items.filter((t) => t.id !== todoId)
+      const groups = data.groups.map((g) =>
+        g.id === existed.groupId ? { ...g, openCount: Math.max(0, g.openCount - 1) } : g,
+      )
+      qc.setQueryData<TodoOverview>(key, {
+        ...data,
+        groups,
+        counts: {
+          ...data.counts,
+          openTotal: Math.max(0, data.counts.openTotal - 1),
+          ...(targetStatus === 'done'
+            ? { doneRecentCount: data.counts.doneRecentCount + 1 }
+            : { abandonedRecentCount: data.counts.abandonedRecentCount + 1 }),
+        },
+        defaultGroupTodos: { ...data.defaultGroupTodos, items: nextItems },
+      })
+    }
+  }
+
+  // 从已展开的分页列表中同步移除状态变更条目
+  const listEntries = qc.getQueriesData<InfiniteData<TodoList, string | null>>({
+    queryKey: ['todos', 'list'],
+  })
+  for (const [key, data] of listEntries) {
+    if (!data) continue
+    const hit = data.pages.some((p) => p.items.some((t) => t.id === todoId))
+    if (!hit) continue
+    qc.setQueryData<InfiniteData<TodoList, string | null>>(key, {
+      ...data,
+      pages: data.pages.map((p) => ({
+        ...p,
+        items: p.items.filter((t) => t.id !== todoId),
+      })),
+    })
+  }
+}
+
 export function useUpdateTodo() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ todoId, patch }: UpdateTodoVars) =>
       unwrap(v1.todos[':todoId'].$patch({ param: { todoId }, json: patch })) as Promise<Todo>,
     onMutate: async ({ todoId, patch }) => {
-      const before = await snapshot(qc)
-      const current = findTodo(qc, todoId)
-      if (current) {
-        const next: Todo = {
-          ...current,
-          ...(patch.title !== undefined && { title: patch.title }),
-          ...(patch.dueAt !== undefined && { dueAt: patch.dueAt }),
-          ...(patch.priority !== undefined && { priority: patch.priority }),
-          ...(patch.done !== undefined && {
-            doneAt: patch.done ? (current.doneAt ?? new Date().toISOString()) : null,
-          }),
-        }
-        placeTodo(qc, next)
-      }
-      return { before }
+      await qc.cancelQueries({ queryKey: keys.todos.all })
+      const prevOverviews = qc.getQueriesData<TodoOverview>({ queryKey: ['todos', 'overview'] })
+      const prevLists = qc.getQueriesData<InfiniteData<TodoList, string | null>>({
+        queryKey: ['todos', 'list'],
+      })
+      applyOptimisticUpdate(qc, todoId, patch)
+      return { prevOverviews, prevLists }
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx) restore(qc, ctx.before)
+      if (!ctx) return
+      for (const [key, data] of ctx.prevOverviews) qc.setQueryData(key, data)
+      for (const [key, data] of ctx.prevLists) qc.setQueryData(key, data)
     },
-    onSuccess: (todo) => placeTodo(qc, todo),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.todos.all }),
+    onSettled: () => invalidateActiveTodos(qc),
   })
 }
 
-/**
- * 真正发 DELETE（撤销窗口过后才调用）。不做成 hook：撤销提示是全局的，
- * 窗口结束时页面可能已经切走，组件里的 mutation 回调不会再执行。
- * 404 TODO_NOT_FOUND 视为已经删掉（例如页面关闭时已经发过一次）。
- */
-export async function deleteTodoNow(qc: QueryClient, todoId: string): Promise<void> {
-  try {
-    await unwrap(v1.todos[':todoId'].$delete({ param: { todoId } }))
-  } catch (err) {
-    if (!(isApiError(err) && err.code === 'TODO_NOT_FOUND')) throw err
-  } finally {
-    await qc.invalidateQueries({ queryKey: keys.todos.all })
-  }
+/** 二次确认后立即删除待办 */
+export function useDeleteTodo() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (todoId: string) => {
+      try {
+        await unwrap(v1.todos[':todoId'].$delete({ param: { todoId } }))
+      } catch (err) {
+        if (!(isApiError(err) && err.code === 'TODO_NOT_FOUND')) throw err
+      }
+    },
+    onSettled: () => invalidateActiveTodos(qc),
+  })
 }
 
-/**
- * 页面关闭时把还在撤销窗口里的删除发出去（keepalive：页面卸载后请求照常完成）。
- * 只在 pagehide 里调用；失败无从提示，下次打开时那条还在，用户可以再删。
- */
-export function flushTodoDeletes(todoIds: readonly string[]) {
-  for (const todoId of todoIds) {
-    void apiFetch(`/todos/${encodeURIComponent(todoId)}`, {
-      method: 'DELETE',
-      keepalive: true,
-    }).catch(() => undefined)
-  }
+/** 组内长按拖拽排序（乐观更新缓存） */
+export function useReorderTodos() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: ReorderTodos) =>
+      unwrap(v1.todos.reorder.$post({ json: input })) as Promise<{ ok: true }>,
+    onMutate: async ({ groupId, todoIds }) => {
+      await qc.cancelQueries({ queryKey: keys.todos.all })
+      const prevOverviews = qc.getQueriesData<TodoOverview>({ queryKey: ['todos', 'overview'] })
+      const prevLists = qc.getQueriesData<InfiniteData<TodoList, string | null>>({
+        queryKey: ['todos', 'list'],
+      })
+
+      const orderMap = new Map(todoIds.map((id, idx) => [id, idx]))
+      const sortByIds = (items: Todo[]) =>
+        [...items]
+          .sort((a, b) => (orderMap.get(a.id) ?? 9999) - (orderMap.get(b.id) ?? 9999))
+          .map((t, idx) => ({ ...t, sortOrder: idx }))
+
+      for (const [key, data] of prevOverviews) {
+        if (!data || data.defaultGroupId !== groupId) continue
+        qc.setQueryData<TodoOverview>(key, {
+          ...data,
+          defaultGroupTodos: {
+            ...data.defaultGroupTodos,
+            items: sortByIds(data.defaultGroupTodos.items),
+          },
+        })
+      }
+
+      for (const [key, data] of prevLists) {
+        if (!data) continue
+        const meta = key[2] as { status?: string; groupId?: string } | undefined
+        if (meta?.status !== 'open' || meta.groupId !== groupId) continue
+        const flat = sortByIds(data.pages.flatMap((p) => p.items))
+        let offset = 0
+        qc.setQueryData<InfiniteData<TodoList, string | null>>(key, {
+          ...data,
+          pages: data.pages.map((p) => {
+            const slice = flat.slice(offset, offset + p.items.length)
+            offset += p.items.length
+            return { ...p, items: slice }
+          }),
+        })
+      }
+
+      return { prevOverviews, prevLists }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (!ctx) return
+      for (const [key, data] of ctx.prevOverviews) qc.setQueryData(key, data)
+      for (const [key, data] of ctx.prevLists) qc.setQueryData(key, data)
+    },
+    onSettled: () => invalidateActiveTodos(qc),
+  })
+}
+
+export function useCreateTodoGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ input, idempotencyKey }: { input: CreateTodoGroup; idempotencyKey: string }) =>
+      unwrap(
+        v1['todo-groups'].$post({ json: input, header: { 'idempotency-key': idempotencyKey } }),
+      ) as Promise<TodoGroup>,
+    onSettled: () => invalidateActiveTodos(qc),
+  })
+}
+
+export function useUpdateTodoGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, input }: { groupId: string; input: UpdateTodoGroup }) =>
+      unwrap(
+        v1['todo-groups'][':groupId'].$patch({ param: { groupId }, json: input }),
+      ) as Promise<TodoGroup>,
+    onSettled: () => invalidateActiveTodos(qc),
+  })
+}
+
+export function useDeleteTodoGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (groupId: string) =>
+      unwrap(v1['todo-groups'][':groupId'].$delete({ param: { groupId } })),
+    onSettled: () => invalidateActiveTodos(qc),
+  })
+}
+
+/** 分组长按拖拽排序（乐观重排概览里的 groups 顺序） */
+export function useReorderTodoGroups() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: ReorderTodoGroups) =>
+      unwrap(v1['todo-groups'].reorder.$post({ json: input })) as Promise<TodoGroupList>,
+    onMutate: async ({ groupIds }) => {
+      await qc.cancelQueries({ queryKey: keys.todos.all })
+      const prevOverviews = qc.getQueriesData<TodoOverview>({ queryKey: ['todos', 'overview'] })
+      const orderMap = new Map(groupIds.map((id, idx) => [id, idx]))
+
+      for (const [key, data] of prevOverviews) {
+        if (!data) continue
+        const nextGroups = [...data.groups]
+          .sort((a, b) => (orderMap.get(a.id) ?? 9999) - (orderMap.get(b.id) ?? 9999))
+          .map((g, idx) => ({ ...g, sortOrder: idx }))
+        qc.setQueryData<TodoOverview>(key, { ...data, groups: nextGroups })
+      }
+      return { prevOverviews }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (!ctx) return
+      for (const [key, data] of ctx.prevOverviews) qc.setQueryData(key, data)
+    },
+    onSettled: () => invalidateActiveTodos(qc),
+  })
 }

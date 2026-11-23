@@ -6,46 +6,45 @@ import { useState } from 'react'
 import type { FormErrors } from '@/components/ui/form'
 import { toast } from '@/components/ui/toast'
 import type { Me } from '@/features/me/schemas'
+import { apiFetch, errorMessage, isApiError, keys, newIdempotencyKey, useQuery } from '@/lib/api'
 import {
-  apiFetch,
-  errorMessage,
-  isApiError,
-  keys,
-  newIdempotencyKey,
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from '@/lib/api'
-import {
-  deleteTodoNow,
-  doneTodosQuery,
-  openTodosQuery,
+  todoOverviewQuery,
   useCreateTodo,
+  useDeleteTodo,
+  useReorderTodoGroups,
+  useReorderTodos,
   useUpdateTodo,
 } from '@/lib/api/queries/todos'
 import { BUSINESS_TIME_ZONE } from '@/lib/time'
-import { pendingDeletes, usePendingDeletes } from '../pending-delete'
-import { parseTodoView, type TodoView } from '../rules'
-import type { Todo } from '../schemas'
+import { parseTodoLayoutMode, parseTodoView, type TodoLayoutMode, type TodoView } from '../rules'
+import type { Todo, UpdateTodo } from '../schemas'
 import { useNow } from '../use-now'
-import type { TodoSheetSubmit } from './todo-sheet'
 import { TodoScreen } from './todo-screen'
+import type { TodoSheetSubmit } from './todo-sheet'
 
 /*
- * /todo 的客户端部分：读 ?view、取数据、接上勾选 / 新建 / 编辑 / 延迟删除，交给 TodoScreen 呈现。
- * 必须放在 <Suspense> 里（useSearchParams，Cache Components 规则）。
+ * /todo 主页客户端容器：
+ * - 读 ?view=list|log 与 ?mode=list|quadrant；
+ * - 首屏仅发 1 次 todoOverviewQuery，默认只展开「默认待办」，其他分组与已过期/已完成/已放弃均默认折叠按需加载；
+ * - 所有删除操作统一经过 ConfirmDialog 二次确认；
+ * - 抽屉与弹窗按需懒加载（next/dynamic）。
  */
 
-// 抽屉代码不进首屏（ui-primitives.md 第 3 节）：第一次打开时才加载
 const TodoSheet = dynamic(() => import('./todo-sheet').then((m) => m.TodoSheet), {
   loading: () => null,
 })
+const TodoGroupManagerSheet = dynamic(
+  () => import('./todo-group-manager-sheet').then((m) => m.TodoGroupManagerSheet),
+  { loading: () => null },
+)
+const ConfirmDialog = dynamic(
+  () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+  { loading: () => null },
+)
 
-/** 时区来自 GET /me（与外壳的 ThemeSync 共用同一份缓存） */
 function useTimeZone(): { timeZone: string | null } {
   const me = useQuery({ queryKey: keys.me.detail(), queryFn: () => apiFetch<Me>('/me') })
   if (me.data) return { timeZone: me.data.profile.timeZone }
-  // 取不到资料时退回北京时间，不让整页卡在加载中
   return { timeZone: me.isError ? BUSINESS_TIME_ZONE : null }
 }
 
@@ -56,27 +55,38 @@ function messageOf(err: unknown): string {
 interface SheetState {
   open: boolean
   todo: Todo | null
-  /** 新建：每次打开抽屉生成一个，重试时复用 */
   idempotencyKey: string
-  /** 每次打开换一个，抽屉按它重新挂载、从 todo 初始化表单 */
   session: number
 }
 
 export function TodoPage() {
   const router = useRouter()
   const pathname = usePathname()
-  const view = parseTodoView(useSearchParams().get('view'))
-  const qc = useQueryClient()
+  const searchParams = useSearchParams()
+  const view = parseTodoView(searchParams.get('view'))
+  const mode = parseTodoLayoutMode(searchParams.get('mode'))
+
   const now = useNow()
   const { timeZone } = useTimeZone()
-  const hidden = usePendingDeletes()
+  const [activeTag, setActiveTag] = useState<string | undefined>(undefined)
 
-  const open = useQuery({ ...openTodosQuery(), enabled: view === 'list' })
-  const done = useInfiniteQuery({ ...doneTodosQuery(), enabled: view === 'list' })
-  // 勾选和编辑各用一个 mutation：勾选进行中时，编辑抽屉的按钮不跟着转圈
+  const overviewQuery = useQuery({
+    ...todoOverviewQuery(activeTag),
+    enabled: view === 'list',
+  })
+
+  const create = useCreateTodo()
   const toggle = useUpdateTodo()
   const update = useUpdateTodo()
-  const create = useCreateTodo()
+  const remove = useDeleteTodo()
+  const reorderTodos = useReorderTodos()
+  const reorderGroups = useReorderTodoGroups()
+
+  // 折叠态管理：默认仅展开「默认待办」，其余自定义分组与已过期/已完成/已放弃均默认折叠
+  const [manualToggled, setManualToggled] = useState<Record<string, boolean>>({})
+  const [overdueOpen, setOverdueOpen] = useState(false)
+  const [doneOpen, setDoneOpen] = useState(false)
+  const [abandonedOpen, setAbandonedOpen] = useState(false)
 
   const [sheet, setSheet] = useState<SheetState>({
     open: false,
@@ -84,15 +94,36 @@ export function TodoPage() {
     idempotencyKey: '',
     session: 0,
   })
-  const [loaded, setLoaded] = useState(false)
+  const [sheetLoaded, setSheetLoaded] = useState(false)
   const [serverErrors, setServerErrors] = useState<FormErrors>()
 
-  function setView(next: TodoView) {
-    router.replace(next === 'list' ? pathname : `${pathname}?view=${next}`, { scroll: false })
+  const [groupManagerOpen, setGroupManagerOpen] = useState(false)
+  const [groupManagerLoaded, setGroupManagerLoaded] = useState(false)
+
+  const [pendingDelete, setPendingDelete] = useState<Todo | null>(null)
+  const [deleteDialogLoaded, setDeleteDialogLoaded] = useState(false)
+
+  const overview = overviewQuery.data
+  const expandedGroups = new Set<string>()
+  if (overview) {
+    for (const g of overview.groups) {
+      const explicit = manualToggled[g.id]
+      if (explicit !== undefined ? explicit : g.id === overview.defaultGroupId) {
+        expandedGroups.add(g.id)
+      }
+    }
+  }
+
+  function updateUrl(nextView: TodoView, nextMode: TodoLayoutMode) {
+    const params = new URLSearchParams()
+    if (nextView !== 'list') params.set('view', nextView)
+    if (nextMode !== 'list') params.set('mode', nextMode)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
 
   function openSheet(todo: Todo | null) {
-    setLoaded(true)
+    setSheetLoaded(true)
     setServerErrors(undefined)
     setSheet((s) => ({
       open: true,
@@ -106,7 +137,7 @@ export function TodoPage() {
     setSheet((s) => ({ ...s, open: false }))
   }
 
-  function onSubmit(value: TodoSheetSubmit) {
+  function handleSubmit(value: TodoSheetSubmit) {
     const onError = (err: unknown) => {
       if (isApiError(err) && err.fields) return setServerErrors(err.fields)
       toast.error(messageOf(err))
@@ -114,76 +145,201 @@ export function TodoPage() {
     if (value.kind === 'create') {
       create.mutate(
         { input: value.input, idempotencyKey: sheet.idempotencyKey },
-        { onSuccess: closeSheet, onError },
+        {
+          onSuccess: (created) => {
+            // 新建待办落入某个折叠分组时自动展开该分组方便看到刚建的条目
+            setManualToggled((prev) => ({ ...prev, [created.groupId]: true }))
+            closeSheet()
+          },
+          onError,
+        },
       )
       return
     }
     const todo = sheet.todo
     if (!todo) return
-    update.mutate({ todoId: todo.id, patch: value.patch }, { onSuccess: closeSheet, onError })
-  }
-
-  function onToggle(todo: Todo) {
-    toggle.mutate(
-      { todoId: todo.id, patch: { done: todo.doneAt === null } },
-      { onError: (err) => toast.error(messageOf(err)) },
+    update.mutate(
+      { todoId: todo.id, patch: value.patch },
+      {
+        onSuccess: () => {
+          toast.success('已保存修改')
+          closeSheet()
+        },
+        onError,
+      },
     )
   }
 
-  function onDelete(todo: Todo) {
-    pendingDeletes.add(todo.id)
-    toast.undo('删掉了一条待办', {
-      description: todo.title,
-      onUndo: () => pendingDeletes.remove(todo.id),
-      onExpire: () => {
-        deleteTodoNow(qc, todo.id)
-          .catch((err: unknown) => {
-            toast.error(messageOf(err))
-          })
-          .finally(() => pendingDeletes.remove(todo.id))
+  function handleQuickStatus(todo: Todo, patch: UpdateTodo) {
+    update.mutate(
+      { todoId: todo.id, patch },
+      {
+        onSuccess: () => {
+          if (patch.status === 'done') toast.success('已完成，已移入「已完成」分组')
+          else if (patch.status === 'abandoned') toast.info('已放弃，已移入「已放弃」分组')
+          else if (patch.status === 'open') toast.success('已恢复为进行中待办')
+          closeSheet()
+        },
+        onError: (err) => toast.error(messageOf(err)),
       },
-    })
+    )
   }
 
-  const loading =
-    now === null || timeZone === null || open.isPending || (done.isPending && !done.isError)
-  const error = open.error ?? done.error
-  const doneItems = done.data?.pages.flatMap((p) => p.items) ?? []
+  function handleToggleTodo(todo: Todo) {
+    const nextStatus = todo.status === 'open' ? 'done' : 'open'
+    toggle.mutate(
+      { todoId: todo.id, patch: { status: nextStatus } },
+      {
+        onSuccess: () => {
+          if (nextStatus === 'done') {
+            toast.undo('已完成一项待办', {
+              description: `${todo.title} · 已移入「已完成」`,
+              onUndo: () => {
+                toggle.mutate(
+                  { todoId: todo.id, patch: { status: 'open' } },
+                  { onError: (err) => toast.error(messageOf(err)) },
+                )
+              },
+            })
+          }
+        },
+        onError: (err) => toast.error(messageOf(err)),
+      },
+    )
+  }
+
+  function requestDelete(todo: Todo) {
+    setDeleteDialogLoaded(true)
+    setPendingDelete(todo)
+  }
+
+  const loading = now === null || timeZone === null || overviewQuery.isPending
+  const error = overviewQuery.error
+  const fabHidden = sheet.open || groupManagerOpen || pendingDelete !== null
 
   return (
     <>
       <TodoScreen
         view={view}
-        onViewChange={setView}
+        onViewChange={(next) => updateUrl(next, mode)}
+        mode={mode}
+        onModeChange={(next) => updateUrl(view, next)}
+        activeTag={activeTag}
+        onTagChange={setActiveTag}
         onCreate={() => openSheet(null)}
+        onOpenGroupManager={() => {
+          setGroupManagerLoaded(true)
+          setGroupManagerOpen(true)
+        }}
+        onNavigateArchived={() => router.push('/todo/archived')}
         status={error ? 'error' : loading ? 'loading' : 'ready'}
         errorText={error ? messageOf(error) : undefined}
-        onRetry={() => {
-          void open.refetch()
-          void done.refetch()
+        onRetry={() => void overviewQuery.refetch()}
+        retrying={overviewQuery.isRefetching}
+        overview={overview}
+        expandedGroups={expandedGroups}
+        onToggleGroup={(groupId) =>
+          setManualToggled((prev) => {
+            const current =
+              prev[groupId] !== undefined ? prev[groupId] : groupId === overview?.defaultGroupId
+            return { ...prev, [groupId]: !current }
+          })
+        }
+        onExpandAllGroups={() => {
+          if (!overview) return
+          const next: Record<string, boolean> = {}
+          for (const g of overview.groups) next[g.id] = true
+          setManualToggled(next)
         }}
-        retrying={open.isRefetching || done.isRefetching}
-        open={(open.data?.items ?? []).filter((t) => !hidden.has(t.id))}
-        done={doneItems.filter((t) => !hidden.has(t.id))}
-        doneHasMore={done.hasNextPage}
-        onLoadMoreDone={() => void done.fetchNextPage()}
-        loadingMoreDone={done.isFetchingNextPage}
+        onCollapseAllGroups={() => {
+          if (!overview) return
+          const next: Record<string, boolean> = {}
+          for (const g of overview.groups) next[g.id] = false
+          setManualToggled(next)
+          setOverdueOpen(false)
+          setDoneOpen(false)
+          setAbandonedOpen(false)
+        }}
+        overdueOpen={overdueOpen}
+        onToggleOverdue={() => setOverdueOpen((v) => !v)}
+        doneOpen={doneOpen}
+        onToggleDone={() => setDoneOpen((v) => !v)}
+        abandonedOpen={abandonedOpen}
+        onToggleAbandoned={() => setAbandonedOpen((v) => !v)}
         now={now ?? new Date(0)}
         timeZone={timeZone ?? BUSINESS_TIME_ZONE}
-        onToggle={onToggle}
-        onEdit={openSheet}
-        onDelete={onDelete}
+        onToggleTodo={handleToggleTodo}
+        onOpenManage={openSheet}
+        onRequestDelete={requestDelete}
+        onReorderTodos={(groupId, todoIds) =>
+          reorderTodos.mutate(
+            { groupId, todoIds },
+            { onError: (err) => toast.error(messageOf(err)) },
+          )
+        }
+        onReorderGroups={(groupIds) =>
+          reorderGroups.mutate({ groupIds }, { onError: (err) => toast.error(messageOf(err)) })
+        }
+        fabHidden={fabHidden}
       />
-      {loaded && timeZone !== null && (
+
+      {sheetLoaded && timeZone !== null && overview && (
         <TodoSheet
           session={sheet.session}
           open={sheet.open}
           onOpenChange={(next) => (next ? undefined : closeSheet())}
           todo={sheet.todo}
+          groups={overview.groups}
+          defaultGroupId={overview.defaultGroupId}
+          availableTags={overview.tags}
           timeZone={timeZone}
+          now={now ?? new Date()}
           submitting={create.isPending || update.isPending}
           serverErrors={serverErrors}
-          onSubmit={onSubmit}
+          onSubmit={handleSubmit}
+          onQuickStatus={handleQuickStatus}
+          onRequestDelete={(todo) => {
+            closeSheet()
+            requestDelete(todo)
+          }}
+        />
+      )}
+
+      {groupManagerLoaded && overview && (
+        <TodoGroupManagerSheet
+          open={groupManagerOpen}
+          onOpenChange={setGroupManagerOpen}
+          groups={overview.groups}
+        />
+      )}
+
+      {deleteDialogLoaded && (
+        <ConfirmDialog
+          open={pendingDelete !== null}
+          onOpenChange={(next) => {
+            if (!next) setPendingDelete(null)
+          }}
+          title="确定删除这条待办？"
+          description={
+            pendingDelete
+              ? `「${pendingDelete.title}」删除后无法直接恢复，但会保留在过程记录中。`
+              : undefined
+          }
+          confirmLabel="确认删除"
+          cancelLabel="取消"
+          tone="danger"
+          onConfirm={async () => {
+            const target = pendingDelete
+            if (!target) return
+            try {
+              await remove.mutateAsync(target.id)
+              toast.success('已删除这条待办')
+              setPendingDelete(null)
+            } catch (err) {
+              toast.error(messageOf(err))
+              throw err
+            }
+          }}
         />
       )}
     </>

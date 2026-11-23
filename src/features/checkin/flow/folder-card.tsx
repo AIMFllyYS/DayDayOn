@@ -1,31 +1,15 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
+import { Collapse } from '@/components/ui/collapse'
 import { Icon } from '@/components/ui/icon'
 import { ProgressBar } from '@/components/ui/progress'
 import { softToneClass, type Tone } from '@/components/ui/tone'
 import { cn } from '@/lib/cn'
 import type { FolderRow, FolderSpec, ReportCheck } from './types'
 
-/**
- * 折叠区：用 grid-template-rows 0fr → 1fr 做高度动画，内容不用知道自己多高。
- * 收起时 inert，键盘和读屏都够不到里面。
- */
-export function Collapse({ open, children }: { open: boolean; children: ReactNode }) {
-  return (
-    <div
-      className={cn(
-        'grid transition-[grid-template-rows] duration-(--dur-base) ease-out',
-        open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
-      )}
-    >
-      <div className="min-h-0 overflow-hidden" inert={!open}>
-        {children}
-      </div>
-    </div>
-  )
-}
+export { Collapse }
 
 /**
  * 文件夹卡片：小圆角整体卡片，左上角是「图标块 + 小标题」，右侧徽章与展开箭头，结论一行写在标题下。

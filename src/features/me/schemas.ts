@@ -255,7 +255,10 @@ export const ExportSchema = z
     checkinRevisions: z.array(z.unknown()),
     weights: z.array(z.unknown()),
     ratings: z.array(z.unknown()),
+    todoGroups: z.array(z.unknown()).optional(),
+    todoTags: z.array(z.unknown()).optional(),
     todos: z.array(z.unknown()),
+    todoEvents: z.array(z.unknown()).optional(),
   })
   .meta({ id: 'Export' })
 export type Export = z.infer<typeof ExportSchema>

@@ -1,6 +1,7 @@
 'use client'
 
-import { useLayoutEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
+import { useCallback, useLayoutEffect, useRef } from 'react'
 import { cn } from '@/lib/cn'
 import { useAgentUi } from '../agent-store'
 import { usePetBindingState, usePetIdentity } from '../pet-binding'
@@ -17,21 +18,28 @@ import { PetAvatar } from './pet-avatar'
 
 const STORAGE_KEY = 'daydayon:agent-pet:v1'
 
-function dockInset(): number {
+function baseDockInset(): number {
   if (typeof window === 'undefined') return 0
   return window.matchMedia('(max-width: 767px)').matches ? 96 : 24
 }
 
 export function FloatingPet({ className }: { className?: string }) {
+  const pathname = usePathname()
   const ui = useAgentUi()
   const { character, name } = usePetIdentity()
   const binding = usePetBindingState()
 
   const handleActivate = () => (binding?.onTap ? binding.onTap() : ui.openPanel())
 
+  // 在 /todo 主页右下角有置顶悬浮加号球，团团自动抬高底部避让高度避免重叠
+  const bottomInset = useCallback(
+    () => baseDockInset() + (pathname === '/todo' ? 76 : 0),
+    [pathname],
+  )
+
   const pet = usePetDrag({
     size: PET_SIZE,
-    bottomInset: dockInset,
+    bottomInset,
     storageKey: STORAGE_KEY,
     onTap: handleActivate,
   })

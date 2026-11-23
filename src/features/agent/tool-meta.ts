@@ -43,7 +43,15 @@ const toolMeta: Record<string, ToolMeta> = {
   webFetch: { label: '读取网页', verb: '正在读网页', icon: 'link', tone: 'study' },
   // Agent 对话（features/agent + server/ai/agent-tools.ts）
   listGoals: { label: '读取目标', verb: '正在看目标', icon: 'trophy', tone: 'primary' },
-  listTodos: { label: '读取待办', verb: '正在看待办', icon: 'todo', tone: 'neutral' },
+  getTodoOverview: { label: '读取待办概览', verb: '正在看待办结构', icon: 'todo', tone: 'neutral' },
+  listTodos: { label: '筛选待办', verb: '正在翻待办列表', icon: 'todo', tone: 'neutral' },
+  getTodoDetail: { label: '读取待办详情', verb: '正在看待办备注', icon: 'todo', tone: 'neutral' },
+  getTodoTimeline: {
+    label: '查看待办过程',
+    verb: '正在翻待办历程',
+    icon: 'clock',
+    tone: 'neutral',
+  },
   listCheckins: { label: '读取打卡', verb: '正在看打卡', icon: 'calendar', tone: 'study' },
   getWeight: { label: '读取体重', verb: '正在看体重', icon: 'chart', tone: 'primary' },
   showStats: { label: '整理近况图表', verb: '正在算各板块近况', icon: 'chart', tone: 'primary' },

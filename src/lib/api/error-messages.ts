@@ -26,6 +26,7 @@ export const errorMessages: Record<ErrorCode, Message> = {
   REDEEM_CODE_INVALID: '兑换码好像不对，检查一下再试',
   FRIEND_INVITE_INVALID: '配对码无效或已过期，请让好友重新查看',
   FRIEND_SELF_INVITE: '不能使用自己的配对码哦',
+  TODO_DEFAULT_GROUP_PROTECTED: '「默认待办」分组不能删除或重命名哦',
 
   UNAUTHENTICATED: '登录已过期，重新登录一下吧',
   QUOTA_INSUFFICIENT: '本周的 AI 额度用完了，可以手动记录，或兑换额度',
@@ -49,6 +50,8 @@ export const errorMessages: Record<ErrorCode, Message> = {
   GOAL_NOT_FOUND: '这个目标不见了，可能已经删除',
   CHECKIN_NOT_FOUND: '这条打卡不见了，可能已经删除',
   TODO_NOT_FOUND: '这条待办不见了，可能已经删除',
+  TODO_GROUP_NOT_FOUND: '这个分组不见了，可能已经删除',
+  TODO_TAG_NOT_FOUND: '这个标签不见了，可能已经删除',
   USER_NOT_FOUND: '找不到这个用户',
   REDEEM_CODE_NOT_FOUND: '找不到这个兑换码',
   FRIEND_NOT_FOUND: '未找到该好友关系',
@@ -56,6 +59,8 @@ export const errorMessages: Record<ErrorCode, Message> = {
   ALREADY_ONBOARDED: '你已经完成引导啦',
   GOAL_LIMIT_REACHED: '进行中的目标太多了（最多 20 个，睡眠目标只能有 1 个），先归档几个吧',
   TODO_LIMIT_REACHED: '未完成的待办太多了，先清掉一些吧',
+  TODO_GROUP_LIMIT_REACHED: '分组数量已达上限（最多 50 个），先整理一下吧',
+  TODO_GROUP_NAME_EXISTS: '已经有一个同名分组了，换个名字试试',
   CHECKIN_EXISTS: '今天已经记过这一项了',
   WEIGHT_CHANGE_UNCONFIRMED: (e) => {
     if (e.previousWeightGrams === undefined) return '和上次差得有点多，确认没输错吗？'
