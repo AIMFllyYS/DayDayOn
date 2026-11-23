@@ -1,32 +1,24 @@
 'use client'
 
-import { useState } from 'react'
-import { IconTile } from '@/components/ui/badge'
+import dynamic from 'next/dynamic'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { DateField } from '@/components/ui/date-field'
+import { Collapse } from '@/components/ui/collapse'
 import { ErrorState } from '@/components/ui/error-state'
-import { Field } from '@/components/ui/field'
 import { Icon } from '@/components/ui/icon'
 import { ProgressRing } from '@/components/ui/progress'
-import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
-import { TimeField } from '@/components/ui/time-field'
 import { toast } from '@/components/ui/toast'
-import { moduleMeta } from '@/components/ui/tone'
+import { moduleMeta, softToneClass } from '@/components/ui/tone'
 import { LinkButton } from '@/features/dashboard/components/link-button'
+import type { OverallProgress } from '@/features/dashboard/schemas'
 import { DEFAULT_GOALS } from '@/features/goal/defaults'
-import { PeriodPlanPicker } from '@/features/goal/components/period-plan-picker'
-import { TargetEditor, type TargetDraft } from '@/features/goal/components/target-editor'
-import { WeekdayPicker } from '@/features/goal/components/weekday-picker'
 import { computeOverallPeriod } from '@/features/goal/period'
 import type { Goal } from '@/features/goal/schemas'
 import type { Me, RemindMode } from '@/features/me/schemas'
-import type { OverallProgress } from '@/features/dashboard/schemas'
 import { ModulesStep } from '@/features/onboarding/components/onboarding-steps'
-import { effectiveRules, isDefaultRules } from '@/features/referee/defaults'
-import type { RefereeRules, RefereeTier } from '@/features/referee/schemas'
-import type { Module } from '@/features/shared/schemas'
+import { MODULES, type Module } from '@/features/shared/schemas'
 import {
   apiFetch,
   errorMessage,
@@ -37,29 +29,25 @@ import {
 } from '@/lib/api'
 import { afterCheckinChange, keys } from '@/lib/api/keys'
 import { dashboardTodayQuery } from '@/lib/api/queries/dashboard'
-import { goalListQuery, useUpdateGoal } from '@/lib/api/queries/goals'
-import { useMe, useUpdatePreferences } from '@/lib/api/queries/me'
+import { goalListQuery } from '@/lib/api/queries/goals'
+import { useMe } from '@/lib/api/queries/me'
 import { cn } from '@/lib/cn'
-import { formatDuration, localDateOf } from '@/lib/time'
-import { Collapse } from '../flow/folder-card'
-import { moduleDef } from '../modules/registry'
-import { TierPicker } from '../modules/tier-picker'
+import { localDateOf } from '@/lib/time'
+import { GoalModuleCard } from './goal-module-card'
 
 /*
  * 「我的 → 目标设置」（/goals）：全局唯一的目标设置入口（checkin-modules.md 第 5 节）。
- * 分层组织为三个清晰页签，避免全部平铺在一个超长页面：
- *   1. plan     板块与总周期（与新人引导一致：打卡板块 + 总坚持天数/截止日期 + 每日总提醒）
- *   2. schedule 每日目标与计划（手风琴折叠：每个目标的每日目标量、每周几天、计划时间、独立期限）
- *   3. rules    达标与裁判规则（个人体质档位 + 各板块折叠规则面板）
+ * - 顶部总览卡：双行清晰展示板块数/周期与截止日/提醒，右侧「设置」按钮唤起底部「周期与提醒」Sheet；
+ * - 移除繁杂的顶部分类 Tab 栏，默认上方展示「要坚持的打卡板块」选择条（支持一键定位卡片与增减板块）；
+ * - 下方为可左右滑动翻页的板块卡片轮播，每张卡片完整承载该板块的「目标与计划」与「达标规则」折叠面板。
  */
 
 export type GoalSettingsTab = 'plan' | 'schedule' | 'rules'
 
-const SETTINGS_TABS: ReadonlyArray<{ value: GoalSettingsTab; label: string }> = [
-  { value: 'plan', label: '板块与周期' },
-  { value: 'schedule', label: '目标与计划' },
-  { value: 'rules', label: '达标规则' },
-]
+const GoalPeriodSheet = dynamic(
+  () => import('./goal-period-sheet').then((m) => m.GoalPeriodSheet),
+  { loading: () => null },
+)
 
 export function GoalSettingsView({ initialTab = 'plan' }: { initialTab?: GoalSettingsTab }) {
   const active = useQuery(goalListQuery('active'))
@@ -110,7 +98,11 @@ export function GoalSettingsContent({
   overall?: OverallProgress
   initialTab?: GoalSettingsTab
 }) {
-  const [tab, setTab] = useState<GoalSettingsTab>(initialTab)
+  const [periodSheetOpen, setPeriodSheetOpen] = useState(false)
+  const [periodSheetLoaded, setPeriodSheetLoaded] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const carouselRef = useRef<HTMLDivElement>(null)
+
   const timeZone = me.profile.timeZone
   const dayStartHour = me.preferences.dayStartHour ?? 4
   const today = todayOverride ?? localDateOf(new Date(), timeZone, dayStartHour)
@@ -134,10 +126,49 @@ export function GoalSettingsContent({
       deadlineDates: activeGoals.map((g) => g.deadlineDate),
     })
 
-  const periodResetKey = `${activeGoals.map((g) => `${g.id}:${g.deadlineDate ?? ''}`).join('|')}|${me.preferences.remindAt ?? ''}|${me.preferences.remindMode}`
+  const clampedIndex = Math.min(activeIndex, Math.max(0, activeGoals.length - 1))
+  const focusedModule = activeGoals[clampedIndex]?.module ?? null
+
+  function scrollToCard(index: number) {
+    const safeIdx = Math.max(0, Math.min(index, activeGoals.length - 1))
+    setActiveIndex(safeIdx)
+    const el = carouselRef.current
+    const child = el?.children.item(safeIdx) as HTMLElement | null
+    if (el && child) {
+      el.scrollTo({
+        left: child.offsetLeft - el.offsetLeft - 16,
+        behavior: 'smooth',
+      })
+    }
+  }
+
+  function handleCarouselScroll() {
+    const el = carouselRef.current
+    if (!el || activeGoals.length <= 1) return
+    const center = el.scrollLeft + el.clientWidth / 2
+    let bestIdx = 0
+    let bestDist = Number.POSITIVE_INFINITY
+    for (let i = 0; i < el.children.length; i++) {
+      const child = el.children.item(i) as HTMLElement | null
+      if (!child) continue
+      const childCenter = child.offsetLeft - el.offsetLeft + child.clientWidth / 2
+      const dist = Math.abs(childCenter - center)
+      if (dist < bestDist) {
+        bestDist = dist
+        bestIdx = i
+      }
+    }
+    if (bestIdx !== clampedIndex) setActiveIndex(bestIdx)
+  }
+
+  function openPeriodSheet() {
+    setPeriodSheetLoaded(true)
+    setPeriodSheetOpen(true)
+  }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-10">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3.5 pb-10">
+      {/* 顶部总览卡：双行清晰排布 + 右侧「设置」按钮弹出底部周期与提醒 Sheet */}
       <SettingsOverviewCard
         activeCount={activeGoals.length}
         checkedDays={overall.checkedDays}
@@ -146,47 +177,119 @@ export function GoalSettingsContent({
         deadlineDate={overall.deadlineDate}
         remindAt={me.preferences.remindAt}
         remindMode={me.preferences.remindMode}
+        onOpenPeriodSettings={openPeriodSheet}
       />
 
-      <SegmentedControl
-        label="目标设置分类"
-        options={SETTINGS_TABS}
-        value={tab}
-        onValueChange={setTab}
+      {/* 要坚持的打卡板块选择条：点已选板块直接定位下方卡片，点「增减板块」展开勾选项 */}
+      <ModuleSelectorStrip
+        active={activeGoals}
+        archived={archivedGoals}
+        focusedModule={focusedModule}
+        onFocusModule={(mod) => {
+          const idx = activeGoals.findIndex((g) => g.module === mod)
+          if (idx >= 0) scrollToCard(idx)
+        }}
       />
 
-      {tab === 'plan' && (
-        <div className="flex flex-col gap-4">
-          <ModuleSelection active={activeGoals} archived={archivedGoals} />
-          <GlobalPeriodSection
-            key={periodResetKey}
-            active={activeGoals}
-            startDate={earliestStart}
-            today={today}
-            initialDeadline={overall.deadlineDate ?? ''}
-            initialRemindAt={me.preferences.remindAt ?? ''}
-            initialRemindMode={me.preferences.remindMode}
-          />
-        </div>
-      )}
+      {/* 下方可左右滑动翻页的板块卡片轮播（每张卡完整含目标计划与达标规则） */}
+      {activeGoals.length === 0 ? (
+        <Card className="p-5 text-center">
+          <p className="text-caption text-muted">先在上方选择至少一个要坚持的打卡板块吧</p>
+        </Card>
+      ) : (
+        <section className="flex flex-col gap-2" aria-label="板块目标与规则卡片">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-1.5">
+              {activeGoals.map((g, idx) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  aria-label={`切换到 ${g.title}`}
+                  onClick={() => scrollToCard(idx)}
+                  className={cn(
+                    'h-2 rounded-full transition-all duration-(--dur-base)',
+                    idx === clampedIndex ? 'bg-primary w-5' : 'bg-border-strong w-2',
+                  )}
+                />
+              ))}
+            </div>
 
-      {tab === 'schedule' && <ScheduleSection active={activeGoals} />}
+            {activeGoals.length > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  aria-label="上一个板块"
+                  disabled={clampedIndex <= 0}
+                  onClick={() => scrollToCard(clampedIndex - 1)}
+                  className="text-muted hover:bg-surface-sunken inline-flex size-7 items-center justify-center rounded-full disabled:opacity-35"
+                >
+                  <Icon name="chevron-left" size={16} lineOnly />
+                </button>
+                <span className="font-display text-tiny text-muted tabular-nums">
+                  {clampedIndex + 1} / {activeGoals.length}
+                </span>
+                <button
+                  type="button"
+                  aria-label="下一个板块"
+                  disabled={clampedIndex >= activeGoals.length - 1}
+                  onClick={() => scrollToCard(clampedIndex + 1)}
+                  className="text-muted hover:bg-surface-sunken inline-flex size-7 items-center justify-center rounded-full disabled:opacity-35"
+                >
+                  <Icon name="chevron-right" size={16} lineOnly />
+                </button>
+              </div>
+            )}
+          </div>
 
-      {tab === 'rules' && (
-        <div className="flex flex-col gap-4">
-          <TierSection tier={me.preferences.refereeTier} />
-          <RulesAccordionSection active={activeGoals} />
-        </div>
+          <div
+            ref={carouselRef}
+            data-goal-carousel="true"
+            onScroll={handleCarouselScroll}
+            className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 pb-1 md:mx-0 md:px-0"
+          >
+            {activeGoals.map((g) => (
+              <div
+                key={`${g.id}-${g.updatedAt}`}
+                className={cn(
+                  'shrink-0 snap-center',
+                  activeGoals.length > 1
+                    ? 'w-[calc(100%-1.5rem)] sm:w-[calc(100%-2.5rem)]'
+                    : 'w-full',
+                )}
+              >
+                <GoalModuleCard
+                  goal={g}
+                  today={today}
+                  tier={me.preferences.refereeTier}
+                  defaultRulesOpen={initialTab === 'rules'}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       <div className="flex flex-wrap justify-center gap-2 pt-1">
-        <LinkButton href="/goals/new?module=custom" variant="soft" icon="plus">
+        <LinkButton href="/goals/new?module=custom" variant="soft" icon="plus" size="sm">
           新建自定义小目标
         </LinkButton>
-        <LinkButton href="/goals?status=archived" variant="soft" icon="clock">
+        <LinkButton href="/goals?status=archived" variant="soft" icon="clock" size="sm">
           已归档的目标
         </LinkButton>
       </div>
+
+      {periodSheetLoaded && (
+        <GoalPeriodSheet
+          open={periodSheetOpen}
+          onOpenChange={setPeriodSheetOpen}
+          active={activeGoals}
+          startDate={earliestStart}
+          today={today}
+          initialDeadline={overall.deadlineDate ?? ''}
+          initialRemindAt={me.preferences.remindAt ?? ''}
+          initialRemindMode={me.preferences.remindMode}
+        />
+      )}
     </div>
   )
 }
@@ -199,6 +302,7 @@ function SettingsOverviewCard({
   deadlineDate,
   remindAt,
   remindMode,
+  onOpenPeriodSettings,
 }: {
   activeCount: number
   checkedDays: number
@@ -207,46 +311,69 @@ function SettingsOverviewCard({
   deadlineDate: string | null
   remindAt: string | null
   remindMode: RemindMode
+  onOpenPeriodSettings: () => void
 }) {
+  const remindPart = remindMode !== 'off' && remindAt ? `提醒 ${remindAt}` : '提醒未开'
+
   return (
-    <Card variant="sticker" className="flex items-center gap-3.5 p-3.5">
+    <Card variant="sticker" className="flex items-center gap-3 p-3.5">
       <ProgressRing
         value={checkedDays}
         max={Math.max(1, targetDays)}
         tone="success"
-        size={56}
-        thickness={6}
+        size={52}
+        thickness={5.5}
         label={`总坚持进度：${checkedDays} / ${targetDays} 天`}
+        className="shrink-0"
       >
         <span className="flex flex-col items-center leading-none tabular-nums">
           <span className="font-display text-caption font-bold">{checkedDays}</span>
           <span className="text-tiny text-muted">/{targetDays}</span>
         </span>
       </ProgressRing>
+
+      {/* 严格两行清晰展示：第 1 行板块与周期，第 2 行截止日期与提醒 */}
       <div className="min-w-0 flex-1">
-        <p className="text-caption font-bold">
-          进行中 {activeCount} 个板块 ·{' '}
-          {hasDeadline && deadlineDate
-            ? `总周期 ${targetDays} 天（截止 ${deadlineDate}）`
-            : `阶段里程碑 ${targetDays} 天（未设截止日）`}
+        <p className="text-caption truncate font-bold tabular-nums">
+          {activeCount} 个板块 · {hasDeadline ? `共 ${targetDays} 天` : `里程碑 ${targetDays} 天`}
         </p>
-        <p className="text-tiny text-muted mt-0.5">
-          {remindMode !== 'off' && remindAt
-            ? `每日提醒：${remindAt}（${remindMode === 'native' ? '手机通知' : '应用内'}）`
-            : '每日总提醒：未开启'}
+        <p className="text-tiny text-muted mt-0.5 truncate tabular-nums">
+          {hasDeadline && deadlineDate ? `截止 ${deadlineDate}` : '未设截止日'} · {remindPart}
         </p>
       </div>
+
+      <button
+        type="button"
+        data-open-period-sheet="true"
+        onClick={onOpenPeriodSettings}
+        className="ease-spring bg-primary-soft text-primary-ink text-tiny inline-flex h-8.5 shrink-0 items-center gap-1 rounded-full px-3 font-semibold transition-[transform,filter] duration-(--dur-fast) hover:brightness-95 active:scale-95"
+      >
+        <Icon name="sliders" size={14} lineOnly />
+        <span>设置</span>
+      </button>
     </Card>
   )
 }
 
-/** ① 选择板块：取消勾选 = 归档，重新勾选 = 恢复（没有归档过就按默认值新建） */
-function ModuleSelection({ active, archived }: { active: Goal[]; archived: Goal[] }) {
+/** 要坚持的打卡板块选择条：快速点击切换下方卡片，点「增减板块」展开增删勾选 */
+function ModuleSelectorStrip({
+  active,
+  archived,
+  focusedModule,
+  onFocusModule,
+}: {
+  active: Goal[]
+  archived: Goal[]
+  focusedModule: Module | null
+  onFocusModule: (module: Module) => void
+}) {
   const qc = useQueryClient()
   const activeModules = [...new Set(active.map((g) => g.module))]
   const [selected, setSelected] = useState<Module[]>(activeModules)
+  const [editOpen, setEditOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>()
+
   const dirty =
     selected.length !== activeModules.length || selected.some((m) => !activeModules.includes(m))
 
@@ -258,7 +385,6 @@ function ModuleSelection({ active, archived }: { active: Goal[]; archived: Goal[
     setSaving(true)
     setError(undefined)
     const want = new Set(selected)
-    // 新开启的板块沿用当前统一的截止日期（如有）
     const sharedDeadline = active.find((g) => g.deadlineDate)?.deadlineDate ?? null
     const tasks: Promise<unknown>[] = []
     for (const g of active) {
@@ -293,6 +419,7 @@ function ModuleSelection({ active, archived }: { active: Goal[]; archived: Goal[
     try {
       await Promise.all(tasks)
       toast.success('打卡板块已更新')
+      setEditOpen(false)
     } catch (e) {
       toast.error(isApiError(e) ? errorMessage(e) : '有一项没保存成功，刷新后再试试')
     } finally {
@@ -303,405 +430,76 @@ function ModuleSelection({ active, archived }: { active: Goal[]; archived: Goal[
   }
 
   return (
-    <Card className="flex flex-col gap-3 p-4">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-subhead font-bold">要坚持的打卡板块</h2>
-        <span className="text-tiny text-muted">与新人引导同步</span>
-      </div>
-      <ModulesStep value={selected} onChange={setSelected} error={error} />
-      <p className="text-tiny text-muted">取消勾选的目标会归档，历史记录全部保留，随时能恢复。</p>
-      {dirty && (
-        <Button className="self-end" loading={saving} onClick={() => void save()}>
-          保存打卡板块
-        </Button>
-      )}
-    </Card>
-  )
-}
-
-/** ② 总打卡周期与每日提醒：统一同步到所有进行中目标 + 个人偏好 */
-function GlobalPeriodSection({
-  active,
-  startDate,
-  today,
-  initialDeadline,
-  initialRemindAt,
-  initialRemindMode,
-}: {
-  active: Goal[]
-  startDate: string
-  today: string
-  initialDeadline: string
-  initialRemindAt: string
-  initialRemindMode: RemindMode
-}) {
-  const qc = useQueryClient()
-  const updatePrefs = useUpdatePreferences()
-  const [deadlineDate, setDeadlineDate] = useState(initialDeadline)
-  const [remindAt, setRemindAt] = useState(initialRemindAt)
-  const [remindMode, setRemindMode] = useState<RemindMode>(initialRemindMode)
-  const [saving, setSaving] = useState(false)
-
-  const deadlineChanged = active.some((g) => (g.deadlineDate ?? '') !== deadlineDate)
-  const remindChanged = remindAt !== initialRemindAt || remindMode !== initialRemindMode
-  const dirty = deadlineChanged || remindChanged
-
-  async function save() {
-    setSaving(true)
-    try {
-      const tasks: Promise<unknown>[] = []
-      if (deadlineChanged) {
-        const nextDeadline = deadlineDate || null
-        for (const g of active) {
-          if ((g.deadlineDate ?? '') !== deadlineDate) {
-            tasks.push(
-              apiFetch(`/goals/${encodeURIComponent(g.id)}`, {
-                method: 'PATCH',
-                json: { deadlineDate: nextDeadline },
-              }),
-            )
-          }
-        }
-      }
-      if (remindChanged) {
-        tasks.push(
-          updatePrefs.mutateAsync({
-            remindAt: remindAt || null,
-            remindMode: remindAt ? remindMode : 'off',
-          }),
-        )
-      }
-      await Promise.all(tasks)
-      toast.success('总周期与提醒时间已保存')
-    } catch (e) {
-      toast.error(isApiError(e) ? errorMessage(e) : '没保存成功，稍后再试试')
-    } finally {
-      void qc.invalidateQueries({ queryKey: keys.goals.all })
-      void qc.invalidateQueries({ queryKey: keys.me.detail() })
-      for (const k of afterCheckinChange) void qc.invalidateQueries({ queryKey: k })
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Card className="flex flex-col gap-3 p-4">
-      <PeriodPlanPicker
-        idPrefix="settings-period"
-        startDate={startDate}
-        today={today}
-        deadlineDate={deadlineDate}
-        onDeadlineChange={setDeadlineDate}
-        remindAt={remindAt}
-        onRemindAtChange={setRemindAt}
-        remindMode={remindMode}
-        onRemindModeChange={setRemindMode}
-      />
-      <div className="flex justify-end">
-        <Button size="sm" disabled={!dirty} loading={saving} onClick={() => void save()}>
-          保存周期与提醒
-        </Button>
-      </div>
-    </Card>
-  )
-}
-
-/** ③ 每日目标量与计划星期/时间（折叠列表，按目标展开） */
-function ScheduleSection({ active }: { active: Goal[] }) {
-  const [openId, setOpenId] = useState<string | null>(() => active[0]?.id ?? null)
-
-  if (active.length === 0) {
-    return (
-      <Card className="p-4">
-        <p className="text-caption text-muted">请先在「板块与周期」中至少选择一个打卡板块。</p>
-      </Card>
-    )
-  }
-
-  return (
-    <section className="flex flex-col gap-2.5" aria-label="每日目标与计划">
-      <div className="flex items-baseline justify-between gap-2 px-1">
-        <h2 className="text-subhead font-bold">每日目标量与计划时间</h2>
-        <span className="text-tiny text-muted">点开对应目标单独调整</span>
-      </div>
-      {active.map((g) => (
-        <GoalScheduleItem
-          key={`${g.id}-${g.updatedAt}`}
-          goal={g}
-          open={openId === g.id}
-          onToggle={() => setOpenId(openId === g.id ? null : g.id)}
-        />
-      ))}
-    </section>
-  )
-}
-
-function goalScheduleSummary(goal: Goal): string {
-  const targetStr =
-    goal.target.kind === 'duration'
-      ? `每天 ${formatDuration(goal.target.value)}`
-      : `每天 ${goal.target.value} ${goal.module === 'diet' ? '餐' : '次'}`
-  const daysStr = goal.weekdays.length === 7 ? '每天' : `每周 ${goal.weekdays.length} 天`
-  const timeStr = goal.plannedTime ? ` · ${goal.plannedTime}` : ''
-  return `${targetStr} · ${daysStr}${timeStr}`
-}
-
-function GoalScheduleItem({
-  goal,
-  open,
-  onToggle,
-}: {
-  goal: Goal
-  open: boolean
-  onToggle: () => void
-}) {
-  const update = useUpdateGoal(goal.id)
-  const [target, setTarget] = useState<TargetDraft>({
-    kind: goal.target.kind,
-    value: goal.target.value,
-  })
-  const [weekdays, setWeekdays] = useState<number[]>([...goal.weekdays])
-  const [plannedTime, setPlannedTime] = useState(goal.plannedTime ?? '')
-  const [deadlineDate, setDeadlineDate] = useState(goal.deadlineDate ?? '')
-
-  const dirty =
-    target.kind !== goal.target.kind ||
-    target.value !== goal.target.value ||
-    JSON.stringify(weekdays) !== JSON.stringify(goal.weekdays) ||
-    plannedTime !== (goal.plannedTime ?? '') ||
-    deadlineDate !== (goal.deadlineDate ?? '')
-
-  function save() {
-    if (target.value === null || target.value < 1) {
-      toast.error('请填写有效的每日目标量')
-      return
-    }
-    if (weekdays.length === 0) {
-      toast.error('至少选择一天打卡星期')
-      return
-    }
-    update.mutate(
-      {
-        target: { kind: target.kind, value: target.value },
-        weekdays,
-        plannedTime: plannedTime || null,
-        deadlineDate: deadlineDate || null,
-      },
-      {
-        onSuccess: () => toast.success(`「${goal.title}」计划已保存`),
-        onError: (e) => toast.error(isApiError(e) ? errorMessage(e) : '没保存成功，稍后再试试'),
-      },
-    )
-  }
-
-  return (
-    <Card className="overflow-hidden p-0">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className="flex min-h-14 w-full items-center gap-3 px-3.5 py-2.5 text-left"
-      >
-        <IconTile icon={moduleMeta[goal.module].icon} tone={goal.module} size="md" />
-        <div className="min-w-0 flex-1">
-          <p className="text-caption truncate font-bold">{goal.title}</p>
-          <p className="text-tiny text-muted truncate">{goalScheduleSummary(goal)}</p>
-        </div>
-        <Icon
-          name="chevron-down"
-          size={16}
-          className={cn('text-subtle shrink-0 transition-transform', open && 'rotate-180')}
-        />
-      </button>
-      <Collapse open={open}>
-        <div className="border-border/60 flex flex-col gap-4 border-t px-3.5 pt-3 pb-3.5">
-          <Field
-            label="每日目标量"
-            htmlFor={`sched-target-${goal.id}`}
-            hint={goal.module === 'sleep' ? '睡够多久算完成' : '达到这个量就算完成今天'}
-          >
-            <TargetEditor
-              id={`sched-target-${goal.id}`}
-              module={goal.module}
-              value={target}
-              onValueChange={setTarget}
-            />
-          </Field>
-
-          <Field
-            label="哪几天打卡"
-            htmlFor={`sched-week-${goal.id}`}
-            hint="其他日子也能补记或额外打卡，只是不计入当天计划"
-          >
-            <WeekdayPicker
-              id={`sched-week-${goal.id}`}
-              value={weekdays}
-              onValueChange={setWeekdays}
-            />
-          </Field>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <TimeField
-              id={`sched-time-${goal.id}`}
-              label="计划时段（可选）"
-              value={plannedTime}
-              onValueChange={setPlannedTime}
-            />
-            <DateField
-              id={`sched-deadline-${goal.id}`}
-              label="单独截止日期（可选）"
-              value={deadlineDate}
-              onValueChange={setDeadlineDate}
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex gap-2">
-              <LinkButton href={`/goals/${goal.id}/checkin`} variant="soft" size="sm">
-                去打卡
-              </LinkButton>
-              <LinkButton href={`/goals/${goal.id}`} variant="soft" size="sm">
-                目标详情
-              </LinkButton>
-            </div>
-            <Button size="sm" disabled={!dirty} loading={update.isPending} onClick={save}>
-              保存计划
-            </Button>
-          </div>
-        </div>
-      </Collapse>
-    </Card>
-  )
-}
-
-/** ④ 个人体质：改了立刻保存（偏好接口自带乐观更新） */
-function TierSection({ tier }: { tier: RefereeTier }) {
-  const update = useUpdatePreferences()
-  return (
-    <Card className="flex flex-col gap-3 p-4">
-      <div className="flex flex-col gap-0.5">
-        <h2 className="text-subhead font-bold">你是哪一类人群</h2>
-        <p className="text-tiny text-muted">饮食裁判按这个分档评分，体重变了可以随时换</p>
-      </div>
-      <TierPicker
-        value={tier}
-        onChange={(refereeTier) =>
-          update.mutate(
-            { refereeTier },
-            {
-              onError: (e) =>
-                toast.error(isApiError(e) ? errorMessage(e) : '没保存成功，稍后再试试'),
-            },
-          )
-        }
-      />
-    </Card>
-  )
-}
-
-/** ⑤ 达标与裁判规则（手风琴折叠列表，按板块展开编辑） */
-function RulesAccordionSection({ active }: { active: Goal[] }) {
-  const [openId, setOpenId] = useState<string | null>(() => active[0]?.id ?? null)
-
-  return (
-    <section className="flex flex-col gap-2.5" aria-labelledby="rules-title">
-      <div className="flex items-end justify-between gap-2 px-1">
-        <h2 id="rules-title" className="text-subhead font-bold">
-          达标规则
-        </h2>
-        <span className="text-tiny text-muted">只影响之后的打卡</span>
-      </div>
-      {active.length === 0 ? (
-        <Card className="p-4">
-          <p className="text-caption text-muted">先在「板块与周期」选一个打卡板块</p>
-        </Card>
-      ) : (
-        active.map((g) => (
-          <GoalRulesCard
-            key={`${g.id}-${g.updatedAt}`}
-            goal={g}
-            open={openId === g.id}
-            onToggle={() => setOpenId(openId === g.id ? null : g.id)}
+    <Card className="flex flex-col gap-2.5 p-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-caption font-bold">要坚持的打卡板块</h2>
+        <button
+          type="button"
+          aria-expanded={editOpen}
+          onClick={() => {
+            setSelected(activeModules)
+            setError(undefined)
+            setEditOpen((o) => !o)
+          }}
+          className="text-tiny text-primary-ink hover:bg-primary-soft/60 inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold transition-colors"
+        >
+          <span>{editOpen ? '收起' : '增减板块'}</span>
+          <Icon
+            name="chevron-down"
+            size={13}
+            className={cn('transition-transform duration-(--dur-base)', editOpen && 'rotate-180')}
+            lineOnly
           />
-        ))
-      )}
-    </section>
-  )
-}
+        </button>
+      </div>
 
-function GoalRulesCard({
-  goal,
-  open,
-  onToggle,
-}: {
-  goal: Goal
-  open: boolean
-  onToggle: () => void
-}) {
-  const def = moduleDef(goal.module)
-  const update = useUpdateGoal(goal.id)
-  const [rules, setRules] = useState<RefereeRules>(() =>
-    effectiveRules(goal.module, goal.refereeRules),
-  )
-  const stored = effectiveRules(goal.module, goal.refereeRules)
-  const dirty = JSON.stringify(rules) !== JSON.stringify(stored)
-  const Editor = def.RulesEditor
-
-  function save() {
-    update.mutate(
-      { refereeRules: isDefaultRules(rules) ? null : rules },
-      {
-        onSuccess: () => toast.success(`「${goal.title}」的规则已保存`),
-        onError: (e) => toast.error(isApiError(e) ? errorMessage(e) : '没保存成功，稍后再试试'),
-      },
-    )
-  }
-
-  return (
-    <Card className="overflow-hidden p-0" data-goal-rules={goal.module}>
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className="flex min-h-14 w-full items-center gap-3 px-3.5 py-2.5 text-left"
-      >
-        <IconTile icon={moduleMeta[goal.module].icon} tone={goal.module} size="md" />
-        <div className="min-w-0 flex-1">
-          <p className="text-caption truncate font-bold">{goal.title}</p>
-          <p className="text-tiny text-muted truncate">
-            {def.docs(rules as never, goal).glance.threshold}
-          </p>
-        </div>
-        <Icon
-          name="chevron-down"
-          size={16}
-          className={cn('text-subtle shrink-0 transition-transform', open && 'rotate-180')}
-        />
-      </button>
-      <Collapse open={open}>
-        <div className="border-border/60 flex flex-col gap-3 border-t px-3.5 pt-3 pb-3.5">
-          <Editor
-            rules={rules as never}
-            onChange={(r) => setRules(r as RefereeRules)}
-            goal={goal}
-          />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <LinkButton href={`/goals/${goal.id}/checkin`} variant="soft" size="sm">
-              去打卡
-            </LinkButton>
-            <div className="flex gap-2">
-              {!isDefaultRules(rules) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setRules(effectiveRules(goal.module, null))}
-                >
-                  恢复默认
-                </Button>
+      {/* 5 个板块紧凑快选条：已启用板块点击直接定位下方对应卡片 */}
+      <div className="grid grid-cols-5 gap-1.5">
+        {MODULES.map((m) => {
+          const isActive = activeModules.includes(m)
+          const isFocused = isActive && focusedModule === m
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => {
+                if (isActive) {
+                  onFocusModule(m)
+                } else {
+                  setSelected((prev) => (prev.includes(m) ? prev : [...prev, m]))
+                  setEditOpen(true)
+                }
+              }}
+              className={cn(
+                'ease-spring flex flex-col items-center justify-center gap-1 rounded-xl border py-2 transition-[transform,background-color,border-color,box-shadow] duration-(--dur-fast) active:scale-95',
+                isActive
+                  ? cn(
+                      softToneClass[m],
+                      isFocused
+                        ? 'border-primary ring-primary/35 shadow-soft ring-2'
+                        : 'border-transparent opacity-80 hover:opacity-100',
+                    )
+                  : 'border-border bg-surface-sunken/50 text-subtle hover:text-muted border-dashed',
               )}
-              <Button size="sm" disabled={!dirty} loading={update.isPending} onClick={save}>
-                保存
+            >
+              <Icon name={moduleMeta[m].icon} size={18} />
+              <span className="text-tiny leading-none font-semibold">{moduleMeta[m].label}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* 展开「增减板块」时完整支持勾选与归档恢复 */}
+      <Collapse open={editOpen} unmountOnCollapse>
+        <div className="border-border/70 flex flex-col gap-2.5 border-t pt-3">
+          <ModulesStep value={selected} onChange={setSelected} error={error} />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-tiny text-muted">取消勾选将归档，历史记录保留</span>
+            {dirty && (
+              <Button size="sm" loading={saving} onClick={() => void save()}>
+                保存板块
               </Button>
-            </div>
+            )}
           </div>
         </div>
       </Collapse>
@@ -713,9 +511,8 @@ function SettingsSkeleton() {
   return (
     <div role="status" aria-label="加载中" className="mx-auto grid w-full max-w-2xl gap-3">
       <Skeleton className="h-20 w-full rounded-2xl" />
-      <Skeleton className="h-10 w-full rounded-full" />
-      <Skeleton className="h-56 w-full rounded-2xl" />
-      <Skeleton className="h-44 w-full rounded-2xl" />
+      <Skeleton className="h-24 w-full rounded-2xl" />
+      <Skeleton className="h-72 w-full rounded-2xl" />
     </div>
   )
 }

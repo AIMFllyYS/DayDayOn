@@ -1,21 +1,23 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
-import { DateField } from '@/components/ui/date-field'
-import { Field } from '@/components/ui/field'
-import { NumberField } from '@/components/ui/number-field'
+import { useEffect, useRef, useState } from 'react'
+import { Calendar } from '@/components/ui/calendar'
+import { Collapse } from '@/components/ui/collapse'
+import { Icon } from '@/components/ui/icon'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { TimeField } from '@/components/ui/time-field'
+import { Slider } from '@/components/ui/slider'
+import { TimePicker } from '@/components/ui/time-picker'
 import type { RemindMode } from '@/features/me/schemas'
 import type { LocalDate } from '@/features/shared/schemas'
 import { cn } from '@/lib/cn'
 import { daysBetween } from '@/lib/time'
-import { PERIOD_DAY_PRESETS, daysFromDeadline, deadlineFromDays } from '../period'
+import { daysFromDeadline, deadlineFromDays } from '../period'
 
 /*
- * 统一的总打卡周期与每日提醒选择器（新人引导与全局「目标设置」共用）。
- * - 快捷胶囊（7 / 14 / 21 / 30 / 60 / 100 天 / 不设期限）与「总坚持天数 ↔ 截止日期」双向联动。
- * - 每日总提醒时间（remindAt），可选设置或一键清空。
+ * 统一的总打卡周期与每日提醒选择器（新人引导与「目标设置 → 周期与提醒」底部 Sheet 共用）：
+ * - 明确「总打卡周期 = 目标坚持天数」（同一概念合一，避免重复迷惑）；
+ * - 取消 7/14/21/30 选项栏，改为可左右平滑滚动的连续天数滚轮 + 拖动滑块与 ± 微调；
+ * - 截止日期复用共享手账 <Calendar />，提醒时间复用打卡同款 <TimePicker />，彻底消除移动端换行溢出。
  */
 
 interface PeriodPlanPickerProps {
@@ -41,6 +43,106 @@ const REMIND_MODE_OPTIONS: ReadonlyArray<{ value: RemindMode; label: string }> =
   { value: 'off', label: '关闭' },
 ]
 
+const WHEEL_MAX_DAYS = 365
+const WHEEL_ITEM_W = 56
+const WHEEL_DAYS = Array.from({ length: WHEEL_MAX_DAYS }, (_, i) => i + 1)
+const REMIND_TIME_PRESETS = ['08:00', '12:00', '20:00', '21:00'] as const
+
+/** 连续横向滚动的天数滚轮（1–365 天），替代固定 7/14/21 选项栏 */
+function CycleDaysWheel({ value, onChange }: { value: number; onChange: (days: number) => void }) {
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const mountedRef = useRef(false)
+  const programmaticRef = useRef(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clamped = Math.min(WHEEL_MAX_DAYS, Math.max(1, value))
+
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!el) return
+    const targetLeft = (clamped - 1) * WHEEL_ITEM_W
+    if (!mountedRef.current) {
+      el.scrollLeft = targetLeft
+      mountedRef.current = true
+      return
+    }
+    if (Math.abs(el.scrollLeft - targetLeft) > 2) {
+      programmaticRef.current = true
+      el.scrollTo({ left: targetLeft, behavior: 'smooth' })
+      const t = setTimeout(() => {
+        programmaticRef.current = false
+      }, 260)
+      return () => clearTimeout(t)
+    }
+  }, [clamped])
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    },
+    [],
+  )
+
+  function handleScroll() {
+    if (programmaticRef.current) return
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      const el = scrollerRef.current
+      if (!el) return
+      const nextDay = Math.min(
+        WHEEL_MAX_DAYS,
+        Math.max(1, Math.round(el.scrollLeft / WHEEL_ITEM_W) + 1),
+      )
+      if (nextDay !== clamped) onChange(nextDay)
+    }, 90)
+  }
+
+  return (
+    <div className="bg-surface border-border relative overflow-hidden rounded-xl border py-1">
+      <div
+        ref={scrollerRef}
+        role="listbox"
+        aria-label="滚动选择坚持天数"
+        data-base-ui-swipe-ignore="x"
+        onScroll={handleScroll}
+        className="flex snap-x snap-mandatory [scrollbar-width:none] items-center overflow-x-auto overscroll-x-contain [mask-image:linear-gradient(to_right,transparent,black_18%,black_82%,transparent)] px-[calc(50%-1.75rem)] [&::-webkit-scrollbar]:hidden"
+      >
+        {WHEEL_DAYS.map((day) => {
+          const active = day === clamped
+          return (
+            <button
+              key={day}
+              type="button"
+              role="option"
+              aria-selected={active}
+              onClick={() => onChange(day)}
+              className={cn(
+                'flex h-9 w-14 shrink-0 snap-center flex-col items-center justify-center rounded-lg font-semibold tabular-nums transition-colors duration-(--dur-fast)',
+                active
+                  ? 'bg-primary-soft text-primary-ink text-caption'
+                  : 'text-muted hover:text-foreground text-tiny',
+              )}
+            >
+              <span>{day}</span>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'mt-0.5 rounded-full',
+                  active
+                    ? 'bg-primary h-1 w-3'
+                    : day % 5 === 0
+                      ? 'bg-border-strong h-1.5 w-0.5'
+                      : 'bg-border h-1 w-0.5',
+                )}
+              />
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function PeriodPlanPicker({
   startDate,
   today,
@@ -50,158 +152,260 @@ export function PeriodPlanPicker({
   onRemindAtChange,
   remindMode,
   onRemindModeChange,
-  idPrefix = 'period-plan',
 }: PeriodPlanPickerProps) {
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [timePickerOpen, setTimePickerOpen] = useState(false)
+
   const hasDeadline = Boolean(deadlineDate)
   const totalDays =
     deadlineDate && deadlineDate >= startDate ? daysFromDeadline(startDate, deadlineDate) : null
   const remainingDays = deadlineDate ? daysBetween(today, deadlineDate) : null
   const minDate = today >= startDate ? today : startDate
 
-  function selectDays(days: number | null) {
-    if (days === null) {
-      onDeadlineChange('')
-      return
+  const effectiveRemindMode: RemindMode = remindMode ?? (remindAt ? 'in-app' : 'off')
+  const reminderEnabled = effectiveRemindMode !== 'off'
+  const currentTime = remindAt || '21:00'
+
+  function applyDays(days: number) {
+    const clamped = Math.min(3650, Math.max(1, Math.round(days)))
+    const base =
+      today > startDate && deadlineFromDays(startDate, clamped) < today ? today : startDate
+    onDeadlineChange(deadlineFromDays(base, clamped))
+  }
+
+  function handleModeChange(next: RemindMode) {
+    onRemindModeChange?.(next)
+    if (next === 'off') {
+      setTimePickerOpen(false)
+    } else if (!remindAt) {
+      onRemindAtChange('21:00')
     }
-    const base = today > startDate && deadlineFromDays(startDate, days) < today ? today : startDate
-    onDeadlineChange(deadlineFromDays(base, days))
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-caption font-bold">总打卡周期 / 坚持天数</span>
-          <span className="text-tiny text-muted">主页与打卡页圆环按此展示</span>
-        </div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="快捷周期">
-          {PERIOD_DAY_PRESETS.map((days) => {
-            const active = totalDays === days
-            return (
-              <button
-                key={days}
-                type="button"
-                aria-pressed={active}
-                onClick={() => selectDays(days)}
-                className={cn(
-                  'text-caption ease-spring min-h-9 rounded-full border px-3 py-1 font-semibold transition-colors duration-(--dur-fast)',
-                  active
-                    ? 'border-primary bg-primary text-on-primary shadow-soft'
-                    : 'border-border bg-surface hover:bg-background text-foreground',
-                )}
-              >
-                {days} 天
-              </button>
-            )
-          })}
+      {/* ① 总打卡周期（即目标坚持天数，与截止日期双向同步） */}
+      <div className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-baseline gap-2">
+            <span className="text-caption font-bold">总打卡周期</span>
+            <span className="text-tiny text-subtle">即目标坚持天数</span>
+          </div>
           <button
             type="button"
-            aria-pressed={!hasDeadline}
-            onClick={() => selectDays(null)}
+            onClick={() => {
+              if (hasDeadline) {
+                onDeadlineChange('')
+                setCalendarOpen(false)
+              } else {
+                applyDays(30)
+              }
+            }}
             className={cn(
-              'text-caption ease-spring min-h-9 rounded-full border px-3 py-1 font-semibold transition-colors duration-(--dur-fast)',
+              'ease-spring text-tiny inline-flex h-7.5 shrink-0 items-center rounded-full border px-2.5 font-semibold transition-colors duration-(--dur-fast) active:scale-95',
               !hasDeadline
-                ? 'border-primary bg-primary-soft text-primary-ink'
-                : 'border-border bg-surface hover:bg-background text-muted',
+                ? 'border-primary/45 bg-primary-soft text-primary-ink'
+                : 'border-border bg-surface text-muted hover:text-foreground',
             )}
           >
-            不设期限
+            {hasDeadline ? '改为不设期限' : '当前不设期限'}
           </button>
         </div>
 
-        <div className="grid gap-3 pt-1 sm:grid-cols-2">
-          <Field label="目标坚持天数" htmlFor={`${idPrefix}-days`} aside="1–3650 天">
-            <NumberField
-              id={`${idPrefix}-days`}
-              value={totalDays}
-              onValueChange={(v) => {
-                if (v === null) {
-                  onDeadlineChange('')
-                  return
-                }
-                const clamped = Math.min(3650, Math.max(1, Math.round(v)))
-                onDeadlineChange(deadlineFromDays(startDate, clamped))
-              }}
-              min={1}
-              max={3650}
-              step={1}
-              largeStep={7}
-              unit="天"
-              format={{ maximumFractionDigits: 0 }}
-            />
-          </Field>
-          <DateField
-            id={`${idPrefix}-deadline`}
-            label="截止日期（可选）"
-            value={deadlineDate}
-            min={minDate}
-            onValueChange={onDeadlineChange}
-          />
-        </div>
+        {/* 横向滚动天数刻度条 + 滑块（替代堆砌按钮） */}
+        <div className="border-border bg-surface-sunken/60 flex flex-col gap-2.5 rounded-2xl border p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-display text-heading text-foreground font-bold tabular-nums">
+                {totalDays !== null ? `${totalDays} 天` : '按阶段里程碑'}
+              </span>
+              {hasDeadline && remainingDays !== null && (
+                <span className="text-tiny text-muted">
+                  {remainingDays >= 0 ? `还剩 ${remainingDays} 天` : '已到期'}
+                </span>
+              )}
+            </div>
 
-        <p className="text-tiny text-muted">
-          {hasDeadline && totalDays !== null
-            ? `从 ${startDate} 至 ${deadlineDate}，共 ${totalDays} 天${
-                remainingDays !== null
-                  ? remainingDays >= 0
-                    ? `（距离截止还有 ${remainingDays} 天）`
-                    : '（已到截止日，可顺延天数）'
-                  : ''
-              }`
-            : '当前不设截止日期，主页将按 7 / 14 / 21 / 30 天阶段里程碑展示进度'}
-        </p>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                aria-label="减少 1 天"
+                disabled={totalDays !== null && totalDays <= 1}
+                onClick={() => applyDays((totalDays ?? 30) - 1)}
+                className="border-border bg-surface text-foreground hover:bg-surface-sunken inline-flex size-8 items-center justify-center rounded-full border text-base font-bold disabled:opacity-40"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                aria-label="增加 1 天"
+                onClick={() => applyDays((totalDays ?? 29) + 1)}
+                className="border-border bg-surface text-foreground hover:bg-surface-sunken inline-flex size-8 items-center justify-center rounded-full border text-base font-bold"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          {/* 连续横向滚动天数滚轮（1–365 天，无固定选项栏） */}
+          <CycleDaysWheel value={totalDays ?? 30} onChange={applyDays} />
+
+          {/* 顺滑拖动条（快速跨度调节 1–365 天，与滚轮及截止日期双向同步） */}
+          <Slider
+            ariaLabel="总打卡周期天数"
+            min={1}
+            max={365}
+            step={1}
+            value={Math.min(365, totalDays ?? 30)}
+            onValueChange={(v) => applyDays(v)}
+            tone="primary"
+          />
+
+          {/* 截止日期：复用共享手账 <Calendar /> */}
+          <div className="border-border/65 border-t pt-2.5">
+            <button
+              type="button"
+              aria-expanded={calendarOpen}
+              onClick={() => setCalendarOpen((o) => !o)}
+              className="flex min-h-9 w-full items-center justify-between gap-2 text-left"
+            >
+              <span className="text-caption text-foreground flex items-center gap-1.5 font-semibold">
+                <Icon name="calendar" size={15} className="text-primary-ink shrink-0" lineOnly />
+                <span>截止日期</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="text-caption text-primary-ink font-semibold tabular-nums">
+                  {hasDeadline ? deadlineDate : '未设定'}
+                </span>
+                <Icon
+                  name="chevron-down"
+                  size={15}
+                  className={cn(
+                    'text-subtle transition-transform duration-(--dur-base)',
+                    calendarOpen && 'rotate-180',
+                  )}
+                />
+              </span>
+            </button>
+
+            <Collapse open={calendarOpen} unmountOnCollapse>
+              <div className="border-border bg-surface mt-2 rounded-xl border p-2.5">
+                <Calendar
+                  label="选择总截止日期"
+                  today={today}
+                  defaultMonth={(deadlineDate || today).slice(0, 7)}
+                  minDate={minDate}
+                  maxMonth="2099-12"
+                  selected={deadlineDate || null}
+                  marks={
+                    deadlineDate
+                      ? [{ date: deadlineDate, tone: 'primary', variant: 'done', label: '截止日' }]
+                      : []
+                  }
+                  onDayClick={(d) => {
+                    onDeadlineChange(d)
+                    setCalendarOpen(false)
+                  }}
+                />
+              </div>
+            </Collapse>
+          </div>
+        </div>
       </div>
 
-      <div className="border-border/70 flex flex-col gap-3 border-t pt-3">
-        <div className="flex items-end gap-2">
-          <div className="min-w-0 flex-1">
-            <TimeField
-              id={`${idPrefix}-remind`}
-              label="每日总提醒时间（可选）"
-              aside={remindAt ? '到点没打完提醒你' : '未开启'}
-              value={remindAt}
-              onValueChange={(v) => {
-                onRemindAtChange(v)
-                if (v && remindMode === 'off' && onRemindModeChange) {
-                  onRemindModeChange('in-app')
-                }
-              }}
-            />
-          </div>
-          {remindAt && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="mb-1 shrink-0"
-              onClick={() => {
-                onRemindAtChange('')
-                if (onRemindModeChange) onRemindModeChange('off')
-              }}
-            >
-              清空
-            </Button>
-          )}
+      {/* ② 每日提醒：保持清晰的提醒方式分段，修复换行溢出并复用打卡同款 TimePicker */}
+      <div className="border-border/70 flex flex-col gap-2.5 border-t pt-3.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-caption font-bold">每日提醒</span>
+          <span className="text-tiny text-muted tabular-nums">
+            {reminderEnabled && remindAt ? `每天 ${remindAt}` : '已关闭'}
+          </span>
         </div>
 
         {remindMode !== undefined && onRemindModeChange && (
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-tiny text-muted font-semibold">提醒方式</span>
-              <span className="text-tiny text-muted">
-                {remindMode === 'native'
-                  ? '需在「我的 → 打卡与提醒」开启手机通知权限'
-                  : remindMode === 'in-app'
-                    ? '打开主页时展示温柔提醒横幅'
-                    : '已暂停每日提醒'}
-              </span>
-            </div>
             <SegmentedControl
               label="提醒方式"
+              size="sm"
               options={REMIND_MODE_OPTIONS}
               value={remindMode}
-              onValueChange={onRemindModeChange}
+              onValueChange={handleModeChange}
             />
+            <p className="text-tiny text-muted px-0.5">
+              {remindMode === 'native'
+                ? '按设定时间推送系统通知（需开启手机通知权限）'
+                : remindMode === 'in-app'
+                  ? '过提醒时间后在主页顶部温和提示'
+                  : '已暂停每日打卡提醒'}
+            </p>
+          </div>
+        )}
+
+        {reminderEnabled && (
+          <div className="border-border bg-surface-sunken/60 flex flex-col gap-2 rounded-2xl border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                aria-expanded={timePickerOpen}
+                onClick={() => setTimePickerOpen((o) => !o)}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              >
+                <Icon name="clock" size={15} className="text-primary-ink shrink-0" lineOnly />
+                <span className="text-caption font-semibold">提醒时刻</span>
+                <span className="font-display text-caption text-primary-ink ml-auto font-bold tabular-nums">
+                  {currentTime}
+                </span>
+                <Icon
+                  name="chevron-down"
+                  size={15}
+                  className={cn(
+                    'text-subtle shrink-0 transition-transform duration-(--dur-base)',
+                    timePickerOpen && 'rotate-180',
+                  )}
+                />
+              </button>
+              {remindAt && !onRemindModeChange && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRemindAtChange('')
+                    setTimePickerOpen(false)
+                  }}
+                  className="text-tiny text-muted hover:text-foreground shrink-0 rounded-full px-2 py-0.5 font-semibold"
+                >
+                  清空
+                </button>
+              )}
+            </div>
+
+            <Collapse open={timePickerOpen} unmountOnCollapse>
+              <div className="flex flex-col gap-2 pt-1">
+                <div className="flex items-center justify-end gap-1">
+                  {REMIND_TIME_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => onRemindAtChange(preset)}
+                      className={cn(
+                        'text-tiny rounded-full px-2 py-0.5 font-semibold tabular-nums transition-colors',
+                        currentTime === preset
+                          ? 'bg-primary text-on-primary'
+                          : 'border-border bg-surface text-muted hover:text-foreground border',
+                      )}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                <TimePicker
+                  label="每日提醒时间"
+                  value={currentTime}
+                  onChange={onRemindAtChange}
+                  tone="primary"
+                  className="bg-surface border-border border"
+                />
+              </div>
+            </Collapse>
           </div>
         )}
       </div>
