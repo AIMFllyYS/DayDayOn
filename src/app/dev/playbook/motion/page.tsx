@@ -1,5 +1,11 @@
 import type { Metadata } from 'next'
-import { EasingDemo, FeedbackDemo, PresetGallery, SplashDemo } from '../_components/motion-demos'
+import {
+  EasingDemo,
+  FeedbackDemo,
+  PageTransitionDemo,
+  PresetGallery,
+  SplashDemo,
+} from '../_components/motion-demos'
 import { PageHeader, Rules, Section } from '../_components/section'
 import { TokenValue } from '../_components/token-value'
 
@@ -10,6 +16,8 @@ const durations = [
   { name: '--dur-fast', use: '按压、颜色切换' },
   { name: '--dur-base', use: '开关、分段切换、展开' },
   { name: '--dur-slow', use: '进场、弹层、进度变化' },
+  { name: '--dur-page-push', use: '传统子页面右进左出（舒缓偏慢）' },
+  { name: '--dur-page-expand', use: '聚焦点击点径向铺开全屏' },
   { name: '--dur-celebrate', use: '盖章等庆祝动画' },
 ] as const
 
@@ -44,6 +52,14 @@ export default function MotionPage() {
 
       <Section ann="playbook.motion.presets" title="动画预设">
         <PresetGallery />
+      </Section>
+
+      <Section
+        ann="playbook.motion.transitions"
+        title="页面与聚焦转场"
+        description="全站页面切换统一分为两类：传统子页面采用舒缓偏慢的右进左出（page-push），主页板块卡片与好友房间切换以点击处为圆心径向铺开全屏（page-expand）。"
+      >
+        <PageTransitionDemo />
       </Section>
 
       <Section ann="playbook.motion.feedback" title="交互反馈">
