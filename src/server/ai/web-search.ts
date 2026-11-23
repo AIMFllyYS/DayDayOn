@@ -36,15 +36,32 @@ interface ApiErrorBody {
   error?: { message?: string; code?: string }
 }
 
-async function post(path: string, body: unknown): Promise<{ status: number; json: unknown }> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey()}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
+const WEB_TOOL_TIMEOUT_MS = 15_000
+
+async function post(
+  path: string,
+  body: unknown,
+): Promise<{ status: number; json: unknown; networkError?: string }> {
+  let res: Response
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(WEB_TOOL_TIMEOUT_MS),
+    })
+  } catch (error) {
+    const name = error instanceof Error ? error.name : 'NetworkError'
+    return {
+      status: 0,
+      json: null,
+      networkError:
+        name === 'TimeoutError' || name === 'AbortError' ? '请求超时' : `网络异常(${name})`,
+    }
+  }
   let json: unknown = null
   try {
     json = await res.json()
@@ -54,7 +71,8 @@ async function post(path: string, body: unknown): Promise<{ status: number; json
   return { status: res.status, json }
 }
 
-function detail(status: number, json: unknown): string {
+function detail(status: number, json: unknown, networkError?: string): string {
+  if (networkError) return networkError
   const e = (json as ApiErrorBody | null)?.error
   return e?.message ?? e?.code ?? `HTTP ${status}`
 }
@@ -64,12 +82,12 @@ export async function searchWeb(
   query: string,
   count = 5,
 ): Promise<{ ok: true; results: SearchResult[] } | { ok: false; reason: string }> {
-  const { status, json } = await post('/v1/tools/search', {
+  const { status, json, networkError } = await post('/v1/tools/search', {
     query: query.slice(0, 128),
     count: Math.min(Math.max(count, 1), 10),
     need_content: false,
   })
-  if (status !== 200) return { ok: false, reason: detail(status, json) }
+  if (status !== 200) return { ok: false, reason: detail(status, json, networkError) }
   const results = ((json as { results?: unknown[] }).results ?? []).map((r) => {
     const o = r as Record<string, unknown>
     return {
@@ -89,8 +107,8 @@ export async function searchWeb(
 export async function fetchWeb(
   url: string,
 ): Promise<{ ok: true; page: FetchedPage } | { ok: false; reason: string }> {
-  const { status, json } = await post('/v1/tools/fetch', { url: url.slice(0, 8192) })
-  if (status !== 200) return { ok: false, reason: detail(status, json) }
+  const { status, json, networkError } = await post('/v1/tools/fetch', { url: url.slice(0, 8192) })
+  if (status !== 200) return { ok: false, reason: detail(status, json, networkError) }
   const o = json as { title?: unknown; content?: unknown }
   const content = String(o.content ?? '')
   return {

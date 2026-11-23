@@ -25,7 +25,7 @@ import {
   SETTLE_RETRY_DELAY_MS,
   type RunOutcome,
 } from './run'
-import { buildAgent, MAX_OUTPUT_TOKENS_PER_STEP, MAX_STEPS } from './agent'
+import { AGENT_RESERVE_OUTPUT_TOKENS, buildAgent, DEEP_THINK_RESERVE_OUTPUT_TOKENS } from './agent'
 import { MAX_SEARCHES_PER_TURN, SEARCH_FETCH_COST_MICROS, type SearchBudget } from './agent-tools'
 import {
   ensureConversation,
@@ -41,13 +41,14 @@ import type { AiRunStatus } from '@/features/quota/schemas'
 
 /*
  * Agent 对话的额度记账（ai-and-quota.md 第 3 节）。和 runAi 同一套账本：
- * 预占（token 上限 + 联网次数上限）→ ToolLoopAgent 流式 → 按实际 token + 联网次数结算 / 失败释放。
- * 预占比单次调用大（多步循环），所以 maxOutputTokens 按 MAX_STEPS × 单步上限算。
+ * 预占（整轮输出高分位估算 + 联网次数上限）→ ToolLoopAgent 流式 → 按实际 token + 联网次数结算 / 失败释放。
  */
 
-const AGENT_PROMPT_VERSION = 2
+const AGENT_PROMPT_VERSION = 3
 
 const ZERO_USAGE: TokenUsage = { inputMissTokens: 0, inputHitTokens: 0, outputTokens: 0 }
+/** 多步工具结果上下文的预占余量（按实际高分位预留，避免单步与步数大幅放宽后误触发 402） */
+const AGENT_TOOL_CONTEXT_INPUT_RESERVE = 30_000
 
 type Settings = Awaited<ReturnType<typeof preflight>>
 
@@ -77,7 +78,14 @@ export function estimateAgentInputTokens(messages: readonly UIMessage[]): number
       }
     }
   }
-  return Math.ceil(chars / 2) + imageTokens + MAX_STEPS * 2000
+  return Math.ceil(chars / 2) + imageTokens + AGENT_TOOL_CONTEXT_INPUT_RESERVE
+}
+
+/** 过滤历史与落库中空的助手消息（流式启动前报错产生的空 parts 行，防止堆积与污染对话） */
+export function filterEmptyAssistantMessages<T extends { role: string; parts: readonly unknown[] }>(
+  messages: readonly T[],
+): T[] {
+  return messages.filter((m) => m.role !== 'assistant' || m.parts.length > 0)
 }
 
 /** 当用户仅发送图片未输入任何文字时，仅在发往模型的消息副本中补一句识图引导语（不写入数据库） */
@@ -120,7 +128,7 @@ export async function reserveAgentRun(input: {
   const settings = await preflight(input.userId, input.now, dayKey)
   const tokenReserve = reserveMicros(
     input.estimatedInputTokens,
-    input.maxOutputTokens ?? MAX_STEPS * MAX_OUTPUT_TOKENS_PER_STEP,
+    input.maxOutputTokens ?? AGENT_RESERVE_OUTPUT_TOKENS,
   )
   const searchReserve = (input.maxSearches ?? MAX_SEARCHES_PER_TURN) * SEARCH_FETCH_COST_MICROS
   const reservedAmount = tokenReserve + searchReserve
@@ -221,42 +229,73 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
     ip: input.ip,
     idempotencyKey: input.idempotencyKey,
     estimatedInputTokens: estimateAgentInputTokens(input.messages),
+    maxOutputTokens: input.deepThink
+      ? DEEP_THINK_RESERVE_OUTPUT_TOKENS
+      : AGENT_RESERVE_OUTPUT_TOKENS,
     now,
-  })
-
-  const firstUserText = firstUserTextOf(input.messages)
-  await ensureConversation(
-    db,
-    input.userId,
-    input.conversationId,
-    titleFromFirstUserText(firstUserText),
-    now,
-  )
-  await touchConversation(db, input.userId, input.conversationId, now)
-
-  const [clock, petName] = await Promise.all([
-    loadClock(db, input.userId),
-    loadPetName(db, input.userId),
-  ])
-  const agent = buildAgent({
-    model: getFlashModel(),
-    userId: input.userId,
-    userIdHash,
-    deepThink: input.deepThink,
-    search,
-    now,
-    clock,
-    petName,
   })
 
   const startedAt = Date.now()
-  const modelInputMessages = withImageFallbackPrompt(input.messages)
-  const result = await agent.stream({
-    messages: await convertToModelMessages(modelInputMessages, { tools: agent.tools }),
-  })
+  let petName = '团团'
+  let agent: ReturnType<typeof buildAgent>
+  let result: Awaited<ReturnType<ReturnType<typeof buildAgent>['stream']>>
+  try {
+    const firstUserText = firstUserTextOf(input.messages)
+    await ensureConversation(
+      db,
+      input.userId,
+      input.conversationId,
+      titleFromFirstUserText(firstUserText),
+      now,
+    )
+    await touchConversation(db, input.userId, input.conversationId, now)
+
+    const [clock, loadedPetName] = await Promise.all([
+      loadClock(db, input.userId),
+      loadPetName(db, input.userId),
+    ])
+    petName = loadedPetName
+    agent = buildAgent({
+      model: getFlashModel(),
+      userId: input.userId,
+      userIdHash,
+      deepThink: input.deepThink,
+      search,
+      now,
+      clock,
+      petName,
+    })
+
+    const modelInputMessages = withImageFallbackPrompt(filterEmptyAssistantMessages(input.messages))
+    result = await agent.stream({
+      messages: await convertToModelMessages(modelInputMessages, {
+        tools: agent.tools,
+        // 历史消息里若因异常中断残留未完成的 tool-call（input-streaming / input-available），自动忽略，
+        // 彻底避免 AI_MissingToolResultsError 毒化整个会话
+        ignoreIncompleteToolCalls: true,
+      }),
+    })
+  } catch (error) {
+    console.error(
+      '[ai] agent 流式初始化失败，立即释放预占',
+      error instanceof Error ? error.name : typeof error,
+    )
+    await settleAgentRun({
+      userId: input.userId,
+      dayKey: reserved.dayKey,
+      reservation: reserved.reservation,
+      usage: ZERO_USAGE,
+      searchCostMicros: search.costMicros,
+      latencyMs: Date.now() - startedAt,
+      status: 'failed',
+      settings: reserved.settings,
+    })
+    throw error
+  }
   // 客户端断开也不影响模型跑完与结算（ai-and-quota.md：流式中断按已产生用量结算）
   result.consumeStream()
 
+  let hadStreamError = false
   const response = createUIMessageStreamResponse({
     stream: toUIMessageStream({
       stream: result.stream,
@@ -264,6 +303,7 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
       originalMessages: input.messages,
       generateMessageId: createIdGenerator({ prefix: 'amsg', size: 16 }),
       onError: (error) => {
+        hadStreamError = true
         console.error(
           '[ai] agent 流式分片出错',
           error instanceof Error ? error.message : String(error),
@@ -272,11 +312,12 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
       },
       onEnd: async ({ messages }) => {
         try {
+          const persistable = filterEmptyAssistantMessages(messages)
           await saveMessages(
             db,
             input.userId,
             input.conversationId,
-            messages.map((m, idx) => ({
+            persistable.map((m, idx) => ({
               messageId: m.id,
               role: m.role === 'user' ? 'user' : 'assistant',
               parts: stripFileParts(m.parts as unknown[]),
@@ -304,7 +345,7 @@ export async function streamAgentChat(input: StreamAgentChatInput): Promise<Resp
         usage: usageFromSdk(usage),
         searchCostMicros: search.costMicros,
         latencyMs: Date.now() - startedAt,
-        status: 'succeeded',
+        status: hadStreamError ? 'failed' : 'succeeded',
         settings: reserved.settings,
       })
     } catch (error) {
@@ -348,14 +389,14 @@ function firstUserTextOf(messages: readonly UIMessage[]): string {
   return ''
 }
 
-/** 供路由读取历史：加载会话消息 */
+/** 供路由读取历史：加载会话消息（自动过滤历史失败残留的空助手消息） */
 export async function loadConversationMessages(
   userId: string,
   conversationId: string,
   options: { allowMissing?: boolean } = {},
 ): Promise<UIMessage[]> {
   const stored = await loadMessages(db, userId, conversationId, options)
-  return stored.map((m) => ({
+  return filterEmptyAssistantMessages(stored).map((m) => ({
     id: m.id,
     role: m.role,
     parts: m.parts,

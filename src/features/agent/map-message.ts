@@ -68,7 +68,11 @@ function toToolState(state: string | undefined): ToolCallState {
   return 'output-error'
 }
 
-export function toTurnParts(parts: UIMessage['parts']): AgentPart[] {
+export function toTurnParts(
+  parts: UIMessage['parts'],
+  options: { settled?: boolean } = {},
+): AgentPart[] {
+  const settled = options.settled ?? false
   const out: AgentPart[] = []
   for (const part of parts as Array<Record<string, unknown> & { type?: string }>) {
     const type = part?.type
@@ -79,14 +83,14 @@ export function toTurnParts(parts: UIMessage['parts']): AgentPart[] {
         type: 'reasoning',
         id: String(part.id ?? 'r'),
         text: String(part.text ?? ''),
-        state: part.state === 'streaming' ? 'streaming' : 'done',
+        state: !settled && part.state === 'streaming' ? 'streaming' : 'done',
       })
     } else if (type === 'text') {
       out.push({
         type: 'text',
         id: String(part.id ?? 't'),
         text: String(part.text ?? ''),
-        state: part.state === 'streaming' ? 'streaming' : 'done',
+        state: !settled && part.state === 'streaming' ? 'streaming' : 'done',
       })
     } else if (type === 'source-url') {
       out.push({
@@ -97,7 +101,11 @@ export function toTurnParts(parts: UIMessage['parts']): AgentPart[] {
       })
     } else if (typeof type === 'string' && type.startsWith('tool-')) {
       const toolName = type.slice(5)
-      const state = toToolState(typeof part.state === 'string' ? part.state : undefined)
+      const rawState = toToolState(typeof part.state === 'string' ? part.state : undefined)
+      // 已结束的历史回合里若残留 input-streaming / input-available（流式中途异常），降级为失败态，避免永远转圈
+      const incompleteInSettled =
+        settled && (rawState === 'input-streaming' || rawState === 'input-available')
+      const state: ToolCallState = incompleteInSettled ? 'output-error' : rawState
       out.push({
         type: 'tool',
         id: String(part.toolCallId ?? part.id ?? toolName),
@@ -106,7 +114,12 @@ export function toTurnParts(parts: UIMessage['parts']): AgentPart[] {
         summary: state === 'output-error' ? undefined : toolSummary(toolName, part.input),
         input: part.input,
         output: part.output,
-        errorText: typeof part.errorText === 'string' ? part.errorText : undefined,
+        errorText:
+          typeof part.errorText === 'string'
+            ? part.errorText
+            : incompleteInSettled
+              ? '本次工具调用未完成'
+              : undefined,
       })
     }
     // file / data-* / source-document / 其它 part 不进回合视图
@@ -153,7 +166,7 @@ export function toTurnView(
   return {
     id: message.id,
     status,
-    parts: toTurnParts(message.parts),
+    parts: toTurnParts(message.parts, { settled: status === 'done' || status === 'error' }),
     errorText: status === 'error' ? errorText : undefined,
   }
 }

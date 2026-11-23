@@ -1,6 +1,6 @@
 # AI 调用、额度与图片规范
 
-> 日期：2026-10-31（2026-11-16 同步最新实现）· 状态：已落地。本文档与仓库源码、ESLint 硬约束及 [ADR-0002](../adr/0002-account-quota-risk.md) 保持同步，踩坑后按 [lessons 机制](../lessons/README.md) 修订。
+> 日期：2026-10-31（2026-11-23 同步最新实现）· 状态：已落地。本文档与仓库源码、ESLint 硬约束及 [ADR-0002](../adr/0002-account-quota-risk.md) 保持同步，踩坑后按 [lessons 机制](../lessons/README.md) 修订。
 > 依据：[ADR-0002](../adr/0002-account-quota-risk.md)（额度、计价、风控）、[ADR-0011](../adr/0011-image-pipeline.md)（图片）、[ADR-0020](../adr/0020-jobs.md)（周期键）、[ADR-0024](../adr/0024-agent-chat.md)（Agent 对话与联网）、[ADR-0027](../adr/0027-agent-referee.md)（Agent 裁判）。
 > 官方资料：AI SDK 的 DeepSeek provider 页与 Testing 页、DeepSeek「模型 & 价格」页。库的坑见 [lessons/ai-sdk.md](../lessons/ai-sdk.md)。
 
@@ -13,7 +13,8 @@ src/server/ai/
 ├── call-model.ts            底层模型调用封装（超时控制 + Zod 输出校验）
 ├── recovery.ts              结算事务重试与流水恢复纯函数
 ├── run-agent.ts             streamAgentChat() 与 reserveAgentRun() / settleAgentRun()（对话与裁判共用账本）
-├── agent.ts                 buildAgent()（ToolLoopAgent，20 步上限，最后一步禁工具保底文字输出）
+├── agent.ts                 buildAgent()（ToolLoopAgent，32 步上限，普通 4096 / 深度思考 8192 tokens/步，最后一步禁工具保底文字输出）
+├── repair-tool-call.ts      createRepairToolCall()（确定性修复 DeepSeek Flash 尾部截断、多余括号与字段类型错位）
 ├── agent-tools.ts           对话 Agent 工具集（读资料/目标/进度/好友、showStats、联网、草稿写）
 ├── agent-checkin-tools.ts   对话 Agent 打卡专项工具（查询、留痕、增改删草稿）
 ├── checkin-lookups.ts       内置食物营养表、运动 MET 表等查询封装
@@ -149,15 +150,15 @@ export async function hashedUserId(userId: string): Promise<string> {
 
 Agent 对话（悬浮宠物 / `/agent`）与打卡裁判均走 `ToolLoopAgent` 流式，记账复用 `runAi` 同一套账本（`src/server/ai/run-agent.ts` 的 `reserveAgentRun` / `settleAgentRun`）：
 
-- **Agent 对话**（`POST /api/v1/agent/chat`）：步数上限 **`20` 步**（`MAX_STEPS = 20`，每步 `MAX_OUTPUT_TOKENS_PER_STEP = 2000`，最后一步通过 `prepareStep` 设为 `toolChoice: 'none'` 保证一定给出文字回答）；预占 = `20` 步 × 单步输出上限 + `10` 次联网，按实际 token + 联网次数结算。会话与消息存 `agent_conversations` / `agent_messages`（图片入库前由 `stripFileParts` 换成文字说明，不落盘）。
-- **打卡裁判**（`POST /api/v1/goals/{goalId}/referee`）：步数上限 **`6` 步**（`REFEREE_MAX_STEPS = 6`，每步 `1500` tokens，最后一步强制调用 `submitVerdict`），联网最多 `3` 次；当传入 `conversation` 时分析回合同样写入 `agent_conversations` / `agent_messages`。
+- **Agent 对话**（`POST /api/v1/agent/chat`）：步数上限 **`32` 步**（`MAX_STEPS = 32`，普通模式每步 `MAX_OUTPUT_TOKENS_PER_STEP = 4096`，深度思考模式每步 `DEEP_THINK_MAX_OUTPUT_TOKENS_PER_STEP = 8192`，最后一步通过 `prepareStep` 设为 `toolChoice: 'none'` 保证一定给出文字回答）；配置 `repairToolCall` 自动修复畸形工具入参，历史转模型消息必传 `ignoreIncompleteToolCalls: true` 防止半成品 tool-call 毒化会话，且落库与读取均过滤空助手消息；预占采用整轮高分位输出预算（普通 `40,000` / 深度思考 `60,000` tokens + `15` 次联网），按实际 token + 联网次数结算。会话与消息存 `agent_conversations` / `agent_messages`（图片入库前由 `stripFileParts` 换成文字说明，不落盘）。
+- **打卡裁判**（`POST /api/v1/goals/{goalId}/referee`）：步数上限 **`10` 步**（`REFEREE_MAX_STEPS = 10`，每步 `4096` tokens，预占 `12,000` tokens，最后一步强制调用 `submitVerdict`），联网最多 `6` 次；配置 `repairToolCall` 且 `stopWhen` 仅在 `submitVerdict` 真正成功回调 `verdict` 时停止（不用 `hasToolCall`，避免非法入参提前中止循环）；当传入 `conversation` 时分析回合同样写入 `agent_conversations` / `agent_messages`。
 
-联网用 DeepSeek 官方 Search / Fetch（`src/server/ai/web-search.ts`）：
+联网用 DeepSeek 官方 Search / Fetch（`src/server/ai/web-search.ts`，带 `15s` 超时与网络异常兜底）：
 
 - `POST /v1/tools/search` `{ query, count?, need_content? }` → `{ results: [{ title, url, snippet, summary, site_name, date, authority }] }`；`summary` 是给模型读的字段。
 - `POST /v1/tools/fetch` `{ url }` → `{ title, content(markdown) }`。
-- 每次成功约 0.005 元 = 5000 微元，计入额度账本；Agent 对话每轮最多 10 次（`MAX_SEARCHES_PER_TURN`），裁判每次最多 3 次（`MAX_REFEREE_SEARCHES`）。
-- 思考模式默认关，对话输入框「深度思考」开关打开时 `reasoningEffort: 'low'`（DeepSeek 最低档）。
+- 每次成功约 0.005 元 = 5000 微元，计入额度账本；Agent 对话每轮最多 `15` 次（`MAX_SEARCHES_PER_TURN`），裁判每次最多 `6` 次（`MAX_REFEREE_SEARCHES`）。
+- 思考模式默认关（`thinking: { type: 'disabled' }`），对话输入框「深度思考」开关打开时开启思考并保持 `reasoningEffort: 'low'`（DeepSeek 最低档）。
 
 ## 10. 测试
 
