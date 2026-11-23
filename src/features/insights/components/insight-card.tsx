@@ -114,6 +114,7 @@ export function InsightCard({
   return (
     <Link
       href={href}
+      data-nav-transition="expand"
       aria-label={`${insight.title}：${view.value}${view.unit}，${view.rate ?? '还没打卡'}`}
       className="block h-full rounded-2xl"
     >
@@ -153,6 +154,7 @@ export function InsightGrid({
       {showAddCard && addHref && (
         <Link
           href={addHref}
+          data-nav-transition="expand"
           data-insight-add-card="true"
           aria-label={`${addLabel}，前往目标设置`}
           className="border-border-strong/75 bg-surface/45 text-muted hover:border-primary/60 hover:bg-primary-soft/20 hover:text-primary-ink ease-spring flex h-full min-h-24 flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed p-3.5 transition-colors duration-(--dur-fast) active:scale-[0.98]"

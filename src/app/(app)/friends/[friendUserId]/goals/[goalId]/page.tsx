@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
-import { Skeleton } from '@/components/ui/skeleton'
 import { FriendGoalDetailPage } from '@/features/friend/components/friend-goal-detail-view'
+import { GoalDetailSkeleton } from '@/features/goal/components/goal-detail-view'
 import { IdSchema, UserIdSchema } from '@/features/shared/schemas'
 
 export const metadata = { title: '好友的目标详情' }
@@ -14,13 +14,8 @@ export default function Page({ params }: Props) {
   return (
     <Suspense
       fallback={
-        <div
-          role="status"
-          aria-label="加载中"
-          className="grid gap-3 px-4 pt-16 md:px-8 @3xl:grid-cols-2"
-        >
-          <Skeleton className="h-64 w-full rounded-2xl" />
-          <Skeleton className="h-64 w-full rounded-2xl" />
+        <div className="px-4 pt-[calc(var(--safe-top)+3.5rem)] md:px-8 md:pt-16">
+          <GoalDetailSkeleton />
         </div>
       }
     >

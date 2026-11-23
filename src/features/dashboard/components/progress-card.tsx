@@ -33,6 +33,7 @@ export function ProgressCard({
         {!readOnly && (
           <Link
             href="/goals"
+            data-nav-transition="push"
             className="text-caption text-muted hover:text-foreground -m-2 inline-flex min-h-11 items-center gap-0.5 rounded-full px-2 font-semibold"
           >
             全部目标
@@ -82,6 +83,7 @@ export function ProgressCard({
                 ) : (
                   <Link
                     href={href}
+                    data-nav-transition="expand"
                     aria-label={`${g.title}，${text}${g.progress.done ? '，已完成' : ''}，${readOnly ? '查看详情' : '去打卡'}`}
                     className="hover:bg-surface-sunken flex min-h-11 items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors duration-(--dur-fast)"
                   >

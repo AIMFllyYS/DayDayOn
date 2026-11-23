@@ -1,14 +1,19 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
 import { Card } from '@/components/ui/card'
 import { Collapse } from '@/components/ui/collapse'
 import { Field } from '@/components/ui/field'
 import { Icon } from '@/components/ui/icon'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TimePicker } from '@/components/ui/time-picker'
+
+const Calendar = dynamic(() => import('@/components/ui/calendar').then((m) => m.Calendar), {
+  loading: () => <Skeleton className="h-64 w-full rounded-2xl" />,
+})
 import { toast } from '@/components/ui/toast'
 import { moduleMeta } from '@/components/ui/tone'
 import { LinkButton } from '@/features/dashboard/components/link-button'

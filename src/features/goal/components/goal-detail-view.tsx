@@ -15,6 +15,7 @@ import { GoalCheckinCalendar } from '@/features/checkin/components/goal-checkin-
 import { GoalCheckinHistory } from '@/features/checkin/components/goal-checkin-history'
 import { errorMessage, isApiError, useQuery } from '@/lib/api'
 import { goalDetailQuery, useDeleteGoal, useUpdateGoal } from '@/lib/api/queries/goals'
+import { useLazyMount } from '@/lib/lazy'
 import { formatLocalDateLabel } from '@/lib/time'
 import { FIELD_TYPE_LABEL, formatTarget, formatWeekdays } from '../format'
 import type { GoalDetail } from '../schemas'
@@ -75,14 +76,12 @@ export function GoalDetailContent({
 }) {
   const isReadOnly = readOnly || Boolean(friendUserId)
   const [editing, setEditing] = useState(false)
-  const [editLoaded, setEditLoaded] = useState(false)
+  const editLoaded = useLazyMount(!isReadOnly && editing)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [deleteLoaded, setDeleteLoaded] = useState(false)
-  if (!isReadOnly && editing && !editLoaded) setEditLoaded(true)
-  if (!isReadOnly && confirmDelete && !deleteLoaded) setDeleteLoaded(true)
+  const deleteLoaded = useLazyMount(!isReadOnly && confirmDelete)
 
   return (
-    <div className="grid gap-3 pb-8 @3xl:grid-cols-[1fr_1.1fr] @3xl:gap-4">
+    <div className="animate-content-reveal grid gap-3 pb-8 @3xl:grid-cols-[1fr_1.1fr] @3xl:gap-4">
       <div className="grid content-start gap-3">
         <GoalSummaryCard goal={goal} readOnly={isReadOnly} onEdit={() => setEditing(true)} />
         <GoalCheckinCalendar

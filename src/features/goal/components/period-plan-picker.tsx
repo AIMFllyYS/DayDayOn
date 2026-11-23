@@ -1,12 +1,17 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
-import { Calendar } from '@/components/ui/calendar'
 import { Collapse } from '@/components/ui/collapse'
 import { Icon } from '@/components/ui/icon'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Slider } from '@/components/ui/slider'
 import { TimePicker } from '@/components/ui/time-picker'
+
+const Calendar = dynamic(() => import('@/components/ui/calendar').then((m) => m.Calendar), {
+  loading: () => <Skeleton className="h-64 w-full rounded-2xl" />,
+})
 import type { RemindMode } from '@/features/me/schemas'
 import type { LocalDate } from '@/features/shared/schemas'
 import { cn } from '@/lib/cn'

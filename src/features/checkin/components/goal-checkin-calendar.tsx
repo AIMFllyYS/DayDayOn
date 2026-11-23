@@ -1,10 +1,15 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
-import { Calendar, CalendarLegend, type CalendarMark } from '@/components/ui/calendar'
+import { CalendarLegend, type CalendarMark } from '@/components/ui/calendar'
 import { Card } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
+
+const Calendar = dynamic(() => import('@/components/ui/calendar').then((m) => m.Calendar), {
+  loading: () => <Skeleton className="h-64 w-full rounded-2xl" />,
+})
 import type { Module } from '@/features/shared/schemas'
 import { errorMessage, isApiError, keepPreviousData, useQuery } from '@/lib/api'
 import { checkinCalendarQuery, checkinTodayQuery } from '@/lib/api/queries/checkins'

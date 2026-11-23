@@ -107,7 +107,7 @@ export function MenuItem({
   if (href) {
     return (
       <li>
-        <Link href={href} className={rowClass}>
+        <Link href={href} data-nav-transition="push" className={rowClass}>
           {body}
         </Link>
       </li>

@@ -1,17 +1,22 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { Suspense, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import { useFriendStore } from '@/features/friend/friend-store'
+import { useIdlePreload, useLazyMount } from '@/lib/lazy'
 import { useAgentUiState } from './agent-store'
 import { AgentChatProvider } from './chat-context'
-import { AgentPanel } from './components/agent-panel'
 import { FloatingPet } from './components/floating-pet'
 
 /*
  * Agent 应用外壳挂载点：挂在 SessionGate 里（登录 + 引导完成后才出现），
  * 包住页面 children，让 /agent 全屏页和弹窗共用同一个 useChat 实例（切换不断流）。
+ * AgentPanel（含 Markdown / KaTeX / Composer）按需懒加载并在浏览器空闲期静默预热，不占各页面首屏体积。
  */
+
+const loadAgentPanel = () => import('./components/agent-panel').then((m) => m.AgentPanel)
+const AgentPanel = dynamic(loadAgentPanel, { loading: () => null })
 
 export function AgentHost({ children }: { children: ReactNode }) {
   const { conversationId } = useAgentUiState()
@@ -45,13 +50,17 @@ export function isFloatingPetHidden(pathname: string, viewingFriendId: string | 
 export function AgentFloatingLayer() {
   const pathname = usePathname()
   const { viewingFriendId } = useFriendStore()
+  const { panelOpen } = useAgentUiState()
+  const panelLoaded = useLazyMount(panelOpen)
+  useIdlePreload(loadAgentPanel, 2800)
+
   // 全屏页 / 我的页 / 正在串门好友空间时隐藏右下角悬浮团团（Decision #1）
   const hidden = isFloatingPetHidden(pathname, viewingFriendId)
   if (hidden) return null
   return (
     <>
       <FloatingPet />
-      <AgentPanel />
+      {panelLoaded && <AgentPanel />}
     </>
   )
 }

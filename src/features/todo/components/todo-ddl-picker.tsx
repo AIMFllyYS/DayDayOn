@@ -1,10 +1,15 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
-import { Calendar } from '@/components/ui/calendar'
 import { Collapse } from '@/components/ui/collapse'
 import { Icon } from '@/components/ui/icon'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TimePicker } from '@/components/ui/time-picker'
+
+const Calendar = dynamic(() => import('@/components/ui/calendar').then((m) => m.Calendar), {
+  loading: () => <Skeleton className="h-64 w-full rounded-2xl" />,
+})
 import { cn } from '@/lib/cn'
 import { addDays, calendarDateOf, combineLocalDateTime } from '@/lib/time'
 import { formatDue } from '../rules'

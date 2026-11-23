@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useState, type ReactNode } from 'react'
+import { SubpageTransition } from '@/components/layout/page-transition'
 import { InteractivePet } from '@/components/mascot/interactive-pet'
 import { Mascot } from '@/components/mascot/mascot'
 import { mascotCharacters } from '@/components/mascot/mascot-svg'
@@ -29,12 +30,13 @@ import {
 } from '@/lib/native'
 import { themes } from '@/lib/theme'
 import { DAY_START_OPTIONS } from '../units'
-import { PermissionsManagerList } from './permissions-sheet'
 
 /*
  * 「我的」页展示层（PRD 2.11，多级分组架构）：
  * - 一级页聚焦个人状态卡、AI 额度卡与清晰的三大设置分组入口，避免单页堆砌过多表单控件；
- * - 二级页（「打卡与提醒」「外观与陪伴」「权限管理」「数据与关于」「账号与安全」）按需深入，支持手机侧滑返回；
+ * - 二级页（「打卡与提醒」「外观与陪伴」「权限管理」「数据与关于」「账号与安全」）按需深入，
+ *   统一使用 SubpageTransition（右进左出 560ms / 返回 460ms），支持手机侧滑返回；
+ * - 权限管理面板（含 Markdown 公约与弹层）采用 next/dynamic 懒加载，不占「我的」首屏体积；
  * - 选择「手机提醒」时自动校验通知权限并同步安卓系统定时推送，支持一键发送测试通知。
  */
 
@@ -46,6 +48,18 @@ const SelectRemindMode = dynamic(
 const SelectDayStart = dynamic(
   () => import('@/components/ui/select').then((m) => m.Select<string>),
   { loading: () => <Skeleton className="h-11 w-36 rounded-xl md:h-10" /> },
+)
+
+const PermissionsManagerList = dynamic(
+  () => import('./permissions-sheet').then((m) => m.PermissionsManagerList),
+  {
+    loading: () => (
+      <div role="status" aria-label="加载权限列表中" className="flex flex-col gap-3">
+        <Skeleton className="h-10 w-full rounded-full" />
+        <Skeleton className="h-60 w-full rounded-2xl" />
+      </div>
+    ),
+  },
 )
 
 export type MeSubSection = 'checkin' | 'appearance' | 'permissions' | 'about' | 'account'
@@ -126,6 +140,7 @@ export function MeView({
   const { preferences: prefs, profile } = me
   const nickname = profile.nickname ?? '新朋友'
   const [activeSection, setActiveSection] = useState<MeSubSection | null>(null)
+  const [navDirection, setNavDirection] = useState<'none' | 'push' | 'pop'>('none')
   const [notifPerm, setNotifPerm] = useState<PermissionStateValue>('prompt')
   const [testingPush, setTestingPush] = useState(false)
 
@@ -146,7 +161,9 @@ export function MeView({
     if (thumb) return
     function onPopState(e: PopStateEvent) {
       const state = e.state as { ddoMeSection?: MeSubSection } | null
-      setActiveSection(state?.ddoMeSection ?? null)
+      const next = state?.ddoMeSection ?? null
+      setNavDirection(next ? 'push' : 'pop')
+      setActiveSection(next)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
@@ -172,6 +189,7 @@ export function MeView({
   }, [activeSection, currentRemindMode, thumb])
 
   function openSection(next: MeSubSection) {
+    setNavDirection('push')
     setActiveSection(next)
     if (!thumb && typeof window !== 'undefined') {
       window.history.pushState({ ...(window.history.state ?? {}), ddoMeSection: next }, '')
@@ -180,6 +198,7 @@ export function MeView({
   }
 
   function closeSection() {
+    setNavDirection('pop')
     const state =
       typeof window !== 'undefined'
         ? (window.history.state as { ddoMeSection?: string } | null)
@@ -300,8 +319,12 @@ export function MeView({
         {quota}
       </div>
 
-      {/* 右侧主区域：一级分组目录 <-> 二级设置详情页 */}
-      <div className="grid w-full min-w-0 gap-4">
+      {/* 右侧主区域：一级分组目录 <-> 二级设置详情页（统一右进左出 / 返回回落转场） */}
+      <SubpageTransition
+        transitionKey={activeSection ?? '__root__'}
+        direction={navDirection}
+        className="grid w-full min-w-0 gap-4"
+      >
         {!activeSection ? (
           <>
             <MenuList title="打卡与目标">
@@ -597,7 +620,7 @@ export function MeView({
             )}
           </div>
         )}
-      </div>
+      </SubpageTransition>
     </div>
   )
 }

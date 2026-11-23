@@ -1,6 +1,7 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
+import type { TransitionOrigin } from '@/lib/motion'
 
 /*
  * 好友体系全局交互状态（ADR-0026）：
@@ -28,6 +29,8 @@ export interface FriendStoreState {
   viewingFriendId: string | null
   viewingFriendNickname: string | null
   viewingFriendAvatar: string | null
+  /** 切换自己/好友空间时的点击聚焦坐标（用于径向铺开全屏转场） */
+  roomTransitionOrigin: (TransitionOrigin & { seq: number }) | null
   addSheetOpen: boolean
   unfriendTarget: UnfriendTarget | null
   meteorFlight: MeteorFlight | null
@@ -39,6 +42,7 @@ const INITIAL_STATE: FriendStoreState = {
   viewingFriendId: null,
   viewingFriendNickname: null,
   viewingFriendAvatar: null,
+  roomTransitionOrigin: null,
   addSheetOpen: false,
   unfriendTarget: null,
   meteorFlight: null,
@@ -47,6 +51,7 @@ const INITIAL_STATE: FriendStoreState = {
 }
 
 let state: FriendStoreState = INITIAL_STATE
+let originSeq = 0
 const listeners = new Set<() => void>()
 let popTimer: ReturnType<typeof setTimeout> | null = null
 let hintTimer: ReturnType<typeof setTimeout> | null = null
@@ -67,6 +72,7 @@ export const friendActions = {
   selectFriend: (
     friendUserId: string | null,
     meta?: { nickname?: string | null; avatar?: string | null },
+    origin?: TransitionOrigin,
   ) => {
     if (hintTimer) {
       clearTimeout(hintTimer)
@@ -76,6 +82,7 @@ export const friendActions = {
       viewingFriendId: friendUserId,
       viewingFriendNickname: friendUserId ? (meta?.nickname ?? null) : null,
       viewingFriendAvatar: friendUserId ? (meta?.avatar ?? null) : null,
+      roomTransitionOrigin: origin ? { ...origin, seq: ++originSeq } : state.roomTransitionOrigin,
       hintBubbleOpen: false,
     })
   },

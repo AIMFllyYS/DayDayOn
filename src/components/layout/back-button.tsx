@@ -12,6 +12,8 @@ import {
   useUnconfirmedSmartRecord,
 } from '@/features/checkin/smart-handoff'
 import { cn } from '@/lib/cn'
+import { useLazyMount } from '@/lib/lazy'
+import { setPageTransition } from '@/lib/motion'
 
 const ConfirmDialog = dynamic(
   () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
@@ -40,9 +42,10 @@ export function BackButton({
   const router = useRouter()
   const unconfirmed = useUnconfirmedSmartRecord()
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [confirmLoaded, setConfirmLoaded] = useState(false)
+  const confirmLoaded = useLazyMount(confirmOpen)
 
   function navigateBack() {
+    setPageTransition('pop')
     if (typeof window !== 'undefined' && window.history.length > 1) {
       router.back()
     } else {
@@ -58,7 +61,6 @@ export function BackButton({
       return
     }
     if (unconfirmed) {
-      setConfirmLoaded(true)
       setConfirmOpen(true)
       return
     }

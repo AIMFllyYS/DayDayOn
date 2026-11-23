@@ -21,6 +21,7 @@ import {
 } from '@/lib/api/queries/me'
 import { authClient } from '@/lib/auth-client'
 import { cn } from '@/lib/cn'
+import { useLazyMount } from '@/lib/lazy'
 import { isThemeId, setTheme } from '@/lib/theme'
 import { nativeShellVersion, syncNativeReminder } from '@/lib/native'
 import { useCheckUpdate } from '@/features/app-update/components/update-dialog'
@@ -54,14 +55,12 @@ export function MeScreen() {
   const update = useUpdatePreferences()
   const remove = useDeleteAccount()
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleteLoaded, setDeleteLoaded] = useState(false)
+  const deleteLoaded = useLazyMount(deleteOpen)
   const [signOutOpen, setSignOutOpen] = useState(false)
-  const [signOutLoaded, setSignOutLoaded] = useState(false)
+  const signOutLoaded = useLazyMount(signOutOpen)
   const [confirmText, setConfirmText] = useState('')
   const [remindPickerOpen, setRemindPickerOpen] = useState(false)
   const updates = useCheckUpdate()
-  if (deleteOpen && !deleteLoaded) setDeleteLoaded(true)
-  if (signOutOpen && !signOutLoaded) setSignOutLoaded(true)
 
   if (isPending) return <MeSkeleton />
   if (isError || !me) {

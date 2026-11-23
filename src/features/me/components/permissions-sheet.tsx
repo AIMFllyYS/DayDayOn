@@ -1,14 +1,15 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
-import { Markdown } from '@/components/markdown'
 import { Badge, IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Icon, type IconName } from '@/components/ui/icon'
-import { Sheet } from '@/components/ui/sheet'
+import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
 import type { ModuleTone } from '@/components/ui/tone'
 import { cn } from '@/lib/cn'
+import { useLazyMount } from '@/lib/lazy'
 import {
   getNativePermissions,
   isNativeApp,
@@ -22,6 +23,21 @@ import {
   type PermissionStateValue,
 } from '@/lib/native'
 import { PERMISSIONS_COVENANT_MD } from './permissions-covenant'
+
+const Sheet = dynamic(() => import('@/components/ui/sheet').then((m) => m.Sheet), {
+  loading: () => null,
+})
+
+const Markdown = dynamic(() => import('@/components/markdown').then((m) => m.Markdown), {
+  loading: () => (
+    <div role="status" aria-label="加载公约中" className="flex flex-col gap-2.5 py-2">
+      <Skeleton className="h-5 w-40" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-5/6" />
+      <Skeleton className="h-4 w-full" />
+    </div>
+  ),
+})
 
 /*
  * 「我的 → 权限管理」精简面板与弹层：
@@ -88,6 +104,7 @@ export function PermissionsManagerList({
   const [partialPhotos, setPartialPhotos] = useState(false)
   const [requestingKey, setRequestingKey] = useState<NativePermissionName | null>(null)
   const [covenantOpen, setCovenantOpen] = useState(false)
+  const covenantLoaded = useLazyMount(covenantOpen)
   const native = isNativeApp()
 
   useEffect(() => {
@@ -259,8 +276,8 @@ export function PermissionsManagerList({
         </ul>
       </div>
 
-      {/* 官方权限使用与隐私公约（Markdown 渲染） */}
-      {!onOpenCovenant && (
+      {/* 官方权限使用与隐私公约（按需懒加载 Sheet 与 Markdown） */}
+      {!onOpenCovenant && covenantLoaded && (
         <Sheet
           open={covenantOpen}
           onOpenChange={setCovenantOpen}
