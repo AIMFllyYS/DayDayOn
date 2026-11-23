@@ -91,10 +91,10 @@ export function RankBoard({ board }: { board: RankBoardData }) {
             {board.me.entry.rank}
           </span>
           <Avatar name={board.me.entry.nickname} avatar={board.me.entry.avatar} size="sm" />
-          <span className="text-primary-ink min-w-0 flex-1 font-semibold">
+          <span className="text-primary-ink min-w-0 flex-1 truncate font-semibold">
             {myRankNote(board.me)}
           </span>
-          <span className="font-display text-primary-ink text-caption font-semibold tabular-nums">
+          <span className="font-display text-primary-ink text-caption shrink-0 font-semibold tabular-nums">
             {board.me.entry.days}
             <span className="text-tiny ml-0.5 font-normal">{unit}</span>
           </span>
