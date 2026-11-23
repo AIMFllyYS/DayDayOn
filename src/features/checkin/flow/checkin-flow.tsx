@@ -456,7 +456,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
           typeof result.verdict.metrics.mealsRequired === 'number'
             ? result.verdict.metrics.mealsRequired
             : 3
-        toast.success(`本餐已记录（今日 ${logged}/${req} 正餐），集齐三餐后统一结算总分`)
+        toast.success(`已记录（${logged}/${req} 餐）`)
       } else {
         setPopup(true)
       }

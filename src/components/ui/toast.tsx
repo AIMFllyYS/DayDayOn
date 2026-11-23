@@ -99,7 +99,7 @@ const kindIcon: Record<ToastKind, { icon: IconName; className: string }> = {
   error: { icon: 'alert', className: 'bg-danger-soft text-danger-ink' },
   info: { icon: 'bell', className: 'bg-primary-soft text-primary-ink' },
   loading: { icon: 'loader', className: 'bg-surface-sunken text-muted' },
-  undo: { icon: 'trash', className: 'bg-surface-sunken text-muted' },
+  undo: { icon: 'undo', className: 'bg-primary-soft text-primary-ink' },
 }
 
 function isKind(t: string | undefined): t is ToastKind {
@@ -114,7 +114,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <Toast.Portal>
         <Toast.Viewport
           className={
-            'fixed inset-x-0 top-[calc(var(--safe-top)+0.75rem)] mx-auto flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2 outline-none ' +
+            'fixed inset-x-0 top-[calc(var(--safe-top)+0.625rem)] z-[70] mx-auto flex w-[calc(100%-1.5rem)] max-w-sm flex-col gap-1.5 outline-none ' +
             'md:inset-x-auto md:top-auto md:right-6 md:bottom-6 md:mx-0 md:w-90 md:flex-col-reverse'
           }
         >
@@ -146,26 +146,26 @@ function ToastList() {
           'data-limited:hidden'
         }
       >
-        <Toast.Content className="flex items-center gap-3 py-2 pr-2 pl-3">
+        <Toast.Content className="flex items-center gap-2.5 py-2 pr-1.5 pl-2.5">
           <span
-            className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', className)}
+            className={cn('flex size-7 shrink-0 items-center justify-center rounded-lg', className)}
           >
             <Icon
               name={icon}
-              size={18}
+              size={15}
               className={kind === 'loading' ? 'animate-spin-slow' : undefined}
             />
           </span>
-          <div className="min-w-0 flex-1 py-1">
-            <Toast.Title className="text-body font-semibold" />
-            <Toast.Description className="text-caption text-muted" />
+          <div className="min-w-0 flex-1 py-0.5">
+            <Toast.Title className="text-caption line-clamp-1 leading-snug font-semibold" />
+            <Toast.Description className="text-tiny text-muted mt-0.5 line-clamp-1 leading-snug" />
           </div>
-          <Toast.Action className="text-caption text-primary-ink hover:bg-primary-soft inline-flex h-11 shrink-0 items-center rounded-full px-4 font-semibold transition-colors duration-(--dur-fast)" />
+          <Toast.Action className="text-tiny bg-primary-soft text-primary-ink inline-flex h-8 shrink-0 items-center rounded-full px-3 font-semibold transition-[filter] duration-(--dur-fast) hover:brightness-95" />
           <Toast.Close
             aria-label="关闭提示"
-            className="text-muted hover:bg-surface-sunken hover:text-foreground inline-flex size-11 shrink-0 items-center justify-center rounded-full transition-colors duration-(--dur-fast)"
+            className="text-muted hover:bg-surface-sunken hover:text-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-colors duration-(--dur-fast)"
           >
-            <Icon name="x" size={16} />
+            <Icon name="x" size={14} />
           </Toast.Close>
         </Toast.Content>
       </Toast.Root>

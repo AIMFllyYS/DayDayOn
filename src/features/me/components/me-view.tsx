@@ -201,10 +201,10 @@ export function MeView({
         const perms = await getNativePermissions()
         setNotifPerm(perms.notifications)
         if (ok) {
-          toast.success(`已开启手机打卡提醒（每天 ${nextTime}）`)
+          toast.success(`已开启手机提醒 · ${nextTime}`)
         } else {
-          toast.error('通知权限未开启，暂时无法推送提醒', {
-            description: '请点击下方「开启通知权限」允许系统通知后再试',
+          toast.error('通知权限未开启', {
+            description: '点击下方按钮去开启',
           })
         }
       } else {
@@ -212,17 +212,15 @@ export function MeView({
         setNotifPerm(perm)
         if (perm === 'denied') {
           toast.error('通知权限未开启', {
-            description: '请在浏览器站点设置或手机客户端中允许通知权限',
+            description: '请在浏览器或客户端中开启',
           })
         } else {
-          toast.info(`已设为手机提醒（每天 ${nextTime}）`, {
-            description: '在安卓客户端内将按设定时间准时推送系统通知',
-          })
+          toast.info(`已设为手机提醒 · ${nextTime}`)
         }
       }
     } else if (nextMode === 'in-app') {
       await syncNativeReminder({ enabled: false, remindAt: nextTime })
-      toast.success(`已开启应用内提醒（每天 ${nextTime}）`)
+      toast.success(`已开启应用内提醒 · ${nextTime}`)
     } else {
       await syncNativeReminder({ enabled: false, remindAt: null })
       toast.info('已关闭打卡提醒')
@@ -260,11 +258,11 @@ export function MeView({
       const perms = await getNativePermissions()
       setNotifPerm(perms.notifications)
       if (sent) {
-        toast.success('测试通知已发送，请查看状态栏')
+        toast.success('测试通知已发送')
       } else if (!isNativeApp() && !('Notification' in window)) {
-        toast.info('当前环境不支持系统通知，请在手机客户端内测试')
+        toast.info('仅手机客户端支持系统通知')
       } else {
-        toast.error('未能发送通知，请先开启通知权限')
+        toast.error('请先开启通知权限')
       }
     } finally {
       setTestingPush(false)

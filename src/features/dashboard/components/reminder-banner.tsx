@@ -18,8 +18,8 @@ export function ReminderBanner({ reminder, localDate }: { reminder: Reminder; lo
       className="bg-warning-soft text-warning-ink animate-fade-up flex items-center gap-3 rounded-2xl py-1 pr-1 pl-4"
     >
       <Icon name="bell" size={20} className="shrink-0" />
-      <p className="text-caption min-w-0 flex-1 font-semibold">
-        今天还有 {reminder.remaining} 项没打卡，现在记一下吧
+      <p className="text-caption min-w-0 flex-1 truncate font-semibold">
+        今天还有 {reminder.remaining} 项待打卡
       </p>
       <IconButton icon="x" label="今天不再提醒" onClick={dismiss} />
     </div>
