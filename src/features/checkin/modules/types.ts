@@ -64,6 +64,8 @@ export interface RulesEditorProps<M extends Module = Module> {
   rules: RulesOf<M>
   onChange: (next: RulesOf<M>) => void
   goal: CheckinGoal
+  /** 紧凑模式（嵌入目标设置卡片内）：省略冗长解释与嵌套子卡片 */
+  compact?: boolean
 }
 
 export interface ReportBuildContext {

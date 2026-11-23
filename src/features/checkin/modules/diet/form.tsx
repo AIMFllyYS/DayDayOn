@@ -209,21 +209,21 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
             className="shrink-0"
           />
           <span className="truncate">
-            今日早午晚三餐已集齐
-            {settledRow.score !== null ? ` · 全天总分 ${settledRow.score.toFixed(1)} 分` : ''}
+            今日三餐已集齐
+            {settledRow.score !== null ? ` · ${settledRow.score.toFixed(1)} 分` : ''}
           </span>
         </span>
         <Badge tone={settledRow.isValid ? 'success' : 'warning'} className="shrink-0">
-          {settledRow.isValid ? '已达标盖章' : '未达有效线'}
+          {settledRow.isValid ? '已达标' : '未达线'}
         </Badge>
       </div>
     ) : loggedMainCount > 0 ? (
       <div className="border-diet/30 bg-diet-soft/60 text-diet-ink text-tiny flex items-center justify-between gap-2 rounded-xl border px-3 py-1.5 font-semibold">
         <span className="flex min-w-0 items-center gap-1.5 truncate">
           <Icon name="clock" size={14} className="shrink-0" />
-          <span className="truncate">早、午、晚三餐打齐后统一结算今日总分</span>
+          <span className="truncate">三餐打齐后结算今日总分</span>
         </span>
-        <span className="font-display shrink-0 tabular-nums">{loggedMainCount} / 3 正餐</span>
+        <span className="font-display shrink-0 tabular-nums">{loggedMainCount} / 3 餐</span>
       </div>
     ) : null,
     selector: (

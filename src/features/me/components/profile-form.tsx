@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import * as z from 'zod'
@@ -9,14 +10,22 @@ import { Card } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import { Field, Input } from '@/components/ui/field'
 import { NumberField } from '@/components/ui/number-field'
-import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
 import { NICKNAME_MAX, UpdateProfileSchema, type Gender, type Me } from '@/features/me/schemas'
 import { errorMessage, isApiError, useQuery } from '@/lib/api'
 import { meQuery, useUpdateProfile } from '@/lib/api/queries/me'
+import { setPageTransition } from '@/lib/motion'
 import { birthYearOptions, GENDER_OPTIONS, timeZoneOptions } from '../units'
 import { AvatarPicker } from './avatar-picker'
+
+const SelectGender = dynamic(() => import('@/components/ui/select').then((m) => m.Select<Gender>), {
+  loading: () => <Skeleton className="h-12 w-full rounded-xl" />,
+})
+
+const SelectString = dynamic(() => import('@/components/ui/select').then((m) => m.Select<string>), {
+  loading: () => <Skeleton className="h-12 w-full rounded-xl" />,
+})
 
 /*
  * 个人资料（/me/profile，PRD 2.11）：昵称、头像、性别、出生年份、身高、时区。
@@ -79,6 +88,7 @@ function ProfileForm({ me, thisYear }: { me: Me; thisYear: number }) {
     save.mutate(r.data, {
       onSuccess: () => {
         toast.success('资料已保存')
+        setPageTransition('pop')
         router.push('/me')
       },
       onError: (err) => {
@@ -93,7 +103,10 @@ function ProfileForm({ me, thisYear }: { me: Me; thisYear: number }) {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-4 pb-6 @xl:grid-cols-2 @xl:items-start">
+    <form
+      onSubmit={submit}
+      className="animate-content-reveal grid gap-4 pb-6 @xl:grid-cols-2 @xl:items-start"
+    >
       <Card className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <Avatar name={nickname || '新朋友'} avatar={avatar} size="lg" />
@@ -129,7 +142,7 @@ function ProfileForm({ me, thisYear }: { me: Me; thisYear: number }) {
           />
         </Field>
         <Field label="性别" htmlFor="pf-gender" aside="可选">
-          <Select
+          <SelectGender
             id="pf-gender"
             options={GENDER_OPTIONS}
             value={gender}
@@ -138,7 +151,7 @@ function ProfileForm({ me, thisYear }: { me: Me; thisYear: number }) {
           />
         </Field>
         <Field label="出生年份" htmlFor="pf-birth" aside="可选" error={errors.birthYear}>
-          <Select
+          <SelectString
             id="pf-birth"
             options={birthYearOptions(thisYear)}
             value={birthYear === null ? null : String(birthYear)}
@@ -168,7 +181,7 @@ function ProfileForm({ me, thisYear }: { me: Me; thisYear: number }) {
           hint="改时区只影响之后的打卡，以前的记录不变"
           error={errors.timeZone}
         >
-          <Select
+          <SelectString
             id="pf-tz"
             options={timeZoneOptions(timeZone)}
             value={timeZone}

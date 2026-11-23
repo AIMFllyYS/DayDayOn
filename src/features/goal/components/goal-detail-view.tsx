@@ -15,6 +15,7 @@ import { GoalCheckinCalendar } from '@/features/checkin/components/goal-checkin-
 import { GoalCheckinHistory } from '@/features/checkin/components/goal-checkin-history'
 import { errorMessage, isApiError, useQuery } from '@/lib/api'
 import { goalDetailQuery, useDeleteGoal, useUpdateGoal } from '@/lib/api/queries/goals'
+import { useLazyMount } from '@/lib/lazy'
 import { formatLocalDateLabel } from '@/lib/time'
 import { FIELD_TYPE_LABEL, formatTarget, formatWeekdays } from '../format'
 import type { GoalDetail } from '../schemas'
@@ -61,28 +62,49 @@ export function GoalDetailView({ goalId }: { goalId: string }) {
   return <GoalDetailContent goal={query.data} />
 }
 
-/** 详情内容：概览卡 + 打卡日历 + 打卡记录 + 管理操作。Playbook 原型用演示数据渲染它 */
-export function GoalDetailContent({ goal }: { goal: GoalDetail }) {
+/** 详情内容：概览卡 + 打卡日历 + 打卡记录 + 管理操作（好友只读态隐藏编辑/去打卡/管理操作） */
+export function GoalDetailContent({
+  goal,
+  readOnly = false,
+  friendUserId,
+  todayLocalDate,
+}: {
+  goal: GoalDetail
+  readOnly?: boolean
+  friendUserId?: string
+  todayLocalDate?: string
+}) {
+  const isReadOnly = readOnly || Boolean(friendUserId)
   const [editing, setEditing] = useState(false)
-  const [editLoaded, setEditLoaded] = useState(false)
+  const editLoaded = useLazyMount(!isReadOnly && editing)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [deleteLoaded, setDeleteLoaded] = useState(false)
-  if (editing && !editLoaded) setEditLoaded(true)
-  if (confirmDelete && !deleteLoaded) setDeleteLoaded(true)
+  const deleteLoaded = useLazyMount(!isReadOnly && confirmDelete)
 
   return (
-    <div className="grid gap-3 pb-8 @3xl:grid-cols-[1fr_1.1fr] @3xl:gap-4">
+    <div className="animate-content-reveal grid gap-3 pb-8 @3xl:grid-cols-[1fr_1.1fr] @3xl:gap-4">
       <div className="grid content-start gap-3">
-        <GoalSummaryCard goal={goal} onEdit={() => setEditing(true)} />
-        <GoalCheckinCalendar goalId={goal.id} module={goal.module} />
+        <GoalSummaryCard goal={goal} readOnly={isReadOnly} onEdit={() => setEditing(true)} />
+        <GoalCheckinCalendar
+          goalId={goal.id}
+          module={goal.module}
+          friendUserId={friendUserId}
+          todayLocalDate={todayLocalDate}
+        />
       </div>
       <div className="grid content-start gap-3">
-        <GoalCheckinHistory goalId={goal.id} />
-        <GoalManageCard goal={goal} onDelete={() => setConfirmDelete(true)} />
+        <GoalCheckinHistory
+          goalId={goal.id}
+          friendUserId={friendUserId}
+          fieldVersions={goal.fieldVersions}
+          readOnly={isReadOnly}
+        />
+        {!isReadOnly && <GoalManageCard goal={goal} onDelete={() => setConfirmDelete(true)} />}
       </div>
 
-      {editLoaded && <GoalEditSheet goal={goal} open={editing} onOpenChange={setEditing} />}
-      {deleteLoaded && (
+      {!isReadOnly && editLoaded && (
+        <GoalEditSheet goal={goal} open={editing} onOpenChange={setEditing} />
+      )}
+      {!isReadOnly && deleteLoaded && (
         <DeleteGoalDialog
           goalId={goal.id}
           title={goal.title}
@@ -94,7 +116,15 @@ export function GoalDetailContent({ goal }: { goal: GoalDetail }) {
   )
 }
 
-function GoalSummaryCard({ goal, onEdit }: { goal: GoalDetail; onEdit: () => void }) {
+function GoalSummaryCard({
+  goal,
+  readOnly = false,
+  onEdit,
+}: {
+  goal: GoalDetail
+  readOnly?: boolean
+  onEdit: () => void
+}) {
   const meta = moduleMeta[goal.module]
   const archived = goal.status === 'archived'
   const latestTarget = goal.targetHistory.at(-1)
@@ -112,9 +142,11 @@ function GoalSummaryCard({ goal, onEdit }: { goal: GoalDetail; onEdit: () => voi
             {goal.fieldVersion !== null && ` · 字段第 ${goal.fieldVersion} 版`}
           </p>
         </div>
-        <Button variant="soft" size="sm" icon="edit" onClick={onEdit}>
-          编辑
-        </Button>
+        {!readOnly && (
+          <Button variant="soft" size="sm" icon="edit" onClick={onEdit}>
+            编辑
+          </Button>
+        )}
       </div>
       {goal.description && <p className="text-body">{goal.description}</p>}
       <dl className="grid grid-cols-3 gap-2">
@@ -136,7 +168,7 @@ function GoalSummaryCard({ goal, onEdit }: { goal: GoalDetail; onEdit: () => voi
           ))}
         </div>
       )}
-      {!archived && (
+      {!readOnly && !archived && (
         <GoalLinkButton href={`/goals/${goal.id}/checkin`} icon="check" className="w-full">
           去打卡
         </GoalLinkButton>
@@ -227,7 +259,7 @@ function DeleteGoalDialog({
   )
 }
 
-function GoalDetailSkeleton() {
+export function GoalDetailSkeleton() {
   return (
     <div role="status" aria-label="加载中" className="grid gap-3 @3xl:grid-cols-2">
       <Skeleton className="h-64 w-full rounded-2xl" />

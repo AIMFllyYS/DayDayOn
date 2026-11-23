@@ -6,6 +6,7 @@ import { InsightGrid } from '@/features/insights/components/insight-card'
 import type { Insights } from '@/features/insights/schemas'
 import { FeedList } from '@/features/rank/components/feed-list'
 import type { DashboardToday } from '../schemas'
+import { DailyQuoteCard } from './daily-quote-card'
 import { LinkButton } from './link-button'
 import { MoodCard, StepsCard, WeightCard } from './metric-cards'
 import { ProgressCard } from './progress-card'
@@ -15,8 +16,8 @@ import { SummaryCard } from './summary-card'
 /*
  * 主页仪表盘的展示部分（PRD 2.8，原型 HomeScreen）：只接收数据和回调，不取数据。
  * 正式页面由 HomeView 传入 /dashboard/today（或好友仪表盘）的结果；Playbook 传演示数据。
- * 固定布局：左栏 总览 → 今日进度 → 各板块近况 → 本周热力图；右栏 体重 / 心情 → 榜单动态。
- * 顺序按用户打开主页想知道的事：今天还差什么 → 每个板块最近怎么样、卡在哪 → 回顾 → 朋友。
+ * 固定布局：左栏 独立每日鸡汤 → 进度总览 → 今日进度 → 各板块近况（近7天）→ 本周热力图；右栏 体重 / 心情 / 步数 → 榜单动态。
+ * 好友视角（readOnly + friendUserId）同步展示好友的各板块近况，点击直达只读好友目标详情。
  */
 
 export interface HomeDashboardProps {
@@ -30,9 +31,11 @@ export interface HomeDashboardProps {
   onOpenSteps?: () => void
   /** 查看好友仪表盘时开启只读模式 */
   readOnly?: boolean
+  /** 查看好友空间时传入好友 userId，用于拼接只读目标详情跳转链接 */
+  friendUserId?: string
   /** 顶部好友视角提示条 */
   friendBanner?: ReactNode
-  /** 各板块近况（近 7 天）；好友视角不传 */
+  /** 各板块近况（近 7 天），本人与好友视角均支持 */
   insights?: Insights
 }
 
@@ -44,6 +47,7 @@ export function HomeDashboard({
   onOpenMood,
   onOpenSteps,
   readOnly = false,
+  friendUserId,
   friendBanner,
   insights,
 }: HomeDashboardProps) {
@@ -83,6 +87,7 @@ export function HomeDashboard({
       )}
 
       <div className="grid content-start gap-3">
+        {!friendBanner && <DailyQuoteCard completion={data.completion} />}
         <SummaryCard
           localDate={data.localDate}
           completion={data.completion}
@@ -91,13 +96,23 @@ export function HomeDashboard({
           overall={data.overall}
           readOnly={readOnly}
         />
-        <ProgressCard goals={data.goals} readOnly={readOnly} />
+        <ProgressCard goals={data.goals} readOnly={readOnly} friendUserId={friendUserId} />
         {insights && insights.items.length > 0 && (
           <section aria-labelledby="home-insights" className="flex flex-col gap-2">
             <h2 id="home-insights" className="text-caption text-muted px-1 font-bold">
               各板块近况 · 近 {insights.days} 天
             </h2>
-            <InsightGrid items={insights.items} days={insights.days} />
+            <InsightGrid
+              items={insights.items}
+              days={insights.days}
+              columns={2}
+              addHref={!readOnly ? '/goals' : undefined}
+              getHref={(i) =>
+                friendUserId
+                  ? `/friends/${encodeURIComponent(friendUserId)}/goals/${encodeURIComponent(i.goalId)}`
+                  : `/goals/${encodeURIComponent(i.goalId)}`
+              }
+            />
           </section>
         )}
         <Card>

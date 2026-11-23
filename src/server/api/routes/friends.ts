@@ -2,14 +2,22 @@ import 'server-only'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import * as z from 'zod'
 import {
+  CalendarQuerySchema,
+  CheckinCalendarSchema,
+  CheckinHistoryQuerySchema,
+  CheckinHistorySchema,
+} from '@/features/checkin/schemas'
+import {
   FriendAcceptResultSchema,
   FriendDashboardSchema,
+  FriendGoalDetailSchema,
   FriendInviteCodeInputSchema,
   FriendInvitePreviewSchema,
   FriendInviteSchema,
   FriendListSchema,
 } from '@/features/friend/schemas'
-import { UserIdSchema } from '@/features/shared/schemas'
+import { InsightsSchema } from '@/features/insights/schemas'
+import { IdSchema, UserIdSchema } from '@/features/shared/schemas'
 import { db } from '@/server/db/client'
 import * as friendsService from '@/server/services/friends'
 import type { AppEnv } from '../app'
@@ -19,18 +27,35 @@ import { AUTH_ERRORS, errorResponses, IdempotencyHeadersSchema } from '../schema
 
 /*
  * 好友体系接口（ADR-0026）：
- *   GET    /friends                         获取本人与好友列表（附今日进度与连续打卡天数）
- *   POST   /friends/invite                  获取或生成 10 分钟有效的 6 位配对码
- *   POST   /friends/invite/preview          校验 6 位配对码并返回邀请人信息（用于居中二次确认弹窗）
- *   POST   /friends/accept                  确认接受好友邀请，双向建立好友关系
- *   DELETE /friends/{friendUserId}          解除好友关系，双向删除关系行
- *   GET    /friends/{friendUserId}/dashboard 获取指定好友的完整今日打卡仪表盘
+ *   GET    /friends                                            获取本人与好友列表（附今日进度与连续打卡天数）
+ *   POST   /friends/invite                                     获取或生成 10 分钟有效的 6 位配对码
+ *   POST   /friends/invite/preview                             校验 6 位配对码并返回邀请人信息（用于居中二次确认弹窗）
+ *   POST   /friends/accept                                     确认接受好友邀请，双向建立好友关系
+ *   DELETE /friends/{friendUserId}                             解除好友关系，双向删除关系行
+ *   GET    /friends/{friendUserId}/dashboard                   获取指定好友的完整今日打卡仪表盘
+ *   GET    /friends/{friendUserId}/insights                    获取指定好友各板块近 7/30 天近况（只读）
+ *   GET    /friends/{friendUserId}/goals/{goalId}              获取指定好友目标详情（只读）
+ *   GET    /friends/{friendUserId}/goals/{goalId}/calendar     获取指定好友目标打卡日历（只读）
+ *   GET    /friends/{friendUserId}/goals/{goalId}/checkins     获取指定好友目标打卡历史（只读）
  */
 
 const json = <T extends z.ZodType>(schema: T) => ({ 'application/json': { schema } })
 
 const FriendIdParamSchema = z.object({
   friendUserId: UserIdSchema,
+})
+
+const FriendGoalParamSchema = z.object({
+  friendUserId: UserIdSchema,
+  goalId: IdSchema,
+})
+
+const FriendInsightsQuerySchema = z.object({
+  days: z
+    .enum(['7', '30'])
+    .default('7')
+    .transform((v) => (v === '30' ? 30 : 7) as 7 | 30),
+  goalId: z.uuid().optional(),
 })
 
 const listFriendsRoute = createRoute({
@@ -142,6 +167,81 @@ const friendDashboardRoute = createRoute({
   },
 })
 
+const friendInsightsRoute = createRoute({
+  method: 'get',
+  path: '/friends/{friendUserId}/insights',
+  tags: ['friend'],
+  summary: '获取指定好友各进行中板块的近 7 / 30 天近况（只读）',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: {
+    params: FriendIdParamSchema,
+    query: FriendInsightsQuerySchema,
+  },
+  responses: {
+    200: { content: json(InsightsSchema), description: '好友各板块近况统计' },
+    ...errorResponses(
+      ...AUTH_ERRORS,
+      'VALIDATION_FAILED',
+      'FRIEND_NOT_FOUND',
+      'USER_NOT_FOUND',
+      'GOAL_NOT_FOUND',
+    ),
+  },
+})
+
+const friendGoalDetailRoute = createRoute({
+  method: 'get',
+  path: '/friends/{friendUserId}/goals/{goalId}',
+  tags: ['friend'],
+  summary: '获取指定好友目标的只读详情',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: {
+    params: FriendGoalParamSchema,
+  },
+  responses: {
+    200: { content: json(FriendGoalDetailSchema), description: '好友昵称、当前打卡日与目标详情' },
+    ...errorResponses(
+      ...AUTH_ERRORS,
+      'VALIDATION_FAILED',
+      'FRIEND_NOT_FOUND',
+      'USER_NOT_FOUND',
+      'GOAL_NOT_FOUND',
+    ),
+  },
+})
+
+const friendGoalCalendarRoute = createRoute({
+  method: 'get',
+  path: '/friends/{friendUserId}/goals/{goalId}/calendar',
+  tags: ['friend'],
+  summary: '获取指定好友目标的打卡日历（只读）',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: {
+    params: FriendGoalParamSchema,
+    query: CalendarQuerySchema,
+  },
+  responses: {
+    200: { content: json(CheckinCalendarSchema), description: '好友目标单月打卡情况' },
+    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED', 'FRIEND_NOT_FOUND', 'GOAL_NOT_FOUND'),
+  },
+})
+
+const friendGoalCheckinsRoute = createRoute({
+  method: 'get',
+  path: '/friends/{friendUserId}/goals/{goalId}/checkins',
+  tags: ['friend'],
+  summary: '获取指定好友目标的打卡历史（只读）',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: {
+    params: FriendGoalParamSchema,
+    query: CheckinHistoryQuerySchema,
+  },
+  responses: {
+    200: { content: json(CheckinHistorySchema), description: '好友目标打卡历史（游标分页）' },
+    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED', 'FRIEND_NOT_FOUND', 'GOAL_NOT_FOUND'),
+  },
+})
+
 export const friendRoutes = new OpenAPIHono<AppEnv>()
   .openapi(listFriendsRoute, async (c) => {
     const data = await friendsService.listFriends(db, c.get('user').id, new Date())
@@ -173,6 +273,56 @@ export const friendRoutes = new OpenAPIHono<AppEnv>()
       c.get('user').id,
       friendUserId,
       new Date(),
+    )
+    return c.json(data, 200)
+  })
+  .openapi(friendInsightsRoute, async (c) => {
+    const { friendUserId } = c.req.valid('param')
+    const q = c.req.valid('query')
+    const data = await friendsService.getFriendInsights(
+      db,
+      c.get('user').id,
+      friendUserId,
+      new Date(),
+      {
+        days: q.days,
+        ...(q.goalId ? { goalId: q.goalId } : {}),
+      },
+    )
+    return c.json(data, 200)
+  })
+  .openapi(friendGoalDetailRoute, async (c) => {
+    const { friendUserId, goalId } = c.req.valid('param')
+    const data = await friendsService.getFriendGoalDetail(
+      db,
+      c.get('user').id,
+      friendUserId,
+      goalId,
+      new Date(),
+    )
+    return c.json(data, 200)
+  })
+  .openapi(friendGoalCalendarRoute, async (c) => {
+    const { friendUserId, goalId } = c.req.valid('param')
+    const { month } = c.req.valid('query')
+    const data = await friendsService.getFriendGoalCalendar(
+      db,
+      c.get('user').id,
+      friendUserId,
+      goalId,
+      month,
+    )
+    return c.json(data, 200)
+  })
+  .openapi(friendGoalCheckinsRoute, async (c) => {
+    const { friendUserId, goalId } = c.req.valid('param')
+    const query = c.req.valid('query')
+    const data = await friendsService.getFriendGoalCheckins(
+      db,
+      c.get('user').id,
+      friendUserId,
+      goalId,
+      query,
     )
     return c.json(data, 200)
   })

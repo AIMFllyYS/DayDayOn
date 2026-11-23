@@ -17,6 +17,8 @@ import { useFriendsList } from '@/lib/api/queries/friends'
 import { meQuery } from '@/lib/api/queries/me'
 import { useNotificationSummary } from '@/lib/api/queries/notifications'
 import { cn } from '@/lib/cn'
+import { useLazyMount } from '@/lib/lazy'
+import { getOriginFromEvent, setPageTransition, type TransitionOrigin } from '@/lib/motion'
 
 // 顶栏操作弹层不进首屏（ui-primitives.md 第 3 节）：首次打开时才加载。
 // 「设置目标」不再弹抽屉，直接去全局唯一的目标设置页 /goals（checkin-modules.md 第 5 节）
@@ -80,11 +82,13 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
   function handleSelectTarget(
     targetFriendId: string | null,
     meta?: { nickname?: string | null; avatar?: string | null },
+    origin?: TransitionOrigin,
   ) {
-    friendActions.selectFriend(targetFriendId, meta)
+    friendActions.selectFriend(targetFriendId, meta, origin)
     setContextFriend(null)
     setPanelOpen(false)
     if (pathname !== '/' && !pathname.startsWith('/dev')) {
+      setPageTransition('expand', origin)
       router.push('/')
     }
   }
@@ -163,11 +167,15 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
             <button
               type="button"
               data-testid="friend-context-enter"
-              onClick={() =>
-                handleSelectTarget(contextFriend.userId, {
-                  nickname: contextFriend.nickname,
-                  avatar: contextFriend.avatar,
-                })
+              onClick={(e) =>
+                handleSelectTarget(
+                  contextFriend.userId,
+                  {
+                    nickname: contextFriend.nickname,
+                    avatar: contextFriend.avatar,
+                  },
+                  getOriginFromEvent(e),
+                )
               }
               className="hover:bg-surface-sunken text-body text-foreground flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left font-semibold transition-colors"
             >
@@ -205,7 +213,7 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
               {/* 第一行：置顶当前用户自己 */}
               <button
                 type="button"
-                onClick={() => handleSelectTarget(null)}
+                onClick={(e) => handleSelectTarget(null, undefined, getOriginFromEvent(e))}
                 className={cn(
                   'hover:bg-surface-sunken flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors',
                   viewingFriendId === null && 'bg-primary-soft/60',
@@ -265,15 +273,19 @@ export function TopBarUserAvatar({ demoFriends }: TopBarUserAvatarProps = {}) {
                       longPressTriggeredRef.current = true
                       setContextFriend(friend)
                     }}
-                    onClick={() => {
+                    onClick={(e) => {
                       if (longPressTriggeredRef.current) {
                         longPressTriggeredRef.current = false
                         return
                       }
-                      handleSelectTarget(friend.userId, {
-                        nickname: friend.nickname,
-                        avatar: friend.avatar,
-                      })
+                      handleSelectTarget(
+                        friend.userId,
+                        {
+                          nickname: friend.nickname,
+                          avatar: friend.avatar,
+                        },
+                        getOriginFromEvent(e),
+                      )
                     }}
                     className={cn(
                       'hover:bg-surface-sunken flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors select-none',
@@ -359,10 +371,8 @@ export function TopBarActions() {
     addSheetOpen,
     unfriendTarget,
   } = useFriendStore()
-  const [friendSheetLoaded, setFriendSheetLoaded] = useState(false)
-  const [unfriendDialogLoaded, setUnfriendDialogLoaded] = useState(false)
-  if (addSheetOpen && !friendSheetLoaded) setFriendSheetLoaded(true)
-  if (unfriendTarget !== null && !unfriendDialogLoaded) setUnfriendDialogLoaded(true)
+  const friendSheetLoaded = useLazyMount(addSheetOpen)
+  const unfriendDialogLoaded = useLazyMount(unfriendTarget !== null)
 
   const activeFriend =
     viewingFriendId !== null
@@ -398,7 +408,10 @@ export function TopBarActions() {
     {
       icon: 'sliders',
       label: '设置目标',
-      onSelect: () => router.push('/goals'),
+      onSelect: () => {
+        setPageTransition('push')
+        router.push('/goals')
+      },
     },
   ]
 
@@ -410,6 +423,7 @@ export function TopBarActions() {
           hasLightDot={Boolean(summary?.hasUnread && !summary?.unreadCount)}
           onClick={() => {
             if (pathname !== '/notifications') {
+              setPageTransition('push')
               router.push('/notifications')
             }
           }}

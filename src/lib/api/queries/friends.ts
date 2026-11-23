@@ -1,10 +1,18 @@
 'use client'
 
-import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
+import type { CheckinCalendar, CheckinHistory } from '@/features/checkin/schemas'
 import { friendActions } from '@/features/friend/friend-store'
 import type {
   FriendAcceptResult,
   FriendDashboard,
+  FriendGoalDetail,
   FriendInvite,
   FriendInvitePreview,
   FriendList,
@@ -12,6 +20,7 @@ import type {
   PetInteractResult,
   PetInteractionsStatus,
 } from '@/features/friend/schemas'
+import type { Insights } from '@/features/insights/schemas'
 import { apiFetch, newIdempotencyKey } from '../fetcher'
 import { keys } from '../keys'
 
@@ -50,6 +59,64 @@ export function useFriendDashboard(friendUserId: string | null) {
     enabled: Boolean(friendUserId),
   })
 }
+
+export const friendInsightsQuery = (friendUserId: string, days: 7 | 30 = 7, goalId?: string) =>
+  queryOptions({
+    queryKey: keys.friends.insights(friendUserId, days, goalId),
+    queryFn: () => {
+      const qs = new URLSearchParams({ days: String(days) })
+      if (goalId) qs.set('goalId', goalId)
+      return apiFetch<Insights>(
+        `/friends/${encodeURIComponent(friendUserId)}/insights?${qs.toString()}`,
+      )
+    },
+  })
+
+export function useFriendInsights(friendUserId: string | null, days: 7 | 30 = 7, goalId?: string) {
+  return useQuery({
+    ...friendInsightsQuery(friendUserId ?? '', days, goalId),
+    enabled: Boolean(friendUserId),
+  })
+}
+
+export const friendGoalDetailQuery = (friendUserId: string, goalId: string) =>
+  queryOptions({
+    queryKey: keys.friends.goalDetail(friendUserId, goalId),
+    queryFn: () =>
+      apiFetch<FriendGoalDetail>(
+        `/friends/${encodeURIComponent(friendUserId)}/goals/${encodeURIComponent(goalId)}`,
+      ),
+  })
+
+export const friendGoalCalendarQuery = (friendUserId: string, goalId: string, month: string) =>
+  queryOptions({
+    queryKey: keys.friends.goalCalendar(friendUserId, goalId, month),
+    queryFn: () =>
+      apiFetch<CheckinCalendar>(
+        `/friends/${encodeURIComponent(friendUserId)}/goals/${encodeURIComponent(goalId)}/calendar?month=${encodeURIComponent(month)}`,
+      ),
+  })
+
+export const friendGoalCheckinsQuery = (
+  friendUserId: string,
+  goalId: string,
+  range: { from?: string; to?: string } = {},
+) =>
+  infiniteQueryOptions({
+    queryKey: keys.friends.goalCheckins(friendUserId, goalId, range),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams()
+      if (pageParam) params.set('cursor', pageParam)
+      if (range.from) params.set('from', range.from)
+      if (range.to) params.set('to', range.to)
+      const qs = params.toString()
+      return apiFetch<CheckinHistory>(
+        `/friends/${encodeURIComponent(friendUserId)}/goals/${encodeURIComponent(goalId)}/checkins${qs ? `?${qs}` : ''}`,
+      )
+    },
+    getNextPageParam: (last) => last.nextCursor,
+  })
 
 export function useCreateFriendInvite() {
   return useMutation({

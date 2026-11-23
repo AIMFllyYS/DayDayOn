@@ -40,6 +40,17 @@ export const keys = {
     all: ['friends'] as const,
     list: () => ['friends', 'list'] as const,
     dashboard: (friendUserId: string) => ['friends', 'dashboard', friendUserId] as const,
+    insights: (friendUserId: string, days: number, goalId?: string) =>
+      ['friends', 'insights', friendUserId, { days, goalId }] as const,
+    goalDetail: (friendUserId: string, goalId: string) =>
+      ['friends', 'goal-detail', friendUserId, goalId] as const,
+    goalCalendar: (friendUserId: string, goalId: string, month: string) =>
+      ['friends', 'goal-calendar', friendUserId, goalId, month] as const,
+    goalCheckins: (
+      friendUserId: string,
+      goalId: string,
+      range: { from?: string; to?: string } = {},
+    ) => ['friends', 'goal-checkins', friendUserId, goalId, range] as const,
     interactions: (friendUserId: string) => ['friends', 'interactions', friendUserId] as const,
   },
   chat: {

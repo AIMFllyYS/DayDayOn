@@ -40,8 +40,8 @@ export function StepsPanel({ onSaved }: { onSaved: () => void }) {
     try {
       const perm = await requestNativePermission('steps')
       if (perm !== 'granted') {
-        toast.error('需要开启「身体活动」权限才能读取手机计步器', {
-          description: '也可在下方直接手动输入今日步数',
+        toast.error('请先开启步数权限', {
+          description: '也可在下方手动输入',
         })
         return
       }
@@ -49,13 +49,13 @@ export function StepsPanel({ onSaved }: { onSaved: () => void }) {
       if (sensorSteps <= 0) {
         if (savedSteps && savedSteps > 0) {
           setDraftSteps(savedSteps)
-          toast.info('手机计步器暂未产生新步数增量', {
-            description: `已保留今日记录 ${savedSteps.toLocaleString('en-US')} 步，也可手动调整`,
+          toast.info('暂无新增步数', {
+            description: `已保留 ${savedSteps.toLocaleString('en-US')} 步`,
           })
         } else {
           setDraftSteps(0)
-          toast.info('当前手机计步器读数为 0 步', {
-            description: '走动几步后可再次同步，或直接手动输入手表/手环步数',
+          toast.info('当前步数为 0', {
+            description: '走动后再试或手动输入',
           })
         }
         return
@@ -65,7 +65,7 @@ export function StepsPanel({ onSaved }: { onSaved: () => void }) {
         { steps: sensorSteps },
         {
           onSuccess: () => {
-            toast.success(`已同步手机步数：${sensorSteps.toLocaleString('en-US')} 步`)
+            toast.success(`已同步 ${sensorSteps.toLocaleString('en-US')} 步`)
             onSaved()
           },
           onError: (e) => {
@@ -93,7 +93,7 @@ export function StepsPanel({ onSaved }: { onSaved: () => void }) {
       { steps: normalized },
       {
         onSuccess: () => {
-          toast.success(`今日步数已记录：${normalized.toLocaleString('en-US')} 步`)
+          toast.success(`已记 ${normalized.toLocaleString('en-US')} 步`)
           onSaved()
         },
         onError: (e) => {

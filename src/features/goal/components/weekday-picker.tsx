@@ -47,7 +47,7 @@ export function WeekdayPicker({
             aria-label={`周${d.label}`}
             onClick={() => toggle(d.value)}
             className={cn(
-              'text-caption ease-spring mx-auto flex size-11 items-center justify-center rounded-full font-semibold',
+              'text-caption ease-spring mx-auto flex aspect-square w-full max-w-10 items-center justify-center rounded-full font-semibold',
               'transition-[transform,background-color,color] duration-(--dur-fast) active:scale-[0.92]',
               on
                 ? 'bg-primary text-on-primary shadow-soft'

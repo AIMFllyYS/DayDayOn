@@ -1,6 +1,7 @@
 import { Suspense, type ReactNode } from 'react'
 import { AppShell } from '@/components/layout/app-shell'
 import { PageSkeleton } from '@/components/layout/page-skeleton'
+import { PageTransitionHost } from '@/components/layout/page-transition'
 import { ThemeSync } from '@/components/layout/theme-sync'
 import { AgentHost } from '@/features/agent/agent-host'
 import { SidebarQuota } from '@/features/quota/components/sidebar-quota'
@@ -28,7 +29,9 @@ async function SessionGate({ children }: { children: ReactNode }) {
   return (
     <>
       <ThemeSync />
-      <AgentHost>{children}</AgentHost>
+      <AgentHost>
+        <PageTransitionHost>{children}</PageTransitionHost>
+      </AgentHost>
     </>
   )
 }

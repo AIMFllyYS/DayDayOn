@@ -52,16 +52,21 @@ describe('Decision #1: FloatingPet 悬浮宠物显示与隐藏守则', () => {
       expect(isFloatingPetHidden('/agent/new', null)).toBe(true)
       expect(isFloatingPetHidden('/agent/conv-123', 'friend-u1')).toBe(true)
     })
+
+    it('在好友只读目标详情页 /friends/[id]/goals/[goalId] 中，隐藏悬浮宠物', () => {
+      expect(isFloatingPetHidden('/friends/friend-u1/goals/goal-1', null)).toBe(true)
+      expect(isFloatingPetHidden('/friends/friend-u1/goals/goal-1', 'friend-u1')).toBe(true)
+    })
   })
 
   describe('AgentFloatingLayer 组件渲染判定', () => {
-    it('当查看「我」时，渲染 FloatingPet 与 AgentPanel', () => {
+    it('当查看「我」且弹窗未打开时，仅渲染 FloatingPet，AgentPanel 按需懒挂载', () => {
       currentPathname = '/'
       friendActions.selectFriend(null)
 
       const html = renderToStaticMarkup(<AgentFloatingLayer />)
       expect(html).toContain('data-testid="floating-pet"')
-      expect(html).toContain('data-testid="agent-panel"')
+      expect(html).not.toContain('data-testid="agent-panel"')
     })
 
     it('当切换到好友房间 (viewingFriendId !== null) 时，组件返回 null，不渲染悬浮宠物 (Decision #1)', () => {

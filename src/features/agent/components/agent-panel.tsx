@@ -8,6 +8,7 @@ import { newIdempotencyKey } from '@/lib/api/fetcher'
 import { useAgentConversations } from '@/lib/api/queries/agent'
 import { useMe } from '@/lib/api/queries/me'
 import { cn } from '@/lib/cn'
+import { setExpandOriginFromEvent } from '@/lib/motion'
 import { BUSINESS_TIME_ZONE } from '@/lib/time'
 import { useAgentUi, useAgentUiState } from '../agent-store'
 import { useAgentChat } from '../chat-context'
@@ -54,7 +55,8 @@ export function AgentPanel() {
       <header className="border-border flex items-center gap-1 border-b px-2 py-1.5">
         <NavButton
           label="全屏放大"
-          onClick={() => {
+          onClick={(e) => {
+            setExpandOriginFromEvent(e)
             ui.closePanel()
             router.push('/agent')
           }}

@@ -15,6 +15,9 @@ import { PhoneFrame } from './device-frame'
 const presets = [
   { cls: 'animate-fade-in', name: 'fade-in', use: '内容替换、展开区' },
   { cls: 'animate-fade-up', name: 'fade-up', use: '页面和卡片进场（可错开 60ms）' },
+  { cls: 'animate-content-reveal', name: 'content-reveal', use: '骨架屏加载完毕柔和切换' },
+  { cls: 'animate-page-push', name: 'page-push', use: '传统子页面右进左出（560ms 舒缓）' },
+  { cls: 'animate-page-expand', name: 'page-expand', use: '聚焦点击点径向铺开全屏（540ms）' },
   { cls: 'animate-pop-in', name: 'pop-in', use: '弹出层、气泡、新出现的徽章' },
   { cls: 'animate-sheet-up', name: 'sheet-up', use: '手机底部弹层' },
   { cls: 'animate-stamp', name: 'stamp', use: '打卡成功盖章（庆祝时刻）' },
@@ -63,6 +66,7 @@ export function PresetGallery() {
 const easings = [
   { cls: 'ease-standard', name: 'standard', use: '颜色、透明度等普通过渡' },
   { cls: 'ease-out-soft', name: 'out-soft', use: '进场：快出慢停' },
+  { cls: 'ease-page', name: 'page', use: '整页推入 / 聚焦铺开：柔和长尾减速' },
   { cls: 'ease-in-soft', name: 'in-soft', use: '退场：慢起快走' },
   { cls: 'ease-spring', name: 'spring', use: '按压回弹、开关、选中（有过冲）' },
 ] as const
@@ -133,6 +137,135 @@ export function SplashDemo() {
         </div>
         <Splash key={round} preview greeting={greeting} />
       </PhoneFrame>
+    </div>
+  )
+}
+
+/** 页面与聚焦转场交互演示：传统右进左出 + 点击点径向铺开 */
+export function PageTransitionDemo() {
+  const [pushView, setPushView] = useState<'list' | 'detail'>('list')
+  const [expandState, setExpandState] = useState<{
+    open: boolean
+    label: string
+    x: number
+    y: number
+    seq: number
+  }>({ open: false, label: '', x: 50, y: 50, seq: 0 })
+
+  const modules = [
+    { id: 'diet', label: '好好吃饭', cls: 'bg-diet-soft text-diet-ink' },
+    { id: 'exercise', label: '每天动一动', cls: 'bg-exercise-soft text-exercise-ink' },
+    { id: 'sleep', label: '早点睡', cls: 'bg-sleep-soft text-sleep-ink' },
+    { id: 'study', label: '今天学了啥', cls: 'bg-study-soft text-study-ink' },
+  ] as const
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      <Card variant="outline" className="flex flex-col gap-2.5 overflow-hidden">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-caption font-semibold">传统子页面（右进左出 · 560ms）</p>
+            <p className="text-tiny text-muted">适用于「我的」子页、目标设置、个人资料等</p>
+          </div>
+          {pushView === 'detail' && (
+            <Button size="sm" variant="ghost" onClick={() => setPushView('list')}>
+              返回
+            </Button>
+          )}
+        </div>
+        <div className="bg-paper border-border relative h-36 overflow-hidden rounded-2xl border p-3">
+          {pushView === 'list' ? (
+            <div key="list" className="animate-page-pop flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setPushView('detail')}
+                className="bg-surface border-border text-caption flex h-11 items-center justify-between rounded-xl border px-3 font-semibold"
+              >
+                <span>目标设置</span>
+                <span className="text-muted">→</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPushView('detail')}
+                className="bg-surface border-border text-caption flex h-11 items-center justify-between rounded-xl border px-3 font-semibold"
+              >
+                <span>个人资料</span>
+                <span className="text-muted">→</span>
+              </button>
+            </div>
+          ) : (
+            <div
+              key="detail"
+              className="animate-page-push bg-surface border-border flex h-full flex-col justify-between rounded-xl border p-3"
+            >
+              <p className="text-caption font-bold">二级设置页面</p>
+              <p className="text-tiny text-muted">从右向左缓慢柔和推入，减轻视觉跳跃感</p>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card variant="outline" className="flex flex-col gap-2.5 overflow-hidden">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-caption font-semibold">聚焦点击点铺开（径向展开 · 540ms）</p>
+            <p className="text-tiny text-muted">适用于主页板块卡片、好友房间切换</p>
+          </div>
+          {expandState.open && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setExpandState((s) => ({ ...s, open: false }))}
+            >
+              收起
+            </Button>
+          )}
+        </div>
+        <div className="bg-paper border-border relative h-36 overflow-hidden rounded-2xl border p-3">
+          <div className="grid h-full grid-cols-2 gap-2">
+            {modules.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={(e) => {
+                  const box = e.currentTarget.parentElement?.parentElement?.getBoundingClientRect()
+                  const x = box ? Math.round(e.clientX - box.left) : 120
+                  const y = box ? Math.round(e.clientY - box.top) : 70
+                  setExpandState((s) => ({
+                    open: true,
+                    label: m.label,
+                    x,
+                    y,
+                    seq: s.seq + 1,
+                  }))
+                }}
+                className={cn(
+                  'ease-spring text-caption rounded-xl font-bold transition-transform duration-(--dur-fast) active:scale-95',
+                  m.cls,
+                )}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          {expandState.open && (
+            <div
+              key={expandState.seq}
+              style={
+                {
+                  '--origin-x': `${expandState.x}px`,
+                  '--origin-y': `${expandState.y}px`,
+                  transformOrigin: `${expandState.x}px ${expandState.y}px`,
+                } as React.CSSProperties
+              }
+              className="animate-page-expand bg-surface absolute inset-0 flex flex-col justify-between p-3.5"
+            >
+              <p className="text-subhead font-bold">{expandState.label} · 详情页</p>
+              <p className="text-tiny text-muted">以你刚刚点击的坐标为圆心，缓动铺开至全屏</p>
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   )
 }

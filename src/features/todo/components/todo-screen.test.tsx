@@ -2,6 +2,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiProvider } from '@/lib/api'
 import type { Todo, TodoOverview } from '../schemas'
+import { TodoDdlPicker } from './todo-ddl-picker'
+import { TodoGroupDropdown, TodoTagDropdown } from './todo-dropdown-pickers'
 import { TodoFab } from './todo-fab'
 import { TodoPriorityPicker } from './todo-priority-picker'
 import { TodoScreen } from './todo-screen'
@@ -67,6 +69,44 @@ const sampleTodos: Todo[] = [
     updatedAt: '2026-10-30T02:00:00.000Z',
   },
   {
+    id: '0193f6b2-0000-7000-8000-000000000004',
+    groupId: DEFAULT_GROUP,
+    groupName: '默认待办',
+    title: '还图书馆的书',
+    note: null,
+    dueAt: '2026-10-31T10:00:00.000Z',
+    priority: 'urgent-not-important',
+    tags: [],
+    status: 'open',
+    doneAt: null,
+    abandonedAt: null,
+    abandonReason: null,
+    settledAt: null,
+    isArchived: false,
+    sortOrder: 1,
+    createdAt: '2026-10-29T01:00:00.000Z',
+    updatedAt: '2026-10-29T01:00:00.000Z',
+  },
+  {
+    id: '0193f6b2-0000-7000-8000-000000000005',
+    groupId: DEFAULT_GROUP,
+    groupName: '默认待办',
+    title: '普通不紧急不重要待办',
+    note: null,
+    dueAt: null,
+    priority: 'not-important-not-urgent',
+    tags: [],
+    status: 'open',
+    doneAt: null,
+    abandonedAt: null,
+    abandonReason: null,
+    settledAt: null,
+    isArchived: false,
+    sortOrder: 2,
+    createdAt: '2026-10-30T04:00:00.000Z',
+    updatedAt: '2026-10-30T04:00:00.000Z',
+  },
+  {
     id: '0193f6b2-0000-7000-8000-000000000003',
     groupId: DEFAULT_GROUP,
     groupName: '默认待办',
@@ -95,7 +135,7 @@ const overview: TodoOverview = {
       name: '默认待办',
       isDefault: true,
       sortOrder: 0,
-      openCount: 1,
+      openCount: 2,
       soonCount: 1,
       createdAt: '2026-10-30T00:00:00.000Z',
       updatedAt: '2026-10-30T00:00:00.000Z',
@@ -119,19 +159,19 @@ const overview: TodoOverview = {
     },
   ],
   counts: {
-    openTotal: 2,
-    overdueCount: 0,
+    openTotal: 4,
+    overdueCount: 1,
     doneRecentCount: 1,
     abandonedRecentCount: 0,
     archivedCount: 4,
     quadrants: {
       'urgent-important': 1,
       'important-not-urgent': 1,
-      'urgent-not-important': 0,
-      'not-important-not-urgent': 0,
+      'urgent-not-important': 1,
+      'not-important-not-urgent': 1,
     },
   },
-  defaultGroupTodos: { items: [sampleTodos[0]!], nextCursor: null },
+  defaultGroupTodos: { items: [sampleTodos[0]!, sampleTodos[3]!], nextCursor: null },
 }
 
 const noop = () => {}
@@ -188,16 +228,68 @@ describe('TodoScreen 渲染与折叠性能守卫', () => {
     expect(html).toContain('交数据结构实验报告')
     expect(html).not.toContain('折叠分组内的待办不应在未展开时挂载')
 
-    // 标题严格带 truncate，副标题带四象限与自定义标签，右下角悬浮球（Playbook 演示态 contained）
+    // 标题严格带 truncate，紧急/重要以独立 SVG 图标呈现，不展示文字四象限标签，右下角悬浮球（Playbook 演示态 contained）
+    // 标签筛选已收入右上角菜单，顶部不再展示「全部标签」长条
+    expect(html).not.toContain('全部标签')
     expect(html).toContain('truncate')
-    expect(html).toContain('重要紧急')
+    expect(html).toContain('data-todo-priority-tag="urgent"')
+    expect(html).toContain('data-todo-priority-tag="important"')
+    expect(html).not.toContain('重要紧急')
+    expect(html).not.toContain('不重要不紧急')
     expect(html).toContain('#高数')
     expect(html).toContain('#作业')
     expect(html).toContain('aria-label="新建待办"')
     expect(html).toContain('z-[35]')
   })
 
-  it('四象限视图：仅渲染进行中待办（排除已完成），忽略自定义分组，展示四大象限', () => {
+  it('列表视图（已过期展开）：过期任务标题变红字、不渲染独立「已过期」与「默认待办」行内标签', () => {
+    const html = renderToStaticMarkup(
+      <ApiProvider>
+        <TodoScreen
+          view="list"
+          onViewChange={noop}
+          mode="list"
+          onModeChange={noop}
+          onTagChange={noop}
+          onCreate={noop}
+          onOpenGroupManager={noop}
+          onNavigateArchived={noop}
+          status="ready"
+          overview={overview}
+          expandedGroups={new Set()}
+          onToggleGroup={noop}
+          onExpandAllGroups={noop}
+          onCollapseAllGroups={noop}
+          overdueOpen
+          onToggleOverdue={noop}
+          doneOpen={false}
+          onToggleDone={noop}
+          abandonedOpen={false}
+          onToggleAbandoned={noop}
+          now={NOW}
+          timeZone={TZ}
+          onToggleTodo={noop}
+          onOpenManage={noop}
+          onRequestDelete={noop}
+          onReorderTodos={noop}
+          onReorderGroups={noop}
+          demoMode={{ allTodos: sampleTodos }}
+        />
+      </ApiProvider>,
+    )
+
+    // 过期行存在，标题应用 text-danger-ink 红字，仅显示紧急 SVG（不重要则不显示星标）
+    expect(html).toContain('还图书馆的书')
+    expect(html).toContain('text-danger-ink')
+    expect(html).toContain('data-todo-priority-tag="urgent"')
+    expect(html).not.toContain('data-todo-priority-tag="important"')
+    // 行内不把「默认待办」作为标签显示（页面里只在折叠面板头出现 1 次）
+    expect(html.match(/默认待办/g)?.length).toBe(1)
+    // 行内不渲染独立「已过期」标签（仅分组面板头出现 1 次）
+    expect(html.match(/已过期/g)?.length).toBe(1)
+  })
+
+  it('四象限视图：整页锁定不上下滚动、响应式 2x2 填满视口、不显示任何标签仅展示截止日期与缩微文字', () => {
     const html = renderToStaticMarkup(
       <ApiProvider>
         <TodoScreen
@@ -233,19 +325,28 @@ describe('TodoScreen 渲染与折叠性能守卫', () => {
       </ApiProvider>,
     )
 
+    expect(html).toContain('data-todo-layout="quadrant-locked"')
     expect(html).toContain('data-todo-quadrant-grid="2x2"')
     expect(html).toContain('grid-cols-[minmax(0,1fr)_minmax(0,1fr)]')
-    expect(html).toContain('grid-rows-2')
-    expect(html).toContain('h-60')
+    expect(html).toContain('grid-rows-[minmax(0,1fr)_minmax(0,1fr)]')
     expect(html).toContain('overflow-y-auto')
     expect(html).toContain('overscroll-contain')
+    expect(html).toContain('text-[10px]')
+    expect(html).toContain('text-[9px]')
     expect(html).toContain('重要且紧急')
     expect(html).toContain('重要不紧急')
     expect(html).toContain('紧急不重要')
     expect(html).toContain('不重要不紧急')
     expect(html).toContain('交数据结构实验报告')
+    expect(html).toContain('今天 23:59')
     expect(html).toContain('折叠分组内的待办不应在未展开时挂载')
     expect(html).not.toContain('已完成的待办不应进四象限')
+    // 四象限模式不显示任何标签（自定义标签、优先级 SVG 标签、分组标签、快到期/已过期标签）
+    expect(html).not.toContain('#高数')
+    expect(html).not.toContain('#作业')
+    expect(html).not.toContain('data-todo-priority-tag')
+    expect(html).not.toContain('快到期')
+    expect(html).not.toContain('默认待办')
   })
 
   it('TodoPriorityPicker 正确呈现双维度开关与实时四象限标签', () => {
@@ -266,5 +367,38 @@ describe('TodoScreen 渲染与折叠性能守卫', () => {
     const containedHtml = renderToStaticMarkup(<TodoFab onClick={noop} contained />)
     expect(containedHtml).toContain('aria-label="新建待办"')
     expect(containedHtml).toContain('sticky')
+  })
+
+  it('TodoDdlPicker 与同排「设置分组 / 设置标签」下拉选择器正确渲染', () => {
+    const ddlHtml = renderToStaticMarkup(
+      <TodoDdlPicker value="" onValueChange={noop} now={NOW} timeZone={TZ} />,
+    )
+    expect(ddlHtml).toContain('DDL')
+    expect(ddlHtml).toContain('不设')
+    expect(ddlHtml).toContain('今天')
+    expect(ddlHtml).toContain('明天')
+    expect(ddlHtml).toContain('选日期')
+
+    const groupHtml = renderToStaticMarkup(
+      <TodoGroupDropdown
+        options={[{ value: DEFAULT_GROUP, label: '默认待办' }]}
+        value={DEFAULT_GROUP}
+        onSelect={noop}
+        onCreateGroup={() => null}
+      />,
+    )
+    expect(groupHtml).toContain('设置分组')
+    expect(groupHtml).toContain('默认待办')
+
+    const tagHtml = renderToStaticMarkup(
+      <TodoTagDropdown
+        options={[{ value: '高数', label: '高数' }]}
+        selectedTags={['高数']}
+        onToggleTag={noop}
+        onCreateAndSelectTag={noop}
+      />,
+    )
+    expect(tagHtml).toContain('设置标签')
+    expect(tagHtml).toContain('#高数')
   })
 })

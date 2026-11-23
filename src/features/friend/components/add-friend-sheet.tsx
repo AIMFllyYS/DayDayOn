@@ -1,9 +1,9 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Field } from '@/components/ui/field'
 import { Icon } from '@/components/ui/icon'
 import { OTPField } from '@/components/ui/otp-field'
@@ -16,7 +16,13 @@ import {
   useCreateFriendInvite,
   usePreviewFriendInvite,
 } from '@/lib/api/queries/friends'
+import { useLazyMount } from '@/lib/lazy'
 import { friendActions, useFriendStore } from '../friend-store'
+
+const ConfirmDialog = dynamic(
+  () => import('@/components/ui/confirm-dialog').then((m) => m.ConfirmDialog),
+  { loading: () => null },
+)
 
 type SheetStep = 'menu' | 'invite' | 'accept'
 
@@ -58,6 +64,7 @@ export function AddFriendSheet() {
   const [inputCode, setInputCode] = useState('')
   const [codeError, setCodeError] = useState<string | null>(null)
   const [previewData, setPreviewData] = useState<FriendInvitePreview | null>(null)
+  const confirmDialogLoaded = useLazyMount(previewData !== null)
 
   // 10 分钟倒计时每秒刷新；到 0 秒后自动清空配对码
   useEffect(() => {
@@ -209,7 +216,7 @@ export function AddFriendSheet() {
             <div className="bg-primary-soft/60 text-primary-ink flex items-start gap-2.5 rounded-2xl px-4 py-3">
               <Icon name="bulb" size={18} className="mt-0.5 shrink-0" />
               <p className="text-caption leading-relaxed">
-                添加完好友之后，你们双方就能看到对方完整的打卡信息（今日进度、热力图、体重与心情），并且不可关闭。
+                添加完好友之后，你们双方就能看到对方完整的打卡信息（今日进度、各板块近况、目标记录、热力图、体重与心情），并且不可关闭。
               </p>
             </div>
           </div>
@@ -323,36 +330,38 @@ export function AddFriendSheet() {
         )}
       </Sheet>
 
-      {/* 屏幕正中央二次确认弹窗：左下取消、右下接受 */}
-      <ConfirmDialog
-        open={previewData !== null}
-        onOpenChange={(next) => {
-          if (!next) setPreviewData(null)
-        }}
-        title="是否接受好友邀请？"
-        description="添加完好友之后，你们双方就能看到对方完整的打卡信息，并且不可关闭。"
-        cancelLabel="取消"
-        confirmLabel="接受"
-        buttonLayout="split"
-        centered
-        onConfirm={handleConfirmAccept}
-      >
-        {previewData && (
-          <div className="bg-surface-sunken/70 border-border/60 flex flex-col items-center gap-2.5 rounded-2xl border px-4 py-5">
-            <Avatar
-              name={previewData.inviter.nickname}
-              avatar={previewData.inviter.avatar}
-              size="lg"
-            />
-            <div className="text-center">
-              <div className="text-subhead text-foreground font-bold">
-                {previewData.inviter.nickname}
+      {/* 屏幕正中央二次确认弹窗：左下取消、右下接受（按需懒加载） */}
+      {confirmDialogLoaded && (
+        <ConfirmDialog
+          open={previewData !== null}
+          onOpenChange={(next) => {
+            if (!next) setPreviewData(null)
+          }}
+          title="是否接受好友邀请？"
+          description="添加完好友之后，你们双方就能看到对方完整的打卡信息，并且不可关闭。"
+          cancelLabel="取消"
+          confirmLabel="接受"
+          buttonLayout="split"
+          centered
+          onConfirm={handleConfirmAccept}
+        >
+          {previewData && (
+            <div className="bg-surface-sunken/70 border-border/60 flex flex-col items-center gap-2.5 rounded-2xl border px-4 py-5">
+              <Avatar
+                name={previewData.inviter.nickname}
+                avatar={previewData.inviter.avatar}
+                size="lg"
+              />
+              <div className="text-center">
+                <div className="text-subhead text-foreground font-bold">
+                  {previewData.inviter.nickname}
+                </div>
+                <div className="text-caption text-muted mt-0.5">邀请你成为 DayDayOn 打卡好友</div>
               </div>
-              <div className="text-caption text-muted mt-0.5">邀请你成为 DayDayOn 打卡好友</div>
             </div>
-          </div>
-        )}
-      </ConfirmDialog>
+          )}
+        </ConfirmDialog>
+      )}
     </>
   )
 }
