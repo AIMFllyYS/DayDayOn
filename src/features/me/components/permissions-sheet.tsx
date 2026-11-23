@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Markdown } from '@/components/markdown'
 import { Badge, IconTile } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import type { IconName } from '@/components/ui/icon'
+import { Icon, type IconName } from '@/components/ui/icon'
 import { Sheet } from '@/components/ui/sheet'
 import { toast } from '@/components/ui/toast'
 import type { ModuleTone } from '@/components/ui/tone'
+import { cn } from '@/lib/cn'
 import {
   getNativePermissions,
   isNativeApp,
@@ -19,17 +21,19 @@ import {
   type NativePermissionsMap,
   type PermissionStateValue,
 } from '@/lib/native'
+import { PERMISSIONS_COVENANT_MD } from './permissions-covenant'
 
 /*
- * 「我的 → 权限管理」面板与弹层：
- * 面向普通用户清晰说明并管理 4 项系统授权（相机、相册、计步、通知），不暴露底层工程常量。
+ * 「我的 → 权限管理」精简面板与弹层：
+ * - 顶部仅保留清爽的「权限使用公约」与「打开系统设置」双入口，不再堆砌长段提示文案；
+ * - 每项权限采用单行紧凑列表呈现（图标 + 名称与简短说明 + 右侧操作态），已开启时直接以「已开启」按钮态表达，不再叠放多余状态标签；
+ * - 点击「权限使用公约」以官方 Markdown 文档形式完整披露各项权限用途、内存即焚承诺与撤回权利。
  */
 
 interface PermissionMeta {
   key: NativePermissionName
   label: string
   description: string
-  usageHint: string
   icon: IconName
   tone: ModuleTone | 'primary'
 }
@@ -38,52 +42,43 @@ const PERMISSION_ITEMS: readonly PermissionMeta[] = [
   {
     key: 'camera',
     label: '相机拍摄',
-    description: '智能拍照与饮食识别时，直接拍摄清晰照片供团团识别',
-    usageHint: '仅在主动点击拍照时调用，照片不在磁盘或服务器原图落盘',
+    description: '拍照识别饮食、运动等打卡内容',
     icon: 'camera',
     tone: 'diet',
   },
   {
     key: 'photos',
     label: '相册与图片',
-    description: '在选图面板中浏览并按顺序选择相册图片进行识别',
-    usageHint: '仅读取你选中的图片并在内存中压缩，不会后台扫描隐私文件',
+    description: '从相册选择照片上传识别',
     icon: 'album',
     tone: 'study',
   },
   {
     key: 'steps',
-    label: '运动与步数记录',
-    description: '读取今日步数变化，在主页「今日步数」卡片实时同步进度',
-    usageHint: '关闭后仍可随时手动填写今日步数',
+    label: '运动与步数',
+    description: '自动同步手机今日步数进度',
     icon: 'footprints',
     tone: 'exercise',
   },
   {
     key: 'notifications',
-    label: '系统通知提醒',
-    description: '开启「手机提醒」后，在每天设定的时间推送打卡提醒通知',
-    usageHint: '可随时在打卡与提醒设置中切换提醒方式或关闭',
+    label: '系统通知',
+    description: '每日按时推送打卡提醒',
     icon: 'bell',
     tone: 'sleep',
   },
 ]
 
-function statusBadge(status: PermissionStateValue, partialPhotos = false) {
-  if (partialPhotos) {
-    return <Badge tone="primary">部分照片已授权</Badge>
-  }
-  switch (status) {
-    case 'granted':
-      return <Badge tone="success">已开启</Badge>
-    case 'denied':
-      return <Badge tone="danger">未开启</Badge>
-    default:
-      return <Badge tone="neutral">待授权</Badge>
-  }
+export interface PermissionsManagerListProps {
+  active?: boolean
+  /** 若外层已经在 Sheet 弹层内，传回调在同弹层内切到公约视图，避免弹层套弹层 */
+  onOpenCovenant?: () => void
 }
 
-export function PermissionsManagerList({ active = true }: { active?: boolean }) {
+export function PermissionsManagerList({
+  active = true,
+  onOpenCovenant,
+}: PermissionsManagerListProps) {
   const [perms, setPerms] = useState<NativePermissionsMap>({
     camera: 'prompt',
     photos: 'prompt',
@@ -92,6 +87,7 @@ export function PermissionsManagerList({ active = true }: { active?: boolean }) 
   })
   const [partialPhotos, setPartialPhotos] = useState(false)
   const [requestingKey, setRequestingKey] = useState<NativePermissionName | null>(null)
+  const [covenantOpen, setCovenantOpen] = useState(false)
   const native = isNativeApp()
 
   useEffect(() => {
@@ -123,10 +119,8 @@ export function PermissionsManagerList({ active = true }: { active?: boolean }) 
       if (nextStatus === 'granted') {
         toast.success(`「${item.label}」已开启`)
       } else if (nextStatus === 'denied') {
-        toast.error(`「${item.label}」暂未开启`, {
-          description: native
-            ? '可点击右侧「去设置」在系统设置中手动开启'
-            : '请在浏览器地址栏左侧的站点权限中允许该权限',
+        toast.error(`「${item.label}」未开启`, {
+          description: native ? '可点击「打开系统设置」手动开启' : '请在浏览器站点权限中开启',
         })
       }
     } finally {
@@ -153,47 +147,63 @@ export function PermissionsManagerList({ active = true }: { active?: boolean }) 
     }
   }
 
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="bg-surface-sunken/70 flex flex-wrap items-center justify-between gap-2.5 rounded-2xl px-4 py-3">
-        <p className="text-caption text-muted min-w-0 flex-1 leading-relaxed">
-          {native
-            ? '遵循最小必要授权原则；关闭任意权限均不影响常规手动打卡与记录。'
-            : '当前处于浏览器网页模式；在手机客户端内可完整管理相机、相册、计步与系统通知授权。'}
-        </p>
-        {native && (
-          <Button size="sm" variant="secondary" onClick={() => openNativeAppSettings()}>
-            打开系统设置
-          </Button>
-        )}
-      </div>
+  function handleOpenCovenant() {
+    if (onOpenCovenant) onOpenCovenant()
+    else setCovenantOpen(true)
+  }
 
-      <div className="flex flex-col gap-2.5">
-        {PERMISSION_ITEMS.map((item) => {
-          const status = perms[item.key]
-          const isBusy = requestingKey === item.key
-          const isPartialPhotoItem = item.key === 'photos' && partialPhotos
-          return (
-            <div
-              key={item.key}
-              className="border-border bg-surface shadow-soft flex flex-col gap-2.5 rounded-2xl border p-4"
+  return (
+    <>
+      <div className="flex flex-col gap-3">
+        {/* 顶部精简操作条：左侧「权限使用公约」+ 右侧「打开系统设置」（网页端仅保留公约与精简状态） */}
+        <div className={cn('grid gap-2', native ? 'grid-cols-2' : 'grid-cols-1')}>
+          <Button
+            size="sm"
+            variant="soft"
+            icon="shield"
+            className="w-full"
+            onClick={handleOpenCovenant}
+          >
+            权限使用公约
+          </Button>
+          {native && (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="sliders"
+              className="w-full"
+              onClick={() => openNativeAppSettings()}
             >
-              <div className="flex min-w-0 items-start justify-between gap-3">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
+              打开系统设置
+            </Button>
+          )}
+        </div>
+
+        {/* 四项权限单行紧凑清单 */}
+        <ul className="divide-border border-border bg-surface shadow-soft divide-y overflow-hidden rounded-2xl border">
+          {PERMISSION_ITEMS.map((item) => {
+            const status: PermissionStateValue = perms[item.key]
+            const isBusy = requestingKey === item.key
+            const isPartialPhotoItem = item.key === 'photos' && partialPhotos
+            return (
+              <li
+                key={item.key}
+                className="flex min-w-0 items-center justify-between gap-3 px-3.5 py-3"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                   <IconTile icon={item.icon} tone={item.tone} size="sm" />
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-body font-bold">{item.label}</span>
-                      {statusBadge(status, isPartialPhotoItem)}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-caption text-foreground truncate font-bold">
+                        {item.label}
+                      </span>
+                      {isPartialPhotoItem && <Badge tone="primary">部分授权</Badge>}
                     </div>
-                    <p className="text-caption text-muted mt-1 leading-relaxed">
-                      {item.description}
-                    </p>
-                    <p className="text-tiny text-subtle mt-1 leading-relaxed">{item.usageHint}</p>
+                    <p className="text-tiny text-muted mt-0.5 truncate">{item.description}</p>
                   </div>
                 </div>
 
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <div className="flex shrink-0 items-center gap-1.5">
                   {status === 'granted' ? (
                     <>
                       {isPartialPhotoItem && native && (
@@ -203,24 +213,27 @@ export function PermissionsManagerList({ active = true }: { active?: boolean }) 
                           disabled={isBusy}
                           onClick={() => void handleReselectPhotos()}
                         >
-                          增选照片
+                          增选
                         </Button>
                       )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                      <button
+                        type="button"
                         disabled={!native}
                         onClick={() => {
                           if (native) openSystemPageFor(item.key)
                         }}
+                        className={cn(
+                          'bg-success-soft text-success-ink text-tiny inline-flex h-9 min-w-20 shrink-0 items-center justify-center gap-1 rounded-full px-3 font-semibold transition-opacity',
+                          native ? 'hover:opacity-85 active:scale-95' : 'cursor-default',
+                        )}
                       >
-                        {native ? '去设置' : '已开启'}
-                      </Button>
+                        <Icon name="check" size={13} strokeWidth={2.5} lineOnly />
+                        <span>已开启</span>
+                      </button>
                     </>
                   ) : (
-                    <Button
-                      size="sm"
-                      variant={status === 'denied' && native ? 'secondary' : 'soft'}
+                    <button
+                      type="button"
                       disabled={isBusy}
                       onClick={() => {
                         if (status === 'denied' && native) {
@@ -229,21 +242,37 @@ export function PermissionsManagerList({ active = true }: { active?: boolean }) 
                           void handleRequest(item)
                         }
                       }}
+                      className={cn(
+                        'ease-spring text-tiny inline-flex h-9 min-w-20 shrink-0 items-center justify-center rounded-full px-3 font-semibold transition-[transform,background-color,filter] duration-(--dur-fast) active:scale-95 disabled:opacity-50',
+                        status === 'denied' && native
+                          ? 'border-border-strong bg-surface text-foreground hover:bg-surface-sunken border'
+                          : 'bg-primary-soft text-primary-ink hover:brightness-95',
+                      )}
                     >
-                      {isBusy
-                        ? '请求中…'
-                        : status === 'denied' && native
-                          ? '去设置开启'
-                          : '立即开启'}
-                    </Button>
+                      {isBusy ? '请求中…' : status === 'denied' && native ? '去设置' : '立即开启'}
+                    </button>
                   )}
                 </div>
-              </div>
-            </div>
-          )
-        })}
+              </li>
+            )
+          })}
+        </ul>
       </div>
-    </div>
+
+      {/* 官方权限使用与隐私公约（Markdown 渲染） */}
+      {!onOpenCovenant && (
+        <Sheet
+          open={covenantOpen}
+          onOpenChange={setCovenantOpen}
+          title="权限使用与隐私公约"
+          description="DayDayOn 官方权限说明文档"
+        >
+          <div className="text-caption pb-2">
+            <Markdown text={PERMISSIONS_COVENANT_MD} />
+          </div>
+        </Sheet>
+      )}
+    </>
   )
 }
 
@@ -253,14 +282,39 @@ export interface PermissionsSheetProps {
 }
 
 export function PermissionsSheet({ open, onOpenChange }: PermissionsSheetProps) {
+  const [viewingCovenant, setViewingCovenant] = useState(false)
+
+  function handleOpenChange(next: boolean) {
+    if (!next) setViewingCovenant(false)
+    onOpenChange(next)
+  }
+
   return (
     <Sheet
       open={open}
-      onOpenChange={onOpenChange}
-      title="权限管理"
-      description="按需管理相机、相册、计步与系统通知授权"
+      onOpenChange={handleOpenChange}
+      title={viewingCovenant ? '权限使用与隐私公约' : '权限管理'}
+      description={viewingCovenant ? 'DayDayOn 官方权限说明文档' : undefined}
+      footer={
+        viewingCovenant ? (
+          <Button
+            variant="ghost"
+            icon="chevron-left"
+            className="w-full"
+            onClick={() => setViewingCovenant(false)}
+          >
+            返回权限管理
+          </Button>
+        ) : undefined
+      }
     >
-      <PermissionsManagerList active={open} />
+      {viewingCovenant ? (
+        <div className="text-caption pb-2">
+          <Markdown text={PERMISSIONS_COVENANT_MD} />
+        </div>
+      ) : (
+        <PermissionsManagerList active={open} onOpenCovenant={() => setViewingCovenant(true)} />
+      )}
     </Sheet>
   )
 }
