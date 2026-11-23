@@ -131,7 +131,13 @@ export function TodoScreen(props: TodoScreenProps) {
   ]
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-2.5 pb-20">
+    <div
+      className={
+        mode === 'quadrant'
+          ? 'mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-2.5 pb-20'
+          : 'mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-2.5 pb-20'
+      }
+    >
       {/* 顶部工具条：左侧保留「清单 | 时间日志」，右侧替换为「过程」+「菜单」 */}
       <div className="flex w-full min-w-0 items-center gap-1.5">
         <SegmentedControl

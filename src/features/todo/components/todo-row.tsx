@@ -73,12 +73,12 @@ export function TodoRow({
     >
       <div
         className={cn(
-          'flex w-full min-w-0 items-center gap-1 rounded-xl transition-colors duration-(--dur-fast)',
-          compact ? 'px-1.5 py-1' : 'px-1.5 py-1',
+          'flex w-full min-w-0 items-center rounded-xl transition-colors duration-(--dur-fast)',
+          compact ? 'gap-0.5 px-1 py-1 sm:gap-1 sm:px-1.5' : 'gap-1 px-1.5 py-1',
           !isDragging && 'hover:bg-surface-sunken/65',
         )}
       >
-        {/* 左：打卡圆圈（保证 44x44px 触控区，不触发拖拽） */}
+        {/* 左：打卡圆圈（常规列表保证 44x44px 触控区，四象限双列紧凑态自动收敛不挤占标题） */}
         <button
           type="button"
           data-no-drag="true"
@@ -92,11 +92,15 @@ export function TodoRow({
                 : `完成：${todo.title}`
           }
           onClick={() => onToggle(todo)}
-          className="flex size-10 shrink-0 items-center justify-center sm:size-11"
+          className={cn(
+            'flex shrink-0 items-center justify-center',
+            compact ? 'size-7 sm:size-9' : 'size-10 sm:size-11',
+          )}
         >
           <span
             className={cn(
-              'ease-spring flex size-5.5 items-center justify-center rounded-full border-2 transition-[transform,background-color,border-color] duration-(--dur-base) active:scale-90',
+              'ease-spring flex items-center justify-center rounded-full border-2 transition-[transform,background-color,border-color] duration-(--dur-base) active:scale-90',
+              compact ? 'size-4.5 sm:size-5' : 'size-5.5',
               isDone
                 ? 'border-success bg-success text-surface scale-105'
                 : isAbandoned
@@ -121,12 +125,16 @@ export function TodoRow({
             onOpenManage(todo)
           }}
           aria-label={`管理待办：${todo.title}`}
-          className="flex min-h-10 min-w-0 flex-1 flex-col justify-center overflow-hidden py-0.5 text-left"
+          className={cn(
+            'flex min-w-0 flex-1 flex-col justify-center overflow-hidden py-0.5 text-left',
+            compact ? 'min-h-8 sm:min-h-9' : 'min-h-10',
+          )}
         >
           <div className="flex min-w-0 items-center gap-1">
             <span
               className={cn(
-                'text-caption block min-w-0 flex-1 truncate leading-snug font-semibold transition-colors duration-(--dur-base)',
+                'block min-w-0 flex-1 truncate leading-snug font-semibold transition-colors duration-(--dur-base)',
+                compact ? 'text-tiny sm:text-caption' : 'text-caption',
                 isSettled && 'text-subtle line-through',
               )}
             >
@@ -207,9 +215,12 @@ export function TodoRow({
           data-no-drag="true"
           aria-label={`删除：${todo.title}`}
           onClick={() => onRequestDelete(todo)}
-          className="ease-spring text-subtle hover:bg-danger-soft/60 hover:text-danger-ink flex size-10 shrink-0 items-center justify-center rounded-full transition-[transform,color,background-color] duration-(--dur-fast) active:scale-90 sm:size-11"
+          className={cn(
+            'ease-spring text-subtle hover:bg-danger-soft/60 hover:text-danger-ink flex shrink-0 items-center justify-center rounded-full transition-[transform,color,background-color] duration-(--dur-fast) active:scale-90',
+            compact ? 'size-7 sm:size-9' : 'size-10 sm:size-11',
+          )}
         >
-          <Icon name="trash" size={16} lineOnly />
+          <Icon name="trash" size={compact ? 14 : 16} lineOnly />
         </button>
       </div>
     </li>
