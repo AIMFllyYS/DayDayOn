@@ -117,6 +117,17 @@ export function CheckinSheetList({
           </button>
         </li>
         <li>
+          <Link href="/todo?new=1" onClick={onNavigate} className={rowClass}>
+            <RowBody
+              icon="todo"
+              tone="study"
+              title="新建待办"
+              status="快速记一条待办事项"
+              done={false}
+            />
+          </Link>
+        </li>
+        <li>
           <button type="button" onClick={() => onOpenView('mood')} className={rowClass}>
             <RowBody
               icon="heart"

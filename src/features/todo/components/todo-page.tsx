@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormErrors } from '@/components/ui/form'
 import { toast } from '@/components/ui/toast'
 import type { Me } from '@/features/me/schemas'
@@ -66,6 +66,7 @@ export function TodoPage() {
   const searchParams = useSearchParams()
   const view = parseTodoView(searchParams.get('view'))
   const mode = parseTodoLayoutMode(searchParams.get('mode'))
+  const wantNew = searchParams.get('new') === '1'
 
   const now = useNow()
   const { timeZone } = useTimeZone()
@@ -100,6 +101,30 @@ export function TodoPage() {
   })
   const [sheetLoaded, setSheetLoaded] = useState(false)
   const [serverErrors, setServerErrors] = useState<FormErrors>()
+  const [handledWantNew, setHandledWantNew] = useState(false)
+
+  // 从底部「＋ → 新建待办」跳入 /todo?new=1 时，自动弹出新建待办抽屉并清理 URL 参数
+  if (wantNew && !handledWantNew) {
+    setHandledWantNew(true)
+    setSheetLoaded(true)
+    setServerErrors(undefined)
+    setSheet((s) => ({
+      open: true,
+      todo: null,
+      idempotencyKey: newIdempotencyKey(),
+      session: s.session + 1,
+    }))
+  } else if (!wantNew && handledWantNew) {
+    setHandledWantNew(false)
+  }
+
+  useEffect(() => {
+    if (!wantNew) return
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('new')
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [wantNew, pathname, router, searchParams])
 
   const [groupManagerOpen, setGroupManagerOpen] = useState(false)
   const [groupManagerLoaded, setGroupManagerLoaded] = useState(false)
@@ -179,9 +204,9 @@ export function TodoPage() {
       { todoId: todo.id, patch },
       {
         onSuccess: () => {
-          if (patch.status === 'done') toast.success('已完成，已移入「已完成」分组')
-          else if (patch.status === 'abandoned') toast.info('已放弃，已移入「已放弃」分组')
-          else if (patch.status === 'open') toast.success('已恢复为进行中待办')
+          if (patch.status === 'done') toast.success('已完成')
+          else if (patch.status === 'abandoned') toast.info('已放弃')
+          else if (patch.status === 'open') toast.success('已恢复')
           closeSheet()
         },
         onError: (err) => toast.error(messageOf(err)),
@@ -196,8 +221,8 @@ export function TodoPage() {
       {
         onSuccess: () => {
           if (nextStatus === 'done') {
-            toast.undo('已完成一项待办', {
-              description: `${todo.title} · 已移入「已完成」`,
+            toast.undo('已完成', {
+              description: todo.title,
               onUndo: () => {
                 toggle.mutate(
                   { todoId: todo.id, patch: { status: 'open' } },
@@ -353,7 +378,7 @@ export function TodoPage() {
             if (!target) return
             try {
               await remove.mutateAsync(target.id)
-              toast.success('已删除这条待办')
+              toast.success('已删除')
               setPendingDelete(null)
             } catch (err) {
               toast.error(messageOf(err))
