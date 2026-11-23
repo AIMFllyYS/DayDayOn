@@ -52,11 +52,51 @@ export function TierPicker({
   value,
   onChange,
   suggested,
+  compact = false,
 }: {
   value: RefereeTier
   onChange: (tier: RefereeTier) => void
   suggested?: RefereeTier | null
+  /** 紧凑模式（目标设置卡片内）：单行三段切换 + 一句当前档位简述，避免卡片套卡片与大段说明 */
+  compact?: boolean
 }) {
+  if (compact) {
+    const activeMeta = TIER_META[value]
+    return (
+      <div className="flex flex-col gap-1.5">
+        <div
+          role="radiogroup"
+          aria-label="个人体质档位"
+          className="bg-surface-sunken grid grid-cols-3 gap-1 rounded-xl p-1"
+        >
+          {ORDER.map((id) => {
+            const t = TIER_META[id]
+            const on = id === value
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => onChange(id)}
+                className={cn(
+                  'ease-spring text-tiny flex min-h-9 items-center justify-center gap-1 rounded-lg px-1.5 font-semibold transition-all duration-(--dur-fast) active:scale-95',
+                  on
+                    ? 'bg-surface text-foreground shadow-soft'
+                    : 'text-muted hover:text-foreground',
+                )}
+              >
+                <Icon name={t.icon} size={13} className="shrink-0" />
+                <span className="truncate">{t.name}</span>
+              </button>
+            )
+          })}
+        </div>
+        <p className="text-tiny text-muted px-0.5 leading-snug">{activeMeta.rule}</p>
+      </div>
+    )
+  }
+
   return (
     <div role="radiogroup" aria-label="个人体质档位" className="grid gap-1.5 sm:grid-cols-3">
       {ORDER.map((id) => {

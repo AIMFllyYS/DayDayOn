@@ -98,7 +98,7 @@ function CycleDaysWheel({ value, onChange }: { value: number; onChange: (days: n
   }
 
   return (
-    <div className="bg-surface border-border relative overflow-hidden rounded-xl border py-1">
+    <div className="bg-surface-sunken/80 relative overflow-hidden rounded-xl py-1">
       <div
         ref={scrollerRef}
         role="listbox"
@@ -212,8 +212,8 @@ export function PeriodPlanPicker({
           </button>
         </div>
 
-        {/* 横向滚动天数刻度条 + 滑块（替代堆砌按钮） */}
-        <div className="border-border bg-surface-sunken/60 flex flex-col gap-2.5 rounded-2xl border p-3">
+        {/* 直接铺展在 Sheet 表面：横向滚动天数滚轮 + 滑块 + 截止日，不再套外层边框卡片 */}
+        <div className="flex flex-col gap-2.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-baseline gap-1.5">
               <span className="font-display text-heading text-foreground font-bold tabular-nums">
@@ -261,8 +261,8 @@ export function PeriodPlanPicker({
             tone="primary"
           />
 
-          {/* 截止日期：复用共享手账 <Calendar /> */}
-          <div className="border-border/65 border-t pt-2.5">
+          {/* 截止日期：复用共享手账 <Calendar />，平铺展开无嵌套边框 */}
+          <div className="border-border/60 border-t pt-2">
             <button
               type="button"
               aria-expanded={calendarOpen}
@@ -289,7 +289,7 @@ export function PeriodPlanPicker({
             </button>
 
             <Collapse open={calendarOpen} unmountOnCollapse>
-              <div className="border-border bg-surface mt-2 rounded-xl border p-2.5">
+              <div className="pt-2">
                 <Calendar
                   label="选择总截止日期"
                   today={today}
@@ -313,7 +313,7 @@ export function PeriodPlanPicker({
         </div>
       </div>
 
-      {/* ② 每日提醒：保持清晰的提醒方式分段，修复换行溢出并复用打卡同款 TimePicker */}
+      {/* ② 每日提醒：保持清晰的提醒方式分段，平铺复用打卡同款 TimePicker */}
       <div className="border-border/70 flex flex-col gap-2.5 border-t pt-3.5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-caption font-bold">每日提醒</span>
@@ -323,32 +323,23 @@ export function PeriodPlanPicker({
         </div>
 
         {remindMode !== undefined && onRemindModeChange && (
-          <div className="flex flex-col gap-1.5">
-            <SegmentedControl
-              label="提醒方式"
-              size="sm"
-              options={REMIND_MODE_OPTIONS}
-              value={remindMode}
-              onValueChange={handleModeChange}
-            />
-            <p className="text-tiny text-muted px-0.5">
-              {remindMode === 'native'
-                ? '按设定时间推送系统通知（需开启手机通知权限）'
-                : remindMode === 'in-app'
-                  ? '过提醒时间后在主页顶部温和提示'
-                  : '已暂停每日打卡提醒'}
-            </p>
-          </div>
+          <SegmentedControl
+            label="提醒方式"
+            size="sm"
+            options={REMIND_MODE_OPTIONS}
+            value={remindMode}
+            onValueChange={handleModeChange}
+          />
         )}
 
         {reminderEnabled && (
-          <div className="border-border bg-surface-sunken/60 flex flex-col gap-2 rounded-2xl border p-3">
+          <div className="flex flex-col gap-2 pt-0.5">
             <div className="flex items-center justify-between gap-2">
               <button
                 type="button"
                 aria-expanded={timePickerOpen}
                 onClick={() => setTimePickerOpen((o) => !o)}
-                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                className="flex min-h-9 min-w-0 flex-1 items-center gap-2 text-left"
               >
                 <Icon name="clock" size={15} className="text-primary-ink shrink-0" lineOnly />
                 <span className="text-caption font-semibold">提醒时刻</span>
@@ -402,7 +393,6 @@ export function PeriodPlanPicker({
                   value={currentTime}
                   onChange={onRemindAtChange}
                   tone="primary"
-                  className="bg-surface border-border border"
                 />
               </div>
             </Collapse>

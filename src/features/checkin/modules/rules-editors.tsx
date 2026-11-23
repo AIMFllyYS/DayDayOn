@@ -16,7 +16,7 @@ function Hint({ children }: { children: ReactNode }) {
   return <p className="text-tiny text-subtle leading-snug">{children}</p>
 }
 
-export function DietRulesEditor({ rules, onChange }: RulesEditorProps<'diet'>) {
+export function DietRulesEditor({ rules, onChange, compact }: RulesEditorProps<'diet'>) {
   return (
     <div className="flex flex-col gap-2">
       <InlineRow label="有效线">
@@ -31,7 +31,7 @@ export function DietRulesEditor({ rules, onChange }: RulesEditorProps<'diet'>) {
           onValueChange={(v) => onChange({ ...rules, passScore: v ?? 3 })}
         />
       </InlineRow>
-      <Hint>Agent 评分高于这个分数才算有效（满分 5 分），默认 3.0。</Hint>
+      {!compact && <Hint>Agent 评分高于这个分数才算有效（满分 5 分），默认 3.0。</Hint>}
     </div>
   )
 }
@@ -53,10 +53,10 @@ export function ExerciseRulesEditor({ rules, onChange }: RulesEditorProps<'exerc
   )
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-tiny text-muted font-semibold">跑、走、骑、游（任一达标）</span>
+      <span className="text-tiny text-muted font-semibold">有氧 · 跑/走/骑/游（任一达标）</span>
       {num('distanceMinMinutes', '时长', '分钟')}
       {num('distanceMinKm', '距离', '公里', 0.5, 100)}
-      <span className="text-tiny text-muted pt-1 font-semibold">力量、核心（任一达标）</span>
+      <span className="text-tiny text-muted pt-1 font-semibold">力量 / 核心（任一达标）</span>
       {num('countMinMinutes', '时长', '分钟')}
       {num('countMinSets', '组数', '组', 1, 50)}
     </div>
@@ -65,11 +65,11 @@ export function ExerciseRulesEditor({ rules, onChange }: RulesEditorProps<'exerc
 
 const HOUR_OPTIONS = [6, 6.5, 7, 7.5, 8] as const
 
-export function SleepRulesEditor({ rules, onChange }: RulesEditorProps<'sleep'>) {
+export function SleepRulesEditor({ rules, onChange, compact }: RulesEditorProps<'sleep'>) {
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-1">
-        <span className="text-tiny text-muted font-semibold">几点前睡（入睡红线）</span>
+        <span className="text-tiny text-muted font-semibold">入睡红线</span>
         <TimePicker
           label="入睡红线"
           tone="sleep"
@@ -78,7 +78,7 @@ export function SleepRulesEditor({ rules, onChange }: RulesEditorProps<'sleep'>)
         />
       </div>
       <div className="flex flex-col gap-1">
-        <span className="text-tiny text-muted font-semibold">至少睡几个小时</span>
+        <span className="text-tiny text-muted font-semibold">最短睡眠时长</span>
         <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="最短睡眠时长">
           {HOUR_OPTIONS.map((h) => (
             <button
@@ -99,12 +99,12 @@ export function SleepRulesEditor({ rules, onChange }: RulesEditorProps<'sleep'>)
           ))}
         </div>
       </div>
-      <Hint>入睡不晚于红线、且睡满最短时长即算有效早睡，不设时长上限。</Hint>
+      {!compact && <Hint>入睡不晚于红线、且睡满最短时长即算有效早睡，不设时长上限。</Hint>}
     </div>
   )
 }
 
-export function StudyRulesEditor({ rules, onChange }: RulesEditorProps<'study'>) {
+export function StudyRulesEditor({ rules, onChange, compact }: RulesEditorProps<'study'>) {
   return (
     <div className="flex flex-col gap-2">
       <InlineRow label="专注">
@@ -131,7 +131,7 @@ export function StudyRulesEditor({ rules, onChange }: RulesEditorProps<'study'>)
           onValueChange={(v) => v !== null && onChange({ ...rules, minNoteChars: v })}
         />
       </InlineRow>
-      <Hint>同一天的碎片学习会累加；要点还要被 Agent 判定为有实质内容。</Hint>
+      {!compact && <Hint>同一天的碎片学习会累加；要点还要被 Agent 判定为有实质内容。</Hint>}
     </div>
   )
 }

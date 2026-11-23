@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Collapse } from '@/components/ui/collapse'
 import { ErrorState } from '@/components/ui/error-state'
 import { Icon } from '@/components/ui/icon'
 import { ProgressRing } from '@/components/ui/progress'
@@ -17,7 +16,6 @@ import { DEFAULT_GOALS } from '@/features/goal/defaults'
 import { computeOverallPeriod } from '@/features/goal/period'
 import type { Goal } from '@/features/goal/schemas'
 import type { Me, RemindMode } from '@/features/me/schemas'
-import { ModulesStep } from '@/features/onboarding/components/onboarding-steps'
 import { MODULES, type Module } from '@/features/shared/schemas'
 import {
   apiFetch,
@@ -429,6 +427,11 @@ function ModuleSelectorStrip({
     }
   }
 
+  function toggleModule(m: Module) {
+    setError(undefined)
+    setSelected((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]))
+  }
+
   return (
     <Card className="flex flex-col gap-2.5 p-3.5">
       <div className="flex items-center justify-between gap-2">
@@ -443,45 +446,56 @@ function ModuleSelectorStrip({
           }}
           className="text-tiny text-primary-ink hover:bg-primary-soft/60 inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold transition-colors"
         >
-          <span>{editOpen ? '收起' : '增减板块'}</span>
-          <Icon
-            name="chevron-down"
-            size={13}
-            className={cn('transition-transform duration-(--dur-base)', editOpen && 'rotate-180')}
-            lineOnly
-          />
+          <span>{editOpen ? '取消' : '增减板块'}</span>
         </button>
       </div>
 
-      {/* 5 个板块紧凑快选条：已启用板块点击直接定位下方对应卡片 */}
-      <div className="grid grid-cols-5 gap-1.5">
+      {/* 5 个板块紧凑快选条：浏览态点选直达卡片；增减态原地勾选，无嵌套卡片列表 */}
+      <div className="grid grid-cols-5 gap-1.5" role={editOpen ? 'group' : undefined}>
         {MODULES.map((m) => {
-          const isActive = activeModules.includes(m)
-          const isFocused = isActive && focusedModule === m
+          const isActive = editOpen ? selected.includes(m) : activeModules.includes(m)
+          const isFocused = !editOpen && isActive && focusedModule === m
           return (
             <button
               key={m}
               type="button"
+              role={editOpen ? 'checkbox' : undefined}
+              aria-checked={editOpen ? isActive : undefined}
               onClick={() => {
-                if (isActive) {
+                if (editOpen) {
+                  toggleModule(m)
+                } else if (activeModules.includes(m)) {
                   onFocusModule(m)
                 } else {
-                  setSelected((prev) => (prev.includes(m) ? prev : [...prev, m]))
+                  setSelected([...activeModules, m])
                   setEditOpen(true)
                 }
               }}
               className={cn(
-                'ease-spring flex flex-col items-center justify-center gap-1 rounded-xl border py-2 transition-[transform,background-color,border-color,box-shadow] duration-(--dur-fast) active:scale-95',
+                'ease-spring relative flex flex-col items-center justify-center gap-1 rounded-xl border py-2 transition-[transform,background-color,border-color,box-shadow] duration-(--dur-fast) active:scale-95',
                 isActive
                   ? cn(
                       softToneClass[m],
-                      isFocused
+                      isFocused || editOpen
                         ? 'border-primary ring-primary/35 shadow-soft ring-2'
                         : 'border-transparent opacity-80 hover:opacity-100',
                     )
                   : 'border-border bg-surface-sunken/50 text-subtle hover:text-muted border-dashed',
               )}
             >
+              {editOpen && (
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'absolute top-1 right-1 flex size-4 items-center justify-center rounded-full border',
+                    isActive
+                      ? 'border-primary bg-primary text-on-primary'
+                      : 'border-border-strong bg-surface',
+                  )}
+                >
+                  {isActive && <Icon name="check" size={10} strokeWidth={3} />}
+                </span>
+              )}
               <Icon name={moduleMeta[m].icon} size={18} />
               <span className="text-tiny leading-none font-semibold">{moduleMeta[m].label}</span>
             </button>
@@ -489,20 +503,16 @@ function ModuleSelectorStrip({
         })}
       </div>
 
-      {/* 展开「增减板块」时完整支持勾选与归档恢复 */}
-      <Collapse open={editOpen} unmountOnCollapse>
-        <div className="border-border/70 flex flex-col gap-2.5 border-t pt-3">
-          <ModulesStep value={selected} onChange={setSelected} error={error} />
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-tiny text-muted">取消勾选将归档，历史记录保留</span>
-            {dirty && (
-              <Button size="sm" loading={saving} onClick={() => void save()}>
-                保存板块
-              </Button>
-            )}
-          </div>
+      {editOpen && (
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <span className={cn('text-tiny', error ? 'text-danger-ink' : 'text-muted')}>
+            {error ?? '点上方图标直接勾选或取消'}
+          </span>
+          <Button size="sm" disabled={!dirty} loading={saving} onClick={() => void save()}>
+            保存板块
+          </Button>
         </div>
-      </Collapse>
+      )}
     </Card>
   )
 }

@@ -167,12 +167,8 @@ export function GoalModuleCard({
           </button>
 
           <Collapse open={planOpen}>
-            <div className="flex flex-col gap-3.5 px-4 pt-1 pb-4">
-              <Field
-                label="每日目标量"
-                htmlFor={`sched-target-${goal.id}`}
-                hint={goal.module === 'sleep' ? '睡够多久算完成' : '达到这个量就算完成今天'}
-              >
+            <div className="flex flex-col gap-3 px-4 pt-1 pb-4">
+              <Field label="每日目标量" htmlFor={`sched-target-${goal.id}`}>
                 <TargetEditor
                   id={`sched-target-${goal.id}`}
                   module={goal.module}
@@ -189,7 +185,7 @@ export function GoalModuleCard({
                 />
               </Field>
 
-              {/* 计划时段 & 单独截止日期：复用打卡 TimePicker 与共享 Calendar */}
+              {/* 计划时段 & 单独截止日期：无嵌套卡片边框，点击直接平铺展开 TimePicker / Calendar */}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -200,8 +196,8 @@ export function GoalModuleCard({
                     setCalendarOpen(false)
                   }}
                   className={cn(
-                    'border-border bg-surface-sunken/60 flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors',
-                    timePickerOpen && 'border-primary bg-primary-soft/35',
+                    'bg-surface-sunken/75 flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-left transition-colors',
+                    timePickerOpen && 'bg-primary-soft/55 ring-primary/40 ring-1',
                   )}
                 >
                   <Icon name="clock" size={14} className="text-primary-ink shrink-0" lineOnly />
@@ -221,8 +217,8 @@ export function GoalModuleCard({
                     setTimePickerOpen(false)
                   }}
                   className={cn(
-                    'border-border bg-surface-sunken/60 flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors',
-                    calendarOpen && 'border-primary bg-primary-soft/35',
+                    'bg-surface-sunken/75 flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-left transition-colors',
+                    calendarOpen && 'bg-primary-soft/55 ring-primary/40 ring-1',
                   )}
                 >
                   <Icon name="calendar" size={14} className="text-primary-ink shrink-0" lineOnly />
@@ -236,10 +232,10 @@ export function GoalModuleCard({
               </div>
 
               <Collapse open={timePickerOpen} unmountOnCollapse>
-                <div className="border-border bg-surface-sunken/50 flex flex-col gap-2 rounded-xl border p-2.5">
+                <div className="border-border/60 flex flex-col gap-2 border-t pt-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-tiny text-muted font-semibold">选择计划时段</span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       {plannedTime && (
                         <button
                           type="button"
@@ -265,13 +261,12 @@ export function GoalModuleCard({
                     label="计划时段"
                     value={plannedTime || '20:00'}
                     onChange={setPlannedTime}
-                    className="bg-surface border-border border"
                   />
                 </div>
               </Collapse>
 
               <Collapse open={calendarOpen} unmountOnCollapse>
-                <div className="border-border bg-surface-sunken/50 flex flex-col gap-2 rounded-xl border p-2.5">
+                <div className="border-border/60 flex flex-col gap-2 border-t pt-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-tiny text-muted font-semibold">单独截止日期</span>
                     {deadlineDate && (
@@ -287,25 +282,23 @@ export function GoalModuleCard({
                       </button>
                     )}
                   </div>
-                  <div className="bg-surface border-border rounded-xl border p-2">
-                    <Calendar
-                      label="选择单独截止日期"
-                      today={today}
-                      defaultMonth={(deadlineDate || today).slice(0, 7)}
-                      minDate={today}
-                      maxMonth="2099-12"
-                      selected={deadlineDate || null}
-                      marks={
-                        deadlineDate
-                          ? [{ date: deadlineDate, tone: goal.module, variant: 'done' }]
-                          : []
-                      }
-                      onDayClick={(d) => {
-                        setDeadlineDate(d)
-                        setCalendarOpen(false)
-                      }}
-                    />
-                  </div>
+                  <Calendar
+                    label="选择单独截止日期"
+                    today={today}
+                    defaultMonth={(deadlineDate || today).slice(0, 7)}
+                    minDate={today}
+                    maxMonth="2099-12"
+                    selected={deadlineDate || null}
+                    marks={
+                      deadlineDate
+                        ? [{ date: deadlineDate, tone: goal.module, variant: 'done' }]
+                        : []
+                    }
+                    onDayClick={(d) => {
+                      setDeadlineDate(d)
+                      setCalendarOpen(false)
+                    }}
+                  />
                 </div>
               </Collapse>
 
@@ -352,11 +345,10 @@ export function GoalModuleCard({
           <Collapse open={rulesOpen}>
             <div className="flex flex-col gap-3 px-4 pt-1 pb-4">
               {goal.module === 'diet' && (
-                <div className="border-border bg-surface-sunken/50 flex flex-col gap-2 rounded-xl border p-2.5">
-                  <span className="text-tiny text-muted font-semibold">
-                    人群档位（饮食裁判评分基准）
-                  </span>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-tiny text-muted font-semibold">人群档位</span>
                   <TierPicker
+                    compact
                     value={tier}
                     onChange={(refereeTier) =>
                       updatePrefs.mutate(
@@ -372,6 +364,7 @@ export function GoalModuleCard({
               )}
 
               <Editor
+                compact
                 rules={rules as never}
                 onChange={(r) => setRules(r as RefereeRules)}
                 goal={goal}
