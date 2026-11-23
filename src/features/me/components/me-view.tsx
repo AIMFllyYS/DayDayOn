@@ -7,7 +7,7 @@ import { Mascot } from '@/components/mascot/mascot'
 import { mascotCharacters } from '@/components/mascot/mascot-svg'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Button, IconButton } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Field } from '@/components/ui/field'
 import { Icon } from '@/components/ui/icon'
@@ -412,44 +412,35 @@ export function MeView({
                   )}
 
                   {currentRemindMode === 'native' && (
-                    <div className="border-border bg-surface-sunken/70 flex flex-col gap-2.5 rounded-xl border p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Icon name="bell" size={16} className="text-primary shrink-0" />
-                          <span className="text-caption font-semibold">系统通知状态</span>
-                          {notifPerm === 'granted' ? (
-                            <Badge tone="success">已授权</Badge>
-                          ) : (
-                            <Badge tone="warning">未开启</Badge>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {notifPerm !== 'granted' && (
-                            <Button
-                              size="sm"
-                              variant="soft"
-                              onClick={() => void handleEnableNotifPermission()}
-                            >
-                              {notifPerm === 'denied' && isNativeApp()
-                                ? '去设置开启'
-                                : '开启通知权限'}
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            loading={testingPush}
-                            onClick={() => void handleTestPush()}
-                          >
-                            发送测试通知
-                          </Button>
-                        </div>
+                    <div className="border-border bg-surface-sunken/70 flex items-center justify-between gap-2 rounded-xl border px-3 py-2">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <Icon name="bell" size={15} className="text-primary shrink-0" />
+                        <span className="text-caption shrink-0 font-semibold">系统通知</span>
+                        {notifPerm === 'granted' ? (
+                          <Badge tone="success">已授权</Badge>
+                        ) : (
+                          <Badge tone="warning">未开启</Badge>
+                        )}
                       </div>
-                      <p className="text-tiny text-muted leading-relaxed">
-                        {notifPerm === 'granted'
-                          ? `通知通道已就绪，每天 ${prefs.remindAt ?? '21:00'} 将准时向状态栏推送提醒。`
-                          : '需要先允许系统通知权限，手机才能在设定时间弹出打卡提醒。'}
-                      </p>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {notifPerm !== 'granted' && (
+                          <button
+                            type="button"
+                            onClick={() => void handleEnableNotifPermission()}
+                            className="ease-spring bg-primary-soft text-primary-ink text-tiny inline-flex h-8 shrink-0 items-center rounded-full px-2.5 font-semibold transition-[transform,filter] duration-(--dur-fast) hover:brightness-95 active:scale-95"
+                          >
+                            去开启
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={testingPush}
+                          onClick={() => void handleTestPush()}
+                          className="ease-spring border-border-strong bg-surface text-foreground hover:bg-surface-sunken text-tiny inline-flex h-8 shrink-0 items-center rounded-full border px-3 font-semibold transition-[transform,background-color] duration-(--dur-fast) active:scale-95 disabled:opacity-50"
+                        >
+                          {testingPush ? '发送中…' : '测试'}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </Card>

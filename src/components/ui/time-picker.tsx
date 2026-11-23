@@ -9,7 +9,7 @@ const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
 const ITEM = 32
 const GAP = 4
 
-/** 一列可滚动的数字：打开时把当前值滚到中间，滚动条完全隐藏；加 data-base-ui-swipe-ignore 避免在 Drawer 内触发下滑关闭 */
+/** 一列可滚动的数字：打开或外部变更时把当前值对齐到正中，滚动条完全隐藏；加 data-base-ui-swipe-ignore 避免在 Drawer 内触发下滑关闭 */
 function Column({
   items,
   current,
@@ -22,20 +22,27 @@ function Column({
   onPick: (v: string) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const mountedRef = useRef(false)
   useEffect(() => {
     const el = ref.current
     const idx = items.indexOf(current)
-    if (el && idx >= 0) el.scrollTop = idx * (ITEM + GAP) + GAP - (el.clientHeight - ITEM) / 2
-    // 只在挂载时对齐一次，之后由用户自己滚
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (!el || idx < 0) return
+    // 容器 h-28(112px)、上下 py-10(40px)、单项 32px + gap 4px，idx * 36 刚好将第 idx 项居中
+    const targetTop = idx * (ITEM + GAP)
+    if (!mountedRef.current) {
+      el.scrollTop = targetTop
+      mountedRef.current = true
+    } else if (Math.abs(el.scrollTop - targetTop) > 2) {
+      el.scrollTo({ top: targetTop, behavior: 'smooth' })
+    }
+  }, [current, items])
   return (
     <div
       ref={ref}
       role="listbox"
       aria-label={label}
       data-base-ui-swipe-ignore
-      className="flex h-28 flex-1 [scrollbar-width:none] flex-col gap-1 overflow-y-auto overscroll-contain py-1 [&::-webkit-scrollbar]:hidden"
+      className="flex h-28 flex-1 snap-y snap-mandatory [scrollbar-width:none] flex-col gap-1 overflow-y-auto overscroll-contain py-10 [&::-webkit-scrollbar]:hidden"
     >
       {items.map((it) => (
         <button
@@ -45,7 +52,7 @@ function Column({
           aria-selected={it === current}
           onClick={() => onPick(it)}
           className={cn(
-            'text-caption min-h-8 shrink-0 rounded-md font-semibold tabular-nums transition-colors',
+            'text-caption min-h-8 shrink-0 snap-center rounded-md font-semibold tabular-nums transition-colors',
             it === current
               ? 'bg-primary-soft text-primary-ink'
               : 'text-muted hover:text-foreground',
