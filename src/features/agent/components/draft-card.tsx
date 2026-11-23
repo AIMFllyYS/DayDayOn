@@ -176,11 +176,26 @@ export function DraftCard({ draft }: { draft: AgentDraft }) {
         {draft.kind === 'todo' ? (
           <>
             <Row label="内容" value={draft.title} />
+            {draft.groupName && (
+              <Row
+                label="分组"
+                value={draft.isNewGroup ? `${draft.groupName}（将新建）` : draft.groupName}
+              />
+            )}
             <Row
               label="截止"
               value={draft.dueAt ? formatDateTime(draft.dueAt, timeZone) : '不设'}
             />
-            <Row label="优先级" value={draft.priority === 'important' ? '重要' : '普通'} />
+            <Row label="优先级" value={DRAFT_PRIORITY_LABELS[draft.priority] ?? '不重要不紧急'} />
+            {draft.tags && draft.tags.length > 0 && (
+              <Row label="标签" value={draft.tags.join(' · ')} />
+            )}
+            {draft.note && (
+              <Row
+                label="备注"
+                value={draft.note.length > 48 ? `${draft.note.slice(0, 48)}…` : draft.note}
+              />
+            )}
           </>
         ) : (
           <Row label="体重" value={`${draft.weightKg} kg`} />
@@ -208,6 +223,15 @@ export function DraftCard({ draft }: { draft: AgentDraft }) {
       </Button>
     </div>
   )
+}
+
+const DRAFT_PRIORITY_LABELS: Record<string, string> = {
+  'urgent-important': '重要且紧急',
+  'important-not-urgent': '重要不紧急',
+  'urgent-not-important': '紧急不重要',
+  'not-important-not-urgent': '不重要不紧急',
+  important: '重要且紧急',
+  normal: '不重要不紧急',
 }
 
 function Row({ label, value }: { label: string; value: string }) {

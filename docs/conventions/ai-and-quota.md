@@ -15,8 +15,9 @@ src/server/ai/
 ├── run-agent.ts             streamAgentChat() 与 reserveAgentRun() / settleAgentRun()（对话与裁判共用账本）
 ├── agent.ts                 buildAgent()（ToolLoopAgent，32 步上限，普通 4096 / 深度思考 8192 tokens/步，最后一步禁工具保底文字输出）
 ├── repair-tool-call.ts      createRepairToolCall()（确定性修复 DeepSeek Flash 尾部截断、多余括号与字段类型错位）
-├── agent-tools.ts           对话 Agent 工具集（读资料/目标/进度/好友、showStats、联网、草稿写）
+├── agent-tools.ts           对话 Agent 工具总装（读资料/目标/进度/好友、showStats、联网、挂载打卡与待办专项工具）
 ├── agent-checkin-tools.ts   对话 Agent 打卡专项工具（查询、留痕、增改删草稿）
+├── agent-todo-tools.ts      对话 Agent 待办专项工具（3 层渐进式披露读 + 单轮内存缓存 + draftTodo）
 ├── checkin-lookups.ts       内置食物营养表、运动 MET 表等查询封装
 ├── web-search.ts            DeepSeek 官方 Search / Fetch 封装
 ├── pricing.ts               价格表（微元 / 百万 tokens）与费用计算，纯函数

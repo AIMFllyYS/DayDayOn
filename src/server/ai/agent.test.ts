@@ -31,6 +31,13 @@ vi.mock('@/server/services/checkins/goal', () => ({
 
 vi.mock('./agent-checkin-tools', () => ({ buildCheckinTools: () => ({}) }))
 vi.mock('@/server/services/agent/read', () => ({}))
+vi.mock('@/server/services/agent/todo-read', () => ({
+  getAgentTodoOverview: vi.fn(),
+  listAgentTodos: vi.fn(),
+  getAgentTodoDetail: vi.fn(),
+  getAgentTodoTimeline: vi.fn(),
+  lookupUserTodoGroupByName: vi.fn(async () => null),
+}))
 
 vi.mock('./web-search', () => ({
   searchWeb: (...args: unknown[]) => mocks.searchWeb(...args),
@@ -111,19 +118,26 @@ describe('buildAgentTools: 待办 / 体重草稿与联网工具（打卡工具�
       {
         title: '交周报',
         dueAt: '2026-11-02T18:00:00+08:00',
-        priority: 'important',
+        priority: 'urgent-important',
+        tags: [],
       },
       toolExecCtx,
     )
     expect(todoDraft).toEqual({
       kind: 'todo',
       title: '交周报',
+      note: null,
       dueAt: '2026-11-02T10:00:00.000Z',
-      priority: 'important',
+      priority: 'urgent-important',
+      groupName: '默认待办',
+      isNewGroup: false,
+      tags: [],
       confirmBody: {
         title: '交周报',
+        note: null,
         dueAt: '2026-11-02T10:00:00.000Z',
-        priority: 'important',
+        priority: 'urgent-important',
+        tags: [],
       },
     })
 

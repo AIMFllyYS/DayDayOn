@@ -85,6 +85,13 @@
       "when": 1794400045439,
       "tag": "0011_freezing_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795407834750,
+      "tag": "0012_thankful_leper_queen",
+      "breakpoints": true
     }
   ]
 }

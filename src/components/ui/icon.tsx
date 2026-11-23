@@ -141,6 +141,7 @@ const icons = {
   'chevron-right': { line: <path d="m9.5 6 6 6-6 6" /> },
   'chevron-left': { line: <path d="m14.5 6-6 6 6 6" /> },
   'chevron-down': { line: <path d="m6 9.5 6 6 6-6" /> },
+  'chevron-up': { line: <path d="m6 14.5 6-6 6 6" /> },
   bell: {
     line: (
       <>
@@ -480,6 +481,80 @@ const icons = {
       </>
     ),
     tint: <circle cx="13.1" cy="13.1" r="9" />,
+  },
+  archive: {
+    line: (
+      <>
+        <rect x="3.5" y="4.5" width="17" height="4.2" rx="1.4" />
+        <path d="M5 8.7v9.2c0 1 .8 1.6 1.8 1.6h10.4c1 0 1.8-.6 1.8-1.6V8.7" />
+        <path d="M9.6 13h4.8" />
+      </>
+    ),
+    tint: <rect x="6.1" y="9.8" width="14" height="10.6" rx="1.6" />,
+  },
+  folder: {
+    line: (
+      <path d="M3.8 7.6c0-1 .8-1.8 1.8-1.8h4l1.8 2h7c1 0 1.8.8 1.8 1.8v8.4c0 1-.8 1.8-1.8 1.8H5.6c-1 0-1.8-.8-1.8-1.8z" />
+    ),
+    tint: <rect x="5" y="9.2" width="15.8" height="11.2" rx="1.8" />,
+  },
+  quadrant: {
+    line: (
+      <>
+        <rect x="4" y="4" width="6.8" height="6.8" rx="1.8" />
+        <rect x="13.2" y="4" width="6.8" height="6.8" rx="1.8" />
+        <rect x="4" y="13.2" width="6.8" height="6.8" rx="1.8" />
+        <rect x="13.2" y="13.2" width="6.8" height="6.8" rx="1.8" />
+      </>
+    ),
+    tint: (
+      <>
+        <rect x="5" y="5" width="6.8" height="6.8" rx="1.8" />
+        <rect x="14.2" y="14.2" width="6.8" height="6.8" rx="1.8" />
+      </>
+    ),
+  },
+  ban: {
+    line: (
+      <>
+        <circle cx="12" cy="12" r="8.2" />
+        <path d="m6.8 6.8 10.4 10.4" />
+      </>
+    ),
+    tint: <circle cx="13.1" cy="13.1" r="8.2" />,
+  },
+  note: {
+    line: (
+      <>
+        <path d="M5.5 4.5h13a1.5 1.5 0 0 1 1.5 1.5v9.2L15.2 20H5.5A1.5 1.5 0 0 1 4 18.5V6a1.5 1.5 0 0 1 1.5-1.5Z" />
+        <path d="M15 20v-4.2c0-.4.4-.8.8-.8H20" />
+        <path d="M8 9.2h8M8 13h5" />
+      </>
+    ),
+    tint: <rect x="5.2" y="5.6" width="14.8" height="14.4" rx="1.6" />,
+  },
+  tag: {
+    line: (
+      <>
+        <path d="M4.5 11.4V6.2c0-.9.8-1.7 1.7-1.7h5.2c.5 0 .9.2 1.3.5l6.8 6.8a1.8 1.8 0 0 1 0 2.5l-5.2 5.2a1.8 1.8 0 0 1-2.5 0L5 12.7c-.3-.4-.5-.8-.5-1.3Z" />
+        <circle cx="8.8" cy="8.8" r="1.1" />
+      </>
+    ),
+    tint: (
+      <path d="M5.6 12.2V7.2c0-.9.8-1.7 1.7-1.7h5l6.8 6.8a1.8 1.8 0 0 1 0 2.5l-5 5a1.8 1.8 0 0 1-2.5 0z" />
+    ),
+  },
+  grip: {
+    line: (
+      <>
+        <circle cx="9.2" cy="7" r="1.1" />
+        <circle cx="14.8" cy="7" r="1.1" />
+        <circle cx="9.2" cy="12" r="1.1" />
+        <circle cx="14.8" cy="12" r="1.1" />
+        <circle cx="9.2" cy="17" r="1.1" />
+        <circle cx="14.8" cy="17" r="1.1" />
+      </>
+    ),
   },
 } satisfies Record<string, IconDef>
 

@@ -7,6 +7,7 @@ import * as read from '@/server/services/agent/read'
 import { db } from '@/server/db/client'
 import { getInsights } from '@/server/services/insights'
 import { buildCheckinTools } from './agent-checkin-tools'
+import { buildTodoTools } from './agent-todo-tools'
 import { fetchWeb, searchWeb } from './web-search'
 
 /*
@@ -56,12 +57,6 @@ export function buildAgentTools(ctx: AgentToolContext) {
       '读取今天的状态：各目标进度、完成度、体重、心情。回答"我今天怎么样/完成了什么"时用。',
     inputSchema: z.object({}),
     execute: async () => ({ today: await read.getTodaySummary(userId, now) }),
-  })
-
-  const listTodosTool = tool({
-    description: '列出未完成的待办（含标题、DDL、优先级）。',
-    inputSchema: z.object({}),
-    execute: async () => ({ todos: await read.getOpenTodos(userId, now) }),
   })
 
   const listCheckinsTool = tool({
@@ -169,34 +164,6 @@ export function buildAgentTools(ctx: AgentToolContext) {
 
   // ---- 草稿工具（不写库，返回 AgentDraft） ----
 
-  const draftTodo = tool({
-    description: '把用户说的事整理成一条待办草稿（不写入）。DDL 不明确就问，不要瞎编时间。',
-    inputSchema: z.object({
-      title: z.string().min(1).max(60),
-      dueAt: z.string().describe('ISO 时刻，没有就传 null').nullable(),
-      priority: z.enum(['normal', 'important']).default('normal'),
-    }),
-    execute: async ({ title, dueAt, priority }): Promise<AgentDraft> => {
-      let normalizedDueAt: string | null = null
-      if (dueAt !== null && dueAt.trim() !== '') {
-        const d = new Date(dueAt)
-        if (Number.isNaN(d.getTime())) {
-          throw new Error(
-            'dueAt 必须是合法的 ISO 8601 时间字符串（如 2026-11-02T10:00:00.000Z）或 null',
-          )
-        }
-        normalizedDueAt = d.toISOString()
-      }
-      return {
-        kind: 'todo',
-        title,
-        dueAt: normalizedDueAt,
-        priority,
-        confirmBody: { title, dueAt: normalizedDueAt, priority },
-      }
-    },
-  })
-
   const draftWeight = tool({
     description: '把用户说的体重整理成草稿（不写入）。',
     inputSchema: z.object({
@@ -213,7 +180,6 @@ export function buildAgentTools(ctx: AgentToolContext) {
     getUserProfile: readProfile,
     listGoals: listGoalsTool,
     getDaySummary: todaySummary,
-    listTodos: listTodosTool,
     listCheckins: listCheckinsTool,
     getWeight: weightTool,
     showStats: showStatsTool,
@@ -222,7 +188,7 @@ export function buildAgentTools(ctx: AgentToolContext) {
     webSearch: searchTool,
     webFetch: fetchTool,
     ...buildCheckinTools({ userId, now }),
-    draftTodo,
+    ...buildTodoTools({ userId, now }),
     draftWeight,
   }
 }
