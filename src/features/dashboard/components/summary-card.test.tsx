@@ -1,9 +1,21 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { DailyQuoteCard } from './daily-quote-card'
 import { SummaryCard } from './summary-card'
 
+describe('DailyQuoteCard', () => {
+  it('将鼓励语独立展示在文本框中，按今日完成状态切换文案', () => {
+    const startHtml = renderToStaticMarkup(<DailyQuoteCard completion={{ done: 0, planned: 3 }} />)
+    expect(startHtml).toContain('新的一天，从一小步开始')
+    expect(startHtml).toContain('data-daily-quote="true"')
+
+    const doneHtml = renderToStaticMarkup(<DailyQuoteCard completion={{ done: 3, planned: 3 }} />)
+    expect(doneHtml).toContain('今天的目标都完成啦')
+  })
+})
+
 describe('SummaryCard', () => {
-  it('同时展示今日完成度环与总坚持天数进度环（已打卡天数 / 目标坚持天数）', () => {
+  it('清晰区分「今日打卡」百分比环与「总打卡进度」进度条，不混入鸡汤标题', () => {
     const html = renderToStaticMarkup(
       <SummaryCard
         localDate="2026-11-16"
@@ -20,6 +32,9 @@ describe('SummaryCard', () => {
       />,
     )
     expect(html).toContain('67%')
+    expect(html).toContain('今日打卡')
+    expect(html).toContain('已完成 2 / 3 项')
+    expect(html).not.toContain('新的一天，从一小步开始')
     expect(html).toContain('总打卡进度')
     expect(html).toContain('21 天周期')
     expect(html).toContain('已打卡 12 / 21 天')
