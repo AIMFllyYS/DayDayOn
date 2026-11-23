@@ -146,10 +146,15 @@ describe('/api/v1/agent 会话与流式对话闭环', () => {
     expect(mocks.conversations.deleteConversation).toHaveBeenCalledWith('u1', CONV_ID)
   })
 
-  it('POST /agent/chat 首次新会话传 allowMissing=true 加载历史并去重重试消息', async () => {
+  it('POST /agent/chat 首次新会话传 allowMissing=true 加载历史，重试同 id 消息时截断其后的旧失败回复', async () => {
     mocks.runAgent.loadConversationMessages.mockResolvedValue([
       { id: 'm0', role: 'user', parts: [{ type: 'text', text: '上一轮' }] },
       { id: 'm1', role: 'user', parts: [{ type: 'text', text: '重试同 id 消息' }] },
+      {
+        id: 'a1-failed',
+        role: 'assistant',
+        parts: [{ type: 'text', text: '旧的半截失败回复' }],
+      },
     ])
     mocks.runAgent.streamAgentChat.mockResolvedValue(
       new Response('data: [DONE]\n\n', {

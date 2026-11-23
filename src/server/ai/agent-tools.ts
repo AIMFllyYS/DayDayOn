@@ -18,7 +18,7 @@ import { fetchWeb, searchWeb } from './web-search'
  * - 联网搜索 / 读网页：直接调 DeepSeek Search/Fetch，按次计费，计入额度。
  */
 
-export const MAX_SEARCHES_PER_TURN = 10
+export const MAX_SEARCHES_PER_TURN = 15
 /** 每次成功搜索/读网页约 0.005 元 = 5000 微元（ai-and-quota.md 第 4 节） */
 export const SEARCH_FETCH_COST_MICROS = 5000
 

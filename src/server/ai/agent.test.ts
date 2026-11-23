@@ -37,7 +37,13 @@ vi.mock('./web-search', () => ({
   fetchWeb: (...args: unknown[]) => mocks.fetchWeb(...args),
 }))
 
-const { buildSystemPrompt } = await import('./agent')
+const {
+  buildAgent,
+  buildSystemPrompt,
+  DEEP_THINK_MAX_OUTPUT_TOKENS_PER_STEP,
+  MAX_OUTPUT_TOKENS_PER_STEP,
+  MAX_STEPS,
+} = await import('./agent')
 const { buildAgentTools, MAX_SEARCHES_PER_TURN, SEARCH_FETCH_COST_MICROS } =
   await import('./agent-tools')
 
@@ -129,7 +135,7 @@ describe('buildAgentTools: 待办 / 体重草稿与联网工具（打卡工具�
     })
   })
 
-  it('webSearch 累加联网次数与微元费用，超过 10 次返回上限提示', async () => {
+  it('webSearch 累加联网次数与微元费用，超过上限返回上限提示', async () => {
     mocks.searchWeb.mockResolvedValue({
       ok: true,
       results: [{ title: '番茄炒蛋', url: 'https://example.com', snippet: '150 kcal' }],
@@ -152,6 +158,65 @@ describe('buildAgentTools: 待办 / 体重草稿与联网工具（打卡工具�
     const overLimit = await tools.webSearch.execute!({ query: '米饭热量', count: 3 }, toolExecCtx)
     expect(overLimit).toEqual({
       error: `本轮联网搜索已达 ${MAX_SEARCHES_PER_TURN} 次上限，用已有信息回答`,
+    })
+  })
+})
+
+describe('buildAgent: 输出上限、工具步数与思考模式配置', () => {
+  it('默认关闭思考模式（4096 tokens/步）；开启深度思考保持 low 强度并放宽至 8192 tokens/步', async () => {
+    const { MockLanguageModelV4 } = await import('ai/test')
+    const makeModel = () =>
+      new MockLanguageModelV4({
+        doGenerate: async () => ({
+          content: [{ type: 'text', text: '好的' }],
+          finishReason: { unified: 'stop', raw: undefined },
+          usage: {
+            inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: undefined },
+            outputTokens: { total: 5, text: 5, reasoning: undefined },
+          },
+          warnings: [],
+        }),
+      })
+
+    expect(MAX_STEPS).toBeGreaterThanOrEqual(30)
+    expect(MAX_OUTPUT_TOKENS_PER_STEP).toBeGreaterThanOrEqual(4096)
+    expect(DEEP_THINK_MAX_OUTPUT_TOKENS_PER_STEP).toBeGreaterThanOrEqual(8192)
+
+    const normalModel = makeModel()
+    const normalAgent = buildAgent({
+      model: normalModel,
+      userId: 'u1',
+      userIdHash: 'a'.repeat(64),
+      deepThink: false,
+      search: { used: 0, costMicros: 0 },
+      now: NOW,
+      clock: CLOCK,
+    })
+    await normalAgent.generate({ messages: [{ role: 'user', content: '你好' }] })
+    expect(normalModel.doGenerateCalls[0]?.maxOutputTokens).toBe(MAX_OUTPUT_TOKENS_PER_STEP)
+    expect(normalModel.doGenerateCalls[0]?.providerOptions?.deepseek).toEqual({
+      userId: 'a'.repeat(64),
+      thinking: { type: 'disabled' },
+    })
+
+    const deepModel = makeModel()
+    const deepAgent = buildAgent({
+      model: deepModel,
+      userId: 'u1',
+      userIdHash: 'a'.repeat(64),
+      deepThink: true,
+      search: { used: 0, costMicros: 0 },
+      now: NOW,
+      clock: CLOCK,
+    })
+    await deepAgent.generate({ messages: [{ role: 'user', content: '你好' }] })
+    expect(deepModel.doGenerateCalls[0]?.maxOutputTokens).toBe(
+      DEEP_THINK_MAX_OUTPUT_TOKENS_PER_STEP,
+    )
+    expect(deepModel.doGenerateCalls[0]?.providerOptions?.deepseek).toEqual({
+      userId: 'a'.repeat(64),
+      thinking: { type: 'enabled' },
+      reasoningEffort: 'low',
     })
   })
 })

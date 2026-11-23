@@ -1,6 +1,6 @@
 # 打卡板块与 Agent 裁判规范
 
-> 日期：2026-11-05（2026-11-16 同步最新实现）· 状态：已落地，随 ADR-0027 及后续迭代同步更新。
+> 日期：2026-11-05（2026-11-23 同步最新实现）· 状态：已落地，随 ADR-0027 及后续迭代同步更新。
 > 依据：[ADR-0027](../adr/0027-agent-referee.md)（Agent 裁判与分数库）、Epic #33 及子任务 #35–#38、`/dev/playbook/modules/*` 五个板块的整页稿与 `/dev/playbook/smart-checkin` 定稿规范。
 > 写或改任何打卡页面、板块表单、裁判规则、目标设置、新人引导里的板块配置前，先读本文。
 
@@ -147,7 +147,7 @@ interface Verdict {
 
 ## 4. Agent 裁判运行、跳过豁免与智能识别闭环
 
-1. **流式裁判与对话统一持久化**：前端提交草稿到 `POST /api/v1/goals/{goalId}/referee`（请求体包含 `checkin`、`idempotencyKey` 与可选 `conversation: { id, messageId, text }`）。`streamReferee()` 先校验会话归属，再通过 `reserveAgentRun` 预占额度，运行 `ToolLoopAgent`（`deepseek-flash`，思考关闭，最多 `6` 步，`prepareStep` 最后一步强制 `submitVerdict`，联网最多 `3` 次），流结束时按实际用量结算，若带 `conversation` 则把本次分析同步存入 `agent_conversations` / `agent_messages`（标题为「目标名 · 打卡分析」），实现全局只有一个 Agent，用户可在对话框中接着追问。
+1. **流式裁判与对话统一持久化**：前端提交草稿到 `POST /api/v1/goals/{goalId}/referee`（请求体包含 `checkin`、`idempotencyKey` 与可选 `conversation: { id, messageId, text }`）。`streamReferee()` 先校验会话归属，再通过 `reserveAgentRun` 预占额度，运行 `ToolLoopAgent`（`deepseek-flash`，思考关闭，最多 `10` 步，每步 `4096` tokens，配置 `repairToolCall` 且仅在 `submitVerdict` 成功产出结论时停止，`prepareStep` 最后一步强制 `submitVerdict`，联网最多 `6` 次），流结束时按实际用量结算，若带 `conversation` 则把本次分析同步存入 `agent_conversations` / `agent_messages`（标题为「目标名 · 打卡分析」），实现全局只有一个 Agent，用户可在对话框中接着追问。
 2. **「跳过本次打卡（`skipReason`）」豁免流**：手动填写模式下，`CheckinFlow` 底部提供「跳过本次打卡」折叠分区，其他项可留空（由 `buildSkipFallbackInput` 补最小兜底载荷）。`startReferee` 将 `skipReason` 传给裁判 Agent；Agent 只需核验理由是否正常合理（生病、生理期、出差、考试加班等 → `skipApproved: true`，仅纯乱码或无意义敷衍字符 → `false`）。`judge()` 在 `skipReason` 非空时优先进入豁免分支（`settlement: 'settled'`，饮食通过记 `4.0` 分，`metrics.skipped = 1`）；前端检测到 `subject.skipReason` 且裁判返回 `verdict.isValid === true` 时自动调用 `confirm()` 入库并直接弹出盖章弹窗。
 3. **全局智能识别 `/checkin/smart` + `SmartScannerLens`**：`SmartScannerLens` 统一接入 `useMediaPicker`（支持拍照、`image` + `image2` 双图内存压缩、以及 `.txt/.md/.csv/.html` 文本附件 `extractCleanText` 提纯），支持在扫描前/扫描页填写「备注」作为识别第一优先级上下文。全局页 `/checkin/smart` 识别完成后顶部展示 `SmartModuleDetector` 5 板块切换胶囊条与同板块多目标切换，下方原地直接挂载同源 `<CheckinFlow>` 并通过 `smart-session.ts` 隔离单次 `aiRunId`（切手动、切子维度或确认入库后立即清理，杜绝复用旧键触发 `409 CHECKIN_EXISTS`）。
 4. **确认入库与降级**：Agent 没调到 `submitVerdict` 或 AI 不可用时，前端用 `judge()` 离线兜底；用户点「确认有效打卡」「保存本餐记录」或「仅保存记录」后，前端调用普通创建打卡接口，带上 `facts`、`refereeRunId`、`citations`、`advice`（以及豁免时的 `skipReason`）。用户放弃时什么也不写。
@@ -187,7 +187,7 @@ interface Verdict {
   - **图表与近况**：`showStats`（调 `getInsights` 返回近 7 / 30 天各板块近况卡，前端通过 `agent-messages.tsx` 的 `STATS_TOOLS` 渲染为同款 `InsightCard`）。
   - **事实查询**：`lookupFoodNutrition`、`lookupMet`、`calcExerciseKcal`、`getRecentSleep`、`getTodayStudy`。
   - **好友只读**：`listFriends`、`getFriendStatus`（好友打卡带 `isValid` 但不带 `checkinId` 和 `editable`；不能改、删好友打卡，也不能替好友打卡）。
-  - **联网**：`webSearch`、`webFetch`（每轮上限 `10` 次）。
+  - **联网**：`webSearch`、`webFetch`（每轮上限 `15` 次）。
   - **草稿写**：`draftCheckin`、`draftUpdateCheckin`、`draftDeleteCheckin`、`draftTodo`、`draftWeight`（写工具只出草稿，用户在草稿卡上点确认才调普通接口）。
 - 新增返回草稿的工具时，同时登记到 `agent-messages.tsx` 的 `DRAFT_TOOLS`，否则卡片不显示；返回近况图表的工具登记到 `STATS_TOOLS`。
 

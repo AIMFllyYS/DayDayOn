@@ -126,13 +126,13 @@ beforeEach(() => {
 })
 
 describe('dietRecognitionPrompt', () => {
-  it('显式关闭思考、800 输出上限、30 秒超时、版本 1', () => {
+  it('显式关闭思考、2000 输出上限、45 秒超时、版本 1', () => {
     expect(dietRecognitionPrompt).toMatchObject({
       id: 'diet-recognition',
       version: 1,
-      maxOutputTokens: 800,
+      maxOutputTokens: 2000,
       thinking: { type: 'disabled' },
-      timeoutMs: 30_000,
+      timeoutMs: 45_000,
     })
   })
 })
@@ -149,7 +149,7 @@ describe('recognizeDiet', () => {
     expect(r.draft.totalHighKcal).toBe(460)
 
     const call = model.doGenerateCalls[0]
-    expect(call?.maxOutputTokens).toBe(800)
+    expect(call?.maxOutputTokens).toBe(2000)
     expect(call?.providerOptions?.deepseek).toMatchObject({ thinking: { type: 'disabled' } })
     const system = call?.prompt.find((m) => m.role === 'system')
     expect(system?.content).toBe(dietRecognitionPrompt.system)

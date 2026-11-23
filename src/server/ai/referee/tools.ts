@@ -25,7 +25,7 @@ import { lookupFoods, lookupMets } from '../checkin-lookups'
  */
 
 /** 一次裁判最多联网几次（搜索 + 读网页合计） */
-export const MAX_REFEREE_SEARCHES = 3
+export const MAX_REFEREE_SEARCHES = 6
 
 export interface RefereeToolContext {
   db: DbOrTx

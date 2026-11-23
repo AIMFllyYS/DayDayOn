@@ -2305,7 +2305,10 @@
                 "maxItems": 20
               },
               "skipApproved": {
-                "type": "boolean"
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               },
               "skipComment": {
                 "type": [
@@ -2404,7 +2407,10 @@
                 "maximum": 300
               },
               "skipApproved": {
-                "type": "boolean"
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               },
               "skipComment": {
                 "type": [
@@ -2443,7 +2449,10 @@
                 "maximum": 14
               },
               "skipApproved": {
-                "type": "boolean"
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               },
               "skipComment": {
                 "type": [
@@ -2496,7 +2505,10 @@
                 "default": 0
               },
               "skipApproved": {
-                "type": "boolean"
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               },
               "skipComment": {
                 "type": [
@@ -2536,7 +2548,10 @@
                 "maxLength": 120
               },
               "skipApproved": {
-                "type": "boolean"
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               },
               "skipComment": {
                 "type": [

@@ -12,16 +12,22 @@ import {
 import type { Clock } from '@/server/services/checkins/rules'
 import { buildAgentTools, type AgentToolContext, type SearchBudget } from './agent-tools'
 import { REFEREE_SKILLS } from './referee/prompt'
+import { createRepairToolCall } from './repair-tool-call'
 
 /*
  * Agent 对话的模型与指令（悬浮团团）。每轮对话构建一次 ToolLoopAgent：
- * 最多 20 步（一次请求可能要查目标、查事实、出几张草稿）；最后一步不许再调工具，保证一定有文字回答。
- * 联网最多 10 次（由工具内计数强制），每步输出上限 2000 tokens。
- * 深度思考默认关；输入框的"深度思考"打开时用 deepseek 最低思考强度（reasoningEffort: 'low'）。
+ * 最多 32 步（复杂多目标查询、联网核验、分步出草稿都能从容跑完）；最后一步不许再调工具，保证一定有文字回答。
+ * 联网最多 15 次（由工具内计数强制）。
+ * 输出上限：普通模式每步 4096 tokens，开启深度思考时（reasoning_content 计入输出）每步 8192 tokens，避免思考内容挤爆工具入参 JSON。
+ * 深度思考默认关（thinking: disabled）；输入框的"深度思考"打开时保持 deepseek 最低思考强度（reasoningEffort: 'low'）。
  */
 
-export const MAX_STEPS = 20
-export const MAX_OUTPUT_TOKENS_PER_STEP = 2000
+export const MAX_STEPS = 32
+export const MAX_OUTPUT_TOKENS_PER_STEP = 4096
+export const DEEP_THINK_MAX_OUTPUT_TOKENS_PER_STEP = 8192
+/** 预占按整轮实际高分位估算，避免大幅放宽单步上限与步数后把普通用户预占卡死在 402 */
+export const AGENT_RESERVE_OUTPUT_TOKENS = 40_000
+export const DEEP_THINK_RESERVE_OUTPUT_TOKENS = 60_000
 
 const BASE_SYSTEM = `你是「团团」，DayDayOn 里的治愈系打卡小宠物，也是用户的朋友。你帮朋友把"今天做了什么"轻松记下来，也陪聊、给建议。
 
@@ -41,7 +47,7 @@ const BASE_SYSTEM = `你是「团团」，DayDayOn 里的治愈系打卡小宠�
 1. 调 listGoals 找到对应目标（拿 goalId；自定义目标看 fields 字段定义，规则看 rules）。有多个同类目标时先问清楚是哪一个，别瞎猜。
 2. 按下面「各板块怎么查事实」查好事实（饮食 lookupFoodNutrition，运动 lookupMet + calcExerciseKcal，睡眠 getRecentSleep，学习 getTodayStudy），填进 draftCheckin 的 facts；facts 的顺序、条数和 entry 一一对应。实在查不到就不传 facts，系统按规则估算。
 3. 调 draftCheckin，然后简短回复"整理好了，确认一下～"，并用一句话说明会不会达标。
-4. 一次只草拟一条；用户说了一连串事，就依次出多条草稿。补昨天的打卡传 isMakeup: true（只能补昨天）。
+4. 一次只草拟一条，**禁止在同一步内并行调用多个 draftCheckin**；用户说了一连串事，就分步依次调用 draftCheckin，每步只出一条草稿。补昨天的打卡传 isMakeup: true（只能补昨天）。
 
 ## 改打卡和删打卡
 1. **只能改、删今天和昨天的打卡**（listCheckins 的 editable=true 的那些）。更早的直接告诉用户去目标详情页处理，不要出草稿。
@@ -119,10 +125,13 @@ export function buildAgent(input: BuildAgentInput) {
     instructions: buildSystemPrompt(input.now, clock, input.petName),
     tools: buildAgentTools(ctx),
     stopWhen: isStepCount(MAX_STEPS),
-    maxOutputTokens: MAX_OUTPUT_TOKENS_PER_STEP,
+    maxOutputTokens: input.deepThink
+      ? DEEP_THINK_MAX_OUTPUT_TOKENS_PER_STEP
+      : MAX_OUTPUT_TOKENS_PER_STEP,
     // 最后一步只许说话：步数用完时也一定给出文字回答，不会只剩一串工具调用
     prepareStep: ({ stepNumber }) =>
       stepNumber >= MAX_STEPS - 1 ? { toolChoice: 'none' as const } : undefined,
+    repairToolCall: createRepairToolCall(),
     providerOptions: {
       deepseek: {
         userId: input.userIdHash,
