@@ -2,19 +2,31 @@ import 'server-only'
 import { randomInt } from 'node:crypto'
 import { and, asc, count, desc, eq, gt, inArray, isNull, or } from 'drizzle-orm'
 import type {
+  CheckinCalendar,
+  CheckinHistory,
+  CheckinHistoryQuery,
+} from '@/features/checkin/schemas'
+import type { DashboardToday } from '@/features/dashboard/schemas'
+import type {
   FriendAcceptResult,
   FriendDashboard,
+  FriendGoalDetail,
   FriendInvite,
   FriendInvitePreview,
   FriendList,
   FriendSummary,
 } from '@/features/friend/schemas'
+import type { Insights } from '@/features/insights/schemas'
 import type { MascotRegistryCharacter } from '@/features/me/schemas'
 import type { PublicUser } from '@/features/shared/schemas'
+import { localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import { db as defaultDb, type DbOrTx } from '@/server/db/client'
 import { friendInvites, friendships, profiles, user } from '@/server/db/schema'
+import { goalCalendar, listCheckins } from '@/server/services/checkins/read'
 import { getDashboardToday } from '@/server/services/dashboard'
+import { getGoal } from '@/server/services/goals'
+import { getInsights } from '@/server/services/insights'
 import { recordVisitFootprint } from '@/server/services/notifications'
 
 /** 好友上限：最多 50 位 */
@@ -66,8 +78,9 @@ async function buildFriendSummary(
   publicUser: PublicUser & { mascot?: string | null },
   friendshipCreatedAt: Date,
   now: Date,
+  existingDashboard?: DashboardToday,
 ): Promise<FriendSummary> {
-  const dash = await getDashboardToday(db, friendUserId, now)
+  const dash = existingDashboard ?? (await getDashboardToday(db, friendUserId, now))
   const rawMascot = publicUser.mascot
   const mascot: MascotRegistryCharacter =
     rawMascot === 'tuan' || rawMascot === 'dun' || rawMascot === 'mian' || rawMascot === 'you'
@@ -84,6 +97,26 @@ async function buildFriendSummary(
     todayMood: dash.mood,
     createdAt: friendshipCreatedAt.toISOString(),
   }
+}
+
+/** 校验双向好友关系，否则统一抛出 404 FRIEND_NOT_FOUND（不泄露目标用户存在性） */
+async function assertFriendship(
+  db: DbOrTx,
+  userId: string,
+  friendUserId: string,
+): Promise<{ createdAt: Date }> {
+  if (userId === friendUserId) {
+    throw new ApiError('FRIEND_NOT_FOUND', 'Friendship not found')
+  }
+  const [relation] = await db
+    .select({ createdAt: friendships.createdAt })
+    .from(friendships)
+    .where(and(eq(friendships.userId, userId), eq(friendships.friendId, friendUserId)))
+    .limit(1)
+  if (!relation) {
+    throw new ApiError('FRIEND_NOT_FOUND', 'Friendship not found')
+  }
+  return relation
 }
 
 /**
@@ -355,17 +388,7 @@ export async function getFriendDashboard(
   friendUserId: string,
   now: Date = new Date(),
 ): Promise<FriendDashboard> {
-  const [relation] = await db
-    .select({
-      createdAt: friendships.createdAt,
-    })
-    .from(friendships)
-    .where(and(eq(friendships.userId, userId), eq(friendships.friendId, friendUserId)))
-    .limit(1)
-
-  if (!relation) {
-    throw new ApiError('FRIEND_NOT_FOUND', 'Friendship not found')
-  }
+  const relation = await assertFriendship(db, userId, friendUserId)
 
   const userMap = await loadPublicUsers(db, [friendUserId, userId])
   const pub = userMap.get(friendUserId)
@@ -382,9 +405,102 @@ export async function getFriendDashboard(
   })
 
   const dashboard = await getDashboardToday(db, friendUserId, now)
-  const friend = await buildFriendSummary(db, friendUserId, pub, relation.createdAt, now)
+  const friend = await buildFriendSummary(db, friendUserId, pub, relation.createdAt, now, dashboard)
 
   return { friend, dashboard }
+}
+
+/**
+ * 查看指定好友各进行中板块的近 7 / 30 天近况（ADR-0026 好友公开范围）。
+ */
+export async function getFriendInsights(
+  db: DbOrTx,
+  userId: string,
+  friendUserId: string,
+  now: Date = new Date(),
+  opts: { days?: 7 | 30; goalId?: string } = {},
+): Promise<Insights> {
+  await assertFriendship(db, userId, friendUserId)
+  return getInsights(db, friendUserId, now, {
+    days: opts.days ?? 7,
+    ...(opts.goalId ? { goalId: opts.goalId } : {}),
+  })
+}
+
+/**
+ * 查看指定好友某个目标的只读详情（附好友昵称与好友时区今日打卡日，供顶部居中标题与日历使用）。
+ */
+export async function getFriendGoalDetail(
+  db: DbOrTx,
+  userId: string,
+  friendUserId: string,
+  goalId: string,
+  now: Date = new Date(),
+): Promise<FriendGoalDetail> {
+  await assertFriendship(db, userId, friendUserId)
+  const [userMap, [profile], goal] = await Promise.all([
+    loadPublicUsers(db, [friendUserId]),
+    db
+      .select({ timeZone: profiles.timeZone, dayStartHour: profiles.dayStartHour })
+      .from(profiles)
+      .where(eq(profiles.userId, friendUserId))
+      .limit(1),
+    getGoal(db, friendUserId, goalId),
+  ])
+  const pub = userMap.get(friendUserId)
+  if (!pub) {
+    throw new ApiError('USER_NOT_FOUND', 'Friend user not found')
+  }
+  const localDate = localDateOf(
+    now,
+    profile?.timeZone ?? 'Asia/Shanghai',
+    profile?.dayStartHour ?? 4,
+  )
+  return {
+    friend: {
+      userId: pub.userId,
+      nickname: pub.nickname,
+      avatar: pub.avatar,
+    },
+    localDate,
+    goal,
+  }
+}
+
+/**
+ * 查看指定好友某个目标的打卡日历（只读）。
+ */
+export async function getFriendGoalCalendar(
+  db: DbOrTx,
+  userId: string,
+  friendUserId: string,
+  goalId: string,
+  month: string,
+): Promise<CheckinCalendar> {
+  await assertFriendship(db, userId, friendUserId)
+  return goalCalendar(db, friendUserId, goalId, month)
+}
+
+/**
+ * 查看指定好友某个目标的打卡历史记录（只读，剔除内部 AI 运行 ID 与原始解析文本）。
+ */
+export async function getFriendGoalCheckins(
+  db: DbOrTx,
+  userId: string,
+  friendUserId: string,
+  goalId: string,
+  query: CheckinHistoryQuery,
+): Promise<CheckinHistory> {
+  await assertFriendship(db, userId, friendUserId)
+  const history = await listCheckins(db, friendUserId, goalId, query)
+  return {
+    nextCursor: history.nextCursor,
+    items: history.items.map((item) => ({
+      ...item,
+      aiRunId: null,
+      parsedText: null,
+    })),
+  }
 }
 
 /**

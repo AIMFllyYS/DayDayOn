@@ -36,6 +36,7 @@ export function isFloatingPetHidden(pathname: string, viewingFriendId: string | 
   return (
     pathname === '/agent' ||
     pathname.startsWith('/agent/') ||
+    pathname.startsWith('/friends/') ||
     pathname === '/me' ||
     viewingFriendId !== null
   )

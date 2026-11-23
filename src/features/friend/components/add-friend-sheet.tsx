@@ -209,7 +209,7 @@ export function AddFriendSheet() {
             <div className="bg-primary-soft/60 text-primary-ink flex items-start gap-2.5 rounded-2xl px-4 py-3">
               <Icon name="bulb" size={18} className="mt-0.5 shrink-0" />
               <p className="text-caption leading-relaxed">
-                添加完好友之后，你们双方就能看到对方完整的打卡信息（今日进度、热力图、体重与心情），并且不可关闭。
+                添加完好友之后，你们双方就能看到对方完整的打卡信息（今日进度、各板块近况、目标记录、热力图、体重与心情），并且不可关闭。
               </p>
             </div>
           </div>

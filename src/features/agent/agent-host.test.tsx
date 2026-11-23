@@ -52,6 +52,11 @@ describe('Decision #1: FloatingPet 悬浮宠物显示与隐藏守则', () => {
       expect(isFloatingPetHidden('/agent/new', null)).toBe(true)
       expect(isFloatingPetHidden('/agent/conv-123', 'friend-u1')).toBe(true)
     })
+
+    it('在好友只读目标详情页 /friends/[id]/goals/[goalId] 中，隐藏悬浮宠物', () => {
+      expect(isFloatingPetHidden('/friends/friend-u1/goals/goal-1', null)).toBe(true)
+      expect(isFloatingPetHidden('/friends/friend-u1/goals/goal-1', 'friend-u1')).toBe(true)
+    })
   })
 
   describe('AgentFloatingLayer 组件渲染判定', () => {

@@ -8,12 +8,17 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { Module } from '@/features/shared/schemas'
 import { errorMessage, isApiError, keepPreviousData, useQuery } from '@/lib/api'
 import { checkinCalendarQuery, checkinTodayQuery } from '@/lib/api/queries/checkins'
+import { friendGoalCalendarQuery } from '@/lib/api/queries/friends'
 import type { CalendarDay } from '../schemas'
 
 export interface GoalCheckinCalendarProps {
   goalId: string
   /** 已打卡的日子用板块色标记 */
   module: Module
+  /** 好友只读模式：传入好友 userId 改走 /friends/{friendUserId}/goals/{goalId}/calendar */
+  friendUserId?: string
+  /** 好友时区对应的“今天”打卡日（YYYY-MM-DD）；传入时不再请求本人 /checkins/today */
+  todayLocalDate?: string
 }
 
 function toMark(day: CalendarDay, module: Module): CalendarMark {
@@ -27,21 +32,36 @@ function toMark(day: CalendarDay, module: Module): CalendarMark {
 }
 
 /**
- * 目标详情页的打卡日历（PRD 2.4）：GET /goals/{goalId}/calendar，补卡日用描边样式。
- * "今天"取 /checkins/today 的打卡日（服务端按用户时区算），日历不用浏览器时区。
- * props F1 定；实现 D3；D2 的详情页嵌入。
+ * 目标详情页的打卡日历（PRD 2.4）：支持本人与好友只读模式，补卡日用描边样式。
+ * "今天"取服务端按用户时区算出的打卡日，日历不用浏览器时区。
  */
-export function GoalCheckinCalendar({ goalId, module }: GoalCheckinCalendarProps) {
-  const today = useQuery(checkinTodayQuery())
+export function GoalCheckinCalendar({
+  goalId,
+  module,
+  friendUserId,
+  todayLocalDate,
+}: GoalCheckinCalendarProps) {
+  const today = useQuery({
+    ...checkinTodayQuery(),
+    enabled: !todayLocalDate,
+  })
+  const resolvedToday = todayLocalDate ?? today.data?.localDate ?? null
   const [month, setMonth] = useState<string | null>(null)
-  const current = month ?? today.data?.localDate.slice(0, 7) ?? null
-  const calendar = useQuery({
+  const current = month ?? resolvedToday?.slice(0, 7) ?? null
+
+  const ownCalendar = useQuery({
     ...checkinCalendarQuery(goalId, current ?? ''),
-    enabled: current !== null,
+    enabled: !friendUserId && current !== null,
     placeholderData: keepPreviousData,
   })
+  const friendCalendar = useQuery({
+    ...friendGoalCalendarQuery(friendUserId ?? '', goalId, current ?? ''),
+    enabled: Boolean(friendUserId) && current !== null,
+    placeholderData: keepPreviousData,
+  })
+  const calendar = friendUserId ? friendCalendar : ownCalendar
 
-  if (today.isPending || (calendar.isPending && current !== null)) {
+  if ((!todayLocalDate && today.isPending) || (calendar.isPending && current !== null)) {
     return (
       <Card role="status" aria-label="加载中" className="flex flex-col gap-3">
         <Skeleton className="mx-auto h-6 w-32" />
@@ -49,8 +69,8 @@ export function GoalCheckinCalendar({ goalId, module }: GoalCheckinCalendarProps
       </Card>
     )
   }
-  const err = today.error ?? calendar.error
-  if (!today.data || err) {
+  const err = (!todayLocalDate ? today.error : null) ?? calendar.error
+  if (!resolvedToday || err) {
     return (
       <Card>
         <ErrorState
@@ -58,7 +78,7 @@ export function GoalCheckinCalendar({ goalId, module }: GoalCheckinCalendarProps
           title="日历没加载出来"
           message={isApiError(err) ? errorMessage(err) : undefined}
           onRetry={() => {
-            void today.refetch()
+            if (!todayLocalDate) void today.refetch()
             void calendar.refetch()
           }}
         />
@@ -70,7 +90,7 @@ export function GoalCheckinCalendar({ goalId, module }: GoalCheckinCalendarProps
     <Card>
       <Calendar
         label="打卡日历"
-        today={today.data.localDate}
+        today={resolvedToday}
         month={current ?? undefined}
         onMonthChange={setMonth}
         marks={marks}

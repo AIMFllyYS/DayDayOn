@@ -24,6 +24,8 @@ interface AppPageProps {
   flush?: boolean
   /** 是否为主导航一级页面（主页、待办、排行）：左侧展示用户头像，右侧展示通知与加号快捷操作 */
   primaryNav?: boolean
+  /** 全端强制顶栏标题居中 */
+  centerTitle?: boolean
 }
 
 /**
@@ -43,6 +45,7 @@ export function AppPage({
   hideTopBar = false,
   flush = false,
   primaryNav = false,
+  centerTitle = false,
 }: AppPageProps) {
   const resolvedLeading =
     leading ??
@@ -62,6 +65,7 @@ export function AppPage({
           eyebrow={eyebrow}
           actions={resolvedActions}
           leading={resolvedLeading}
+          centerTitle={centerTitle}
         />
       )}
       <div

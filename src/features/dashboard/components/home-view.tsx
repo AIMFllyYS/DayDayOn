@@ -7,7 +7,7 @@ import { FriendRoomBanner } from '@/features/friend/components/friend-room-banne
 import { friendActions, useFriendStore } from '@/features/friend/friend-store'
 import { errorMessage, isApiError, useQuery } from '@/lib/api'
 import { dashboardTodayQuery } from '@/lib/api/queries/dashboard'
-import { useFriendDashboard } from '@/lib/api/queries/friends'
+import { useFriendDashboard, useFriendInsights } from '@/lib/api/queries/friends'
 import { insightsQuery } from '@/lib/api/queries/insights'
 import { usePutSteps } from '@/lib/api/queries/metrics'
 import { getNativeTodaySteps, isNativeApp } from '@/lib/native'
@@ -22,9 +22,10 @@ import { HomeSkeleton } from './home-skeleton'
 export function HomeView() {
   const { viewingFriendId } = useFriendStore()
   const myQuery = useQuery(dashboardTodayQuery())
-  // 近况单独请求，不挡主页首屏；失败就不显示这一块
+  // 近况单独请求，不挡主页首屏；失败就不显示这一块（本人与好友视角均支持）
   const insights = useQuery({ ...insightsQuery(7), enabled: viewingFriendId === null })
   const friendQuery = useFriendDashboard(viewingFriendId)
+  const friendInsights = useFriendInsights(viewingFriendId, 7)
   const launcher = useCheckinLauncher()
   const putSteps = usePutSteps()
   const syncedStepsRef = useRef(false)
@@ -63,6 +64,8 @@ export function HomeView() {
         onOpenWeight={() => {}}
         onOpenMood={() => {}}
         readOnly
+        friendUserId={viewingFriendId}
+        insights={friendInsights.data}
         friendBanner={
           <FriendRoomBanner friend={friend} onBack={() => friendActions.selectFriend(null)} />
         }
