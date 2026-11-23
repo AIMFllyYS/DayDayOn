@@ -26,7 +26,7 @@ export function TopBar({
   return (
     <header
       className={cn(
-        'relative z-20 flex items-center justify-between px-4 pt-[calc(var(--safe-top)+0.375rem)] pb-1.5 md:justify-start md:gap-2 md:px-8 md:pt-6 md:pb-3',
+        'relative z-20 flex shrink-0 items-center justify-between px-4 pt-[calc(var(--safe-top)+0.375rem)] pb-1.5 md:justify-start md:gap-2 md:px-8 md:pt-6 md:pb-3',
         sticky && 'bg-background/85 sticky top-0 backdrop-blur-md',
         className,
       )}

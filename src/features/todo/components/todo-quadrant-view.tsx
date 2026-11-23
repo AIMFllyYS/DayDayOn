@@ -12,9 +12,9 @@ import { TodoRow } from './todo-row'
 
 /*
  * 四象限视图（菜单切换）：
- * - 严格 2x2 四象限网格布局（手机与桌面均为两列两行），四个象限宽高固定一致，每个象限内部独立滚动；
- * - 不考虑分组，仅展示全部进行中待办（含已过期，排除已完成与已放弃）；
- * - 每个象限内部按创建时间从近到远排序（createdAt DESC），每象限独立分页按需加载更多。
+ * - 严格 2x2 响应式四象限网格布局（手机与桌面均为两列两行），自动填满双顶栏下方全部剩余视口高度，整页固定不上下滚动；
+ * - 每个象限严格占 1/4 空间且内部独立滚动，行内不展示任何标签，仅展示标题与截止日期；
+ * - 不考虑分组，仅展示全部进行中待办（含已过期，排除已完成与已放弃），按创建时间由近到远排序并按需分页。
  */
 
 interface TodoQuadrantViewProps {
@@ -42,7 +42,7 @@ export function TodoQuadrantView({
   return (
     <div
       data-todo-quadrant-grid="2x2"
-      className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] grid-rows-2 gap-2 sm:gap-2.5"
+      className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-2 sm:gap-2.5"
     >
       {TODO_PRIORITIES.map((priority) =>
         demoItems ? (
@@ -182,13 +182,13 @@ function QuadrantCardFrame({
   return (
     <section
       data-quadrant={priority}
-      className="border-border bg-surface shadow-soft flex h-60 min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border sm:h-72 md:h-80"
+      className="border-border bg-surface shadow-soft flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border"
     >
-      <header className="border-border/70 flex shrink-0 items-center justify-between gap-1.5 border-b px-2 py-1.5 sm:px-3 sm:py-2">
+      <header className="border-border/70 flex shrink-0 items-center justify-between gap-1 border-b px-2 py-1 sm:px-2.5 sm:py-1.5">
         <div className="flex min-w-0 items-center gap-1.5">
           <span
             className={cn(
-              'inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[11px] leading-none font-bold sm:px-2',
+              'inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold sm:px-2 sm:text-[11px]',
               softToneClass[meta.tone],
             )}
           >
@@ -198,21 +198,21 @@ function QuadrantCardFrame({
             {meta.description}
           </span>
         </div>
-        <span className="font-display bg-surface-sunken text-muted text-tiny shrink-0 rounded-full px-1.5 py-0.5 font-semibold tabular-nums sm:px-2">
+        <span className="font-display bg-surface-sunken text-muted shrink-0 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold tabular-nums sm:px-2 sm:text-[11px]">
           {count}
         </span>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 py-1 sm:px-1.5 sm:py-1.5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 py-0.5 pb-12 sm:px-1.5 sm:py-1">
         {loading ? (
-          <div className="grid gap-1.5 p-1">
+          <div className="grid gap-1 p-1">
             {[0, 1].map((i) => (
-              <Skeleton key={i} className="h-10 w-full rounded-xl" />
+              <Skeleton key={i} className="h-7 w-full rounded-lg" />
             ))}
           </div>
         ) : items.length === 0 ? (
           <div className="flex h-full items-center justify-center px-2">
-            <p className="text-tiny text-subtle text-center">暂无待办</p>
+            <p className="text-subtle text-center text-[10px] sm:text-[11px]">暂无待办</p>
           </div>
         ) : (
           <>
@@ -224,7 +224,6 @@ function QuadrantCardFrame({
                   now={now}
                   timeZone={timeZone}
                   compact
-                  showGroupBadge
                   onToggle={onToggleTodo}
                   onOpenManage={onOpenManage}
                   onRequestDelete={onRequestDelete}
@@ -232,7 +231,7 @@ function QuadrantCardFrame({
               ))}
             </ul>
             {hasMore && onLoadMore && (
-              <div className="flex justify-center pt-1.5">
+              <div className="flex justify-center pt-1">
                 <Button variant="ghost" size="sm" loading={loadingMore} onClick={onLoadMore}>
                   加载更多
                 </Button>
