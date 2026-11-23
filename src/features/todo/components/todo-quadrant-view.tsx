@@ -12,9 +12,9 @@ import { TodoRow } from './todo-row'
 
 /*
  * 四象限视图（菜单切换）：
+ * - 严格 2x2 四象限网格布局（手机与桌面均为两列两行），四个象限宽高固定一致，每个象限内部独立滚动；
  * - 不考虑分组，仅展示全部进行中待办（含已过期，排除已完成与已放弃）；
- * - 每个象限内部按创建时间从近到远排序（createdAt DESC），每象限独立分页按需加载更多；
- * - 视觉采用待办专属紧凑尺寸，桌面 2x2 网格、手机紧凑 4 卡。
+ * - 每个象限内部按创建时间从近到远排序（createdAt DESC），每象限独立分页按需加载更多。
  */
 
 interface TodoQuadrantViewProps {
@@ -40,7 +40,10 @@ export function TodoQuadrantView({
   demoItems,
 }: TodoQuadrantViewProps) {
   return (
-    <div className="grid grid-cols-1 gap-2.5 @xl:grid-cols-2">
+    <div
+      data-todo-quadrant-grid="2x2"
+      className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] grid-rows-2 gap-2 sm:gap-2.5"
+    >
       {TODO_PRIORITIES.map((priority) =>
         demoItems ? (
           <QuadrantCardStatic
@@ -177,31 +180,40 @@ function QuadrantCardFrame({
 }) {
   const meta = TODO_PRIORITY_META[priority]
   return (
-    <section className="border-border bg-surface shadow-soft flex min-w-0 flex-col overflow-hidden rounded-xl border">
-      <header className="border-border/70 flex items-center gap-2 border-b px-3 py-2">
-        <span
-          className={cn(
-            'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] leading-none font-bold',
-            softToneClass[meta.tone],
-          )}
-        >
-          {meta.label}
-        </span>
-        <span className="text-tiny text-subtle min-w-0 flex-1 truncate">{meta.description}</span>
-        <span className="font-display bg-surface-sunken text-muted text-tiny shrink-0 rounded-full px-2 py-0.5 font-semibold tabular-nums">
+    <section
+      data-quadrant={priority}
+      className="border-border bg-surface shadow-soft flex h-60 min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border sm:h-72 md:h-80"
+    >
+      <header className="border-border/70 flex shrink-0 items-center justify-between gap-1.5 border-b px-2 py-1.5 sm:px-3 sm:py-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span
+            className={cn(
+              'inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[11px] leading-none font-bold sm:px-2',
+              softToneClass[meta.tone],
+            )}
+          >
+            {meta.label}
+          </span>
+          <span className="text-tiny text-subtle hidden min-w-0 truncate sm:inline">
+            {meta.description}
+          </span>
+        </div>
+        <span className="font-display bg-surface-sunken text-muted text-tiny shrink-0 rounded-full px-1.5 py-0.5 font-semibold tabular-nums sm:px-2">
           {count}
         </span>
       </header>
 
-      <div className="max-h-72 overflow-y-auto px-1.5 py-1.5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 py-1 sm:px-1.5 sm:py-1.5">
         {loading ? (
           <div className="grid gap-1.5 p-1">
             {[0, 1].map((i) => (
-              <Skeleton key={i} className="h-11 w-full rounded-xl" />
+              <Skeleton key={i} className="h-10 w-full rounded-xl" />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <p className="text-tiny text-subtle py-4 text-center">这一象限暂时清空啦</p>
+          <div className="flex h-full items-center justify-center px-2">
+            <p className="text-tiny text-subtle text-center">暂无待办</p>
+          </div>
         ) : (
           <>
             <ul className="divide-border/55 grid divide-y divide-dashed">

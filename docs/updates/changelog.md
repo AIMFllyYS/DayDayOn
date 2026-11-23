@@ -4,6 +4,15 @@
 
 ---
 
+## [v0.1.14] - 2026-11-23（网页热更新：待办四象限 2×2 固定尺寸独立滚动修复、新建悬浮球视口定位修复与近期更新官方公告）
+
+### 🛠️ 缺陷修复与热更新
+- **真正的 2×2 固定尺寸四象限布局**：重构 `TodoQuadrantView` 为全端严格 `grid-cols-[minmax(0,1fr)_minmax(0,1fr)] grid-rows-2` 四象限矩阵，四个子象限固定统一高度（`h-60 sm:h-72 md:h-80`），内容区通过 `min-h-0 flex-1 overflow-y-auto overscroll-contain` 实现每个子象限独立滚动，并收紧 `TodoRow` 在四象限紧凑态下的水平间距避免窄屏挤压标题。
+- **修复待办新建悬浮球沉底问题**：根因是 `AppPage` 内容区带 `@container`（`container-type: inline-size` 触发布局包含，使后代 `position: fixed` 相对于长内容区而非视口定位）；`TodoFab` 正式页面态改为通过 `createPortal(..., document.body)` 脱离 `@container` 与 `<div class="isolate">`，固定贴于视口右下角（`z-[35]`，稳定盖在页面内容与底栏之上、模态抽屉下方）。
+- **官方公告单一数据源与启动幂等同步**：抽离 `src/server/db/announcements-catalog.ts` 并接入 `src/server/db/startup-migrate.ts` 与 `scripts/dev/seed.ts`，随生产部署自动幂等发布置顶的 `v0.1.12 – v0.1.14` 近期综合更新公告（按 `slug` 更新，完整保留用户历史公告已读状态）。
+
+---
+
 ## [v0.1.13] - 2026-11-23（待办—清单 Todo v2 系统性重构、AI 稳定性与工具上限全面升级，含安卓壳 v0.1.13 / `versionCode = 10`）
 
 ### ✨ 待办—清单系统性升级（Todo v2）
