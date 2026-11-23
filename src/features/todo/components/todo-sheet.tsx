@@ -6,8 +6,6 @@ import * as z from 'zod'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Collapse } from '@/components/ui/collapse'
-import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
-import { DateField } from '@/components/ui/date-field'
 import { Field, Input, Textarea } from '@/components/ui/field'
 import { Form, type FormErrors } from '@/components/ui/form'
 import { Icon } from '@/components/ui/icon'
@@ -34,12 +32,14 @@ import {
   type TodoTag,
   type UpdateTodo,
 } from '../schemas'
+import { TodoDdlPicker } from './todo-ddl-picker'
+import { TodoGroupDropdown, TodoTagDropdown, type DropdownOption } from './todo-dropdown-pickers'
 import { TodoPriorityPicker } from './todo-priority-picker'
 
 /*
- * 新建待办 & 单条待办管理抽屉（统一复用 Base UI Sheet + Form + Combobox + ConfirmDialog）：
- * - 新建模式：标题、所属分组（可下拉选已有或直接输入新建，不选默认「默认待办」）、四象限优先级（默认不重要不紧急）、
- *   自定义标签（多选/可新建，最多 5 个）、DDL、备注（上限 2000 字）。
+ * 新建待办 & 单条待办管理抽屉（统一复用 Base UI Sheet + Form + Popover + ConfirmDialog）：
+ * - 表单顺序严格对齐：1. 要做什么 → 2. 待办备注 → 3. 优先级 → 4. DDL（复用打卡同款 TimePicker + Calendar）→
+ *   5. 同一行左右「设置分组」与「设置标签」（下拉菜单末项原地新建并唤起键盘、回车/确认自动保存并选中）；
  * - 管理模式（点击待办主体进入）：编辑上述全部字段 + 状态流转（标记完成 / 放弃待办[可选原因] / 恢复待办 / 删除[二次确认]）
  *   + 可折叠的该条待办迷你历程时间轴（按需加载）。
  */
@@ -60,6 +60,8 @@ interface TodoSheetProps {
   submitting: boolean
   serverErrors?: FormErrors
   onSubmit: (value: TodoSheetSubmit) => void
+  /** 在「设置分组」下拉内原地新建分组时立即持久化（返回新建分组；不传则提交待办时一并创建） */
+  onCreateGroup?: (name: string) => Promise<TodoGroup | null>
   /** 在管理抽屉里直接触发状态流转（完成 / 放弃 / 恢复） */
   onQuickStatus?: (todo: Todo, patch: UpdateTodo) => void
   /** 在管理抽屉里请求删除（由外层弹出 ConfirmDialog 二次确认） */
@@ -87,6 +89,7 @@ export function TodoSheet({
   submitting,
   serverErrors,
   onSubmit,
+  onCreateGroup,
   onQuickStatus,
   onRequestDelete,
 }: TodoSheetProps) {
@@ -141,11 +144,13 @@ export function TodoSheet({
           defaultGroupId={defaultGroupId}
           availableTags={availableTags}
           timeZone={timeZone}
+          now={now}
           submitting={submitting}
           serverErrors={serverErrors}
           onDirtyChange={setDirty}
           onNoopClose={close}
           onSubmit={onSubmit}
+          onCreateGroup={onCreateGroup}
           onQuickStatus={onQuickStatus}
           onRequestDelete={onRequestDelete}
         />
@@ -172,11 +177,13 @@ function TodoSheetForm({
   defaultGroupId,
   availableTags,
   timeZone,
+  now,
   submitting,
   serverErrors,
   onDirtyChange,
   onNoopClose,
   onSubmit,
+  onCreateGroup,
   onQuickStatus,
   onRequestDelete,
 }: {
@@ -185,11 +192,13 @@ function TodoSheetForm({
   defaultGroupId: string
   availableTags: readonly TodoTag[]
   timeZone: string
+  now: Date
   submitting: boolean
   serverErrors?: FormErrors
   onDirtyChange: (dirty: boolean) => void
   onNoopClose: () => void
   onSubmit: (value: TodoSheetSubmit) => void
+  onCreateGroup?: (name: string) => Promise<TodoGroup | null>
   onQuickStatus?: (todo: Todo, patch: UpdateTodo) => void
   onRequestDelete?: (todo: Todo) => void
 }) {
@@ -200,7 +209,7 @@ function TodoSheetForm({
     todo?.priority ?? 'not-important-not-urgent',
   )
   const [groupValue, setGroupValue] = useState<string | null>(todo?.groupId ?? defaultGroupId)
-  const [createdGroups, setCreatedGroups] = useState<ComboboxOption[]>([])
+  const [createdGroups, setCreatedGroups] = useState<DropdownOption[]>([])
   const [tags, setTags] = useState<string[]>(todo?.tags ?? [])
   const [localTags, setLocalTags] = useState<string[]>([])
   const [abandonPanelOpen, setAbandonPanelOpen] = useState(false)
@@ -210,15 +219,20 @@ function TodoSheetForm({
 
   const shown = useMemo<FormErrors>(() => ({ ...serverErrors, ...errors }), [serverErrors, errors])
 
-  const groupOptions = useMemo<ComboboxOption[]>(() => {
+  const groupOptions = useMemo<DropdownOption[]>(() => {
     const base = groups.map((g) => ({ value: g.id, label: g.name }))
     if (base.length === 0) {
       base.push({ value: defaultGroupId, label: TODO_DEFAULT_GROUP_NAME })
     }
-    return [...base, ...createdGroups]
+    const existingIds = new Set(base.map((b) => b.value))
+    const existingLabels = new Set(base.map((b) => b.label))
+    const extra = createdGroups.filter(
+      (g) => !existingIds.has(g.value) && !existingLabels.has(g.label),
+    )
+    return [...base, ...extra]
   }, [groups, defaultGroupId, createdGroups])
 
-  const tagOptions = useMemo<ComboboxOption[]>(() => {
+  const tagOptions = useMemo<DropdownOption[]>(() => {
     const names = new Set<string>()
     for (const t of availableTags) names.add(t.name)
     for (const t of tags) names.add(t)
@@ -237,10 +251,23 @@ function TodoSheetForm({
     return due === '' ? null : combineLocalDateTime(due, timeZone).toISOString()
   }
 
-  function handleCreateGroupOption(rawLabel: string): string {
+  async function handleCreateGroupOption(rawLabel: string): Promise<string | null> {
     const trimmed = rawLabel.trim().slice(0, TODO_GROUP_NAME_MAX)
+    if (!trimmed) return null
     const existing = groupOptions.find((o) => o.label === trimmed)
     if (existing) return existing.value
+
+    if (onCreateGroup) {
+      const created = await onCreateGroup(trimmed)
+      if (!created) return null
+      setCreatedGroups((prev) =>
+        prev.some((o) => o.value === created.id)
+          ? prev
+          : [...prev, { value: created.id, label: created.name }],
+      )
+      return created.id
+    }
+
     const nextVal = `${NEW_GROUP_PREFIX}${trimmed}`
     setCreatedGroups((prev) =>
       prev.some((o) => o.value === nextVal) ? prev : [...prev, { value: nextVal, label: trimmed }],
@@ -248,11 +275,25 @@ function TodoSheetForm({
     return nextVal
   }
 
-  function handleCreateTagOption(rawLabel: string): string {
+  function handleToggleTag(tag: string) {
+    setTags((prev) => {
+      if (prev.includes(tag)) return prev.filter((t) => t !== tag)
+      if (prev.length >= TODO_TAGS_MAX_COUNT) return prev
+      return [...prev, tag]
+    })
+    setErrors((prev) => (prev?.tags ? { ...prev, tags: undefined } : prev))
+  }
+
+  function handleCreateAndSelectTag(rawLabel: string) {
     const trimmed = rawLabel.trim().slice(0, TODO_TAG_MAX_LENGTH)
-    if (!trimmed) return ''
+    if (!trimmed) return
     setLocalTags((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]))
-    return trimmed
+    setTags((prev) => {
+      if (prev.includes(trimmed)) return prev
+      if (prev.length >= TODO_TAGS_MAX_COUNT) return prev
+      return [...prev, trimmed]
+    })
+    setErrors((prev) => (prev?.tags ? { ...prev, tags: undefined } : prev))
   }
 
   function submit() {
@@ -304,6 +345,7 @@ function TodoSheetForm({
   return (
     <div className="flex flex-col gap-3.5">
       <Form id={FORM_ID} errors={shown} onFormSubmit={submit} aria-label="待办表单">
+        {/* 第一位：要做什么 */}
         <Field
           label="要做什么"
           htmlFor="todo-title"
@@ -323,78 +365,7 @@ function TodoSheetForm({
           />
         </Field>
 
-        <Field
-          label="所属分组"
-          htmlFor="todo-group"
-          name="groupId"
-          hint={`可选已有分组或直接输入新建；不选默认在「${TODO_DEFAULT_GROUP_NAME}」`}
-        >
-          <Combobox
-            id="todo-group"
-            label="所属分组"
-            options={groupOptions}
-            value={groupValue}
-            onValueChange={(next) => setGroupValue(next ?? defaultGroupId)}
-            placeholder={`搜索或输入新分组（默认：${TODO_DEFAULT_GROUP_NAME}）`}
-            creatable
-            onCreate={handleCreateGroupOption}
-          />
-        </Field>
-
-        <TodoPriorityPicker value={priority} onValueChange={setPriority} disabled={submitting} />
-
-        <Field
-          label="自定义标签"
-          htmlFor="todo-tags"
-          name="tags"
-          aside={`${tags.length} / ${TODO_TAGS_MAX_COUNT}`}
-          hint="支持多选或直接输入新建标签，最多 5 个"
-          error={typeof tagError === 'string' ? tagError : tagError?.[0]}
-        >
-          <Combobox
-            id="todo-tags"
-            label="自定义标签"
-            multiple
-            options={tagOptions}
-            value={tags}
-            onValueChange={(next) => {
-              const cleaned = next.filter(Boolean).slice(0, TODO_TAGS_MAX_COUNT)
-              setTags(cleaned)
-              setErrors((prev) => (prev?.tags ? { ...prev, tags: undefined } : prev))
-            }}
-            placeholder="选择或输入新标签，如：高数、采购"
-            creatable
-            onCreate={handleCreateTagOption}
-          />
-        </Field>
-
-        <DateField
-          label="DDL"
-          id="todo-due"
-          withTime
-          value={due}
-          onValueChange={(next) => {
-            setDue(next)
-            setErrors((prev) => (prev?.dueAt ? { ...prev, dueAt: undefined } : prev))
-          }}
-          aside="可选"
-          hint="到点前 24 小时标出「快到期」，超时自动归入「已过期」分组"
-          error={typeof dueError === 'string' ? dueError : dueError?.[0]}
-        />
-        {due !== '' && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="-mt-2 self-start"
-            onClick={() => {
-              setDue('')
-              setErrors((prev) => (prev?.dueAt ? { ...prev, dueAt: undefined } : prev))
-            }}
-          >
-            不设 DDL
-          </Button>
-        )}
-
+        {/* 第二位：待办备注 */}
         <Field
           label="待办备注"
           htmlFor="todo-note"
@@ -406,7 +377,7 @@ function TodoSheetForm({
             id="todo-note"
             value={note}
             maxLength={TODO_NOTE_MAX}
-            rows={4}
+            rows={3}
             placeholder="写下补充说明、步骤或重要信息…"
             onChange={(e) => {
               setNote(e.target.value)
@@ -414,6 +385,70 @@ function TodoSheetForm({
             }}
           />
         </Field>
+
+        {/* 第三位：优先级 */}
+        <TodoPriorityPicker value={priority} onValueChange={setPriority} disabled={submitting} />
+
+        {/* 第四位：DDL（复用打卡同款时间滚轮与手账日历） */}
+        <TodoDdlPicker
+          value={due}
+          onValueChange={(next) => {
+            setDue(next)
+            setErrors((prev) => (prev?.dueAt ? { ...prev, dueAt: undefined } : prev))
+          }}
+          now={now}
+          timeZone={timeZone}
+          disabled={submitting}
+          error={typeof dueError === 'string' ? dueError : dueError?.[0]}
+        />
+
+        {/* 第五位：同一行左右并排「设置分组」+「设置标签」 */}
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
+            <TodoGroupDropdown
+              options={groupOptions}
+              value={groupValue}
+              onSelect={setGroupValue}
+              onCreateGroup={handleCreateGroupOption}
+              disabled={submitting}
+            />
+            <TodoTagDropdown
+              options={tagOptions}
+              selectedTags={tags}
+              onToggleTag={handleToggleTag}
+              onCreateAndSelectTag={handleCreateAndSelectTag}
+              disabled={submitting}
+            />
+          </div>
+
+          {tags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="bg-primary-soft text-primary-ink text-tiny inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold"
+                >
+                  <span>#{tag}</span>
+                  <button
+                    type="button"
+                    aria-label={`移除标签 ${tag}`}
+                    disabled={submitting}
+                    onClick={() => handleToggleTag(tag)}
+                    className="hover:bg-primary/15 inline-flex size-4 items-center justify-center rounded-full"
+                  >
+                    <Icon name="x" size={10} lineOnly />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {tagError && (
+            <p role="alert" className="text-tiny text-danger-ink">
+              {typeof tagError === 'string' ? tagError : tagError[0]}
+            </p>
+          )}
+        </div>
       </Form>
 
       {/* 管理模式专属：状态操作区（完成 / 放弃待办 / 恢复 / 删除二次确认）与迷你历程 */}

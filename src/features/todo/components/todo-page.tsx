@@ -10,6 +10,7 @@ import { apiFetch, errorMessage, isApiError, keys, newIdempotencyKey, useQuery }
 import {
   todoOverviewQuery,
   useCreateTodo,
+  useCreateTodoGroup,
   useDeleteTodo,
   useReorderTodoGroups,
   useReorderTodos,
@@ -70,12 +71,15 @@ export function TodoPage() {
   const { timeZone } = useTimeZone()
   const [activeTag, setActiveTag] = useState<string | undefined>(undefined)
 
+  const effectiveTag = mode === 'list' ? activeTag : undefined
+
   const overviewQuery = useQuery({
-    ...todoOverviewQuery(activeTag),
+    ...todoOverviewQuery(effectiveTag),
     enabled: view === 'list',
   })
 
   const create = useCreateTodo()
+  const createGroup = useCreateTodoGroup()
   const toggle = useUpdateTodo()
   const update = useUpdateTodo()
   const remove = useDeleteTodo()
@@ -223,8 +227,11 @@ export function TodoPage() {
         view={view}
         onViewChange={(next) => updateUrl(next, mode)}
         mode={mode}
-        onModeChange={(next) => updateUrl(view, next)}
-        activeTag={activeTag}
+        onModeChange={(next) => {
+          if (next === 'quadrant') setActiveTag(undefined)
+          updateUrl(view, next)
+        }}
+        activeTag={effectiveTag}
         onTagChange={setActiveTag}
         onCreate={() => openSheet(null)}
         onOpenGroupManager={() => {
@@ -297,6 +304,19 @@ export function TodoPage() {
           submitting={create.isPending || update.isPending}
           serverErrors={serverErrors}
           onSubmit={handleSubmit}
+          onCreateGroup={async (name) => {
+            try {
+              const created = await createGroup.mutateAsync({
+                input: { name },
+                idempotencyKey: newIdempotencyKey(),
+              })
+              toast.success(`已新建分组「${created.name}」`)
+              return created
+            } catch (err) {
+              toast.error(messageOf(err))
+              return null
+            }
+          }}
           onQuickStatus={handleQuickStatus}
           onRequestDelete={(todo) => {
             closeSheet()
