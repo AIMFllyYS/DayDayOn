@@ -165,6 +165,7 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 |---|---|---|
 | `Button` / `IconButton` | `button.tsx` | 变体 primary / secondary / soft / ghost / danger；md 高 44px 是默认；`loading` 保持宽度；图标按钮必须传 `label`。primary 只给一个区域里唯一的主操作，实底上的图标只画描边 |
 | `Card` / `CardHeader` | `card.tsx` | 变体 plain / sticker / sunken / outline；`interactive` 加悬停和按压 |
+| `Collapse` | `collapse.tsx` | CSS `grid-template-rows` 平滑折叠容器，`inert` 防收起态聚焦，支持 `unmountOnCollapse`（待办分组与打卡文件夹共用） |
 | `Badge` / `IconTile` | `badge.tsx` | soft 底 + ink 字；`dot` 表示状态 |
 | `ProgressBar` / `ProgressRing` / `StepProgress` | `progress.tsx` | 都有 `role="progressbar"` 和 `label`；`active` 表示进行中；分段进度用于一天多次的目标 |
 | `Field` / `Input` / `Textarea` | `field.tsx` | Base UI Field / Input：标签、提示、错误自动关联；错误文案替换提示；`aria-invalid` 驱动错误样式 |
@@ -231,7 +232,7 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 - **移动端顶栏（TopBar）**：上下内边距紧凑，页面标题手机端严格居中、桌面端居左。一级页面（主页、待办、排行）左上角放置 `TopBarUserAvatar`（`AvatarStack + Popover` 好友视角切换与管理面板：点击切换本人/好友打卡仪表盘，长按或右键在面板内展开「进入好友空间 / 删除此好友」二级菜单），右上角并列放置通知按钮与加号操作菜单（支持「添加好友」、「立即打卡」、「设置目标」）。
 - **移动端底栏（BottomNav）**：选中高亮为包裹图标与文字的圆形色块，并配置弹性缓动平移滑块（Spring glide），切换 tab 时高亮圆球平滑缓动至目标位置。
 - **「我的」页面**：隐藏顶栏（`hideTopBar`），顶部贴纸大卡片直接置顶；设置采用一级分组目录 + 「打卡与提醒」「外观与陪伴」「权限管理」「数据与关于」「账号与安全」二级子视图（支持浏览器与手机侧滑返回），其中「外观与陪伴」二级视图内复用 `MenuList` / `MenuItem` 切换主题配色与 4 只陪伴伙伴。
-- 弹层里不再打开弹层。底栏之外的悬浮按钮不放在右下角。
+- 弹层里不再打开弹层。底栏之外的悬浮按钮原则上不放在右下角（全局悬浮宠物与 `/todo` 页新建悬浮加号球除外；`/todo` 下悬浮宠物自动抬高底部避让高度避免与加号球重叠）。
 - 全站隐藏滚动条（`globals.css` 的 base 层），滚动本身不受影响；需要提示"还能滚"时露出半张卡片或加渐隐，不靠滚动条。
 
 ## 8. Agent 组件

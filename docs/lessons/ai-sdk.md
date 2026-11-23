@@ -62,3 +62,15 @@
 - 规则：`agent.stream({ messages })` 后 `result.consumeStream()`；用 `toUIMessageStream({ stream: result.stream, onEnd })` 持久化；在后台 `await result.usage` 结算。不传 `abortSignal`。
 - 元：ai@7.0.159 | 2026-11-02 | 候选毕业方向：已沉淀到 `run-agent.ts`
 
+### 历史消息含未完成 tool-call 导致整段会话永久报 MissingToolResultsError
+- 症状：某步因 `finish_reason = 'length'` 截断或流式异常中止后，同一步的另一条 tool-call 停在 `input-available` 落库，此后该会话每次续聊都在 10–40ms 抛 `AI_MissingToolResultsError`。
+- 根因：以为 `convertToModelMessages` 会自动忽略无结果的半成品 tool-call；默认 `ignoreIncompleteToolCalls` 为 `false`，且 `finishReason='length'` 时 AI SDK 不会执行该步工具。
+- 规则：`convertToModelMessages` 必须传 `ignoreIncompleteToolCalls: true`；开启思考模式时单步 `maxOutputTokens` 必须留足余量（≥ 8192）；持久化与加载历史时过滤空 `parts` 助手消息。
+- 元：ai@7.0.159、@ai-sdk/deepseek@3.0.77 | 2026-11-23 | 候选毕业方向：已沉淀到 `run-agent.ts` / `agent.ts`
+
+### hasToolCall() 会把入参非法的工具调用也算命中并提前中止循环
+- 症状：裁判 `submitVerdict` 在第 2 步因 JSON 截断或校验失败变成 `invalid: true`，明明还有剩余步数却直接停在 `failed`，不给模型自我修正的机会。
+- 根因：以为 `hasToolCall('submitVerdict')` 只匹配执行成功的调用；AI SDK 7 只按 `toolName` 匹配 `step.toolCalls`，不区分 `invalid`。
+- 规则：需要确认工具真正执行成功才停止时，用自定义状态回调（如 `() => verdict !== null`）替代 `hasToolCall()`，并配合 `ToolLoopAgent.repairToolCall` 修复 DeepSeek 非 strict 模式常见畸形 JSON。
+- 元：ai@7.0.159、@ai-sdk/deepseek@3.0.77 | 2026-11-23 | 候选毕业方向：已沉淀到 `referee/index.ts` / `repair-tool-call.ts`
+

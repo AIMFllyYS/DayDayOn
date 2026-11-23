@@ -3,7 +3,6 @@ import {
   type UIMessage,
   createIdGenerator,
   createUIMessageStreamResponse,
-  hasToolCall,
   isStepCount,
   toUIMessageStream,
   ToolLoopAgent,
@@ -20,19 +19,23 @@ import {
 } from '@/server/services/agent/conversations'
 import { getFlashModel, hashedUserId } from '../model'
 import { usageFromSdk, type TokenUsage } from '../pricing'
-import { reserveAgentRun, settleAgentRun } from '../run-agent'
+import { createRepairToolCall } from '../repair-tool-call'
+import { filterEmptyAssistantMessages, reserveAgentRun, settleAgentRun } from '../run-agent'
 import { refereeSystemPrompt, REFEREE_PROMPT_VERSION } from './prompt'
 import { buildRefereeTools, MAX_REFEREE_SEARCHES } from './tools'
 
 /*
  * 裁判 Agent 的流式运行（checkin-modules.md 第 4 节、ADR-0027）。
- * 预占（token 上限 + 联网 3 次）→ ToolLoopAgent 流式（最多 6 步，最后一步强制 submitVerdict）
+ * 预占（高分位输出估算 + 联网 6 次）→ ToolLoopAgent 流式（最多 10 步，最后一步强制 submitVerdict，
+ * 带确定性 repairToolCall 且仅在 submitVerdict 真正产出 verdict 时停止，避免非法入参提前中止循环）
  * → 后台按实际用量结算，失败释放。和 Agent 对话同一套账本。
  * 带 conversation 时，这次分析就是一个 Agent 会话：用户那句话 + 分析回合在流结束时落库（全局只有一个 Agent）。
  */
 
-export const REFEREE_MAX_STEPS = 6
-export const REFEREE_MAX_OUTPUT_PER_STEP = 1500
+export const REFEREE_MAX_STEPS = 10
+export const REFEREE_MAX_OUTPUT_PER_STEP = 4096
+/** 裁判整轮输出预占估算（实际多在 150–1200 tokens，12000 已留足约 10 倍余量） */
+export const REFEREE_RESERVE_OUTPUT_TOKENS = 12_000
 const ZERO_USAGE: TokenUsage = { inputMissTokens: 0, inputHitTokens: 0, outputTokens: 0 }
 
 /** 分析所在的 Agent 会话：id 由前端生成（新对话），text 是用户看到的那句话 */
@@ -83,7 +86,7 @@ export async function streamReferee(input: StreamRefereeInput): Promise<Response
     now: input.now,
     purpose: 'referee',
     promptVersion: REFEREE_PROMPT_VERSION,
-    maxOutputTokens: REFEREE_MAX_STEPS * REFEREE_MAX_OUTPUT_PER_STEP,
+    maxOutputTokens: REFEREE_RESERVE_OUTPUT_TOKENS,
     maxSearches: MAX_REFEREE_SEARCHES,
   })
 
@@ -105,27 +108,48 @@ export async function streamReferee(input: StreamRefereeInput): Promise<Response
     },
   })
 
-  const agent = new ToolLoopAgent({
-    model: getFlashModel(),
-    instructions: refereeSystemPrompt(input.module, input.petName),
-    tools,
-    stopWhen: [hasToolCall('submitVerdict'), isStepCount(REFEREE_MAX_STEPS)],
-    maxOutputTokens: REFEREE_MAX_OUTPUT_PER_STEP,
-    // 最后一步只允许提交结论，保证 6 步内一定交卷
-    prepareStep: ({ stepNumber }) =>
-      stepNumber >= REFEREE_MAX_STEPS - 1
-        ? { toolChoice: { type: 'tool', toolName: 'submitVerdict' } }
-        : undefined,
-    providerOptions: {
-      deepseek: {
-        userId: await hashedUserId(input.userId),
-        thinking: { type: 'disabled' },
-      },
-    },
-  })
-
   const startedAt = Date.now()
-  const result = await agent.stream({ messages: [{ role: 'user', content: userText }] })
+  let result: Awaited<ReturnType<ToolLoopAgent<never, typeof tools>['stream']>>
+  try {
+    const agent = new ToolLoopAgent({
+      model: getFlashModel(),
+      instructions: refereeSystemPrompt(input.module, input.petName),
+      tools,
+      // 仅在 submitVerdict 真正成功回调写入 verdict 时停止；若某步入参非法，允许下一轮自我修正重试
+      stopWhen: [() => verdict !== null, isStepCount(REFEREE_MAX_STEPS)],
+      maxOutputTokens: REFEREE_MAX_OUTPUT_PER_STEP,
+      // 最后一步只允许提交结论，保证步数内一定交卷
+      prepareStep: ({ stepNumber }) =>
+        stepNumber >= REFEREE_MAX_STEPS - 1
+          ? { toolChoice: { type: 'tool', toolName: 'submitVerdict' } }
+          : undefined,
+      repairToolCall: createRepairToolCall(),
+      providerOptions: {
+        deepseek: {
+          userId: await hashedUserId(input.userId),
+          thinking: { type: 'disabled' },
+        },
+      },
+    })
+
+    result = await agent.stream({ messages: [{ role: 'user', content: userText }] })
+  } catch (error) {
+    console.error(
+      '[ai] 裁判流式初始化失败，立即释放预占',
+      error instanceof Error ? error.name : typeof error,
+    )
+    await settleAgentRun({
+      userId: input.userId,
+      dayKey: reserved.dayKey,
+      reservation: reserved.reservation,
+      usage: ZERO_USAGE,
+      searchCostMicros: search.costMicros,
+      latencyMs: Date.now() - startedAt,
+      status: 'failed',
+      settings: reserved.settings,
+    })
+    throw error
+  }
   // 客户端断开也让模型跑完并结算
   result.consumeStream()
 
@@ -159,11 +183,12 @@ export async function streamReferee(input: StreamRefereeInput): Promise<Response
       onEnd: async ({ messages }) => {
         if (!conv) return
         try {
+          const persistable = filterEmptyAssistantMessages(messages)
           await saveMessages(
             input.db,
             input.userId,
             conv.id,
-            messages.map((m, idx) => ({
+            persistable.map((m, idx) => ({
               messageId: m.id,
               role: m.role === 'user' ? 'user' : 'assistant',
               parts: m.parts as unknown[],

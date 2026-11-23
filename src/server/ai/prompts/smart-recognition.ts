@@ -61,8 +61,8 @@ export const smartRecognitionPrompt = {
   version: 2,
   system: SYSTEM,
   schema: SmartRecognitionDraftSchema,
-  maxOutputTokens: 1000,
+  maxOutputTokens: 2500,
   thinking: { type: 'disabled' },
   estimatedInputTokens: 2800,
-  timeoutMs: 30_000,
+  timeoutMs: 45_000,
 } as const satisfies PromptDef<'smart-recognition', typeof SmartRecognitionDraftSchema>

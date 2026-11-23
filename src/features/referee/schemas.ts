@@ -130,7 +130,7 @@ export type DietDishFact = z.infer<typeof DietDishFactSchema>
 
 const SkipFactFields = {
   /** 用户在手动填写页填写「跳过本次打卡」理由时，Agent 核验理由是否合理充分 */
-  skipApproved: z.boolean().optional(),
+  skipApproved: z.boolean().nullable().optional(),
   /** Agent 对跳过理由的核验说明 */
   skipComment: z.string().trim().max(120).nullable().optional(),
 }

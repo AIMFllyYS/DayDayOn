@@ -63,7 +63,7 @@ scripts/dev/migrate.ts  本地执行迁移（pnpm db:migrate）
 scripts/dev/seed.ts     本地假数据（pnpm db:seed）
 ```
 
-当前 `schema/` 下 16 个核心模块（15 个表模块 + `columns.ts`，另有 `index.ts` 与空占位 `auth-indexes.ts`）与全部 36 张表：
+当前 `schema/` 下 16 个核心模块（15 个表模块 + `columns.ts`，另有 `index.ts` 与空占位 `auth-indexes.ts`）与全部 39 张表：
 
 | 模块文件 | 数据表（`pgTable`） | 说明 |
 |---|---|---|
@@ -74,7 +74,7 @@ scripts/dev/seed.ts     本地假数据（pnpm db:seed）
 | `quota.ts` | `quota_accounts`、`quota_ledger`、`redeem_codes`、`account_tombstones`、`redeem_attempts` | 额度账户、流水、兑换码、注销防薅快照、兑换试错记录 |
 | `goals.ts` | `goals`、`goal_targets`、`goal_field_versions` | 目标、目标量历史、自定义字段版本 |
 | `checkins.ts` | `checkins`、`checkin_revisions`、`body_metrics`、`daily_ratings`、`step_metrics` | 打卡、留痕、体重、日评、步数 |
-| `todos.ts` | `todos` | 待办清单 |
+| `todos.ts` | `todo_groups`、`todo_tags`、`todos`、`todo_events` | 待办自定义分组（含默认「默认待办」）、标签词库、待办条目（四象限/2000 字备注/30 天懒归档/排序）与过程事件流 |
 | `ai.ts` | `ai_runs`、`ai_daily_spend` | AI 调用记录（含幂等键）、全站每日花费聚合 |
 | `agent.ts` | `agent_conversations`、`agent_messages` | Agent 对话与消息历史 |
 | `friends.ts` | `friend_invites`、`friendships` | 好友邀请与好友关系 |

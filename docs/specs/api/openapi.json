@@ -202,6 +202,7 @@
               "REDEEM_CODE_INVALID",
               "FRIEND_INVITE_INVALID",
               "FRIEND_SELF_INVITE",
+              "TODO_DEFAULT_GROUP_PROTECTED",
               "UNAUTHENTICATED",
               "QUOTA_INSUFFICIENT",
               "FORBIDDEN",
@@ -215,12 +216,16 @@
               "GOAL_NOT_FOUND",
               "CHECKIN_NOT_FOUND",
               "TODO_NOT_FOUND",
+              "TODO_GROUP_NOT_FOUND",
+              "TODO_TAG_NOT_FOUND",
               "USER_NOT_FOUND",
               "REDEEM_CODE_NOT_FOUND",
               "FRIEND_NOT_FOUND",
               "ALREADY_ONBOARDED",
               "GOAL_LIMIT_REACHED",
               "TODO_LIMIT_REACHED",
+              "TODO_GROUP_LIMIT_REACHED",
+              "TODO_GROUP_NAME_EXISTS",
               "CHECKIN_EXISTS",
               "WEIGHT_CHANGE_UNCONFIRMED",
               "REDEEM_CODE_USED",
@@ -743,7 +748,19 @@
             "type": "array",
             "items": {}
           },
+          "todoGroups": {
+            "type": "array",
+            "items": {}
+          },
+          "todoTags": {
+            "type": "array",
+            "items": {}
+          },
           "todos": {
+            "type": "array",
+            "items": {}
+          },
+          "todoEvents": {
             "type": "array",
             "items": {}
           }
@@ -2305,7 +2322,10 @@
                 "maxItems": 20
               },
               "skipApproved": {
-                "type": "boolean"
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               },
               "skipComment": {
                 "type": [
@@ -2404,7 +2424,10 @@
                 "maximum": 300
               },
               "skipApproved": {
-                "type": "boolean"
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               },
               "skipComment": {
                 "type": [
@@ -2443,7 +2466,10 @@
                 "maximum": 14
               },
               "skipApproved": {
-                "type": "boolean"
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               },
               "skipComment": {
                 "type": [
@@ -2496,7 +2522,10 @@
                 "default": 0
               },
               "skipApproved": {
-                "type": "boolean"
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               },
               "skipComment": {
                 "type": [
@@ -2536,7 +2565,10 @@
                 "maxLength": 120
               },
               "skipApproved": {
-                "type": "boolean"
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               },
               "skipComment": {
                 "type": [
@@ -4570,6 +4602,165 @@
           "items"
         ]
       },
+      "TodoOverview": {
+        "type": "object",
+        "properties": {
+          "defaultGroupId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodoGroup"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodoTag"
+            }
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "openTotal": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "overdueCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "doneRecentCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "abandonedRecentCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "archivedCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "quadrants": {
+                "$ref": "#/components/schemas/TodoQuadrantCounts"
+              }
+            },
+            "required": [
+              "openTotal",
+              "overdueCount",
+              "doneRecentCount",
+              "abandonedRecentCount",
+              "archivedCount",
+              "quadrants"
+            ]
+          },
+          "defaultGroupTodos": {
+            "$ref": "#/components/schemas/TodoList"
+          }
+        },
+        "required": [
+          "defaultGroupId",
+          "groups",
+          "tags",
+          "counts",
+          "defaultGroupTodos"
+        ]
+      },
+      "TodoGroup": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "openCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "soonCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isDefault",
+          "sortOrder",
+          "openCount",
+          "soonCount",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "TodoTag": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "createdAt"
+        ]
+      },
+      "TodoQuadrantCounts": {
+        "type": "object",
+        "properties": {
+          "urgent-important": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "important-not-urgent": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "urgent-not-important": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "not-important-not-urgent": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "urgent-important",
+          "important-not-urgent",
+          "urgent-not-important",
+          "not-important-not-urgent"
+        ]
+      },
       "TodoList": {
         "type": "object",
         "properties": {
@@ -4598,8 +4789,21 @@
             "type": "string",
             "format": "uuid"
           },
+          "groupId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "groupName": {
+            "type": "string"
+          },
           "title": {
             "type": "string"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "dueAt": {
             "type": [
@@ -4611,12 +4815,47 @@
           "priority": {
             "$ref": "#/components/schemas/TodoPriority"
           },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/TodoLifecycleStatus"
+          },
           "doneAt": {
             "type": [
               "string",
               "null"
             ],
             "format": "date-time"
+          },
+          "abandonedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "abandonReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "settledAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "isArchived": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer"
           },
           "createdAt": {
             "type": "string",
@@ -4629,10 +4868,20 @@
         },
         "required": [
           "id",
+          "groupId",
+          "groupName",
           "title",
+          "note",
           "dueAt",
           "priority",
+          "tags",
+          "status",
           "doneAt",
+          "abandonedAt",
+          "abandonReason",
+          "settledAt",
+          "isArchived",
+          "sortOrder",
           "createdAt",
           "updatedAt"
         ]
@@ -4640,15 +4889,176 @@
       "TodoPriority": {
         "type": "string",
         "enum": [
-          "normal",
-          "important"
+          "urgent-important",
+          "important-not-urgent",
+          "urgent-not-important",
+          "not-important-not-urgent"
+        ]
+      },
+      "TodoLifecycleStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "done",
+          "abandoned"
+        ]
+      },
+      "TodoEventList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodoEvent"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "TodoEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "todoId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "eventType": {
+            "$ref": "#/components/schemas/TodoEventType"
+          },
+          "todoTitle": {
+            "type": "string"
+          },
+          "groupName": {
+            "type": "string"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/TodoEventMeta"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isArchived": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "todoId",
+          "eventType",
+          "todoTitle",
+          "groupName",
+          "meta",
+          "occurredAt",
+          "isArchived"
+        ]
+      },
+      "TodoEventType": {
+        "type": "string",
+        "enum": [
+          "created",
+          "completed",
+          "reopened",
+          "abandoned",
+          "moved",
+          "updated",
+          "deleted"
+        ]
+      },
+      "TodoEventMeta": {
+        "type": "object",
+        "properties": {
+          "fromGroup": {
+            "type": "string"
+          },
+          "toGroup": {
+            "type": "string"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/TodoPriority"
+          },
+          "dueAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Ok": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "ReorderTodos": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "todoIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 500
+          }
+        },
+        "required": [
+          "groupId",
+          "todoIds"
         ]
       },
       "TodoStatus": {
         "type": "string",
         "enum": [
           "open",
-          "done"
+          "overdue",
+          "done",
+          "abandoned",
+          "archived",
+          "quadrant"
         ],
         "default": "open"
       },
@@ -4660,6 +5070,14 @@
             "minLength": 1,
             "maxLength": 60
           },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "default": null
+          },
           "dueAt": {
             "type": [
               "string",
@@ -4670,6 +5088,25 @@
           },
           "priority": {
             "$ref": "#/components/schemas/TodoPriority"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16
+            },
+            "maxItems": 5,
+            "default": []
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "newGroupName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24
           }
         },
         "required": [
@@ -4684,6 +5121,13 @@
             "minLength": 1,
             "maxLength": 60
           },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
           "dueAt": {
             "type": [
               "string",
@@ -4694,10 +5138,109 @@
           "priority": {
             "$ref": "#/components/schemas/TodoPriority"
           },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16
+            },
+            "maxItems": 5
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "newGroupName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24
+          },
+          "status": {
+            "$ref": "#/components/schemas/TodoLifecycleStatus"
+          },
+          "abandonReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
           "done": {
             "type": "boolean"
           }
         }
+      },
+      "TodoGroupList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodoGroup"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CreateTodoGroup": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ReorderTodoGroups": {
+        "type": "object",
+        "properties": {
+          "groupIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "groupIds"
+        ]
+      },
+      "UpdateTodoGroup": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "TodoTagList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodoTag"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
       },
       "DietRecognitionResult": {
         "type": "object",
@@ -9469,12 +10012,251 @@
         }
       }
     },
+    "/api/v1/todos/overview": {
+      "get": {
+        "tags": [
+          "todo"
+        ],
+        "summary": "待办首屏概览",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16
+            },
+            "required": false,
+            "name": "tag",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "待办概览与默认分组首批条目",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todos/events": {
+      "get": {
+        "tags": [
+          "todo"
+        ],
+        "summary": "待办过程时间轴",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "todoId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/TodoEventType"
+            },
+            "required": false,
+            "name": "eventType",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "按时间倒序的过程事件分页列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoEventList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todos/reorder": {
+      "post": {
+        "tags": [
+          "todo"
+        ],
+        "summary": "组内待办排序",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderTodos"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "已更新排序",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TODO_GROUP_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/todos": {
       "get": {
         "tags": [
           "todo"
         ],
-        "summary": "待办列表",
+        "summary": "待办分页列表",
         "parameters": [
           {
             "schema": {
@@ -9482,6 +10264,73 @@
             },
             "required": false,
             "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "groupId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/TodoPriority"
+            },
+            "required": false,
+            "name": "priority",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 16
+            },
+            "required": false,
+            "name": "tag",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "keyword",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "done",
+                "abandoned"
+              ]
+            },
+            "required": false,
+            "name": "archivedOutcome",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "to",
             "in": "query"
           },
           {
@@ -9615,8 +10464,18 @@
               }
             }
           },
+          "404": {
+            "description": "TODO_GROUP_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "409": {
-            "description": "TODO_LIMIT_REACHED | IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "description": "TODO_LIMIT_REACHED | TODO_GROUP_LIMIT_REACHED | IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
             "content": {
               "application/json": {
                 "schema": {
@@ -9629,11 +10488,80 @@
       }
     },
     "/api/v1/todos/{todoId}": {
+      "get": {
+        "tags": [
+          "todo"
+        ],
+        "summary": "获取单条待办详情",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "todoId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "单条待办详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TODO_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "todo"
         ],
-        "summary": "修改待办（含勾选）",
+        "summary": "修改待办（含勾选完成、放弃、恢复、移动分组）",
         "parameters": [
           {
             "schema": {
@@ -9697,7 +10625,7 @@
             }
           },
           "404": {
-            "description": "TODO_NOT_FOUND",
+            "description": "TODO_NOT_FOUND | TODO_GROUP_NOT_FOUND",
             "content": {
               "application/json": {
                 "schema": {
@@ -9707,7 +10635,7 @@
             }
           },
           "409": {
-            "description": "TODO_LIMIT_REACHED",
+            "description": "TODO_LIMIT_REACHED | TODO_GROUP_LIMIT_REACHED",
             "content": {
               "application/json": {
                 "schema": {
@@ -9770,6 +10698,442 @@
           },
           "404": {
             "description": "TODO_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todo-groups": {
+      "get": {
+        "tags": [
+          "todo"
+        ],
+        "summary": "待办分组列表",
+        "responses": {
+          "200": {
+            "description": "分组列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoGroupList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "todo"
+        ],
+        "summary": "新建待办分组",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTodoGroup"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "已创建分组",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoGroup"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TODO_GROUP_LIMIT_REACHED | TODO_GROUP_NAME_EXISTS | IDEMPOTENCY_KEY_REUSED | REQUEST_IN_PROGRESS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todo-groups/reorder": {
+      "post": {
+        "tags": [
+          "todo"
+        ],
+        "summary": "待办分组排序",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderTodoGroups"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "排序后的分组列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoGroupList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todo-groups/{groupId}": {
+      "patch": {
+        "tags": [
+          "todo"
+        ],
+        "summary": "重命名待办分组",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "groupId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTodoGroup"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "修改后的分组",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoGroup"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED | TODO_DEFAULT_GROUP_PROTECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TODO_GROUP_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "TODO_GROUP_NAME_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "todo"
+        ],
+        "summary": "删除待办分组（组内待办迁回默认待办）",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "groupId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已删除分组"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED | TODO_DEFAULT_GROUP_PROTECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TODO_GROUP_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todo-tags": {
+      "get": {
+        "tags": [
+          "todo"
+        ],
+        "summary": "待办标签列表",
+        "responses": {
+          "200": {
+            "description": "标签列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoTagList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/todo-tags/{tagId}": {
+      "delete": {
+        "tags": [
+          "todo"
+        ],
+        "summary": "删除待办标签",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "tagId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已删除标签"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TODO_TAG_NOT_FOUND",
             "content": {
               "application/json": {
                 "schema": {

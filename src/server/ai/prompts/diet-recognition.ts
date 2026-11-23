@@ -28,10 +28,10 @@ export const dietRecognitionPrompt = {
   version: 1,
   system: SYSTEM,
   schema: DietDraftSchema,
-  maxOutputTokens: 800,
+  maxOutputTokens: 2000,
   // 结构化识别：显式关闭思考（lessons/ai-sdk.md）
   thinking: { type: 'disabled' },
   // 约 1300×1300 的 JPEG + system + schema 说明，按偏高估计预占
   estimatedInputTokens: 2500,
-  timeoutMs: 30_000,
+  timeoutMs: 45_000,
 } as const satisfies PromptDef<'diet-recognition', typeof DietDraftSchema>

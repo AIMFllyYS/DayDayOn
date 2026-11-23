@@ -124,8 +124,20 @@ export const TodoDraftSchema = z
   .object({
     kind: z.literal('todo'),
     title: z.string(),
+    note: z.string().nullable().optional(),
     dueAt: z.string().nullable(),
-    priority: z.enum(['normal', 'important']),
+    /** 兼容旧会话中的 normal/important 与新版四象限优先级 */
+    priority: z.enum([
+      'normal',
+      'important',
+      'urgent-important',
+      'important-not-urgent',
+      'urgent-not-important',
+      'not-important-not-urgent',
+    ]),
+    groupName: z.string().optional(),
+    isNewGroup: z.boolean().optional(),
+    tags: z.array(z.string()).optional(),
     confirmBody: z.record(z.string(), z.unknown()),
   })
   .meta({ id: 'TodoDraft' })

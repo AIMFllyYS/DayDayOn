@@ -1,5 +1,6 @@
 import 'server-only'
 import {
+  APICallError,
   generateText,
   type LanguageModel,
   type LanguageModelUsage,
@@ -14,10 +15,10 @@ import { type TokenUsage, usageFromSdk } from './pricing'
 /*
  * runAi 的第 3 步"调用"（ai-and-quota.md 第 3 节）：不碰数据库，便于用 MockLanguageModelV4 测试。
  * 不抛错：成功、输出校验失败、超时、其他失败都折成一个结果，带上已产生的用量供结算。
- * 不记录 prompt 正文、用户输入、模型输出和图片；失败时只记错误类型名。
+ * 不记录 prompt 正文、用户输入、模型输出和图片；失败时只记脱敏错误类型、finishReason 或 HTTP 状态码。
  */
 
-export const DEFAULT_TIMEOUT_MS = 30_000
+export const DEFAULT_TIMEOUT_MS = 45_000
 
 export interface CallModelInput<S extends z.ZodType> {
   model: LanguageModel
@@ -73,11 +74,25 @@ export async function callModel<S extends z.ZodType>(
     return { kind: 'ok', output: parsed.data as z.infer<S>, usage }
   } catch (error) {
     if (NoObjectGeneratedError.isInstance(error)) {
+      console.error(
+        '[ai] 结构化输出校验失败',
+        `finishReason=${error.finishReason ?? 'unknown'}`,
+        `cause=${error.cause instanceof Error ? error.cause.name : 'unknown'}`,
+      )
       return { kind: 'invalid-output', usage: usageOf(error.usage) }
     }
-    if (NoOutputGeneratedError.isInstance(error))
+    if (NoOutputGeneratedError.isInstance(error)) {
+      console.error('[ai] 模型未返回有效输出')
       return { kind: 'invalid-output', usage: ZERO_USAGE }
-    if (isTimeout(error)) return { kind: 'timeout', usage: ZERO_USAGE }
+    }
+    if (isTimeout(error)) {
+      console.error('[ai] 模型调用超时', `timeoutMs=${input.timeoutMs ?? DEFAULT_TIMEOUT_MS}`)
+      return { kind: 'timeout', usage: ZERO_USAGE }
+    }
+    if (APICallError.isInstance(error)) {
+      console.error('[ai] 模型调用失败', error.name, `status=${error.statusCode ?? 'unknown'}`)
+      return { kind: 'failed', usage: ZERO_USAGE }
+    }
     console.error('[ai] 模型调用失败', error instanceof Error ? error.name : typeof error)
     return { kind: 'failed', usage: ZERO_USAGE }
   }

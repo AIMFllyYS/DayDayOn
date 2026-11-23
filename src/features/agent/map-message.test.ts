@@ -87,6 +87,31 @@ describe('map-message: toTurnParts & toTurnView', () => {
     expect(doneTurn.errorText).toBeUndefined()
   })
 
+  it('已结束回合里残留的 input-available 工具调用自动降级为 output-error，避免历史记录永远转圈', () => {
+    const msg = {
+      id: 'm-broken',
+      role: 'assistant',
+      parts: [
+        {
+          type: 'tool-draftCheckin',
+          toolCallId: 'call_00',
+          state: 'input-available',
+          input: { goalId: 'g1' },
+        },
+      ],
+    } as unknown as UIMessage
+
+    const streamingTurn = toTurnView(msg, 'streaming')
+    expect(streamingTurn.parts[0]).toMatchObject({ type: 'tool', state: 'input-available' })
+
+    const doneTurn = toTurnView(msg, 'done')
+    expect(doneTurn.parts[0]).toMatchObject({
+      type: 'tool',
+      state: 'output-error',
+      errorText: '本次工具调用未完成',
+    })
+  })
+
   it('isStreamingTurn 正确识别流式中的文本或工具调用', () => {
     expect(
       isStreamingTurn([{ type: 'text', text: '你好', state: 'streaming' }] as UIMessage['parts']),

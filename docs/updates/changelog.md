@@ -4,6 +4,20 @@
 
 ---
 
+## [v0.1.13] - 2026-11-23（待办—清单 Todo v2 系统性重构、AI 稳定性与工具上限全面升级，含安卓壳 v0.1.13 / `versionCode = 10`）
+
+### ✨ 待办—清单系统性升级（Todo v2）
+- **紧凑可折叠面板与完整生命周期**：新增 `todo_groups`、`todo_tags`、`todo_events` 表及 `todos` 无损存量回填迁移（`0012`），存量待办自动归入「默认待办」分组；支持用户自定义分组、超 DDL 自动归入「已过期」、完成/放弃默认自动折叠及满 30 天自动归档（不做手动归档，无外置 cron，遵循 `ADR-0020`）。
+- **四象限优先级、双视图与单条深度管理**：优先级升级为四象限双维度选择器（默认「不重要不紧急」），支持最多 5 个自定义标签、2000 字备注、删除二次确认（`ConfirmDialog`）、列表/四象限双视图切换（四象限仅进行中、忽略分组、按创建时间倒序）。
+- **交互与性能优化**：保留全局 `TopBar` 与左上角「清单 | 时间日志」，右上角升级为「过程」独立单页（`/todo/timeline`）与「菜单」（含 `/todo/archived` 归档页、分组管理、视图切换），右下角新增置顶悬浮加号球（与悬浮团团自动避让）；支持零依赖原生 Pointer Events 长按待办与长按分组拖拽排序；首屏仅发轻量 `/todos/overview`，折叠面板零预请求零 DOM 挂载。
+- **AI 渐进式披露待办工具链与缓存优化**：独立封装 `src/server/ai/agent-todo-tools.ts`（`getTodoOverview` / `listTodos` / `getTodoDetail` / `getTodoTimeline` / `draftTodo`），支持单轮内存记忆化缓存与静态 System Prompt 前缀缓存复用。
+
+### 🛠️ AI Agent 与裁判稳定性加固（PR #90）
+- **根治会话毒化与裁判截断**：新增 `createRepairToolCall()` 确定性修复 DeepSeek Flash 畸形工具入参，`convertToModelMessages` 传 `ignoreIncompleteToolCalls: true`，过滤空助手消息并修复重试切片；裁判 `stopWhen` 改为校验真实提交回调，联网搜索补 15s 超时与兜底。
+- **放宽输出与工具上限**：Agent 对话步数提至 32 步（普通 4096 / 深度思考 8192 tokens/步，联网 15 次），裁判提至 10 步 / 4096 tokens/步（联网 6 次），保持默认不开启思考、深度思考开启时 `reasoningEffort: 'low'`。
+
+---
+
 ## [v0.1.12] - 2026-11-19（睡眠规则取消上限、三餐总评全天汇总修复与原生报告图片分享）
 
 ### 🛠️ 缺陷修复

@@ -3,7 +3,8 @@ import { asc, eq, inArray } from 'drizzle-orm'
 import type { Checkin, CheckinRevision } from '@/features/checkin/schemas'
 import type { FieldDef, Goal } from '@/features/goal/schemas'
 import type { Rating, WeightEntry } from '@/features/metric/schemas'
-import type { Todo } from '@/features/todo/schemas'
+import { isAutoArchived } from '@/features/todo/rules'
+import type { Todo, TodoEvent, TodoTag } from '@/features/todo/schemas'
 import type { DbOrTx } from '@/server/db/client'
 import {
   bodyMetrics,
@@ -12,7 +13,10 @@ import {
   dailyRatings,
   goalFieldVersions,
   goals,
+  todoEvents,
+  todoGroups,
   todos,
+  todoTags,
 } from '@/server/db/schema'
 
 /*
@@ -25,6 +29,16 @@ const MAX_GOALS = 1_000
 const MAX_CHECKINS = 50_000
 const MAX_DAILY_ROWS = 20_000
 const MAX_TODOS = 20_000
+const MAX_TODO_EVENTS = 50_000
+
+export interface ExportTodoGroup {
+  id: string
+  name: string
+  isDefault: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
 
 export interface ExportRest {
   goals: Goal[]
@@ -32,7 +46,10 @@ export interface ExportRest {
   checkinRevisions: CheckinRevision[]
   weights: WeightEntry[]
   ratings: Rating[]
+  todoGroups: ExportTodoGroup[]
+  todoTags: TodoTag[]
   todos: Todo[]
+  todoEvents: TodoEvent[]
 }
 
 const iso = (d: Date) => d.toISOString()
@@ -159,38 +176,117 @@ async function exportRatings(db: DbOrTx, userId: string): Promise<Rating[]> {
     .limit(MAX_DAILY_ROWS)
 }
 
-async function exportTodos(db: DbOrTx, userId: string): Promise<Todo[]> {
+async function exportTodoGroups(db: DbOrTx, userId: string): Promise<ExportTodoGroup[]> {
+  const rows = await db
+    .select()
+    .from(todoGroups)
+    .where(eq(todoGroups.userId, userId))
+    .orderBy(asc(todoGroups.sortOrder), asc(todoGroups.createdAt))
+    .limit(200)
+  return rows.map((g) => ({
+    id: g.id,
+    name: g.name,
+    isDefault: g.isDefault,
+    sortOrder: g.sortOrder,
+    createdAt: iso(g.createdAt),
+    updatedAt: iso(g.updatedAt),
+  }))
+}
+
+async function exportTodoTags(db: DbOrTx, userId: string): Promise<TodoTag[]> {
+  const rows = await db
+    .select()
+    .from(todoTags)
+    .where(eq(todoTags.userId, userId))
+    .orderBy(asc(todoTags.createdAt))
+    .limit(500)
+  return rows.map((t) => ({ id: t.id, name: t.name, createdAt: iso(t.createdAt) }))
+}
+
+async function exportTodos(
+  db: DbOrTx,
+  userId: string,
+  groupNames: ReadonlyMap<string, string>,
+  now: Date,
+): Promise<Todo[]> {
   const rows = await db
     .select()
     .from(todos)
     .where(eq(todos.userId, userId))
     .orderBy(asc(todos.createdAt))
     .limit(MAX_TODOS)
-  return rows.map((t) => ({
-    id: t.id,
-    title: t.title,
-    dueAt: isoOrNull(t.dueAt),
-    priority: t.priority,
-    doneAt: isoOrNull(t.doneAt),
-    createdAt: iso(t.createdAt),
-    updatedAt: iso(t.updatedAt),
+  return rows.map((t) => {
+    const doneAt = isoOrNull(t.doneAt)
+    const abandonedAt = isoOrNull(t.abandonedAt)
+    const settledAt = isoOrNull(t.settledAt)
+    return {
+      id: t.id,
+      groupId: t.groupId,
+      groupName: groupNames.get(t.groupId) ?? '默认待办',
+      title: t.title,
+      note: t.note,
+      dueAt: isoOrNull(t.dueAt),
+      priority: t.priority,
+      tags: t.tags,
+      status: t.status,
+      doneAt,
+      abandonedAt,
+      abandonReason: t.abandonReason,
+      settledAt,
+      isArchived: isAutoArchived({ status: t.status, settledAt, doneAt, abandonedAt }, now),
+      sortOrder: t.sortOrder,
+      createdAt: iso(t.createdAt),
+      updatedAt: iso(t.updatedAt),
+    }
+  })
+}
+
+async function exportTodoEvents(
+  db: DbOrTx,
+  userId: string,
+  archivedTodoIds: ReadonlySet<string>,
+): Promise<TodoEvent[]> {
+  const rows = await db
+    .select()
+    .from(todoEvents)
+    .where(eq(todoEvents.userId, userId))
+    .orderBy(asc(todoEvents.occurredAt))
+    .limit(MAX_TODO_EVENTS)
+  return rows.map((e) => ({
+    id: e.id,
+    todoId: e.todoId,
+    eventType: e.eventType,
+    todoTitle: e.todoTitle,
+    groupName: e.groupName,
+    meta: e.meta,
+    occurredAt: iso(e.occurredAt),
+    isArchived: e.todoId !== null && archivedTodoIds.has(e.todoId),
   }))
 }
 
 export async function collectExport(db: DbOrTx, userId: string): Promise<ExportRest> {
   // 同一个连接上顺序执行：传进来的可能是事务句柄，事务里不能并发查询
+  const now = new Date()
   const goalList = await exportGoals(db, userId)
   const checkinList = await exportCheckins(db, userId)
   const revisions = await exportRevisions(db, userId)
   const weights = await exportWeights(db, userId)
   const ratings = await exportRatings(db, userId)
-  const todoList = await exportTodos(db, userId)
+  const groupList = await exportTodoGroups(db, userId)
+  const tagList = await exportTodoTags(db, userId)
+  const groupNames = new Map(groupList.map((g) => [g.id, g.name]))
+  const todoList = await exportTodos(db, userId, groupNames, now)
+  const archivedTodoIds = new Set(todoList.filter((t) => t.isArchived).map((t) => t.id))
+  const eventList = await exportTodoEvents(db, userId, archivedTodoIds)
   return {
     goals: goalList,
     checkins: checkinList,
     checkinRevisions: revisions,
     weights,
     ratings,
+    todoGroups: groupList,
+    todoTags: tagList,
     todos: todoList,
+    todoEvents: eventList,
   }
 }

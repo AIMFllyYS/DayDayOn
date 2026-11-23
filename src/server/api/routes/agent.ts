@@ -194,7 +194,9 @@ export const agentRoutes = new OpenAPIHono<AppEnv>()
     const { id, message, deepThink, idempotencyKey } = c.req.valid('json')
     validateChatMessageFileParts(message.parts)
     const previous = await loadConversationMessages(c.get('user').id, id, { allowMissing: true })
-    const history = previous.filter((m) => m.id !== message.id)
+    // 若客户端重试同一条用户消息（regenerate），截断该消息及其后的旧失败回复，避免把坏回复重新喂给模型
+    const existingIdx = previous.findIndex((m) => m.id === message.id)
+    const history = existingIdx >= 0 ? previous.slice(0, existingIdx) : previous
     type ChatMessage = Parameters<typeof streamAgentChat>[0]['messages'][number]
     return streamAgentChat({
       userId: c.get('user').id,
