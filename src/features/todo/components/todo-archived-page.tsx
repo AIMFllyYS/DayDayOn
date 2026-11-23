@@ -94,7 +94,7 @@ export function TodoArchivedPage() {
       { todoId: todo.id, patch: { status: 'open' } },
       {
         onSuccess: () => {
-          toast.success('已恢复为进行中待办')
+          toast.success('已恢复')
           setEditing(null)
         },
         onError: (err) => toast.error(messageOf(err)),
@@ -124,7 +124,7 @@ export function TodoArchivedPage() {
       { todoId: todo.id, patch },
       {
         onSuccess: () => {
-          toast.success(patch.status === 'open' ? '已恢复为进行中待办' : '已更新状态')
+          toast.success(patch.status === 'open' ? '已恢复' : '已更新状态')
           setEditing(null)
         },
         onError: (err) => toast.error(messageOf(err)),
@@ -260,7 +260,7 @@ export function TodoArchivedPage() {
             if (!target) return
             try {
               await remove.mutateAsync(target.id)
-              toast.success('已删除这条归档待办')
+              toast.success('已删除')
               setPendingDelete(null)
             } catch (err) {
               toast.error(messageOf(err))

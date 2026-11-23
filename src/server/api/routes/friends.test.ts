@@ -14,6 +14,10 @@ const mocks = vi.hoisted(() => ({
     previewInviteCode: vi.fn(),
     acceptInviteCode: vi.fn(),
     getFriendDashboard: vi.fn(),
+    getFriendInsights: vi.fn(),
+    getFriendGoalDetail: vi.fn(),
+    getFriendGoalCalendar: vi.fn(),
+    getFriendGoalCheckins: vi.fn(),
     removeFriend: vi.fn(),
   },
 }))
@@ -200,6 +204,61 @@ describe('/api/v1/friends 业务与校验', () => {
     const res = await app.request('/api/v1/friends/u999/dashboard')
     expect(res.status).toBe(404)
     expect(await res.json()).toMatchObject({ code: 'FRIEND_NOT_FOUND' })
+  })
+
+  it('GET /friends/{friendUserId}/insights 返回好友近 7 天板块近况 → 200', async () => {
+    const sampleInsights = { localDate: '2026-11-23', days: 7, items: [] }
+    mocks.service.getFriendInsights.mockResolvedValue(sampleInsights)
+    const res = await app.request('/api/v1/friends/u2/insights?days=7')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(sampleInsights)
+    expect(mocks.service.getFriendInsights).toHaveBeenCalledWith(
+      expect.anything(),
+      'u1',
+      'u2',
+      expect.any(Date),
+      { days: 7 },
+    )
+  })
+
+  it('GET /friends/{friendUserId}/goals/{goalId} 非好友返回 404 FRIEND_NOT_FOUND', async () => {
+    const goalId = '00000000-0000-4000-8000-000000000001'
+    mocks.service.getFriendGoalDetail.mockRejectedValue(new ApiError('FRIEND_NOT_FOUND'))
+    const res = await app.request(`/api/v1/friends/u999/goals/${goalId}`)
+    expect(res.status).toBe(404)
+    expect(await res.json()).toMatchObject({ code: 'FRIEND_NOT_FOUND' })
+  })
+
+  it('GET /friends/{friendUserId}/goals/{goalId}/calendar 转发参数并返回 200', async () => {
+    const goalId = '00000000-0000-4000-8000-000000000001'
+    const sampleCal = { month: '2026-11', days: [] }
+    mocks.service.getFriendGoalCalendar.mockResolvedValue(sampleCal)
+    const res = await app.request(`/api/v1/friends/u2/goals/${goalId}/calendar?month=2026-11`)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(sampleCal)
+    expect(mocks.service.getFriendGoalCalendar).toHaveBeenCalledWith(
+      expect.anything(),
+      'u1',
+      'u2',
+      goalId,
+      '2026-11',
+    )
+  })
+
+  it('GET /friends/{friendUserId}/goals/{goalId}/checkins 转发游标并返回 200', async () => {
+    const goalId = '00000000-0000-4000-8000-000000000001'
+    const sampleHistory = { items: [], nextCursor: null }
+    mocks.service.getFriendGoalCheckins.mockResolvedValue(sampleHistory)
+    const res = await app.request(`/api/v1/friends/u2/goals/${goalId}/checkins?limit=10`)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(sampleHistory)
+    expect(mocks.service.getFriendGoalCheckins).toHaveBeenCalledWith(
+      expect.anything(),
+      'u1',
+      'u2',
+      goalId,
+      expect.objectContaining({ limit: 10 }),
+    )
   })
 })
 

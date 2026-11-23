@@ -9,10 +9,10 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
-import type { FieldDef } from '@/features/goal/schemas'
+import type { FieldDef, GoalDetail } from '@/features/goal/schemas'
 import { errorMessage, isApiError, useInfiniteQuery, useQuery } from '@/lib/api'
-import { checkinGoalQuery, checkinHistoryQuery } from '@/lib/api/queries/checkins'
-import { useDeleteCheckin } from '@/lib/api/queries/checkins'
+import { checkinGoalQuery, checkinHistoryQuery, useDeleteCheckin } from '@/lib/api/queries/checkins'
+import { friendGoalCheckinsQuery } from '@/lib/api/queries/friends'
 import { formatLocalDateLabel } from '@/lib/time'
 import { checkinSummary } from '../format'
 import type { Checkin } from '../schemas'
@@ -24,6 +24,12 @@ const ConfirmDialog = dynamic(
 
 export interface GoalCheckinHistoryProps {
   goalId: string
+  /** 好友只读模式：改走 /friends/{friendUserId}/goals/{goalId}/checkins */
+  friendUserId?: string
+  /** 父级已拉取的自定义字段版本表（好友模式必传，避免重复请求本人 /goals/{goalId}） */
+  fieldVersions?: GoalDetail['fieldVersions']
+  /** 只读模式：隐藏删除按钮与二次确认弹窗 */
+  readOnly?: boolean
 }
 
 /** 按打卡日分组（接口已按日期倒序） */
@@ -38,20 +44,36 @@ function groupByDate(items: readonly Checkin[]): [string, Checkin[]][] {
 }
 
 /**
- * 目标详情页的打卡历史列表（PRD 2.3、2.4）：GET /goals/{goalId}/checkins 游标分页，可删除（二次确认）。
- * 自定义目标按当时的字段版本展示。props F1 定；实现 D3；D2 的详情页嵌入。
+ * 目标详情页的打卡历史列表（PRD 2.3、2.4）：支持本人游标分页删除与好友只读查看。
+ * 自定义目标按当时的字段版本展示。
  */
-export function GoalCheckinHistory({ goalId }: GoalCheckinHistoryProps) {
-  const history = useInfiniteQuery(checkinHistoryQuery(goalId))
-  const goal = useQuery(checkinGoalQuery(goalId))
+export function GoalCheckinHistory({
+  goalId,
+  friendUserId,
+  fieldVersions,
+  readOnly = false,
+}: GoalCheckinHistoryProps) {
+  const isReadOnly = readOnly || Boolean(friendUserId)
+  const ownHistory = useInfiniteQuery({
+    ...checkinHistoryQuery(goalId),
+    enabled: !friendUserId,
+  })
+  const friendHistory = useInfiniteQuery({
+    ...friendGoalCheckinsQuery(friendUserId ?? '', goalId),
+    enabled: Boolean(friendUserId),
+  })
+  const history = friendUserId ? friendHistory : ownHistory
+  const goal = useQuery({
+    ...checkinGoalQuery(goalId),
+    enabled: !friendUserId && fieldVersions === undefined,
+  })
   const remove = useDeleteCheckin(goalId)
   const [pending, setPending] = useState<Checkin | null>(null)
   const [confirmLoaded, setConfirmLoaded] = useState(false)
   if (pending !== null && !confirmLoaded) setConfirmLoaded(true)
 
-  const versions = new Map<number, FieldDef[]>(
-    (goal.data?.fieldVersions ?? []).map((v) => [v.version, v.fields]),
-  )
+  const resolvedVersions = fieldVersions ?? goal.data?.fieldVersions ?? []
+  const versions = new Map<number, FieldDef[]>(resolvedVersions.map((v) => [v.version, v.fields]))
 
   let body
   if (history.isPending) {
@@ -90,7 +112,10 @@ export function GoalCheckinHistory({ goalId }: GoalCheckinHistoryProps) {
               </h4>
               <ul className="divide-border bg-surface-sunken/60 divide-y overflow-hidden rounded-2xl">
                 {list.map((c) => (
-                  <li key={c.id} className="flex min-h-14 items-center gap-2 py-1.5 pr-1 pl-3.5">
+                  <li
+                    key={c.id}
+                    className={`flex min-h-14 items-center gap-2 py-1.5 pl-3.5 ${isReadOnly ? 'pr-3.5' : 'pr-1'}`}
+                  >
                     <div className="min-w-0 flex-1">
                       <p className="text-caption break-words">
                         {checkinSummary(
@@ -109,7 +134,9 @@ export function GoalCheckinHistory({ goalId }: GoalCheckinHistoryProps) {
                     ) : null}
                     {c.isMakeup && <Badge>补卡</Badge>}
                     {c.source === 'ai' && <Badge tone="primary">AI</Badge>}
-                    <IconButton icon="trash" label="删除这条打卡" onClick={() => setPending(c)} />
+                    {!isReadOnly && (
+                      <IconButton icon="trash" label="删除这条打卡" onClick={() => setPending(c)} />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -131,9 +158,12 @@ export function GoalCheckinHistory({ goalId }: GoalCheckinHistoryProps) {
 
   return (
     <Card>
-      <CardHeader title="打卡记录" description="记错了就删掉重记" />
+      <CardHeader
+        title="打卡记录"
+        description={isReadOnly ? '最近的打卡记录' : '记错了就删掉重记'}
+      />
       {body}
-      {confirmLoaded && (
+      {!isReadOnly && confirmLoaded && (
         <ConfirmDialog
           open={pending !== null}
           onOpenChange={(open) => {

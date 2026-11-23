@@ -172,7 +172,7 @@ export const goalRoutes = new OpenAPIHono<AppEnv>().openapi(createGoal, async (c
 
 - 默认需要登录。业务路由在 `createRoute` 的 `middleware` 里挂 `[requireUser, requireOnboarded]`；免引导路由（`GET /me`、`POST /me/onboarding`、`DELETE /me`、`GET /me/export`）只挂 `requireUser`；后台路由（`/admin/*`）只挂 `requireAdmin`。不需要登录的接口（如 `GET /app/update`）必须在路由定义旁边注释原因。
 - `requireUser` 从 `auth.api.getSession({ headers: c.req.raw.headers })` 取会话后，实时查库 `loadAccountState()`（封禁状态不信任会话缓存）：取不到会话或用户已注销返回 401 `UNAUTHENTICATED`；账号被封禁返回 403 `ACCOUNT_BANNED`（带 `ban`）。细节见 [auth.md](./auth.md) 第 5、6 节。
-- 资源归属在 service 的查询条件里校验（`where userId = 当前用户`），不在 handler 里"先查出来再比较"。
+- 资源归属在 service 的查询条件里校验（`where userId = 当前用户`），不在 handler 里"先查出来再比较"。好友只读接口（`/friends/{friendUserId}/...`）必须先校验双向好友关系（非好友或本人均返回 404 `FRIEND_NOT_FOUND`），再以 `friendUserId` 作为资源归属条件查询，防止越权窥探非好友或他人资源。
 - CSRF：浏览器靠 cookie 会话。根应用 `app.ts` 全局挂 `csrf({ origin: (origin) => origin === new URL(env.NEXT_PUBLIC_APP_URL).origin })`（懒读取 `env`，构建期不触发环境变量校验）。`hono/csrf` 对非安全方法且 `Content-Type` 为表单类或缺失时（默认视为 `text/plain`，含 `DELETE`）校验 `sec-fetch-site: same-origin` 或允许的 `origin`，不通过抛 `HTTPException(403)` 并由 `onError` 转为 `403 FORBIDDEN`（实测细节见 [lessons/hono.md](../lessons/hono.md)）。APK / Kotlin 阶段改用 bearer token 后不受影响。
 - 不开 CORS。Web 前端和接口同源；原生客户端不受 CORS 限制。
 

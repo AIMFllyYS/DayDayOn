@@ -85,6 +85,7 @@ export function SideNav({
             <li key={item.href}>
               <Link
                 href={item.href}
+                data-nav-transition="tab"
                 title={item.label}
                 aria-current={active ? 'page' : undefined}
                 onClick={(e) => onItemClick?.(item.href, e)}

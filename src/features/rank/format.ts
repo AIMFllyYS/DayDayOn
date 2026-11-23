@@ -24,5 +24,5 @@ export function rangeLength(from: string, to: string): number {
 export function myRankNote(me: Extract<RankMe, { optedIn: true }>): string {
   if (me.entry.rank === 1) return '我 · 暂列第一，继续保持'
   if (me.daysToNext !== null) return `我 · 再打卡 ${me.daysToNext} 天追上前一名`
-  return '我 · 和前一名同样天数，比的是连续天数'
+  return '我'
 }

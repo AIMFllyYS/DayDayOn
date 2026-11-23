@@ -1,14 +1,16 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { BackButton } from '@/components/layout/back-button'
+import { SubpageTransition } from '@/components/layout/page-transition'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge, IconTile } from '@/components/ui/badge'
 import { IconButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
-import { ChatRoom } from '@/features/chat/components/chat-room'
+import { Skeleton } from '@/components/ui/skeleton'
 import { friendActions } from '@/features/friend/friend-store'
 import type { FriendSummary } from '@/features/friend/schemas'
 import { useChatThreads, useMarkChatRead } from '@/lib/api/queries/chat'
@@ -20,6 +22,7 @@ import {
   useNotificationSummary,
 } from '@/lib/api/queries/notifications'
 import { cn } from '@/lib/cn'
+import { setPageTransition } from '@/lib/motion'
 import {
   BUSINESS_TIME_ZONE,
   calendarDateOf,
@@ -33,6 +36,30 @@ import {
   SystemNoticeCard,
   VisitFootprintCard,
 } from './feed-cards'
+
+const ChatRoom = dynamic(
+  () => import('@/features/chat/components/chat-room').then((m) => m.ChatRoom),
+  {
+    loading: () => (
+      <div role="status" aria-label="加载聊天室中" className="flex flex-1 flex-col gap-3 p-4">
+        <Skeleton className="h-12 w-full rounded-2xl" />
+        <Skeleton className="h-16 w-3/4 rounded-2xl" />
+        <Skeleton className="ml-auto h-14 w-2/3 rounded-2xl" />
+        <Skeleton className="h-16 w-4/5 rounded-2xl" />
+      </div>
+    ),
+  },
+)
+
+function NotificationFeedSkeleton() {
+  return (
+    <div role="status" aria-label="加载通知中" className="flex flex-col gap-3">
+      <Skeleton className="h-24 w-full rounded-2xl" />
+      <Skeleton className="h-20 w-full rounded-2xl" />
+      <Skeleton className="h-24 w-full rounded-2xl" />
+    </div>
+  )
+}
 
 export type ChannelId = 'feed' | 'system' | (string & {})
 
@@ -77,6 +104,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
   const router = useRouter()
   const [activeChannelId, setActiveChannelId] = useState<string>(initialChannel)
   const [mobileLevel, setMobileLevel] = useState<1 | 2>(1)
+  const [mobileNavDir, setMobileNavDir] = useState<'none' | 'push' | 'pop'>('none')
 
   const { data: me } = useMe()
   const timeZone =
@@ -95,6 +123,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
   // 支持手机端系统返回手势从第 2 级回到第 1 级列表
   useEffect(() => {
     function onPopState() {
+      setMobileNavDir('pop')
       setMobileLevel(1)
     }
     window.addEventListener('popstate', onPopState)
@@ -192,6 +221,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
     if (typeof window !== 'undefined' && window.innerWidth < 768 && mobileLevel === 1) {
       window.history.pushState({ ddoMsgLevel: 2, channelId }, '')
     }
+    setMobileNavDir('push')
     setMobileLevel(2)
 
     if (channelId === 'feed' && feedUnread > 0) {
@@ -207,6 +237,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
   }
 
   function handleBackToLevel1() {
+    setMobileNavDir('pop')
     if (
       typeof window !== 'undefined' &&
       (window.history.state as { ddoMsgLevel?: number } | null)?.ddoMsgLevel === 2
@@ -230,6 +261,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
 
   function handleGoToFriendRoom(friendUserId: string) {
     friendActions.selectFriend(friendUserId)
+    setPageTransition('expand')
     router.push('/')
   }
 
@@ -418,7 +450,9 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
          * 第 2 级：全屏通知流详情或全屏 1v1 好友私聊室
          * ==================================================================== */}
         {activeChannel.kind === 'friend' ? (
-          <div
+          <SubpageTransition
+            transitionKey={`msg-l2-friend-${activeChannel.id}-${mobileLevel}`}
+            direction={mobileLevel === 2 ? mobileNavDir : 'none'}
             className={cn(
               'bg-background flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 flex-col overflow-hidden',
               mobileLevel === 1 && 'hidden @3xl:flex',
@@ -434,9 +468,11 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
               showBackButton={mobileLevel === 2}
               onBack={handleBackToLevel1}
             />
-          </div>
+          </SubpageTransition>
         ) : (
-          <div
+          <SubpageTransition
+            transitionKey={`msg-l2-notice-${activeChannel.id}-${mobileLevel}`}
+            direction={mobileLevel === 2 ? mobileNavDir : 'none'}
             className={cn(
               'bg-background flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 flex-col overflow-hidden',
               mobileLevel === 1 && 'hidden @3xl:flex',
@@ -493,9 +529,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
               <div className="mx-auto w-full max-w-2xl min-w-0">
                 {activeChannel.kind === 'feed' ? (
                   feedLoading ? (
-                    <div className="text-tiny text-muted flex h-48 items-center justify-center">
-                      加载动态中…
-                    </div>
+                    <NotificationFeedSkeleton />
                   ) : feedItems.length === 0 ? (
                     <div className="flex h-64 flex-col items-center justify-center gap-2 text-center">
                       <div className="bg-surface-sunken text-muted flex size-12 items-center justify-center rounded-full">
@@ -546,9 +580,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                     </div>
                   )
                 ) : systemLoading ? (
-                  <div className="text-tiny text-muted flex h-48 items-center justify-center">
-                    加载系统通知中…
-                  </div>
+                  <NotificationFeedSkeleton />
                 ) : systemItems.length === 0 ? (
                   <div className="flex h-64 flex-col items-center justify-center gap-2 text-center">
                     <div className="bg-surface-sunken text-muted flex size-12 items-center justify-center rounded-full">
@@ -566,7 +598,7 @@ export function MessageCenter({ initialChannel = 'feed' }: { initialChannel?: st
                 )}
               </div>
             </div>
-          </div>
+          </SubpageTransition>
         )}
       </div>
     </div>

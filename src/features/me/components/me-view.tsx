@@ -2,12 +2,13 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useState, type ReactNode } from 'react'
+import { SubpageTransition } from '@/components/layout/page-transition'
 import { InteractivePet } from '@/components/mascot/interactive-pet'
 import { Mascot } from '@/components/mascot/mascot'
 import { mascotCharacters } from '@/components/mascot/mascot-svg'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Button, IconButton } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Field } from '@/components/ui/field'
 import { Icon } from '@/components/ui/icon'
@@ -29,12 +30,13 @@ import {
 } from '@/lib/native'
 import { themes } from '@/lib/theme'
 import { DAY_START_OPTIONS } from '../units'
-import { PermissionsManagerList } from './permissions-sheet'
 
 /*
  * 「我的」页展示层（PRD 2.11，多级分组架构）：
  * - 一级页聚焦个人状态卡、AI 额度卡与清晰的三大设置分组入口，避免单页堆砌过多表单控件；
- * - 二级页（「打卡与提醒」「外观与陪伴」「权限管理」「数据与关于」「账号与安全」）按需深入，支持手机侧滑返回；
+ * - 二级页（「打卡与提醒」「外观与陪伴」「权限管理」「数据与关于」「账号与安全」）按需深入，
+ *   统一使用 SubpageTransition（右进左出 560ms / 返回 460ms），支持手机侧滑返回；
+ * - 权限管理面板（含 Markdown 公约与弹层）采用 next/dynamic 懒加载，不占「我的」首屏体积；
  * - 选择「手机提醒」时自动校验通知权限并同步安卓系统定时推送，支持一键发送测试通知。
  */
 
@@ -46,6 +48,18 @@ const SelectRemindMode = dynamic(
 const SelectDayStart = dynamic(
   () => import('@/components/ui/select').then((m) => m.Select<string>),
   { loading: () => <Skeleton className="h-11 w-36 rounded-xl md:h-10" /> },
+)
+
+const PermissionsManagerList = dynamic(
+  () => import('./permissions-sheet').then((m) => m.PermissionsManagerList),
+  {
+    loading: () => (
+      <div role="status" aria-label="加载权限列表中" className="flex flex-col gap-3">
+        <Skeleton className="h-10 w-full rounded-full" />
+        <Skeleton className="h-60 w-full rounded-2xl" />
+      </div>
+    ),
+  },
 )
 
 export type MeSubSection = 'checkin' | 'appearance' | 'permissions' | 'about' | 'account'
@@ -126,6 +140,7 @@ export function MeView({
   const { preferences: prefs, profile } = me
   const nickname = profile.nickname ?? '新朋友'
   const [activeSection, setActiveSection] = useState<MeSubSection | null>(null)
+  const [navDirection, setNavDirection] = useState<'none' | 'push' | 'pop'>('none')
   const [notifPerm, setNotifPerm] = useState<PermissionStateValue>('prompt')
   const [testingPush, setTestingPush] = useState(false)
 
@@ -146,7 +161,9 @@ export function MeView({
     if (thumb) return
     function onPopState(e: PopStateEvent) {
       const state = e.state as { ddoMeSection?: MeSubSection } | null
-      setActiveSection(state?.ddoMeSection ?? null)
+      const next = state?.ddoMeSection ?? null
+      setNavDirection(next ? 'push' : 'pop')
+      setActiveSection(next)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
@@ -172,6 +189,7 @@ export function MeView({
   }, [activeSection, currentRemindMode, thumb])
 
   function openSection(next: MeSubSection) {
+    setNavDirection('push')
     setActiveSection(next)
     if (!thumb && typeof window !== 'undefined') {
       window.history.pushState({ ...(window.history.state ?? {}), ddoMeSection: next }, '')
@@ -180,6 +198,7 @@ export function MeView({
   }
 
   function closeSection() {
+    setNavDirection('pop')
     const state =
       typeof window !== 'undefined'
         ? (window.history.state as { ddoMeSection?: string } | null)
@@ -201,10 +220,10 @@ export function MeView({
         const perms = await getNativePermissions()
         setNotifPerm(perms.notifications)
         if (ok) {
-          toast.success(`已开启手机打卡提醒（每天 ${nextTime}）`)
+          toast.success(`已开启手机提醒 · ${nextTime}`)
         } else {
-          toast.error('通知权限未开启，暂时无法推送提醒', {
-            description: '请点击下方「开启通知权限」允许系统通知后再试',
+          toast.error('通知权限未开启', {
+            description: '点击下方按钮去开启',
           })
         }
       } else {
@@ -212,17 +231,15 @@ export function MeView({
         setNotifPerm(perm)
         if (perm === 'denied') {
           toast.error('通知权限未开启', {
-            description: '请在浏览器站点设置或手机客户端中允许通知权限',
+            description: '请在浏览器或客户端中开启',
           })
         } else {
-          toast.info(`已设为手机提醒（每天 ${nextTime}）`, {
-            description: '在安卓客户端内将按设定时间准时推送系统通知',
-          })
+          toast.info(`已设为手机提醒 · ${nextTime}`)
         }
       }
     } else if (nextMode === 'in-app') {
       await syncNativeReminder({ enabled: false, remindAt: nextTime })
-      toast.success(`已开启应用内提醒（每天 ${nextTime}）`)
+      toast.success(`已开启应用内提醒 · ${nextTime}`)
     } else {
       await syncNativeReminder({ enabled: false, remindAt: null })
       toast.info('已关闭打卡提醒')
@@ -260,11 +277,11 @@ export function MeView({
       const perms = await getNativePermissions()
       setNotifPerm(perms.notifications)
       if (sent) {
-        toast.success('测试通知已发送，请查看状态栏')
+        toast.success('测试通知已发送')
       } else if (!isNativeApp() && !('Notification' in window)) {
-        toast.info('当前环境不支持系统通知，请在手机客户端内测试')
+        toast.info('仅手机客户端支持系统通知')
       } else {
-        toast.error('未能发送通知，请先开启通知权限')
+        toast.error('请先开启通知权限')
       }
     } finally {
       setTestingPush(false)
@@ -302,8 +319,12 @@ export function MeView({
         {quota}
       </div>
 
-      {/* 右侧主区域：一级分组目录 <-> 二级设置详情页 */}
-      <div className="grid w-full min-w-0 gap-4">
+      {/* 右侧主区域：一级分组目录 <-> 二级设置详情页（统一右进左出 / 返回回落转场） */}
+      <SubpageTransition
+        transitionKey={activeSection ?? '__root__'}
+        direction={navDirection}
+        className="grid w-full min-w-0 gap-4"
+      >
         {!activeSection ? (
           <>
             <MenuList title="打卡与目标">
@@ -414,44 +435,35 @@ export function MeView({
                   )}
 
                   {currentRemindMode === 'native' && (
-                    <div className="border-border bg-surface-sunken/70 flex flex-col gap-2.5 rounded-xl border p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Icon name="bell" size={16} className="text-primary shrink-0" />
-                          <span className="text-caption font-semibold">系统通知状态</span>
-                          {notifPerm === 'granted' ? (
-                            <Badge tone="success">已授权</Badge>
-                          ) : (
-                            <Badge tone="warning">未开启</Badge>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {notifPerm !== 'granted' && (
-                            <Button
-                              size="sm"
-                              variant="soft"
-                              onClick={() => void handleEnableNotifPermission()}
-                            >
-                              {notifPerm === 'denied' && isNativeApp()
-                                ? '去设置开启'
-                                : '开启通知权限'}
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            loading={testingPush}
-                            onClick={() => void handleTestPush()}
-                          >
-                            发送测试通知
-                          </Button>
-                        </div>
+                    <div className="border-border bg-surface-sunken/70 flex items-center justify-between gap-2 rounded-xl border px-3 py-2">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <Icon name="bell" size={15} className="text-primary shrink-0" />
+                        <span className="text-caption shrink-0 font-semibold">系统通知</span>
+                        {notifPerm === 'granted' ? (
+                          <Badge tone="success">已授权</Badge>
+                        ) : (
+                          <Badge tone="warning">未开启</Badge>
+                        )}
                       </div>
-                      <p className="text-tiny text-muted leading-relaxed">
-                        {notifPerm === 'granted'
-                          ? `通知通道已就绪，每天 ${prefs.remindAt ?? '21:00'} 将准时向状态栏推送提醒。`
-                          : '需要先允许系统通知权限，手机才能在设定时间弹出打卡提醒。'}
-                      </p>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {notifPerm !== 'granted' && (
+                          <button
+                            type="button"
+                            onClick={() => void handleEnableNotifPermission()}
+                            className="ease-spring bg-primary-soft text-primary-ink text-tiny inline-flex h-8 shrink-0 items-center rounded-full px-2.5 font-semibold transition-[transform,filter] duration-(--dur-fast) hover:brightness-95 active:scale-95"
+                          >
+                            去开启
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={testingPush}
+                          onClick={() => void handleTestPush()}
+                          className="ease-spring border-border-strong bg-surface text-foreground hover:bg-surface-sunken text-tiny inline-flex h-8 shrink-0 items-center rounded-full border px-3 font-semibold transition-[transform,background-color] duration-(--dur-fast) active:scale-95 disabled:opacity-50"
+                        >
+                          {testingPush ? '发送中…' : '测试'}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </Card>
@@ -608,7 +620,7 @@ export function MeView({
             )}
           </div>
         )}
-      </div>
+      </SubpageTransition>
     </div>
   )
 }

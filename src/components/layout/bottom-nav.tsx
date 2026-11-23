@@ -66,6 +66,7 @@ export function BottomNav({
       <li key={item.href} className="relative z-10 flex flex-1 justify-center">
         <Link
           href={item.href}
+          data-nav-transition="tab"
           aria-current={active ? 'page' : undefined}
           onClick={(e) => {
             setOptimisticPath(item.href)

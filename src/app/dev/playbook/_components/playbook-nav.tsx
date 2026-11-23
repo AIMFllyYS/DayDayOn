@@ -37,6 +37,7 @@ export const playbookPages: readonly PlaybookNavItem[] = [
   { href: '/dev/playbook/pet', label: '小宠物' },
   { href: '/dev/playbook/social', label: '消息与社交' },
   { href: '/dev/playbook/smart-checkin', label: '智能打卡' },
+  { href: '/dev/playbook/share-posters', label: '分享海报' },
   {
     href: '/dev/playbook/modules',
     label: '打卡板块',

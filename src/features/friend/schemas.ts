@@ -1,8 +1,10 @@
 import * as z from 'zod'
 import { DashboardTodaySchema } from '@/features/dashboard/schemas'
+import { GoalDetailSchema } from '@/features/goal/schemas'
 import { MascotCharacterSchema } from '@/features/me/schemas'
 import {
   InstantSchema,
+  LocalDateSchema,
   PublicUserSchema,
   RatingValueSchema,
   UserIdSchema,
@@ -81,6 +83,16 @@ export const FriendDashboardSchema = z
   })
   .meta({ id: 'FriendDashboard' })
 export type FriendDashboard = z.infer<typeof FriendDashboardSchema>
+
+export const FriendGoalDetailSchema = z
+  .object({
+    friend: PublicUserSchema,
+    /** 好友当前所在时区与日切换时间对应的“今天”打卡日 */
+    localDate: LocalDateSchema,
+    goal: GoalDetailSchema,
+  })
+  .meta({ id: 'FriendGoalDetail' })
+export type FriendGoalDetail = z.infer<typeof FriendGoalDetailSchema>
 
 export const PetInteractionKindSchema = z
   .enum(['poke', 'feed', 'remind'])

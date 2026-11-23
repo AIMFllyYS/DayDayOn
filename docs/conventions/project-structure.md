@@ -25,6 +25,7 @@
 │   │   │   ├── page.tsx            # 主页（仪表盘）
 │   │   │   ├── agent/              # AI 助手（对话与智能识图打卡）
 │   │   │   ├── checkin/            # 打卡页（含 smart 智能识图打卡）
+│   │   │   ├── friends/            # 好友只读子页（好友目标详情 /friends/[friendUserId]/goals/[goalId]）
 │   │   │   ├── goals/              # 目标管理（列表、新建、详情）
 │   │   │   ├── todo/               # 待办
 │   │   │   ├── rank/               # 排行榜

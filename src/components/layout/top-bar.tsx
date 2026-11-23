@@ -11,31 +11,41 @@ interface TopBarProps {
   actions?: ReactNode
   /** 吸顶时背景半透明模糊；放在 playbook 里演示时可关闭 */
   sticky?: boolean
+  /** 全端强制标题居中（如好友目标详情「谁谁谁的目标详情」） */
+  centerTitle?: boolean
   className?: string
 }
 
-/** 页面顶栏：每个页面一个，手机端标题居中且高度紧凑，桌面端居左 */
+/** 页面顶栏：每个页面一个，手机端标题居中且高度紧凑，桌面端默认居左（centerTitle 时全端居中） */
 export function TopBar({
   title,
   eyebrow,
   leading,
   actions,
   sticky = true,
+  centerTitle = false,
   className,
 }: TopBarProps) {
   return (
     <header
       className={cn(
-        'relative z-20 flex items-center justify-between px-4 pt-[calc(var(--safe-top)+0.375rem)] pb-1.5 md:justify-start md:gap-2 md:px-8 md:pt-6 md:pb-3',
+        'relative z-20 flex shrink-0 items-center justify-between px-4 pt-[calc(var(--safe-top)+0.375rem)] pb-1.5 md:px-8 md:pt-6 md:pb-3',
+        !centerTitle && 'md:justify-start md:gap-2',
         sticky && 'bg-background/85 sticky top-0 backdrop-blur-md',
         className,
       )}
     >
       <div className="relative z-10 flex min-h-8 min-w-0 items-center justify-start">{leading}</div>
 
-      <div className="pointer-events-none absolute inset-x-0 flex flex-col items-center justify-center px-20 text-center md:pointer-events-auto md:static md:inset-auto md:min-w-0 md:flex-1 md:items-start md:px-0 md:text-left">
+      <div
+        className={cn(
+          'pointer-events-none absolute inset-x-0 flex flex-col items-center justify-center px-16 text-center',
+          !centerTitle &&
+            'px-20 md:pointer-events-auto md:static md:inset-auto md:min-w-0 md:flex-1 md:items-start md:px-0 md:text-left',
+        )}
+      >
         {eyebrow && <p className="text-tiny text-muted font-semibold">{eyebrow}</p>}
-        <h1 className="text-subhead md:text-title truncate font-bold">{title}</h1>
+        <h1 className="text-subhead md:text-title max-w-full truncate font-bold">{title}</h1>
       </div>
 
       <div className="relative z-10 flex min-h-8 min-w-0 items-center justify-end">{actions}</div>

@@ -2,20 +2,20 @@
 
 import Link from 'next/link'
 import { Mascot } from '@/components/mascot/mascot'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Icon } from '@/components/ui/icon'
-import { Menu, type MenuItemDef } from '@/components/ui/menu'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useInfiniteQuery } from '@/lib/api'
 import { todoListQuery } from '@/lib/api/queries/todos'
+import { cn } from '@/lib/cn'
 import type { TodoLayoutMode, TodoView } from '../rules'
 import type { Todo, TodoGroup, TodoOverview, TodoTag } from '../schemas'
 import { useLongPressReorder } from '../use-long-press-reorder'
+import { TodoActionsMenu } from './todo-actions-menu'
 import { TodoFab } from './todo-fab'
 import { TodoGroupPanel } from './todo-group-panel'
 import { TodoQuadrantView } from './todo-quadrant-view'
@@ -93,53 +93,25 @@ export function TodoScreen(props: TodoScreenProps) {
   } = props
 
   const availableTags: readonly TodoTag[] = overview?.tags ?? []
-
-  const menuItems: (MenuItemDef | null)[] = [
-    {
-      label: mode === 'list' ? '切换为四象限视图' : '切换为列表视图',
-      icon: mode === 'list' ? 'quadrant' : 'todo',
-      onSelect: () => onModeChange(mode === 'list' ? 'quadrant' : 'list'),
-    },
-    {
-      label: '管理分组',
-      icon: 'folder',
-      onSelect: onOpenGroupManager,
-    },
-    {
-      label:
-        overview && overview.counts.archivedCount > 0
-          ? `已归档（${overview.counts.archivedCount}）`
-          : '已归档',
-      icon: 'archive',
-      onSelect: onNavigateArchived,
-    },
-    ...(mode === 'list'
-      ? [
-          null,
-          {
-            label: '展开全部分组',
-            icon: 'chevron-down' as const,
-            onSelect: props.onExpandAllGroups,
-          },
-          {
-            label: '收起全部分组',
-            icon: 'chevron-up' as const,
-            onSelect: props.onCollapseAllGroups,
-          },
-        ]
-      : []),
-  ]
+  const isQuadrant = view === 'list' && mode === 'quadrant'
+  const isDemo = Boolean(demoMode)
+  const mainBody = view === 'log' ? <LogPlaceholder /> : <TodoMainContent {...props} />
 
   return (
     <div
-      className={
-        mode === 'quadrant'
-          ? 'mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-2.5 pb-20'
-          : 'mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-2.5 pb-20'
-      }
+      data-todo-layout={isQuadrant ? 'quadrant-locked' : 'list'}
+      className={cn(
+        'mx-auto flex w-full min-w-0 flex-col',
+        isQuadrant
+          ? cn(
+              'h-full min-h-0 max-w-3xl flex-1 gap-2 overflow-hidden',
+              !isDemo && 'pb-[calc(var(--safe-bottom)+5.25rem)] md:pb-4',
+            )
+          : cn('max-w-2xl gap-2.5', isDemo ? 'pb-20' : 'h-full min-h-0 flex-1 overflow-hidden'),
+      )}
     >
       {/* 顶部工具条：左侧保留「清单 | 时间日志」，右侧替换为「过程」+「菜单」 */}
-      <div className="flex w-full min-w-0 items-center gap-1.5">
+      <div className="flex w-full min-w-0 shrink-0 items-center gap-1.5">
         <SegmentedControl
           options={views}
           value={view}
@@ -172,65 +144,50 @@ export function TodoScreen(props: TodoScreenProps) {
               </Link>
             )}
 
-            <Menu
-              trigger={
-                <button
-                  type="button"
-                  aria-label="待办菜单"
-                  className="ease-spring border-border bg-surface text-foreground hover:bg-surface-sunken text-caption inline-flex h-8.5 items-center gap-1 rounded-full border px-2.5 font-semibold transition-[transform,background-color] duration-(--dur-fast) active:scale-95"
-                >
-                  <Icon name="menu" size={15} lineOnly />
-                  <span>菜单</span>
-                </button>
-              }
-              items={menuItems}
-              align="end"
-              side="bottom"
+            <TodoActionsMenu
+              mode={mode}
+              onModeChange={onModeChange}
+              availableTags={availableTags}
+              activeTag={activeTag}
+              onTagChange={onTagChange}
+              onOpenGroupManager={onOpenGroupManager}
+              onNavigateArchived={onNavigateArchived}
+              archivedCount={overview?.counts.archivedCount ?? 0}
+              onExpandAllGroups={props.onExpandAllGroups}
+              onCollapseAllGroups={props.onCollapseAllGroups}
             />
           </div>
         )}
       </div>
 
-      {/* 标签快速筛选条（有标签时呈现紧凑单行胶囊滚动） */}
-      {view === 'list' && props.status === 'ready' && availableTags.length > 0 && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-          <button
-            type="button"
-            onClick={() => onTagChange(undefined)}
-            className={
-              activeTag === undefined
-                ? 'bg-primary text-on-primary text-tiny shrink-0 rounded-full px-2.5 py-1 font-semibold'
-                : 'bg-surface border-border text-muted hover:bg-surface-sunken text-tiny shrink-0 rounded-full border px-2.5 py-1 font-medium'
-            }
-          >
-            全部标签
-          </button>
-          {availableTags.map((t) => {
-            const selected = activeTag === t.name
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => onTagChange(selected ? undefined : t.name)}
-                className={
-                  selected
-                    ? 'bg-primary-soft text-primary-ink border-primary/35 text-tiny shrink-0 rounded-full border px-2.5 py-1 font-semibold'
-                    : 'bg-surface border-border text-muted hover:bg-surface-sunken text-tiny shrink-0 rounded-full border px-2.5 py-1 font-medium'
-                }
-              >
-                #{t.name}
-              </button>
-            )
-          })}
+      {/* 仅在用户从菜单选中了某个标签筛选时，展示一条精简的可清除提示，平时不占顶部空间 */}
+      {view === 'list' && mode === 'list' && activeTag && (
+        <div className="flex shrink-0 items-center gap-1.5 px-0.5">
+          <span className="bg-primary-soft text-primary-ink text-tiny inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold">
+            <Icon name="tag" size={12} lineOnly />
+            <span>正在筛选 #{activeTag}</span>
+            <button
+              type="button"
+              aria-label="清除标签筛选"
+              onClick={() => onTagChange(undefined)}
+              className="hover:bg-primary/15 ml-0.5 inline-flex size-4 items-center justify-center rounded-full"
+            >
+              <Icon name="x" size={11} lineOnly />
+            </button>
+          </span>
         </div>
       )}
 
-      {view === 'log' ? <LogPlaceholder /> : <TodoMainContent {...props} />}
+      {isQuadrant || isDemo ? (
+        mainBody
+      ) : (
+        <div className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pt-0.5 pb-[calc(var(--safe-bottom)+7.5rem)] md:pb-24">
+          {mainBody}
+        </div>
+      )}
 
       {/* 右下角置顶悬浮加号球（新建待办） */}
-      {view === 'list' && (
-        <TodoFab onClick={onCreate} hidden={fabHidden} contained={Boolean(demoMode)} />
-      )}
+      {view === 'list' && <TodoFab onClick={onCreate} hidden={fabHidden} contained={isDemo} />}
     </div>
   )
 }
@@ -248,7 +205,9 @@ function LogPlaceholder() {
 function TodoMainContent(props: TodoScreenProps) {
   const { status, errorText, onRetry, retrying, overview, mode } = props
 
-  if (status === 'loading') return <TodoListSkeleton />
+  if (status === 'loading') {
+    return mode === 'quadrant' ? <TodoQuadrantSkeleton /> : <TodoListSkeleton />
+  }
   if (status === 'error' || !overview) {
     return (
       <ErrorState
@@ -262,24 +221,15 @@ function TodoMainContent(props: TodoScreenProps) {
 
   if (mode === 'quadrant') {
     return (
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between px-0.5">
-          <span className="text-tiny text-muted font-semibold">
-            四象限视图 · 仅进行中（{overview.counts.openTotal} 项 · 按创建时间由近到远）
-          </span>
-          {props.activeTag && <Badge tone="primary">#{props.activeTag}</Badge>}
-        </div>
-        <TodoQuadrantView
-          counts={overview.counts.quadrants}
-          activeTag={props.activeTag}
-          now={props.now}
-          timeZone={props.timeZone}
-          onToggleTodo={props.onToggleTodo}
-          onOpenManage={props.onOpenManage}
-          onRequestDelete={props.onRequestDelete}
-          demoItems={props.demoMode?.allTodos}
-        />
-      </div>
+      <TodoQuadrantView
+        counts={overview.counts.quadrants}
+        now={props.now}
+        timeZone={props.timeZone}
+        onToggleTodo={props.onToggleTodo}
+        onOpenManage={props.onOpenManage}
+        onRequestDelete={props.onRequestDelete}
+        demoItems={props.demoMode?.allTodos}
+      />
     )
   }
 
@@ -655,6 +605,20 @@ function TodoListSkeleton() {
       <Skeleton className="h-44 w-full rounded-xl" />
       <Skeleton className="h-11 w-full rounded-xl" />
       <Skeleton className="h-11 w-full rounded-xl" />
+    </div>
+  )
+}
+
+function TodoQuadrantSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-label="加载中"
+      className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2 sm:gap-2.5"
+    >
+      {[0, 1, 2, 3].map((i) => (
+        <Skeleton key={i} className="h-full min-h-0 w-full rounded-xl" />
+      ))}
     </div>
   )
 }

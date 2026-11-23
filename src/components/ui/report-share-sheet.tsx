@@ -42,7 +42,8 @@ export function serializeSvgElementToDataUrl(svgEl: SVGSVGElement | null): strin
     const cs = window.getComputedStyle(document.documentElement)
     const resolved = raw.replace(/var\((--[a-zA-Z0-9-]+)\)/g, (_, name: string) => {
       const val = cs.getPropertyValue(name).trim()
-      if (val) return val
+      // 字体栈等取值自带双引号，原样塞回属性会截断 XML，导致整只宠物加载失败
+      if (val) return val.replace(/"/g, "'").replace(/&/g, '&amp;').replace(/</g, '&lt;')
       if (name === '--foreground') return '#4a3f35'
       if (name === '--surface') return '#fffdf9'
       if (name === '--border-strong') return '#dcc8b2'

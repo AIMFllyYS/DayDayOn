@@ -256,7 +256,7 @@ function isNumeric(f: FieldDef): boolean {
 }
 
 /** 每个字段一行：是否作为达标条件 + 比较方式 + 目标值；最后一行是给 Agent 的判卷标准 */
-function CustomRulesEditor({ rules, onChange, goal }: RulesEditorProps<'custom'>) {
+function CustomRulesEditor({ rules, onChange, goal, compact }: RulesEditorProps<'custom'>) {
   const fields = goal.fields ?? []
   const condOf = (key: string) => rules.conditions.find((c) => c.key === key)
   function setCond(key: string, next: CustomCondition | null) {
@@ -266,62 +266,73 @@ function CustomRulesEditor({ rules, onChange, goal }: RulesEditorProps<'custom'>
   return (
     <div className="flex flex-col gap-2.5">
       {fields.length === 0 && <p className="text-tiny text-subtle">这个目标还没有字段</p>}
-      {fields.map((f) => {
-        const c = condOf(f.key)
-        const numeric = isNumeric(f)
-        return (
-          <div key={f.key} className="bg-surface-sunken flex flex-col gap-2 rounded-lg p-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-caption min-w-0 flex-1 truncate font-semibold">{f.label}</span>
-              <Switch
-                label={`${f.label}作为达标条件`}
-                checked={c !== undefined}
-                onCheckedChange={(on) =>
-                  setCond(
-                    f.key,
-                    on
-                      ? numeric
-                        ? { key: f.key, op: 'gte', value: 1 }
-                        : { key: f.key, op: 'filled' }
-                      : null,
-                  )
-                }
-              />
-            </div>
-            {c && numeric && (
+      <div className={compact ? 'divide-border/60 divide-y' : 'flex flex-col gap-2.5'}>
+        {fields.map((f) => {
+          const c = condOf(f.key)
+          const numeric = isNumeric(f)
+          return (
+            <div
+              key={f.key}
+              className={
+                compact
+                  ? 'flex flex-col gap-2 py-2 first:pt-0 last:pb-0'
+                  : 'bg-surface-sunken flex flex-col gap-2 rounded-lg p-2.5'
+              }
+            >
               <div className="flex items-center gap-2">
-                <SegmentedControl
-                  size="sm"
-                  label="比较方式"
-                  value={c.op === 'filled' ? 'gte' : c.op}
-                  options={OP_OPTIONS.numeric!}
-                  onValueChange={(op) => setCond(f.key, { ...c, op })}
-                  className="w-36 shrink-0"
-                />
-                <NumberField
-                  size="sm"
-                  ariaLabel={`${f.label}目标值`}
-                  unit={
-                    f.type === 'duration'
-                      ? '分钟'
-                      : f.type === 'rating'
-                        ? '星'
-                        : f.type === 'number'
-                          ? f.unit
-                          : undefined
+                <span className="text-caption min-w-0 flex-1 truncate font-semibold">
+                  {f.label}
+                </span>
+                <Switch
+                  label={`${f.label}作为达标条件`}
+                  checked={c !== undefined}
+                  onCheckedChange={(on) =>
+                    setCond(
+                      f.key,
+                      on
+                        ? numeric
+                          ? { key: f.key, op: 'gte', value: 1 }
+                          : { key: f.key, op: 'filled' }
+                        : null,
+                    )
                   }
-                  min={0}
-                  max={f.type === 'rating' ? 5 : 100_000}
-                  value={typeof c.value === 'number' ? c.value : null}
-                  onValueChange={(v) => setCond(f.key, { ...c, value: v ?? 0 })}
                 />
               </div>
-            )}
-            {c && !numeric && <p className="text-tiny text-muted">填了就算满足</p>}
-          </div>
-        )
-      })}
-      <Field label="判卷标准（可选）" htmlFor={`ai-${goal.id}`} aside="交给 Agent 判断">
+              {c && numeric && (
+                <div className="flex items-center gap-2">
+                  <SegmentedControl
+                    size="sm"
+                    label="比较方式"
+                    value={c.op === 'filled' ? 'gte' : c.op}
+                    options={OP_OPTIONS.numeric!}
+                    onValueChange={(op) => setCond(f.key, { ...c, op })}
+                    className="w-36 shrink-0"
+                  />
+                  <NumberField
+                    size="sm"
+                    ariaLabel={`${f.label}目标值`}
+                    unit={
+                      f.type === 'duration'
+                        ? '分钟'
+                        : f.type === 'rating'
+                          ? '星'
+                          : f.type === 'number'
+                            ? f.unit
+                            : undefined
+                    }
+                    min={0}
+                    max={f.type === 'rating' ? 5 : 100_000}
+                    value={typeof c.value === 'number' ? c.value : null}
+                    onValueChange={(v) => setCond(f.key, { ...c, value: v ?? 0 })}
+                  />
+                </div>
+              )}
+              {!compact && c && !numeric && <p className="text-tiny text-muted">填了就算满足</p>}
+            </div>
+          )
+        })}
+      </div>
+      <Field label="判卷标准（可选）" htmlFor={`ai-${goal.id}`}>
         <Input
           id={`ai-${goal.id}`}
           value={rules.aiCriteria ?? ''}

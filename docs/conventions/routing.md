@@ -28,6 +28,7 @@
 | `/goals/new` | 新建目标；`?module=…` | `(app)` | 二级 |
 | `/goals/[goalId]` | 目标详情与历史 | `(app)` | 二级 |
 | `/goals/[goalId]/checkin` | 打卡表单（手动 / 智能拍照 / 智能上传）；`?mode=photo&meal=…` | `(app)` | 二级 |
+| `/friends/[friendUserId]/goals/[goalId]` | 好友目标详情与打卡历史（只读，顶栏居中显示「`<昵称>的目标详情`」，ADR-0026） | `(app)` | 二级 |
 | `/welcome` | 落地页（不要求登录；未登录打开 `/` 时由 proxy 送到这里，ADR-0022） | `(marketing)` | 无；应用内入口是「我的 → 数据与关于 → 关于 DayDayOn」 |
 | `/login` | 邮箱验证码登录 | `(auth)` | 无 |
 | `/onboarding` | 新人引导（六步） | `(auth)` | 无 |
@@ -52,6 +53,7 @@ src/app/
 │   ├── page.tsx              → /
 │   ├── agent/page.tsx        → /agent
 │   ├── checkin/smart/        → /checkin/smart
+│   ├── friends/              → /friends/[friendUserId]/goals/[goalId]（好友目标只读详情）
 │   ├── goals/                → /goals、/goals/new、/goals/[goalId]、/goals/[goalId]/checkin
 │   ├── me/                   → /me、/me/profile
 │   ├── notifications/        → /notifications

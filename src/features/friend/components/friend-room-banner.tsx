@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { InteractivePet, type PetHandle } from '@/components/mascot/interactive-pet'
 import {
   characterName,
@@ -23,7 +23,7 @@ import type { FriendSummary } from '../schemas'
 
 export interface FriendRoomBannerProps {
   friend: FriendSummary
-  onBack: () => void
+  onBack: (event?: MouseEvent<HTMLButtonElement>) => void
 }
 
 function formatCooldown(sec: number): string {
@@ -353,11 +353,14 @@ function FriendRoomStageConnected({ friend, onBack }: FriendRoomBannerProps) {
           </div>
         </div>
       ) : (
-        <div data-ann="friend-room.actions" className="grid grid-cols-3 gap-2.5 pt-1">
+        <div
+          data-ann="friend-room.actions"
+          className="-mx-1 flex [scrollbar-width:none] flex-nowrap items-stretch gap-2 overflow-x-auto px-1 pt-0.5 [&::-webkit-scrollbar]:hidden"
+        >
           {/* 1. 戳戳 Poke */}
           <InteractionButton
             label="戳戳"
-            icon={<Icon name="hand" size={18} />}
+            icon={<Icon name="hand" size={15} className="shrink-0" />}
             state={actionStates.poke}
             onClick={handlePoke}
           />
@@ -365,16 +368,15 @@ function FriendRoomStageConnected({ friend, onBack }: FriendRoomBannerProps) {
           {/* 2. 投喂 Feed */}
           <InteractionButton
             label="投喂零食"
-            icon={<TreatGlyph id="strawberry" size={20} />}
+            icon={<TreatGlyph id="strawberry" size={16} />}
             state={actionStates.feed}
-            hintWhenReady="点击展开零食架"
             onClick={() => setShelfOpen(true)}
           />
 
           {/* 3. 提醒打卡 Remind */}
           <InteractionButton
             label="提醒打卡"
-            icon={<Icon name="megaphone" size={18} />}
+            icon={<Icon name="megaphone" size={15} className="shrink-0" />}
             state={actionStates.remind}
             onClick={handleRemind}
           />
@@ -457,23 +459,25 @@ function FriendRoomStageStatic({ friend, onBack }: FriendRoomBannerProps) {
         <InteractivePet size={156} character={mascot} idleSleepMs={0} speech />
       </div>
 
-      <div data-ann="friend-room.actions" className="grid grid-cols-3 gap-2.5 pt-1">
+      <div
+        data-ann="friend-room.actions"
+        className="-mx-1 flex [scrollbar-width:none] flex-nowrap items-stretch gap-2 overflow-x-auto px-1 pt-0.5 [&::-webkit-scrollbar]:hidden"
+      >
         <InteractionButton
           label="戳戳"
-          icon={<Icon name="hand" size={18} />}
+          icon={<Icon name="hand" size={15} className="shrink-0" />}
           state={{ used: 0, limit: 3, cooldownLeftSec: 0 }}
           onClick={() => {}}
         />
         <InteractionButton
           label="投喂零食"
-          icon={<TreatGlyph id="strawberry" size={20} />}
+          icon={<TreatGlyph id="strawberry" size={16} />}
           state={{ used: 0, limit: 1, cooldownLeftSec: 0 }}
-          hintWhenReady="点击展开零食架"
           onClick={() => {}}
         />
         <InteractionButton
           label="提醒打卡"
-          icon={<Icon name="megaphone" size={18} />}
+          icon={<Icon name="megaphone" size={15} className="shrink-0" />}
           state={{
             used: 0,
             limit: 1,
@@ -496,13 +500,11 @@ function InteractionButton({
   label,
   icon,
   state,
-  hintWhenReady,
   onClick,
 }: {
   label: string
-  icon: React.ReactNode
+  icon: ReactNode
   state: PetActionState
-  hintWhenReady?: string
   onClick: () => void
 }) {
   const remaining = Math.max(0, state.limit - state.used)
@@ -510,13 +512,11 @@ function InteractionButton({
   const cooling = state.cooldownLeftSec > 0 && !exhausted
   const disabled = Boolean(state.disabledReason) || exhausted || cooling
 
-  let subText = hintWhenReady
-    ? `${hintWhenReady} (${remaining}/${state.limit})`
-    : `今日余 ${remaining}/${state.limit}`
+  let subText = `余 ${remaining}/${state.limit}`
   if (state.disabledReason) {
     subText = state.disabledReason
   } else if (exhausted) {
-    subText = '今日已用完'
+    subText = '已用完'
   } else if (cooling) {
     subText = `冷却 ${formatCooldown(state.cooldownLeftSec)}`
   }
@@ -527,17 +527,19 @@ function InteractionButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'border-border bg-surface ease-spring flex flex-col items-center justify-center gap-1 rounded-2xl border px-2.5 py-2.5 text-center transition-[transform,background-color,opacity] duration-(--dur-fast)',
+        'border-border bg-surface ease-spring flex min-h-11 min-w-max flex-1 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border px-2.5 py-1.5 text-center whitespace-nowrap transition-[transform,background-color,opacity] duration-(--dur-fast)',
         disabled
           ? 'bg-surface-sunken text-muted cursor-not-allowed opacity-65'
           : 'hover:bg-primary-soft/60 hover:border-primary/40 shadow-soft cursor-pointer hover:-translate-y-0.5 active:scale-95',
       )}
     >
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1 whitespace-nowrap">
         {icon}
-        <span className="text-caption font-bold">{label}</span>
+        <span className="text-tiny leading-tight font-bold whitespace-nowrap">{label}</span>
       </div>
-      <span className="text-tiny text-muted font-mono">{subText}</span>
+      <span className="text-tiny text-muted font-mono leading-none whitespace-nowrap tabular-nums">
+        {subText}
+      </span>
     </button>
   )
 }

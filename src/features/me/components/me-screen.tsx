@@ -2,10 +2,12 @@
 
 import dynamic from 'next/dynamic'
 import { useState } from 'react'
+import { Collapse } from '@/components/ui/collapse'
 import { Field, Input } from '@/components/ui/field'
 import { ErrorState } from '@/components/ui/error-state'
+import { Icon } from '@/components/ui/icon'
 import { Skeleton } from '@/components/ui/skeleton'
-import { TimeField } from '@/components/ui/time-field'
+import { TimePicker } from '@/components/ui/time-picker'
 import { toast } from '@/components/ui/toast'
 import type { UpdatePreferences } from '@/features/me/schemas'
 import { QuotaCard } from '@/features/quota/components/quota-card'
@@ -18,6 +20,8 @@ import {
   useUpdatePreferences,
 } from '@/lib/api/queries/me'
 import { authClient } from '@/lib/auth-client'
+import { cn } from '@/lib/cn'
+import { useLazyMount } from '@/lib/lazy'
 import { isThemeId, setTheme } from '@/lib/theme'
 import { nativeShellVersion, syncNativeReminder } from '@/lib/native'
 import { useCheckUpdate } from '@/features/app-update/components/update-dialog'
@@ -51,14 +55,12 @@ export function MeScreen() {
   const update = useUpdatePreferences()
   const remove = useDeleteAccount()
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleteLoaded, setDeleteLoaded] = useState(false)
+  const deleteLoaded = useLazyMount(deleteOpen)
   const [signOutOpen, setSignOutOpen] = useState(false)
-  const [signOutLoaded, setSignOutLoaded] = useState(false)
+  const signOutLoaded = useLazyMount(signOutOpen)
   const [confirmText, setConfirmText] = useState('')
-  const [remindDraft, setRemindDraft] = useState<string | null>(null)
+  const [remindPickerOpen, setRemindPickerOpen] = useState(false)
   const updates = useCheckUpdate()
-  if (deleteOpen && !deleteLoaded) setDeleteLoaded(true)
-  if (signOutOpen && !signOutLoaded) setSignOutLoaded(true)
 
   if (isPending) return <MeSkeleton />
   if (isError || !me) {
@@ -81,10 +83,19 @@ export function MeScreen() {
     })
   }
 
-  const remindValue = remindDraft ?? me.preferences.remindAt ?? ''
+  const remindValue = me.preferences.remindAt ?? '21:00'
   const shellVersion =
     typeof window !== 'undefined' ? nativeShellVersion(window.navigator.userAgent) : null
   const displayVersion = shellVersion ? `${APP_VERSION} · 客户端 v${shellVersion}` : APP_VERSION
+
+  function updateRemindTime(nextTime: string) {
+    const r = LocalTimeSchema.safeParse(nextTime)
+    if (!r.success || r.data === me?.preferences.remindAt) return
+    changePreferences({ remindAt: r.data })
+    if (me?.preferences.remindMode === 'native') {
+      void syncNativeReminder({ enabled: true, remindAt: r.data })
+    }
+  }
 
   return (
     <>
@@ -97,24 +108,56 @@ export function MeScreen() {
         quota={<QuotaCard />}
         onPreferencesChange={changePreferences}
         remindControl={
-          <TimeField
-            label="提醒时间"
-            id="me-remind"
-            value={remindValue}
-            onValueChange={setRemindDraft}
-            onBlur={() => {
-              if (remindDraft === null) return
-              const r = LocalTimeSchema.safeParse(remindDraft)
-              setRemindDraft(null)
-              if (r.success && r.data !== me.preferences.remindAt) {
-                changePreferences({ remindAt: r.data })
-                if (me.preferences.remindMode === 'native') {
-                  void syncNativeReminder({ enabled: true, remindAt: r.data })
-                }
-              }
-            }}
-            hint="过了这个时间还有没打卡的目标，主页顶部会提示一下"
-          />
+          <div className="border-border bg-surface-sunken/60 flex flex-col gap-2 rounded-xl border p-3">
+            <button
+              type="button"
+              aria-expanded={remindPickerOpen}
+              onClick={() => setRemindPickerOpen((o) => !o)}
+              className="flex w-full items-center gap-2 text-left"
+            >
+              <Icon name="clock" size={15} className="text-primary-ink shrink-0" lineOnly />
+              <span className="text-caption font-semibold">提醒时间</span>
+              <span className="font-display text-caption text-primary-ink ml-auto font-bold tabular-nums">
+                {remindValue}
+              </span>
+              <Icon
+                name="chevron-down"
+                size={15}
+                className={cn(
+                  'text-subtle shrink-0 transition-transform duration-(--dur-base)',
+                  remindPickerOpen && 'rotate-180',
+                )}
+              />
+            </button>
+            <Collapse open={remindPickerOpen} unmountOnCollapse>
+              <div className="flex flex-col gap-2 pt-1">
+                <div className="flex items-center justify-end gap-1">
+                  {(['08:00', '12:00', '20:00', '21:00'] as const).map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => updateRemindTime(preset)}
+                      className={cn(
+                        'text-tiny rounded-full px-2 py-0.5 font-semibold tabular-nums transition-colors',
+                        remindValue === preset
+                          ? 'bg-primary text-on-primary'
+                          : 'border-border bg-surface text-muted hover:text-foreground border',
+                      )}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                <TimePicker
+                  label="每日提醒时间"
+                  value={remindValue}
+                  onChange={updateRemindTime}
+                  tone="primary"
+                  className="bg-surface border-border border"
+                />
+              </div>
+            </Collapse>
+          </div>
         }
         onExport={() => {
           window.location.assign(ME_EXPORT_URL)

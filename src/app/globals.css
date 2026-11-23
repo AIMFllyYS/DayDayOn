@@ -54,6 +54,10 @@
   --dur-fast: 150ms;
   --dur-base: 220ms;
   --dur-slow: 360ms;
+  --dur-page-tab: 280ms;
+  --dur-page-pop: 460ms;
+  --dur-page-expand: 580ms;
+  --dur-page-push: 580ms;
   --dur-celebrate: 720ms;
 
   /* 安全区，配合 viewport-fit=cover */
@@ -200,10 +204,16 @@
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-soft: cubic-bezier(0.55, 0, 1, 0.45);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-page: cubic-bezier(0.25, 0.85, 0.32, 1);
 
   /* 动画预设：组件只用这些，不临时写 keyframes */
   --animate-fade-in: fade-in var(--dur-base) var(--ease-out-soft) both;
   --animate-fade-up: fade-up var(--dur-slow) var(--ease-out-soft) both;
+  --animate-content-reveal: content-reveal var(--dur-base) var(--ease-out-soft) backwards;
+  --animate-page-push: page-push var(--dur-page-push) var(--ease-page) backwards;
+  --animate-page-pop: page-pop var(--dur-page-pop) var(--ease-page) backwards;
+  --animate-page-expand: page-expand var(--dur-page-expand) var(--ease-page) backwards;
+  --animate-page-tab: page-tab var(--dur-page-tab) var(--ease-out-soft) backwards;
   --animate-pop-in: pop-in var(--dur-slow) var(--ease-spring) both;
   --animate-sheet-up: sheet-up var(--dur-slow) var(--ease-out-soft) both;
   --animate-sheet-down: sheet-down var(--dur-base) var(--ease-in-soft) both;
@@ -429,6 +439,72 @@
     from {
       opacity: 0;
       transform: translateY(8px);
+    }
+  }
+  /* 骨架屏到真实数据的柔和过渡，使用 backwards 避免动画结束后残留合成层 */
+  @keyframes content-reveal {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 4px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+  /* 传统子页面右进左出：舒缓偏慢的右侧滑入（手机占近半屏、桌面收敛至 220px） */
+  @keyframes page-push {
+    0% {
+      opacity: 0;
+      transform: translate3d(min(48vw, 220px), 0, 0);
+    }
+    28% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+  /* 子页面返回上一级：柔和从左回落 */
+  @keyframes page-pop {
+    0% {
+      opacity: 0.25;
+      transform: translate3d(calc(min(30vw, 140px) * -1), 0, 0);
+    }
+    35% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+  /* 聚焦点击点径向铺开全屏：以 (--origin-x, --origin-y) 为圆心缓动放大铺满视口（同单位 vmax 保证全端平滑插值） */
+  @keyframes page-expand {
+    0% {
+      opacity: 0.35;
+      clip-path: circle(3vmax at var(--origin-x, 50%) var(--origin-y, 50%));
+      transform: scale(0.94);
+    }
+    24% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+      clip-path: circle(125vmax at var(--origin-x, 50%) var(--origin-y, 50%));
+      transform: scale(1);
+    }
+  }
+  /* 一级底栏/侧栏切换：轻盈渐入，不干扰底栏圆球滑块 */
+  @keyframes page-tab {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 6px, 0);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
     }
   }
   @keyframes pop-in {

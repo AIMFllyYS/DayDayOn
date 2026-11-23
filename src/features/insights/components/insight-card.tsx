@@ -114,6 +114,7 @@ export function InsightCard({
   return (
     <Link
       href={href}
+      data-nav-transition="expand"
       aria-label={`${insight.title}：${view.value}${view.unit}，${view.rate ?? '还没打卡'}`}
       className="block h-full rounded-2xl"
     >
@@ -122,26 +123,51 @@ export function InsightCard({
   )
 }
 
-/** 多个目标的近况：手机两列小卡，宽屏三列 */
+/** 多个目标的近况：默认手机两列、宽屏三列；主页传 columns={2} 与 addHref="/goals" 时，奇数个板块自动在右侧补齐虚线「＋」卡片 */
 export function InsightGrid({
   items,
   days,
   linkToGoal = true,
+  getHref,
+  addHref,
+  addLabel = '添加板块',
+  columns = 'auto',
 }: {
   items: readonly GoalInsight[]
   days: number
   linkToGoal?: boolean
+  /** 自定义目标点击跳转地址（优先于 linkToGoal，好友视角跳 /friends/:id/goals/:goalId） */
+  getHref?: (item: GoalInsight) => string | undefined
+  /** 传入且板块数为奇数（1/3/5…）时，在末行右侧补齐一张虚线「＋」卡片跳目标设置 */
+  addHref?: string
+  addLabel?: string
+  columns?: 2 | 'auto'
 }) {
+  const showAddCard = Boolean(addHref) && items.length % 2 === 1
+
   return (
-    <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3">
-      {items.map((i) => (
-        <InsightCard
-          key={i.goalId}
-          insight={i}
-          days={days}
-          href={linkToGoal ? `/goals/${i.goalId}` : undefined}
-        />
-      ))}
+    <div className={cn('grid grid-cols-2 gap-3', columns === 'auto' && '@2xl:grid-cols-3')}>
+      {items.map((i) => {
+        const href = getHref ? getHref(i) : linkToGoal ? `/goals/${i.goalId}` : undefined
+        return <InsightCard key={i.goalId} insight={i} days={days} href={href} />
+      })}
+      {showAddCard && addHref && (
+        <Link
+          href={addHref}
+          data-nav-transition="expand"
+          data-insight-add-card="true"
+          aria-label={`${addLabel}，前往目标设置`}
+          className="border-border-strong/75 bg-surface/45 text-muted hover:border-primary/60 hover:bg-primary-soft/20 hover:text-primary-ink ease-spring flex h-full min-h-24 flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed p-3.5 transition-colors duration-(--dur-fast) active:scale-[0.98]"
+        >
+          <span
+            aria-hidden="true"
+            className="bg-surface-sunken inline-flex size-9 items-center justify-center rounded-full"
+          >
+            <Icon name="plus" size={18} lineOnly />
+          </span>
+          <span className="text-caption font-semibold">{addLabel}</span>
+        </Link>
+      )}
     </div>
   )
 }
