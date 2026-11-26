@@ -4,46 +4,37 @@ import dynamic from 'next/dynamic'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Icon } from '@/components/ui/icon'
 import { ProgressRing } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { toast } from '@/components/ui/toast'
 import { moduleMeta, softToneClass } from '@/components/ui/tone'
 import { LinkButton } from '@/features/dashboard/components/link-button'
 import type { OverallProgress } from '@/features/dashboard/schemas'
-import { DEFAULT_GOALS } from '@/features/goal/defaults'
 import { computeOverallPeriod } from '@/features/goal/period'
 import type { Goal } from '@/features/goal/schemas'
 import type { Me, RemindMode } from '@/features/me/schemas'
-import { MODULES, type Module } from '@/features/shared/schemas'
-import {
-  apiFetch,
-  errorMessage,
-  isApiError,
-  newIdempotencyKey,
-  useQuery,
-  useQueryClient,
-} from '@/lib/api'
-import { afterCheckinChange, keys } from '@/lib/api/keys'
+import { errorMessage, isApiError, useQuery } from '@/lib/api'
 import { dashboardTodayQuery } from '@/lib/api/queries/dashboard'
 import { goalListQuery } from '@/lib/api/queries/goals'
 import { useMe } from '@/lib/api/queries/me'
 import { cn } from '@/lib/cn'
 import { localDateOf } from '@/lib/time'
 import { GoalModuleCard } from './goal-module-card'
+import type { GoalSettingsFooterMode, GoalSettingsSheetView } from './goal-settings-sheet'
 
 /*
- * 「我的 → 目标设置」（/goals）：全局唯一的目标设置入口（checkin-modules.md 第 5 节）。
- * - 顶部总览卡：双行清晰展示板块数/周期与截止日/提醒，右侧「设置」按钮唤起底部「周期与提醒」Sheet；
- * - 移除繁杂的顶部分类 Tab 栏，默认上方展示「要坚持的打卡板块」选择条（支持一键定位卡片与增减板块）；
- * - 下方为可左右滑动翻页的板块卡片轮播，每张卡片完整承载该板块的「目标与计划」与「达标规则」折叠面板。
+ * 「我的 → 目标设置」（/goals）：全局唯一的目标设置入口（checkin-modules.md 第 5 节，Issue #103）。
+ * - 一屏紧凑布局：移除独立板块选择大卡，将「要坚持的打卡板块」与「时间周期设置」统一收口进右侧「设置」Dock；
+ * - 轮播上方升级为单行 36px 紧凑目标胶囊条，支持含多个自定义小目标在内的任意目标一键直达；
+ * - 「新建自定义小目标」与「已归档的目标」按严格互补视口断点自动排版：空间充裕放页面底部，紧凑屏自动归入设置 Dock。
  */
 
 export type GoalSettingsTab = 'plan' | 'schedule' | 'rules'
 
-const GoalPeriodSheet = dynamic(
-  () => import('./goal-period-sheet').then((m) => m.GoalPeriodSheet),
+const GoalSettingsSheet = dynamic(
+  () => import('./goal-settings-sheet').then((m) => m.GoalSettingsSheet),
   { loading: () => null },
 )
 
@@ -88,6 +79,7 @@ export function GoalSettingsContent({
   today: todayOverride,
   overall: overallOverride,
   initialTab = 'plan',
+  footerMode = 'auto',
 }: {
   active: Goal[]
   archived: Goal[]
@@ -95,9 +87,12 @@ export function GoalSettingsContent({
   today?: string
   overall?: OverallProgress
   initialTab?: GoalSettingsTab
+  /** Playbook 预览可显式指定 inline / dock 验收双态，正式页面默认 auto 按视口互补切换 */
+  footerMode?: GoalSettingsFooterMode
 }) {
-  const [periodSheetOpen, setPeriodSheetOpen] = useState(false)
-  const [periodSheetLoaded, setPeriodSheetLoaded] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [sheetLoaded, setSheetLoaded] = useState(false)
+  const [sheetView, setSheetView] = useState<GoalSettingsSheetView>('menu')
   const [activeIndex, setActiveIndex] = useState(0)
   const carouselRef = useRef<HTMLDivElement>(null)
 
@@ -125,7 +120,6 @@ export function GoalSettingsContent({
     })
 
   const clampedIndex = Math.min(activeIndex, Math.max(0, activeGoals.length - 1))
-  const focusedModule = activeGoals[clampedIndex]?.module ?? null
 
   function scrollToCard(index: number) {
     const safeIdx = Math.max(0, Math.min(index, activeGoals.length - 1))
@@ -159,14 +153,18 @@ export function GoalSettingsContent({
     if (bestIdx !== clampedIndex) setActiveIndex(bestIdx)
   }
 
-  function openPeriodSheet() {
-    setPeriodSheetLoaded(true)
-    setPeriodSheetOpen(true)
+  function openSettingsSheet(view: GoalSettingsSheetView = 'menu') {
+    setSheetView(view)
+    setSheetLoaded(true)
+    setSheetOpen(true)
   }
 
+  const inlineFooterClass =
+    footerMode === 'inline' ? 'flex' : footerMode === 'dock' ? 'hidden' : 'goals-footer-inline'
+
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3.5 pb-10">
-      {/* 顶部总览卡：双行清晰排布 + 右侧「设置」按钮弹出底部周期与提醒 Sheet */}
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 pb-2">
+      {/* 顶部总览卡：双行清晰排布 + 右侧 44px 触控区「设置」按钮唤起统一设置 Dock */}
       <SettingsOverviewCard
         activeCount={activeGoals.length}
         checkedDays={overall.checkedDays}
@@ -175,45 +173,55 @@ export function GoalSettingsContent({
         deadlineDate={overall.deadlineDate}
         remindAt={me.preferences.remindAt}
         remindMode={me.preferences.remindMode}
-        onOpenPeriodSettings={openPeriodSheet}
+        onOpenSettings={() => openSettingsSheet('menu')}
       />
 
-      {/* 要坚持的打卡板块选择条：点已选板块直接定位下方卡片，点「增减板块」展开勾选项 */}
-      <ModuleSelectorStrip
-        active={activeGoals}
-        archived={archivedGoals}
-        focusedModule={focusedModule}
-        onFocusModule={(mod) => {
-          const idx = activeGoals.findIndex((g) => g.module === mod)
-          if (idx >= 0) scrollToCard(idx)
-        }}
-      />
-
-      {/* 下方可左右滑动翻页的板块卡片轮播（每张卡完整含目标计划与达标规则） */}
+      {/* 下方可左右滑动翻页的板块卡片轮播（单行 36px 目标胶囊直达每一张卡） */}
       {activeGoals.length === 0 ? (
-        <Card className="p-5 text-center">
-          <p className="text-caption text-muted">先在上方选择至少一个要坚持的打卡板块吧</p>
+        <Card className="p-4">
+          <EmptyState
+            title="还没有进行中的打卡板块"
+            description="点下方按钮选一两个想坚持的小事，就能在这里调整目标与达标规则"
+            action={
+              <Button icon="plus" onClick={() => openSettingsSheet('modules')}>
+                选择打卡板块
+              </Button>
+            }
+          />
         </Card>
       ) : (
         <section className="flex flex-col gap-2" aria-label="板块目标与规则卡片">
-          <div className="flex items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-1.5">
-              {activeGoals.map((g, idx) => (
-                <button
-                  key={g.id}
-                  type="button"
-                  aria-label={`切换到 ${g.title}`}
-                  onClick={() => scrollToCard(idx)}
-                  className={cn(
-                    'h-2 rounded-full transition-all duration-(--dur-base)',
-                    idx === clampedIndex ? 'bg-primary w-5' : 'bg-border-strong w-2',
-                  )}
-                />
-              ))}
+          <div className="flex h-9 items-center gap-2">
+            <div
+              role="tablist"
+              aria-label="切换目标卡片"
+              className="flex min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto py-0.5"
+            >
+              {activeGoals.map((g, idx) => {
+                const selected = idx === clampedIndex
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => scrollToCard(idx)}
+                    className={cn(
+                      'ease-spring text-tiny inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 font-semibold whitespace-nowrap transition-[transform,background-color,border-color,color] duration-(--dur-fast) active:scale-95',
+                      selected
+                        ? cn(softToneClass[g.module], 'border-primary/40 shadow-xs')
+                        : 'border-border bg-surface text-muted hover:text-foreground',
+                    )}
+                  >
+                    <Icon name={moduleMeta[g.module].icon} size={13} />
+                    <span className="max-w-[7.5rem] truncate">{g.title}</span>
+                  </button>
+                )
+              })}
             </div>
 
             {activeGoals.length > 1 && (
-              <div className="flex items-center gap-1">
+              <div className="hidden shrink-0 items-center gap-1 sm:flex">
                 <button
                   type="button"
                   aria-label="上一个板块"
@@ -267,22 +275,31 @@ export function GoalSettingsContent({
         </section>
       )}
 
-      <div className="flex flex-wrap justify-center gap-2 pt-1">
+      {/* 宽裕视口放页面底部；紧凑视口隐藏并由 GoalSettingsSheet 的「更多目标管理」互补承接 */}
+      <div
+        data-goals-inline-links="true"
+        className={cn(inlineFooterClass, 'flex-wrap justify-center gap-2 pt-0.5')}
+      >
         <LinkButton href="/goals/new?module=custom" variant="soft" icon="plus" size="sm">
           新建自定义小目标
         </LinkButton>
         <LinkButton href="/goals?status=archived" variant="soft" icon="clock" size="sm">
-          已归档的目标
+          {archivedGoals.length > 0 ? `已归档的目标（${archivedGoals.length}）` : '已归档的目标'}
         </LinkButton>
       </div>
 
-      {periodSheetLoaded && (
-        <GoalPeriodSheet
-          open={periodSheetOpen}
-          onOpenChange={setPeriodSheetOpen}
+      {sheetLoaded && (
+        <GoalSettingsSheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          initialView={sheetView}
+          footerMode={footerMode}
           active={activeGoals}
+          archived={archivedGoals}
           startDate={earliestStart}
           today={today}
+          hasDeadline={overall.hasDeadline}
+          targetDays={overall.targetDays}
           initialDeadline={overall.deadlineDate ?? ''}
           initialRemindAt={me.preferences.remindAt ?? ''}
           initialRemindMode={me.preferences.remindMode}
@@ -300,7 +317,7 @@ function SettingsOverviewCard({
   deadlineDate,
   remindAt,
   remindMode,
-  onOpenPeriodSettings,
+  onOpenSettings,
 }: {
   activeCount: number
   checkedDays: number
@@ -309,18 +326,18 @@ function SettingsOverviewCard({
   deadlineDate: string | null
   remindAt: string | null
   remindMode: RemindMode
-  onOpenPeriodSettings: () => void
+  onOpenSettings: () => void
 }) {
   const remindPart = remindMode !== 'off' && remindAt ? `提醒 ${remindAt}` : '提醒未开'
 
   return (
-    <Card variant="sticker" className="flex items-center gap-3 p-3.5">
+    <Card variant="sticker" className="flex items-center gap-3 p-3.5 md:p-3.5">
       <ProgressRing
         value={checkedDays}
         max={Math.max(1, targetDays)}
         tone="success"
-        size={52}
-        thickness={5.5}
+        size={48}
+        thickness={5}
         label={`总坚持进度：${checkedDays} / ${targetDays} 天`}
         className="shrink-0"
       >
@@ -340,179 +357,16 @@ function SettingsOverviewCard({
         </p>
       </div>
 
-      <button
-        type="button"
-        data-open-period-sheet="true"
-        onClick={onOpenPeriodSettings}
-        className="ease-spring bg-primary-soft text-primary-ink text-tiny inline-flex h-8.5 shrink-0 items-center gap-1 rounded-full px-3 font-semibold transition-[transform,filter] duration-(--dur-fast) hover:brightness-95 active:scale-95"
+      <Button
+        variant="soft"
+        size="sm"
+        icon="sliders"
+        data-open-settings-sheet="true"
+        onClick={onOpenSettings}
+        className="min-h-11 shrink-0 rounded-full"
       >
-        <Icon name="sliders" size={14} lineOnly />
-        <span>设置</span>
-      </button>
-    </Card>
-  )
-}
-
-/** 要坚持的打卡板块选择条：快速点击切换下方卡片，点「增减板块」展开增删勾选 */
-function ModuleSelectorStrip({
-  active,
-  archived,
-  focusedModule,
-  onFocusModule,
-}: {
-  active: Goal[]
-  archived: Goal[]
-  focusedModule: Module | null
-  onFocusModule: (module: Module) => void
-}) {
-  const qc = useQueryClient()
-  const activeModules = [...new Set(active.map((g) => g.module))]
-  const [selected, setSelected] = useState<Module[]>(activeModules)
-  const [editOpen, setEditOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string>()
-
-  const dirty =
-    selected.length !== activeModules.length || selected.some((m) => !activeModules.includes(m))
-
-  async function save() {
-    if (selected.length === 0) {
-      setError('至少保留一个打卡板块')
-      return
-    }
-    setSaving(true)
-    setError(undefined)
-    const want = new Set(selected)
-    const sharedDeadline = active.find((g) => g.deadlineDate)?.deadlineDate ?? null
-    const tasks: Promise<unknown>[] = []
-    for (const g of active) {
-      if (!want.has(g.module)) {
-        tasks.push(
-          apiFetch(`/goals/${encodeURIComponent(g.id)}`, {
-            method: 'PATCH',
-            json: { status: 'archived' },
-          }),
-        )
-      }
-    }
-    for (const m of selected) {
-      if (activeModules.includes(m)) continue
-      const old = archived.find((g) => g.module === m)
-      tasks.push(
-        old
-          ? apiFetch(`/goals/${encodeURIComponent(old.id)}`, {
-              method: 'PATCH',
-              json: { status: 'active' },
-            })
-          : apiFetch('/goals', {
-              method: 'POST',
-              json: {
-                ...DEFAULT_GOALS[m],
-                ...(sharedDeadline ? { deadlineDate: sharedDeadline } : {}),
-              },
-              idempotencyKey: newIdempotencyKey(),
-            }),
-      )
-    }
-    try {
-      await Promise.all(tasks)
-      toast.success('打卡板块已更新')
-      setEditOpen(false)
-    } catch (e) {
-      toast.error(isApiError(e) ? errorMessage(e) : '有一项没保存成功，刷新后再试试')
-    } finally {
-      void qc.invalidateQueries({ queryKey: keys.goals.all })
-      for (const k of afterCheckinChange) void qc.invalidateQueries({ queryKey: k })
-      setSaving(false)
-    }
-  }
-
-  function toggleModule(m: Module) {
-    setError(undefined)
-    setSelected((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]))
-  }
-
-  return (
-    <Card className="flex flex-col gap-2.5 p-3.5">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-caption font-bold">要坚持的打卡板块</h2>
-        <button
-          type="button"
-          aria-expanded={editOpen}
-          onClick={() => {
-            setSelected(activeModules)
-            setError(undefined)
-            setEditOpen((o) => !o)
-          }}
-          className="text-tiny text-primary-ink hover:bg-primary-soft/60 inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold transition-colors"
-        >
-          <span>{editOpen ? '取消' : '增减板块'}</span>
-        </button>
-      </div>
-
-      {/* 5 个板块紧凑快选条：浏览态点选直达卡片；增减态原地勾选，无嵌套卡片列表 */}
-      <div className="grid grid-cols-5 gap-1.5" role={editOpen ? 'group' : undefined}>
-        {MODULES.map((m) => {
-          const isActive = editOpen ? selected.includes(m) : activeModules.includes(m)
-          const isFocused = !editOpen && isActive && focusedModule === m
-          return (
-            <button
-              key={m}
-              type="button"
-              role={editOpen ? 'checkbox' : undefined}
-              aria-checked={editOpen ? isActive : undefined}
-              onClick={() => {
-                if (editOpen) {
-                  toggleModule(m)
-                } else if (activeModules.includes(m)) {
-                  onFocusModule(m)
-                } else {
-                  setSelected([...activeModules, m])
-                  setEditOpen(true)
-                }
-              }}
-              className={cn(
-                'ease-spring relative flex flex-col items-center justify-center gap-1 rounded-xl border py-2 transition-[transform,background-color,border-color,box-shadow] duration-(--dur-fast) active:scale-95',
-                isActive
-                  ? cn(
-                      softToneClass[m],
-                      isFocused || editOpen
-                        ? 'border-primary ring-primary/35 shadow-soft ring-2'
-                        : 'border-transparent opacity-80 hover:opacity-100',
-                    )
-                  : 'border-border bg-surface-sunken/50 text-subtle hover:text-muted border-dashed',
-              )}
-            >
-              {editOpen && (
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'absolute top-1 right-1 flex size-4 items-center justify-center rounded-full border',
-                    isActive
-                      ? 'border-primary bg-primary text-on-primary'
-                      : 'border-border-strong bg-surface',
-                  )}
-                >
-                  {isActive && <Icon name="check" size={10} strokeWidth={3} />}
-                </span>
-              )}
-              <Icon name={moduleMeta[m].icon} size={18} />
-              <span className="text-tiny leading-none font-semibold">{moduleMeta[m].label}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {editOpen && (
-        <div className="flex items-center justify-between gap-2 pt-0.5">
-          <span className={cn('text-tiny', error ? 'text-danger-ink' : 'text-muted')}>
-            {error ?? '点上方图标直接勾选或取消'}
-          </span>
-          <Button size="sm" disabled={!dirty} loading={saving} onClick={() => void save()}>
-            保存板块
-          </Button>
-        </div>
-      )}
+        设置
+      </Button>
     </Card>
   )
 }
@@ -521,7 +375,7 @@ function SettingsSkeleton() {
   return (
     <div role="status" aria-label="加载中" className="mx-auto grid w-full max-w-2xl gap-3">
       <Skeleton className="h-20 w-full rounded-2xl" />
-      <Skeleton className="h-24 w-full rounded-2xl" />
+      <Skeleton className="h-9 w-full rounded-full" />
       <Skeleton className="h-72 w-full rounded-2xl" />
     </div>
   )
