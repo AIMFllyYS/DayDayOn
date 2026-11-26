@@ -69,9 +69,9 @@ src/app/         Routing layer: routes only ((app), (auth), (marketing), admin, 
 src/components/  ui/ atomic components (no business logic) · layout/ application shell · mascot/ · charts/ · markdown/
 src/features/    Domain modules (admin, agent, app-update, auth, chat, checkin, dashboard, diet, friend, goal, insights, me, metric, notification, onboarding, quota, rank, referee, shared, todo, welcome)
 src/server/      server-only: api (Hono), services (business logic), db, auth, ai, quota, mail, moderation, crypto, env, idempotency, rate-limit, settings
-src/lib/         General utilities and hooks: api, image, time, app-version, auth-client, cn, entry-redirect, fonts, native, semver, splash, theme · src/assets/ fonts
-src/proxy.ts     Next.js 16 proxy (entry redirect) · src/instrumentation.ts (startup migrations) · src/test/ (Vitest stubs)
-android/         Kotlin hybrid shell & offline APK build (build-apk.ps1) · download/ release manifest, changelog & APK output
+src/lib/         General utilities and hooks: api, image, time, app-version, auth-client, cn, entry-redirect, fonts, lazy, motion, native, qr, semver, splash, theme · src/assets/ fonts
+src/proxy.ts     Next.js 16 proxy (entry redirect) · src/instrumentation.ts (startup migrations & official announcement sync) · src/test/ (Vitest stubs)
+android/         Kotlin hybrid shell (see android/README.md) & offline APK build (build-apk.ps1) · download/ release manifest, changelog & APK output
 docs/            Conventions, ADRs, lessons, component library and skills registry · scripts/ setup / build / deploy / dev
 public/          Static assets (planned M5 for sw.js; artifacts are transferred to Wuhan server, keep small footprint)
 ```

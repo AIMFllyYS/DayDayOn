@@ -1,6 +1,6 @@
 # lessons — date-fns 与 @date-fns/tz
 
-> 适用版本：date-fns@4.4.0、@date-fns/tz@1.5.0（M1 随 Base UI 安装）。以下条目来自 2026-10-31 对官方 README 的核对，尚未在本项目代码里踩到。
+> 适用版本：date-fns@4.4.0、@date-fns/tz@1.5.0。以下条目已结合官方文档与 `src/lib/time/` 实战使用核对维护。
 
 ### 结果取决于运行环境的系统时区
 - 症状：本机（Asia/Shanghai）测试通过，CI（UTC）或服务器上打卡日差一天。

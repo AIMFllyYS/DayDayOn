@@ -48,3 +48,15 @@
 - 根因：以为包一层 effect event 就不算在 effect 里改状态；React Compiler 的规则会追进同步调用的函数里。
 - 规则：需要「用刚算出的新值立刻继续」时，让产生新值的函数直接返回它（如打卡表单的 `applySmart(draft)` 返回请求体），在事件回调里接着用，不经过 effect。
 - 元：eslint-config-next@16.4.3 + React 19.3 | 2026-11-05 | 候选毕业方向：无
+
+### cacheComponents 预渲染期间在纯日期函数里构造 TZDate 触发动态中止
+- 症状：Server Component 或 Playbook 页在 `next build` 预渲染阶段调用依赖 `TZDate` 的星期计算函数时，触发 Next 16 `cacheComponents` 动态 prerender abort 报错。
+- 根因：`TZDate` 内部会触碰当前时钟/时区构建路径，被 Next 16 预渲染追踪识别为依赖请求期动态时间。
+- 规则：仅由 `YYYY-MM-DD` 字符串即可推导的日历运算（如 `isoWeekday`）使用纯公历整数算法，避免在无时区转换必要的纯函数里构造 `TZDate` 或 `new Date()`。
+- 元：next@16.4.3 | 2026-11-26 | 候选毕业方向：封装层（`src/lib/time/`）
+
+### 停服后修改 globals.css 复用 .next/dev 持久缓存导致旧 CSS 块残留
+- 症状：`next dev` 重启后浏览器加载的 `.next/dev/static/chunks/*.css` 仍缺少刚刚写入 `globals.css` 的新工具类或媒体查询规则。
+- 根因：Next 16 Turbopack 开发期持久缓存（`.next/dev`）在跨进程冷改全局 CSS 时偶发未立即失效旧 chunk。
+- 规则：修改 `src/app/globals.css` 后若 dev 页面样式未生效，先清理 `.next/dev` 再重启 `pnpm dev` 验证。
+- 元：next@16.4.3 | 2026-11-26 | 候选毕业方向：无

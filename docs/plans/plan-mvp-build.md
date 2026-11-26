@@ -1,6 +1,6 @@
 # MVP 落地计划（多 Agent 并行）
 
-> 日期：2026-11-01 · 状态：执行中 · 需求见 [prd-v0.1.md](../specs/prd-v0.1.md)，顺序对应 [roadmap.md](./roadmap.md) 的 M1–M4
+> 日期：2026-11-01 · 状态：已完成归档（历史计划；最新里程碑进展见 [roadmap.md](./roadmap.md)） · 需求见 [prd-v0.1.md](../specs/prd-v0.1.md)，顺序对应 [roadmap.md](./roadmap.md) 的 M1–M4
 > 工作分支 `feat/mvp-v0.1`（从 `dev` 切出）。负责人已授权本轮：安装 libraries.md 登记的依赖、本地 Docker 数据库与迁移、工具链配置、本地提交。push、PR、服务器操作仍需单独同意。
 
 ## 1. 阶段

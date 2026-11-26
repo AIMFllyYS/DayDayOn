@@ -15,7 +15,7 @@
 - [ports.md](./ports.md) — 端口约定（应用 23329、数据库 23432）及所有引用位置
 - [checkin-modules.md](./checkin-modules.md) — 打卡板块与 Agent 裁判：统一骨架、板块目录、规则与事实契约、分数入库、目标设置唯一入口
 
-以下是 Phase 3 选型拍板后（2026-10-31）编写的库落地规范。本项目没有对应的内置规则包，这些文档由联网调研生成，条目未经实战验证，踩坑后按 lessons 机制修订：
+以下是 Phase 3 选型拍板后（2026-10-31）编写、并在 M1–M4 实战中持续修订对齐的库落地规范（踩坑后继续按 lessons 机制演进）：
 
 - [api-conventions.md](./api-conventions.md) — `/api/v1` 接口规范：Hono 挂载、路由写法、OpenAPI、数据格式、错误码、鉴权、限流、幂等、分页、上传
 - [database.md](./database.md) — 数据库与迁移：Drizzle 0.45 连接、命名、列类型、事务与额度账本、迁移流程、Better Auth 的表

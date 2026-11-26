@@ -1,6 +1,6 @@
 # AI 调用、额度与图片规范
 
-> 日期：2026-10-31（2026-11-23 同步最新实现）· 状态：已落地。本文档与仓库源码、ESLint 硬约束及 [ADR-0002](../adr/0002-account-quota-risk.md) 保持同步，踩坑后按 [lessons 机制](../lessons/README.md) 修订。
+> 日期：2026-10-31（2026-11-26 同步最新实现）· 状态：已落地。本文档与仓库源码、ESLint 硬约束及 [ADR-0002](../adr/0002-account-quota-risk.md) 保持同步，踩坑后按 [lessons 机制](../lessons/README.md) 修订。
 > 依据：[ADR-0002](../adr/0002-account-quota-risk.md)（额度、计价、风控）、[ADR-0011](../adr/0011-image-pipeline.md)（图片）、[ADR-0020](../adr/0020-jobs.md)（周期键）、[ADR-0024](../adr/0024-agent-chat.md)（Agent 对话与联网）、[ADR-0027](../adr/0027-agent-referee.md)（Agent 裁判）。
 > 官方资料：AI SDK 的 DeepSeek provider 页与 Testing 页、DeepSeek「模型 & 价格」页。库的坑见 [lessons/ai-sdk.md](../lessons/ai-sdk.md)。
 
@@ -12,18 +12,18 @@ src/server/ai/
 ├── run.ts                   runAi() 与 preflight() / checkUserLimits() / finishRun() / reconcileStaleRuns() / rejectReusedKey() / afterSpend()
 ├── call-model.ts            底层模型调用封装（超时控制 + Zod 输出校验）
 ├── recovery.ts              结算事务重试与流水恢复纯函数
-├── run-agent.ts             streamAgentChat() 与 reserveAgentRun() / settleAgentRun()（对话与裁判共用账本）
+├── run-agent.ts             streamAgentChat() 与 reserveAgentRun() / settleAgentRun()（对话与裁判共用账本，AGENT_PROMPT_VERSION = 6）
 ├── agent.ts                 buildAgent()（ToolLoopAgent，32 步上限，普通 4096 / 深度思考 8192 tokens/步，最后一步禁工具保底文字输出）
-├── repair-tool-call.ts      createRepairToolCall()（确定性修复 DeepSeek Flash 尾部截断、多余括号与字段类型错位）
+├── repair-tool-call.ts      createRepairToolCall()（按工具名区分长度上限，确定性修复 DeepSeek Flash 尾部截断、null 可选参数与字段类型错位）
 ├── agent-tools.ts           对话 Agent 工具总装（读资料/目标/进度/好友、showStats、联网、挂载打卡与待办专项工具）
-├── agent-checkin-tools.ts   对话 Agent 打卡专项工具（查询、留痕、增改删草稿）
-├── agent-todo-tools.ts      对话 Agent 待办专项工具（3 层渐进式披露读 + 单轮内存缓存 + draftTodo）
+├── agent-checkin-tools.ts   对话 Agent 打卡专项工具（查询、留痕、增改删与昨日补卡覆盖草稿）
+├── agent-todo-tools.ts      对话 Agent 待办专项工具（3 层渐进式读 + 单轮缓存 + draftTodo / draftUpdateTodo / draftDeleteTodo / draftTodoGroup）
 ├── checkin-lookups.ts       内置食物营养表、运动 MET 表等查询封装
 ├── web-search.ts            DeepSeek 官方 Search / Fetch 封装
 ├── pricing.ts               价格表（微元 / 百万 tokens）与费用计算，纯函数
 ├── image.ts                 multipart 图片转内联 file part + 对话内联 JPEG dataURL 校验（只在内存里）
 ├── prompts/<用途>.ts        diet-recognition.ts、smart-recognition.ts
-└── referee/                 打卡裁判 Agent（index.ts、prompt.ts、tools.ts、food-table.ts）
+└── referee/                 打卡裁判 Agent（index.ts、prompt.ts REFEREE_PROMPT_VERSION = 5、tools.ts、food-table.ts）
 
 src/server/quota/            （已无 guard.ts；全站/单人检查在 ai/run.ts，告警去重在 quota/alerts.ts）
 ├── period.ts                周期键与花费日键（依赖 src/lib/time/）
@@ -35,7 +35,7 @@ src/server/quota/            （已无 guard.ts；全站/单人检查在 ai/run.
 
 src/lib/image/               compress.ts（浏览器端压缩）、size.ts（含文件头魔数嗅探）
 src/features/quota/          schemas.ts（AI_PURPOSES 等契约）、format.ts、components/（额度卡、侧栏额度条）
-src/features/agent/          前端 Agent 组件与 hook（AgentTurn、AiDraftCard、ChangeDraftCard、FloatingPet、AgentPanel、AgentFullscreen、useRefereeRun 等）
+src/features/agent/          前端 Agent 组件与 hook（AgentTurn、AiDraftCard、ChangeDraftCard、TodoDraftCard、FloatingPet、AgentPanel、AgentFullscreen、confirmed-drafts、useRefereeRun 等）
 ```
 
 - 只有 `src/server/ai/` 可以 import `@ai-sdk/deepseek`；`ai` 只允许在 `src/server/ai/` 与 `src/features/agent/`（前端类型与 `DefaultChatTransport`）import；前端只有 `src/features/agent/` 可以 import `@ai-sdk/react`。

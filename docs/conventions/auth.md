@@ -1,6 +1,6 @@
 # 鉴权与会话规范
 
-> 日期：2026-10-31（2026-11-16 对齐最新实现） · 状态：已按最新服务端代码核对同步。踩坑经验见 [lessons/better-auth.md](../lessons/better-auth.md)。
+> 日期：2026-10-31（2026-11-26 对齐最新实现） · 状态：已按最新服务端代码核对同步。踩坑经验见 [lessons/better-auth.md](../lessons/better-auth.md)。
 > 依据：[ADR-0014](../adr/0014-auth.md)（Better Auth 1.7）、[ADR-0023](../adr/0023-captcha.md)（自托管点选人机验证）、[ADR-0002](../adr/0002-account-quota-risk.md) 第 3、6、7 节（邮箱白名单、限流、后台）。
 > 官方资料（2026-10-31 抓取）：Better Auth 文档的 Email OTP、Admin、Rate Limit、Hooks、Next.js integration、Drizzle adapter、Telemetry 各页，以及 better-auth@1.7.14 的 registry 数据。
 
@@ -10,6 +10,7 @@
 src/server/auth/
 ├── auth.ts             betterAuth() 实例，全项目唯一（secret/baseURL/trustedOrigins 懒读取）
 ├── auth.cli.ts         专供 auth@1.7.14 CLI 读取的精简配置入口（不含 server-only 与 @/ 别名）
+├── session-config.ts   30 天滑动会话策略常量 SESSION_POLICY（expiresIn: 30d, updateAge: 24h）
 ├── paths.ts            Better Auth 端点路径常量 AUTH_PATHS（auth.ts、hooks.ts、two-factor-gate.ts 共用）
 ├── hooks.ts            beforeHook、afterHook 与 databaseHooks（邮箱策略、人机验证、限流、审计、注册建档与 IP 告警）
 ├── two-factor-gate.ts  twoFactorPlugins()：免密 twoFactor + /sign-in/email-otp 2FA 拦截 + admin 端点白名单门禁
@@ -18,7 +19,7 @@ src/server/auth/
 ├── email-policy.ts     邮箱白名单与规范化（纯函数，带单元测试）
 ├── account-state.ts    loadAccountState()：单条 LEFT JOIN 实时查询封禁字段与 profiles.onboardedAt
 ├── guards.ts           isBanned()、banInfo()、checkAccount()、checkOnboarded()、checkAdmin()（纯函数，带单元测试）
-├── session.ts          getSession()、getSessionFromHeaders()、requireUser()、requireOnboardedUser()、requireAdmin()、isBanned()
+├── session.ts          getSession()（只读 disableRefresh）、getSessionFromHeaders()（透传 Set-Cookie）、requireUser()、requireOnboardedUser()、requireAdmin()、isBanned()
 ├── cookie.ts           转出 getSessionCookie 给 src/proxy.ts 使用（不含 server-only）
 ├── ip.ts               clientIp()、LOCAL_IP（只读 x-real-ip，本地记 127.0.0.1）
 └── index.ts            对外统一导出会话函数（getSession、getSessionFromHeaders、isBanned、requireAdmin、requireOnboardedUser、requireUser）与类型（Session、SessionData、SessionUser）
@@ -35,6 +36,7 @@ src/app/api/auth/[...all]/route.ts     先拦截 /api/auth/captcha，其余交�
 | 配置 | 值 | 原因 |
 |---|---|---|
 | `database` | `drizzleAdapter(db, { provider: 'pg', schema })`，从 `better-auth/adapters/drizzle` 导入 | `better-auth` 已依赖 Drizzle 适配器并转出这个子路径，不另装 `@better-auth/drizzle-adapter` |
+| `session` | `SESSION_POLICY`（`expiresIn: 30 天`、`updateAge: 24 小时`，不开 `cookieCache`） | 活跃用户 30 天内每满 24 小时经 `/api/v1` 自动滑动续期 DB 与 Cookie，连续 30 天不活跃才过期；不开 `cookieCache` 保证封号/吊销实时生效 |
 | `emailAndPassword` | `{ enabled: false }` | 只用邮箱验证码登录 |
 | `plugins` | `emailOTP(…)`、`admin()`、`...twoFactorPlugins()` | ADR-0014、ADR-0002。`twoFactorPlugins()` 含免密 `twoFactor` 与门禁插件 `daydayon-two-factor-gate`。APK 阶段再加 `bearer` |
 | emailOTP `allowedAttempts` | `8` | 与 ADR-0023 及 `auth.ts` 一致：单验证码连续错 8 次作废（默认 3） |
@@ -75,13 +77,14 @@ src/app/api/auth/[...all]/route.ts     先拦截 /api/auth/captcha，其余交�
   - 通过后把 `ctx.body.email` 改写为规范化结果 `{ context: { body: { ...ctx.body, email: checked.email } } }`。
 - 单元测试（`email-policy.test.ts`）覆盖：大小写、首尾空白、`+` 地址、Gmail 点号、白名单外域名、子域名（`mail.qq.com` 不在白名单内）。
 
-## 5. 读会话
+## 5. 读会话与滑动续期
 
-- `getSession()` 内部调用 `getSessionFromHeaders(await headers())`（`auth.api.getSession({ headers })`）。
+- **Server Component 必须只读不续期**：`getSession()` 调用 `getSessionFromHeaders(await headers(), { disableRefresh: true })`（向 Better Auth 传 `query: { disableRefresh: true }`）。RSC 渲染阶段无法下发 `Set-Cookie`，若不禁用续期，会抢先推进数据库 `session.expires_at` 却丢失浏览器 Cookie 的 `Max-Age` 续期，导致后续 `/api/v1` 误判无需续期而 Cookie 提前过期。
+- **Hono `/api/v1` 负责滑动续期与 `Set-Cookie` 透传**：`getSessionFromHeaders(c.req.raw.headers, { onSetCookie })` 默认启用 `returnHeaders: true`，收集 Better Auth 续期或失效清理产生的 `Set-Cookie`；`requireUser` 与 `requireAdmin` 中间件在 `await next()` 之后（`finally` 中）通过 `c.header('Set-Cookie', cookie, { append: true })` 写回响应，兼顾 `c.json()`、原始 SSE `Response` 与幂等重放。
+- **Android WebView Cookie 落盘**：`MainActivity.kt` 在 `onPageFinished`、`onPause`、`onStop` 显式调用 `CookieManager.getInstance().flush()`，防止应用划掉后 WebView 内存中的续期 Cookie 丢失。
 - 调用 `getSession()` 的 Server Component 必须放在 `<Suspense>` 里，layout 顶层不 await 会话（[nextjs-16-patterns.md](./nextjs-16-patterns.md)）。
 - 页面保护：在页面里（Suspense 内）调用 `requireUser()` / `requireOnboardedUser()`，未登录 `redirect('/login')`；被封 `redirect('/login?banned=1')`；新人引导未完成 `redirect('/onboarding')`。
 - `src/proxy.ts` 只用 `cookie.ts` 转出的 `getSessionCookie()` 判断 cookie 是否存在，用来提前跳转登录页。它不校验会话，不能当作安全检查；真正的校验在页面和接口里。
-- Hono 中间件里用 `getSessionFromHeaders(c.req.raw.headers)`。
 - `requireUser()`（页面版与 Hono 中间件版）都在会话之外实时查库 `loadAccountState()`（检查 `user.banned` / `banExpires` 与 `profiles.onboardedAt`）：被封用户分别重定向或返回 403 `ACCOUNT_BANNED`（封号会吊销会话，这一步兜住会话缓存的空窗）。
 
 ## 6. 管理员与两步验证
@@ -106,7 +109,8 @@ src/app/api/auth/[...all]/route.ts     先拦截 /api/auth/captcha，其余交�
 ## 8. 测试
 
 - `email-policy.test.ts`：`normalizeEmail` / `checkEmail` 单元测试（第 4 节清单）。
-- `guards.test.ts` 与 `src/server/api/middleware/auth.test.ts`：`requireUser` / `requireOnboarded` / `requireAdmin` 各分支（无会话、被封禁、未引导、非管理员、管理员未开两步验证、通过）。
+- `guards.test.ts` 与 `src/server/api/middleware/auth.test.ts`：`requireUser` / `requireOnboarded` / `requireAdmin` 各分支（无会话、被封禁、未引导、非管理员、管理员未开两步验证、通过、以及 `Set-Cookie` 续期透传）。
+- `session-renewal.test.ts`：基于内存适配器与 `SESSION_POLICY` 验证 30 天滑动窗口、满 24 小时续期产 `Set-Cookie` 与 `disableRefresh: true` 不写库。
 - `two-factor-gate.test.ts`：基于内存适配器的完整 Better Auth hook 流水线测试（`/sign-in/email-otp` 2FA 拦截、绑定后吊销旧会话、未开放 `/admin/*` 与 `/two-factor/disable` 返回 403）。
 - `hooks.test.ts` 与 `captcha.test.ts`：同 IP 多账号第 4 次触发 `ip-multi-account` 告警、超限 `RATE_LIMITED`、人机验证防穷举与防重放。
 

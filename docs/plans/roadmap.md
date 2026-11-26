@@ -1,20 +1,20 @@
 # 路线图（v0.1）
 
-> 日期：2026-10-31 · 状态：定稿，随组件库选型一起拍板（ADR-0004 至 0020 全部 Accepted）
+> 日期：2026-10-31 · 2026-11-26 进度同步 · 状态：M0–M4 已全部落地，主站已上线并迭代至 `v0.1.15`；M5 剩余离线 Service Worker（`public/sw.js`）与离线页。
 > 范围以 [ADR-0003](../adr/0003-project-scope.md) 为准；技术选型以 [libraries.md](../libraries.md) 为准；各库怎么用以 [docs/conventions/](../conventions/README.md) 的落地规范为准。
 > 每个里程碑都要满足"完成标准"才进入下一个；完成标准里的界面项都要用 ego-browser 在 390px 和 1280px 两种宽度下实际操作。
 > 每个里程碑的依赖安装都要**先征得负责人同意**，安装前重新核对版本。
 
 ## 总览
 
-| 里程碑 | 内容 | 依赖新增 | 完成标准 |
+| 里程碑 | 内容 | 依赖新增 | 状态 |
 |---|---|---|---|
-| **M0 收尾初始化** | 提交本轮文档；demo-init Phase 4 收尾 | — | 见下 |
-| **M1 基础组件库** | Playbook 里完成全部通用组件 | `@base-ui/react`、`date-fns`、`@date-fns/tz` | 见下 |
-| **M2 板块专用组件** | Playbook 里完成五个板块和各页面的专用组件 | `react-day-picker`、`d3-shape` | 见下 |
-| **M3 业务基础设施** | 数据库、鉴权、接口、发信、AI、测试 | 服务端全部 | 见下 |
-| **M4 MVP 功能** | 按 ADR-0003 的 5 项依次接业务 | — | 见下 |
-| **M5 上线 v0.1** | HTTPS、PWA、首次发布、朋友试用 | — | 见下 |
+| **M0 收尾初始化** | 提交本轮文档；demo-init Phase 4 收尾 | — | ✅ 已完成 |
+| **M1 基础组件库** | Playbook 里完成全部通用组件 | `@base-ui/react`、`date-fns`、`@date-fns/tz` | ✅ 已完成 |
+| **M2 板块专用组件** | Playbook 里完成五个板块和各页面的专用组件 | `react-day-picker`、`d3-shape` | ✅ 已完成 |
+| **M3 业务基础设施** | 数据库、鉴权、接口、发信、AI、测试 | 服务端全部 | ✅ 已完成 |
+| **M4 MVP 功能** | 按 ADR-0003 的 5 项依次接业务（并扩展至好友、Agent 对话/裁判、Android APK 壳等） | `react-markdown` / `katex` / `mermaid`（ADR-0025） | ✅ 已完成 |
+| **M5 上线 v0.1** | HTTPS、首次发布、朋友试用、PWA（剩余 `public/sw.js` 与离线页） | — | 🚧 进行中（已上线 HTTPS 与 APK，剩余 SW/离线页） |
 
 M1、M2 只在 `/dev/playbook` 里做，用假数据，不接后端，可以和 M3 并行。
 
@@ -27,11 +27,11 @@ M1、M2 只在 `/dev/playbook` 里做，用假数据，不接后端，可以和 
 - [x] 其他会话的设计系统改动（Playbook、原子组件、Agent 组件、团团、批注工具）单独作为 #5 合并
 - [x] skills 注册表按默认绑定定稿（Phase 4.1）
 - [x] 交接说明（Phase 4.7，见 plan-demo-init-alignment.md 第 8 节）
-- [ ] 服务器 `.env` 与仓库模板对齐（加 `BETTER_AUTH_TELEMETRY=0`、去掉 `DEEPSEEK_MODEL`）
+- [x] 服务器 `.env` 与仓库模板对齐（加 `BETTER_AUTH_TELEMETRY=0`、去掉 `DEEPSEEK_MODEL`）
 
 **完成标准**：`dev` 上 `pnpm check`、`pnpm build` 通过；ADR-0004 至 0020 都有结论。
 
-## M1 基础组件库（Playbook）
+## M1 基础组件库（Playbook，✅ 已完成）
 
 规范：[ui-primitives.md](../conventions/ui-primitives.md)、[client-data-and-forms.md](../conventions/client-data-and-forms.md) 第 6 节、[ui-design-system.md](../conventions/ui-design-system.md)。
 
@@ -46,14 +46,14 @@ M1、M2 只在 `/dev/playbook` 里做，用假数据，不接后端，可以和 
 
 **完成标准**：每个组件在 Playbook 有演示和批注定稿；键盘可操作；手机上抽屉内输入框不被软键盘遮挡；首屏（主页外壳）不加载任何弹层代码。
 
-## M2 板块专用组件（Playbook）
+## M2 板块专用组件（Playbook，✅ 已完成）
 
 规范：[time-and-dates.md](../conventions/time-and-dates.md)、[ui-primitives.md](../conventions/ui-primitives.md) 第 6、7 节、[ai-and-quota.md](../conventions/ai-and-quota.md) 第 5 节。
 
 - 安装：`react-day-picker@10.0.2`（不装 `@daypicker/react`）、`d3-shape@3.2.0`
 - `src/lib/time/` 先写好纯函数（打卡日归属、周期键、睡眠区间），供组件演示用；测试在 M3 装好 Vitest 后补齐
 - 时间与日期：`DateField`、`TimeField`、`TimeRangeField`（睡眠跨午夜，自动算时长）、`Calendar`（打卡日历，已打卡的日子上色）
-- 图表：`LineChart`（体重、花费）、`WeekHeatmap`、`Sparkline`；营养素用现有 `ProgressRing`
+- 图表：`LineChart`（体重、花费）、`TrendLineChart`（近一年日历比例趋势图）、`WeekHeatmap`、`Sparkline`；营养素用现有 `ProgressRing`
 - 图片：`ImagePicker`（拍照 / 相册 → `src/lib/image/compress.ts` 压缩为 JPEG → 预览 → 识别中状态）
 - 动态表单：字段编辑器 + `SchemaForm`（字段类型固定清单）
 - 五个板块的打卡表单：运动（品类组合框、时长、强度）、饮食（拍照识别草稿、逐项调份量、餐次）、睡眠（时间区间、质量评分）、学业（逐条记录）、自定义（SchemaForm）
@@ -61,7 +61,7 @@ M1、M2 只在 `/dev/playbook` 里做，用假数据，不接后端，可以和 
 
 **完成标准**：五个板块的打卡流程都能在 Playbook 用假数据走通；手机和桌面布局都通过批注评审。
 
-## M3 业务基础设施
+## M3 业务基础设施（✅ 已完成）
 
 规范：[api-conventions.md](../conventions/api-conventions.md)、[database.md](../conventions/database.md)、[auth.md](../conventions/auth.md)、[ai-and-quota.md](../conventions/ai-and-quota.md)、[client-data-and-forms.md](../conventions/client-data-and-forms.md)、[testing.md](../conventions/testing.md)。
 
@@ -71,37 +71,37 @@ M1、M2 只在 `/dev/playbook` 里做，用假数据，不接后端，可以和 
   - **不装**：`@better-auth/drizzle-adapter`、`@hono/vercel`、`@types/nodemailer`、`vite-tsconfig-paths`（原因见 libraries.md）
   - pnpm 11 的 `allowBuilds`：drizzle-kit 会带进有 postinstall 的 esbuild，只放行 esbuild
 - 本地 Docker PostgreSQL（23432）+ 种子数据
-- 决定 `scripts/` 里 TypeScript 脚本（种子数据、OpenAPI 导出）的运行方式：Node 24 能直接跑 TS 但不认 `@/` 别名，候选是 `tsx`，走依赖变更流程
+- 决定 `scripts/` 里 TypeScript 脚本（种子数据、OpenAPI 导出）的运行方式：采用 `tsx`（已登记于 `docs/libraries.md`）
 - `src/server/env.ts` 用 zod 校验环境变量
-- Drizzle schema 与首个迁移；Better Auth（emailOTP、admin、twoFactor、数据库限流、`x-real-ip`、关闭遥测）；首次用 CLI 生成表时实测它能否读取 `auth.ts`（database.md 第 8 节）
+- Drizzle schema 与首个迁移；Better Auth（emailOTP、admin、twoFactor、数据库限流、`x-real-ip`、关闭遥测）
 - Hono `/api/v1` 骨架：统一错误体、`requireUser()`、CSRF、幂等键、限流中间件；OpenAPI 导出到 `docs/specs/api/openapi.json`
 - TanStack Query 客户端、query key 工厂、错误码文案表
 - Vitest：`src/lib/time/`、计价与额度、邮箱规范化的单元测试；`pnpm test` 加入 CI 和 Definition of Done
 - 部署闸门增加"切换版本前执行迁移、迁移前备份"（服务器操作，先问）
-- ESLint（修改前确认）：按各规范第"工具强制"节落地——`drizzle-orm` / `pg` 只在 `src/server/`；`hono` 只在接口层；`ai` / `@ai-sdk/deepseek` 只在 `src/server/ai/`；禁止 `uploadFile`；`src/server/ai/` 禁止 `node:fs`
+- ESLint：按各规范第"工具强制"节落地——`drizzle-orm` / `pg` 只在 `src/server/`；`hono` 只在接口层；`ai` / `@ai-sdk/deepseek` 只在 `src/server/ai/`；禁止 `uploadFile`；`src/server/ai/` 禁止 `node:fs`
 - 实战中修订规范：上面 9 份规范的条目被证实或推翻后，同步更新规范和对应的 lessons 文件
 
 **完成标准**：本地能用邮箱验证码登录并退出；`/api/health` 之外至少一个受保护接口带测试；CI 绿。
 
-## M4 MVP 功能（按 ADR-0003 顺序）
+## M4 MVP 功能（✅ 已完成，并扩展至 v0.1.15）
 
-1. 邮箱验证码登录 + 新人引导（昵称、预设头像、基础资料、是否上榜）
-2. 设定目标 + 五个板块手动打卡 + 每日满意度和体重
-3. 饮食拍照 AI 识别，以及每周额度与兑换码、IP 风控、最简后台（含全站日上限）
-4. 主页仪表盘（固定布局）+ 排行榜
-5. 待办（清单 + DDL）
+1. [x] 邮箱验证码登录 + 新人七步引导（昵称、预设头像、基础资料、目标与习惯、是否上榜）
+2. [x] 设定目标 + 五个板块手动/拍照打卡与昨日补卡 + 每日满意度/体重近一年趋势
+3. [x] 饮食/多模态智能拍照 AI 识别、Agent 裁判与全量对话工具，以及每周额度与兑换码、IP 风控、后台管理（含全站日上限）
+4. [x] 主页仪表盘（含顶部鸡汤跑马灯、本周有效范围热力图）+ 好友体系与排行榜
+5. [x] 待办（清单 + 分组/标签 + 四象限 + 时间日志/归档 + DDL）
 
 每项先写 `docs/specs/` 里的 PRD（含架构基线第 8 节的边界条件），再实现。
 
 **完成标准**：每项都有 PRD、接口出现在 OpenAPI 里、关键纯函数有测试、ego-browser 在两种宽度下走通验收步骤。
 
-## M5 上线 v0.1
+## M5 上线 v0.1（🚧 进行中）
 
-- DNS：`daydayon` A 记录改为 `8.162.4.159`；签 HTTPS 证书，Nginx 换成正式站点配置
-- 服务器 `.env` 填 SMTP 与 DeepSeek 密钥；生产数据库迁移
-- PWA：按 [pwa.md](../conventions/pwa.md) 实现 `manifest.ts`、图标、`public/sw.js`、离线页
-- `MAINECS_DEPLOY_ENABLED` 改为 `true`，负责人同意后第一次 `dev → main` 发布
-- 朋友试用两周后按 ADR-0003 重审范围
+- [x] DNS：`daydayon` 公网 HTTPS 证书与正式站点配置
+- [x] 服务器 `.env` 配置 SMTP 与 DeepSeek 密钥、生产数据库启动迁移（`instrumentation.ts`）
+- [x] `MAINECS_DEPLOY_ENABLED` 启用并通过 `dev → main` 持续发布至 `v0.1.15`（含 Android 混合壳 APK）
+- [x] PWA 基础项：`src/app/manifest.ts`、`/icons/[name]` 动态图标、开屏动画
+- [ ] PWA 离线项：按 [pwa.md](../conventions/pwa.md) 补齐手写 `public/sw.js` 与离线兜底页
+- [ ] 朋友试用后按 ADR-0003 持续重审下一阶段范围
 
-**完成标准**：公网 HTTPS 可用；在 iPhone 和安卓上安装到桌面并完成一次完整打卡；额度、限流、封号在后台可见可操作。
-
+**完成标准**：公网 HTTPS 可用；在 iPhone 和安卓上安装到桌面并完成一次完整打卡；额度、限流、封号在后台可见可操作；离线兜底与 SW 更新链路可用。

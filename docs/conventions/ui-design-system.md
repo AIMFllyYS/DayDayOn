@@ -1,6 +1,6 @@
 # 页面设计规范（设计系统 v0.2）
 
-> 日期：2026-10-31 · 2026-11-01 按第一轮批注（[reviews/annotations-20261101-1141.json](../designs/reviews/annotations-20261101-1141.json)）修订 · 状态：草案，在 Playbook 里评审后定稿
+> 日期：2026-10-31 · 2026-11-26 按当前实现同步修订 · 状态：现行（已按 Playbook 评审定稿并持续同步；历史批注见 [reviews/annotations-20261101-1141.json](../designs/reviews/annotations-20261101-1141.json)）
 > 实际效果：本地 `pnpm dev` 后打开 <http://localhost:23329/dev/playbook>（只在开发环境可见）
 > 本文取代架构基线 7.4 节"在 Pencil 里先定设计 token"的做法：设计稿直接用代码写在 Playbook 里。
 
@@ -22,8 +22,8 @@
 | 设计 token | `src/app/globals.css` | 颜色、字号、圆角、阴影、缓动、动画预设 |
 | 原子组件 | `src/components/ui/` | 无业务逻辑：按钮、卡片、徽章、进度、表单控件、滑块、弹层、人机验证、媒体选择、反馈、日历、图标 |
 | Markdown 渲染 | `src/components/markdown/` | AI 输出渲染 `<Markdown>`（GFM、流式语法补全、`math.tsx` KaTeX 懒加载、`diagram.tsx` Mermaid 懒加载） |
-| 图表组件 | `src/components/charts/` | 周热力图（`WeekHeatmap`）、折线图（`LineChart`）、柱状图（`BarChart`）、迷你趋势线（`Sparkline`）与线性比例尺 |
-| 布局组件 | `src/components/layout/` | 应用外壳、底部导航、侧栏、顶栏、导航项配置、开屏（`Splash`） |
+| 图表组件 | `src/components/charts/` | 周热力图（`WeekHeatmap`）、折线图（`LineChart`）、近一年日历比例趋势图（`TrendLineChart`）、柱状图（`BarChart`）、迷你趋势线（`Sparkline`）与线性比例尺 |
+| 布局组件 | `src/components/layout/` | 应用外壳、底部导航、侧栏、顶栏、导航项配置、页面转场（`PageTransition`）、开屏（`Splash`） |
 | 吉祥物 | `src/components/mascot/` | 4 只吉祥物绘制（`MascotSvg`）、静态版（`Mascot`）、互动版（`InteractivePet`）、预设头像（`PresetAvatar`） |
 | 领域组件 | `src/features/<领域>/components/` | 带业务含义：Agent、打卡、目标 |
 | 页面 | `src/app/(app)/…` | 只做组合 |
@@ -122,7 +122,7 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 - **圆角**：`sm 8 · md 12 · lg 16 · xl 20 · 2xl 24 · 3xl 32 · full`。卡片 2xl，弹层 3xl，输入框 xl，按钮和徽章 full，图标底座 lg–2xl。
 - **阴影**（暖棕色、低透明度）：`soft` 列表和次按钮；`card` 默认卡片；`float` 弹层、悬浮导航和悬停态；`sticker` 贴纸卡片（白描边 + 投影，每屏不超过 2 张）；`primary` 主色按钮的彩色投影。
 - **间距**：沿用 Tailwind 的 4px 栅格。页面左右边距手机 16px、桌面 32px；卡片内边距 16 / 20px；卡片之间 12px。
-- **底纹**：`bg-paper` 是手账点阵纸，只用于应用背景，卡片内部保持纯色。
+- **底纹与状态质感**：`bg-paper` 是手账点阵纸，只用于应用背景，卡片内部保持纯色；进入昨日补卡模式时页面切换为暖复古纸底 `bg-makeup-paper` 并叠加非交互噪点颗粒层 `.makeup-grain-overlay`（不阻塞触控与表单交互）。
 
 ## 5. 动效
 
@@ -137,10 +137,14 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 | `--dur-base` | 220ms | 开关、分段切换、展开 |
 | `--dur-slow` | 360ms | 进场、弹层、进度变化 |
 | `--dur-celebrate` | 720ms | 盖章等庆祝动画 |
+| `--dur-page-tab` | 280ms | 一级导航 Tab 轻盈渐入 |
+| `--dur-page-pop` | 460ms | 返回上一级页面左向右回落 |
+| `--dur-page-expand` | 580ms | 从点击聚焦点径向展开全屏 |
+| `--dur-page-push` | 580ms | 二级子页面自右向左舒缓推入 |
 
-**缓动**：`ease-standard` 普通过渡；`ease-out-soft` 进场；`ease-in-soft` 退场；`ease-spring` 按压回弹、开关、选中（有过冲）。
+**缓动**：`ease-standard` 普通过渡；`ease-out-soft` 进场；`ease-in-soft` 退场；`ease-spring` 按压回弹、开关、选中（有过冲）；`ease-page` 页面级推入/回落/径向展开转场曲线。
 
-**预设**（`globals.css` `@theme`）：`--animate-fade-in`、`--animate-fade-out`、`--animate-fade-up`、`--animate-pop-in`、`--animate-sheet-up`、`--animate-sheet-down`、`--animate-stamp`、`--animate-wiggle`、`--animate-shake`、`--animate-wave-bob`、`--animate-confetti`、`--animate-caret`（流式光标闪烁）、`--animate-scan-sweep`（智能识别扫描线往复扫光）、`--animate-splash-hop` 与 `--animate-splash-out`（开屏起跳与圆心挖洞退场），以及循环类的 `--animate-breathe`、`--animate-float`、`--animate-shimmer`、`--animate-spin-slow`。
+**预设**（`globals.css` `@theme`）：`--animate-fade-in`、`--animate-fade-out`、`--animate-fade-up`、`--animate-content-reveal`、`--animate-pop-in`、`--animate-sheet-up`、`--animate-sheet-down`、`--animate-page-push`、`--animate-page-pop`、`--animate-page-expand`、`--animate-page-tab`、`--animate-stamp`、`--animate-wiggle`、`--animate-shake`、`--animate-wave-bob`、`--animate-confetti`、`--animate-caret`（流式光标闪烁）、`--animate-scan-sweep`（智能识别扫描线往复扫光）、`--animate-splash-hop` 与 `--animate-splash-out`（开屏起跳与圆心挖洞退场），以及循环类的 `--animate-breathe`、`--animate-float`、`--animate-shimmer`、`--animate-spin-slow`、`--animate-marquee-x`（顶部问候语溢出跑马灯）。
 
 **统一手感**：
 
@@ -157,7 +161,7 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 - 动画期间按钮必须可点，动画不能阻塞操作。
 - 系统开启"减少动态效果"时，`globals.css` 把所有动画和过渡缩短到 1ms，只保留最终状态。
 
-动效全部用 CSS 实现，不引入动效库（[ADR-0005](../adr/0005-motion.md)，2026-10-31 拍板，取代架构基线 7.1 选 Motion 的结论）。弹层进退场用 Base UI 的 `data-starting-style` / `data-ending-style`，列表增删和页面切换用 React `<ViewTransition>`，写法见 [ui-primitives.md](./ui-primitives.md) 第 5 节。
+动效全部用 CSS 实现，不引入动效库（[ADR-0005](../adr/0005-motion.md)，2026-10-31 拍板，取代架构基线 7.1 选 Motion 的结论）。弹层进退场用 Base UI 的 `data-starting-style` / `data-ending-style`，页面转场由 `src/lib/motion.ts` 与 `PageTransition` 统一调度，列表增删和同屏切换按需配合 React `<ViewTransition>`，写法见 [ui-primitives.md](./ui-primitives.md) 第 5 节。
 
 ## 6. 原子组件
 
@@ -166,6 +170,7 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 | `Button` / `IconButton` | `button.tsx` | 变体 primary / secondary / soft / ghost / danger；md 高 44px 是默认；`loading` 保持宽度；图标按钮必须传 `label`。primary 只给一个区域里唯一的主操作，实底上的图标只画描边 |
 | `Card` / `CardHeader` | `card.tsx` | 变体 plain / sticker / sunken / outline；`interactive` 加悬停和按压 |
 | `Collapse` | `collapse.tsx` | CSS `grid-template-rows` 平滑折叠容器，`inert` 防收起态聚焦，支持 `unmountOnCollapse`（待办分组与打卡文件夹共用） |
+| `MarqueeText` | `marquee-text.tsx` | 固定行高单行条件横向跑马灯：仅文字净宽度超出容器时启用双轨无缝滚动与 `.marquee-mask` 渐隐，支持悬停/按住暂停与减少动态效果降级 |
 | `Badge` / `IconTile` | `badge.tsx` | soft 底 + ink 字；`dot` 表示状态 |
 | `ProgressBar` / `ProgressRing` / `StepProgress` | `progress.tsx` | 都有 `role="progressbar"` 和 `label`；`active` 表示进行中；分段进度用于一天多次的目标 |
 | `Field` / `Input` / `Textarea` | `field.tsx` | Base UI Field / Input：标签、提示、错误自动关联；错误文案替换提示；`aria-invalid` 驱动错误样式 |
@@ -176,11 +181,12 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 | `OTPField` | `otp-field.tsx` | 6 位数字验证码输入：支持粘贴、自动跳格、退格回退，填满自动触发 `onComplete` |
 | `Checkbox` | `checkbox.tsx` | Base UI Checkbox：待办勾选与多选框，外层保证 44×44px 触控区 |
 | `DateField` / `TimeField` / `TimeRangeField` | `date-field.tsx`、`time-field.tsx`、`time-range-field.tsx` | 原生日期与时间输入（ADR-0007）；`TimeRangeField` 跨午夜自动标"次日"并实时计算睡眠时长 |
+| `TimePicker` | `time-picker.tsx` | 共享手账 24 小时×分钟双列滚轮时间选择器（`TimeField` / `TimeRangeField` 与睡眠打卡复用） |
 | `ImagePicker` | `image-picker.tsx` | 接入 `useMediaPicker` 选图 / 拍照（支持同时上传 2 张）+ 内存 Canvas 压缩预览（仅 JPEG 0.8、像素面积 ≤ 1300×1300、上限 4MB，ADR-0011），不落盘 |
 | `PhotoAlbumSheet` | `photo-album-sheet.tsx` | 安卓客户端专属流式缩略图无限下滑多选相册，支持目录筛选、1..`maxSelect` 顺序点选与 Android 14+ 部分照片授权增选 |
 | `useMediaPicker` | `use-media-picker.tsx` | 跨平台媒体选择调度器：网页端同步拉起原生 `<input type="file">`，安卓壳内优先调用原生高清相机或 `PhotoAlbumSheet` |
 | `TurnstileField` | `turnstile.tsx` | 自托管手账点选人机验证弹窗（ADR-0023）：Base UI Dialog + `<canvas>` 错版印刷图标点选，通过 `ref.open()` 唤起 |
-| `Switch` | `switch.tsx` | Base UI Switch，`role="switch"`，外层 44px 触控区 |
+| `Switch` | `switch.tsx` | 自研开关（`<button role="switch">`），外层保证 44px 触控区 |
 | `SegmentedControl` | `segmented-control.tsx` | 自研 `role="radiogroup"` 页面内视图切换，支持等宽滑块平移与方向键切换 |
 | `Rating` | `rating.tsx` | 满意度 1–5，选中项用板块色；选中时有情绪反馈（第 5 节），`feedback={false}` 关闭 |
 | `MenuList` / `MenuItem` | `menu-list.tsx` | 设置列表；`danger` 用于退出登录、注销 |
@@ -202,8 +208,9 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 
 | 组件 | 文件 | 要点 |
 |---|---|---|
-| `WeekHeatmap` | `charts/week-heatmap.tsx` | 周一到周日 × 板块本周热力表（`<table>`），4 档完成度（0 / (0, 0.5) / [0.5, 1) / ≥1）与未达标存档虚线斜纹格 |
+| `WeekHeatmap` | `charts/week-heatmap.tsx` | 周一到周日 × 板块本周热力表（`<table>`），4 档完成度（0 / (0, 0.5) / [0.5, 1) / ≥1）、有效打卡范围内/外区分与未达标存档虚线斜纹格 |
 | `LineChart` | `charts/line-chart.tsx` | 单折线 + 渐变面积图（体重趋势、每日 AI 花费），非负数据 Y 轴下界不低于 0 |
+| `TrendLineChart` | `charts/trend-line-chart.tsx` | 真实日历比例近一年体重/心情趋势图：超 30 天空白改虚线桥接、顶部固定 24px 读数条、标记 `data-base-ui-swipe-ignore` 避免底部抽屉手势冲突 |
 | `BarChart` | `charts/bar-chart.tsx` | 按天柱状图（运动时长、睡眠时长、得分），支持虚线门槛（`threshold`），达标柱用板块实色、未达标用浅色 |
 | `Sparkline` | `charts/sparkline.tsx` | 卡片内迷你趋势线（主页体重卡），固定尺寸无刻度，跳过 `null` 点并高亮末点 |
 | `Markdown` | `markdown/index.tsx`（含 `elements.tsx`、`code.tsx`、`math.tsx`、`diagram.tsx`） | AI 输出统一渲染入口（ADR-0025）：支持 GFM、`remend` 流式语法补全、KaTeX 公式与 Mermaid 图示按需懒加载、外链白名单与外图降级 |
@@ -312,7 +319,7 @@ python -m fontTools.varLib.instancer Fredoka.ttf wdth=100 wght=400:700 -o Fredok
 - 互动版只出现在「我的」页和打卡成功时；列表、头像用静态版。一屏不放两只互动团团。
 - 不遮挡内容或按钮；不用团团传达错误详情，错误说明写在文字里。
 
-**悬浮宠物（Agent 入口，ADR-0024）**：应用内常驻一只 `FloatingPet`（`src/features/agent/`），以 **纯 IP 形象（`MascotSvg`）直接作为悬浮按钮**，不画生硬的圆形白圈底托，通过 SVG alpha 轮廓柔和投影呈现轻盈立体浮空感。点开 Agent 弹窗、拖动、长按晃悠、双击转圈，边缘吸附露半头、顶部倒立、底部受 Dock 栏阻挡。形象与名字实时同步用户偏好（`tuan` 团团 / `dun` 墩墩 / `mian` 绵绵 / `you` 柚柚）。它是「互动版」的特例：全站显示，但在「我的」页（已有一只互动宠物）、好友空间视角和全屏 `/agent` 页隐藏，遵守「一屏不放两只互动宠物」；位置记在 localStorage。弹窗 `AgentPanel` 手机顶部留 1/4（25vh）、左侧留 1/5（20vw），桌面右下角卡片；顶栏左上角为明确的全屏放大按钮，右侧接标题（默认取当前伙伴名），历史对话使用 Popover 挂载至 Portal 顶层（`z-[60]`）并带有防截断碰撞检测；底部输入框为单行紧凑布局，浮动「深度思考」开关在 AI 输出时自动隐藏。这同时取代第 7 节「底栏之外的悬浮按钮不放右下角」——悬浮宠物是唯一的例外。
+**悬浮宠物（Agent 入口，ADR-0024）**：应用内常驻一只 `FloatingPet`（`src/features/agent/`），以 **纯 IP 形象（`MascotSvg`）直接作为悬浮按钮**，不画生硬的圆形白圈底托，通过 SVG alpha 轮廓柔和投影呈现轻盈立体浮空感。点开 Agent 弹窗、拖动、长按晃悠、双击转圈，边缘吸附露半头、顶部倒立、底部受 Dock 栏阻挡。形象与名字实时同步用户偏好（`tuan` 团团 / `dun` 墩墩 / `mian` 绵绵 / `you` 柚柚）。它是「互动版」的特例：全站显示，但在「我的」页（已有一只互动宠物）、好友空间视角和全屏 `/agent` 页隐藏，遵守「一屏不放两只互动宠物」；位置记在 localStorage。弹窗 `AgentPanel` 手机顶部留 1/4（25vh）、左侧留 1/5（20vw），桌面右下角卡片；顶栏左上角为明确的全屏放大按钮，右侧接标题（默认取当前伙伴名），历史对话使用 Popover 挂载至 Portal 顶层（`z-[60]`）并带有防截断碰撞检测；底部输入框为单行紧凑布局，浮动「深度思考」开关在 AI 输出时自动隐藏。与第 7 节一致：右下角仅允许悬浮宠物与 `/todo` 页的新建待办悬浮球两处例外，在 `/todo` 页悬浮宠物自动抬高底部避让高度，避免重叠。
 
 ## 10. 可访问性
 

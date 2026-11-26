@@ -62,3 +62,8 @@
 - 规则：在 `rateLimit.customRules` 中显式为 `AUTH_PATHS.signInOtp` 配置 `{ window: 60, max: 30 }`，单验证码防爆破由 `emailOTP({ allowedAttempts: 8 })` 负责。
 - 元：better-auth@1.7.14 | 2026-11-02 | 候选毕业方向：已沉淀到 `src/server/auth/auth.ts`与 `paths.ts`
 
+### 未配 session.expiresIn 且 RSC/Hono 丢弃续期 Set-Cookie 导致频繁掉登录
+- 症状：活跃用户几天即自动登出；或在 Server Component 调 `getSession` 后库中 `expiresAt` 被静默刷新但浏览器 Cookie 的 `Max-Age` 未更新，Hono 路由也未透传续期 Cookie。
+- 根因：Better Auth 默认会话 7 天硬过期；RSC 无法写响应头却默认触发库内续期，而 Hono 未传 `returnHeaders: true` 并在 `next()` 后追加 `Set-Cookie`。
+- 规则：在 `session-config.ts` 显式配置 30 天滑动窗口（`expiresIn: 30d` / `updateAge: 24h`）；RSC 读会话传 `disableRefresh: true`，仅 Hono 中间件以 `returnHeaders: true` 续期并在 `await next()` 后写入 `Set-Cookie`，Android 壳定期 `CookieManager.flush()`。
+- 元：better-auth@1.7.14 | 2026-11-26 | 候选毕业方向：已沉淀到 `src/server/auth/session-config.ts`、`session.ts` 与 `src/server/api/middleware/auth.ts`
