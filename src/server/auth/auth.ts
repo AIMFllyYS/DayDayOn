@@ -8,6 +8,7 @@ import { env } from '@/server/env'
 import { sendOtp } from '@/server/mail'
 import { afterHook, beforeHook, databaseHooks } from './hooks'
 import { AUTH_PATHS } from './paths'
+import { SESSION_POLICY } from './session-config'
 import { twoFactorPlugins } from './two-factor-gate'
 
 /*
@@ -32,6 +33,8 @@ export const auth = betterAuth({
   },
   trustedOrigins: () => [env.NEXT_PUBLIC_APP_URL],
   database: drizzleAdapter(db, { provider: 'pg', schema }),
+  // 30 天滑动窗口（不开启 cookieCache，封禁与吊销始终实时查库）
+  session: SESSION_POLICY,
   // 只用邮箱验证码登录
   emailAndPassword: { enabled: false },
   telemetry: { enabled: false },

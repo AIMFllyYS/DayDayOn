@@ -23,31 +23,54 @@ function fail(c: Context<AppEnv>, error: ApiError): Response {
   return c.json(error.toBody(), error.status)
 }
 
-/** 取会话 + 实时状态并判定（封禁状态查库，不信任会话缓存） */
-async function resolveUser(
-  c: Context<AppEnv>,
-): Promise<{ user: SessionUser; state: AccountState } | ApiError> {
+function appendSetCookies(c: Context<AppEnv>, setCookies: readonly string[]): void {
+  for (const cookie of setCookies) {
+    c.header('Set-Cookie', cookie, { append: true })
+  }
+}
+
+type ResolveResult =
+  | { ok: true; user: SessionUser; state: AccountState; setCookies: string[] }
+  | { ok: false; error: ApiError; setCookies: string[] }
+
+/** 取会话 + 实时状态并判定（封禁状态查库，不信任会话缓存），同步收集滑动续期或失效清理 Set-Cookie */
+async function resolveUser(c: Context<AppEnv>): Promise<ResolveResult> {
   const { getSessionFromHeaders } = await import('@/server/auth/session')
-  const session = await getSessionFromHeaders(c.req.raw.headers)
-  if (!session) return new ApiError('UNAUTHENTICATED', '未登录或会话已过期')
+  const setCookies: string[] = []
+  const session = await getSessionFromHeaders(c.req.raw.headers, {
+    onSetCookie: (cookies) => setCookies.push(...cookies),
+  })
+  if (!session) {
+    return { ok: false, error: new ApiError('UNAUTHENTICATED', '未登录或会话已过期'), setCookies }
+  }
   const state = await loadAccountState(session.user.id)
   const error = checkAccount(state, new Date())
-  if (error) return error
-  if (!state) return new ApiError('UNAUTHENTICATED', '用户不存在')
-  return { user: session.user, state }
+  if (error) return { ok: false, error, setCookies }
+  if (!state) {
+    return { ok: false, error: new ApiError('UNAUTHENTICATED', '用户不存在'), setCookies }
+  }
+  return { ok: true, user: session.user, state, setCookies }
 }
 
 /**
  * 取会话写入 c.set('user') 与 c.set('ip')（ip 只取 x-real-ip，本地记 127.0.0.1）。
  * 无会话 401 UNAUTHENTICATED；被封 403 ACCOUNT_BANNED（带 ban）。
+ * 在 await next() 之后追加 Set-Cookie，兼容 c.json()、原始 SSE Response 与幂等重放。
  */
 export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
   c.set('ip', clientIp(c.req.raw.headers))
   const r = await resolveUser(c)
-  if (r instanceof ApiError) return fail(c, r)
+  if (!r.ok) {
+    appendSetCookies(c, r.setCookies)
+    return fail(c, r.error)
+  }
   c.set('user', r.user)
   accountStates.set(c.req.raw, r.state)
-  await next()
+  try {
+    await next()
+  } finally {
+    appendSetCookies(c, r.setCookies)
+  }
 })
 
 /**
@@ -70,10 +93,20 @@ export const requireOnboarded = createMiddleware<AppEnv>(async (c, next) => {
 export const requireAdmin = createMiddleware<AppEnv>(async (c, next) => {
   c.set('ip', clientIp(c.req.raw.headers))
   const r = await resolveUser(c)
-  if (r instanceof ApiError) return fail(c, r)
+  if (!r.ok) {
+    appendSetCookies(c, r.setCookies)
+    return fail(c, r.error)
+  }
   const error = checkAdmin(r.user)
-  if (error) return fail(c, error)
+  if (error) {
+    appendSetCookies(c, r.setCookies)
+    return fail(c, error)
+  }
   c.set('user', r.user)
   accountStates.set(c.req.raw, r.state)
-  await next()
+  try {
+    await next()
+  } finally {
+    appendSetCookies(c, r.setCookies)
+  }
 })

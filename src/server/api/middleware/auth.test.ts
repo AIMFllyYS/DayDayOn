@@ -19,10 +19,17 @@ interface FakeUser {
 const mocks = vi.hoisted(() => ({
   session: null as { user: FakeUser; session: { id: string } } | null,
   state: null as AccountState | null,
+  setCookies: [] as string[],
 }))
 
 vi.mock('@/server/auth/session', () => ({
-  getSessionFromHeaders: async () => mocks.session,
+  getSessionFromHeaders: async (
+    _headers: Headers,
+    options?: { onSetCookie?: (cookies: string[]) => void },
+  ) => {
+    if (mocks.setCookies.length > 0) options?.onSetCookie?.(mocks.setCookies)
+    return mocks.session
+  },
 }))
 vi.mock('@/server/auth/account-state', () => ({
   loadAccountState: async () => mocks.state,
@@ -53,6 +60,12 @@ const adminRoute = createRoute({
 const probe = new OpenAPIHono<AppEnv>()
   .openapi(meRoute, (c) => c.json({ userId: c.get('user').id, ip: c.get('ip') }, 200))
   .openapi(adminRoute, (c) => c.json({ userId: c.get('user').id, ip: c.get('ip') }, 200))
+  .post('/probe/sse', requireUser, () => {
+    return new Response('data: ok\n\n', {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' },
+    })
+  })
 
 const user = (over: Partial<FakeUser> = {}): FakeUser => ({
   id: 'u1',
@@ -78,6 +91,7 @@ function login(u: FakeUser, s: AccountState | null = state()) {
 beforeEach(() => {
   mocks.session = null
   mocks.state = null
+  mocks.setCookies = []
 })
 
 describe('requireUser + requireOnboarded', () => {
@@ -155,5 +169,50 @@ describe('requireAdmin', () => {
     login(user({ role: 'admin', twoFactorEnabled: true }), state({ onboardedAt: null }))
     const res = await probe.request('/probe/admin')
     expect(res.status).toBe(200)
+  })
+})
+
+describe('Set-Cookie 续期与失效清理透传', () => {
+  const renewedCookie = 'better-auth.session_token=tok; Path=/; HttpOnly; Max-Age=2592000'
+  const clearedCookie = 'better-auth.session_token=; Path=/; HttpOnly; Max-Age=0'
+
+  it('requireUser 成功 JSON 响应透传多条续期 Set-Cookie', async () => {
+    login(user())
+    mocks.setCookies = [renewedCookie, 'better-auth.extra=1; Path=/']
+    const res = await probe.request('/probe/me')
+    expect(res.status).toBe(200)
+    expect(res.headers.getSetCookie()).toEqual([renewedCookie, 'better-auth.extra=1; Path=/'])
+  })
+
+  it('requireUser 原始 SSE Response（如 Agent / 裁判流）同样透传续期 Set-Cookie', async () => {
+    login(user())
+    mocks.setCookies = [renewedCookie]
+    const res = await probe.request('/probe/sse', { method: 'POST' })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('text/event-stream')
+    expect(res.headers.getSetCookie()).toEqual([renewedCookie])
+    expect(await res.text()).toBe('data: ok\n\n')
+  })
+
+  it('401 失效会话透传 Max-Age=0 清理头', async () => {
+    mocks.session = null
+    mocks.setCookies = [clearedCookie]
+    const res = await probe.request('/probe/me')
+    expect(res.status).toBe(401)
+    expect(res.headers.getSetCookie()).toEqual([clearedCookie])
+  })
+
+  it('requireAdmin 成功与 403 拒绝分支均透传 Set-Cookie', async () => {
+    login(user({ role: 'admin', twoFactorEnabled: true }))
+    mocks.setCookies = [renewedCookie]
+    const okRes = await probe.request('/probe/admin')
+    expect(okRes.status).toBe(200)
+    expect(okRes.headers.getSetCookie()).toEqual([renewedCookie])
+
+    login(user({ role: 'user', twoFactorEnabled: true }))
+    mocks.setCookies = [renewedCookie]
+    const deniedRes = await probe.request('/probe/admin')
+    expect(deniedRes.status).toBe(403)
+    expect(deniedRes.headers.getSetCookie()).toEqual([renewedCookie])
   })
 })

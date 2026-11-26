@@ -151,6 +151,7 @@ class MainActivity : Activity() {
                 if (!mainFrameLoadFailed) {
                     errorPanel.visibility = View.GONE
                 }
+                CookieManager.getInstance().flush()
                 mainHandler.postDelayed({ dismissNativeSplash() }, 180L)
             }
 
@@ -420,7 +421,18 @@ class MainActivity : Activity() {
         ApkUpdater.onHostResume(this)
     }
 
+    override fun onPause() {
+        CookieManager.getInstance().flush()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        CookieManager.getInstance().flush()
+        super.onStop()
+    }
+
     override fun onDestroy() {
+        CookieManager.getInstance().flush()
         mainHandler.removeCallbacksAndMessages(null)
         stepCounterManager.stopListening()
         CameraTempFileProvider.cleanupStaleFiles(this)

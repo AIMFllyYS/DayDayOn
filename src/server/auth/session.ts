@@ -22,20 +22,40 @@ export interface Session {
   session: SessionData
 }
 
-/**
- * 按请求头取会话（Hono 中间件用 `c.req.raw.headers`）。没有会话返回 null。
- */
-export async function getSessionFromHeaders(headers: Headers): Promise<Session | null> {
-  const result = await auth.api.getSession({ headers })
-  return result ?? null
+export interface GetSessionOptions {
+  /** 只读校验不触发滑动续期写库（供 Server Component 使用，避免抢先更新 DB 却无法发 Set-Cookie） */
+  disableRefresh?: boolean
+  /** 收集 Better Auth 返回的 Set-Cookie（续期或失效清理），由 Hono 中间件写回浏览器 */
+  onSetCookie?: (cookies: string[]) => void
 }
 
 /**
- * Server Component 里读取会话（内部 `auth.api.getSession({ headers: await headers() })`）。
+ * 按请求头取会话（Hono 中间件用 `c.req.raw.headers`）。没有会话返回 null。
+ * 默认启用 returnHeaders，将滑动续期或失效清理产生的 Set-Cookie 通过回调交给响应层透传。
+ */
+export async function getSessionFromHeaders(
+  headers: Headers,
+  options?: GetSessionOptions,
+): Promise<Session | null> {
+  if (options?.disableRefresh) {
+    const result = await auth.api.getSession({ headers, query: { disableRefresh: true } })
+    return result ?? null
+  }
+  const { response, headers: resHeaders } = await auth.api.getSession({
+    headers,
+    returnHeaders: true,
+  })
+  const setCookies = resHeaders.getSetCookie()
+  if (setCookies.length > 0) options?.onSetCookie?.(setCookies)
+  return response ?? null
+}
+
+/**
+ * Server Component 里读取会话（只读不续期，防止抢先推进 DB expires_at 饿死后续 /api/v1 续期 Cookie）。
  * 必须在 <Suspense> 内调用。同一请求内用 React cache() 去重。没登录返回 null。
  */
 export const getSession = cache(async (): Promise<Session | null> => {
-  return getSessionFromHeaders(await headers())
+  return getSessionFromHeaders(await headers(), { disableRefresh: true })
 })
 
 /**

@@ -41,11 +41,14 @@ function isErrorBody(v: unknown): v is ApiErrorBody {
   return typeof v === 'object' && v !== null && typeof (v as { code?: unknown }).code === 'string'
 }
 
-/** 401 时跳登录页（带回跳地址）；已经在登录页时不跳 */
+let redirectingToLogin = false
+
+/** 401 时跳登录页（带回跳地址）；已经在登录页或已在跳转时不重复跳 */
 function redirectToLogin(): void {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || redirectingToLogin) return
   const { pathname, search } = window.location
   if (pathname === '/login') return
+  redirectingToLogin = true
   // fetcher 不在 React 渲染里，拿不到 router；整页跳转同时清掉内存里的查询缓存
   const url = new URL('/login', window.location.origin)
   url.searchParams.set('next', `${pathname}${search}`)
