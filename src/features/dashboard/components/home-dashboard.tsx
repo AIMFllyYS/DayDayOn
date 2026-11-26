@@ -35,6 +35,8 @@ export interface HomeDashboardProps {
   friendUserId?: string
   /** 顶部好友视角提示条 */
   friendBanner?: ReactNode
+  /** 静态演示语录（Playbook 预览专用，避免多实例读写 localStorage） */
+  staticQuote?: string
   /** 各板块近况（近 7 天），本人与好友视角均支持 */
   insights?: Insights
 }
@@ -49,6 +51,7 @@ export function HomeDashboard({
   readOnly = false,
   friendUserId,
   friendBanner,
+  staticQuote,
   insights,
 }: HomeDashboardProps) {
   if (!data.hasGoals) {
@@ -86,8 +89,8 @@ export function HomeDashboard({
         </div>
       )}
 
-      <div className="grid content-start gap-3">
-        {!friendBanner && <DailyQuoteCard completion={data.completion} />}
+      <div className="grid min-w-0 content-start gap-3">
+        {!friendBanner && <DailyQuoteCard completion={data.completion} staticQuote={staticQuote} />}
         <SummaryCard
           localDate={data.localDate}
           completion={data.completion}

@@ -186,6 +186,7 @@ export function HomeScreen({ thumb = false }: { thumb?: boolean }) {
       data={currentData}
       now={DEMO_NOW}
       timeZone="Asia/Shanghai"
+      staticQuote="不必把今天过成一场考试，哪怕只是按时吃饭、出门走走，也已经是很棒的一天了"
       onOpenWeight={() => launcher.open('weight')}
       onOpenMood={() => launcher.open('mood')}
       onOpenSteps={() => launcher.open('steps')}

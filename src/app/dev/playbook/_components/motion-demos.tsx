@@ -25,6 +25,7 @@ const presets = [
   { cls: 'animate-breathe', name: 'breathe', use: 'AI 思考中的呼吸点（循环）' },
   { cls: 'animate-float', name: 'float', use: '吉祥物待机、空状态（循环）' },
   { cls: 'animate-shimmer bg-shimmer', name: 'shimmer', use: '骨架屏、进行中的扫光（循环）' },
+  { cls: 'animate-marquee-x', name: 'marquee-x', use: '单行溢出条件横滚（悬停/按压暂停）' },
 ] as const
 
 /** 动画预设：点"重播"换 key，让元素重新挂载 */
@@ -42,9 +43,29 @@ export function PresetGallery() {
             data-ann={`playbook.motion.preset.${p.name}`}
             className="border-border bg-surface flex flex-col overflow-hidden rounded-2xl border"
           >
-            <div className="bg-paper flex h-28 items-center justify-center overflow-hidden">
+            <div className="bg-paper flex h-28 items-center justify-center overflow-hidden px-4">
               {p.name === 'stamp' ? (
                 <Stamp key={round} caption="10.31" animate size={72} />
+              ) : p.name === 'marquee-x' ? (
+                <div
+                  key={round}
+                  className="marquee-root marquee-mask border-primary/20 bg-primary-soft/35 flex h-9 w-full max-w-[14rem] items-center overflow-hidden rounded-full border px-3"
+                >
+                  <div
+                    className="marquee-track animate-marquee-x flex w-max shrink-0 items-center"
+                    style={{ '--marquee-duration': '9s' } as React.CSSProperties}
+                  >
+                    <span className="text-caption text-foreground shrink-0 pr-10 font-semibold whitespace-nowrap">
+                      慢慢来，你已经走在路上了，今天也记得好好照顾自己
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="text-caption text-foreground shrink-0 pr-10 font-semibold whitespace-nowrap"
+                    >
+                      慢慢来，你已经走在路上了，今天也记得好好照顾自己
+                    </span>
+                  </div>
+                </div>
               ) : (
                 <span
                   key={round}

@@ -4,13 +4,23 @@ import { DailyQuoteCard } from './daily-quote-card'
 import { SummaryCard } from './summary-card'
 
 describe('DailyQuoteCard', () => {
-  it('将鼓励语独立展示在文本框中，按今日完成状态切换文案', () => {
+  it('SSR 首帧确定性渲染鼓励语并包裹在定高单行 MarqueeText 中，支持 staticQuote 静态覆盖', () => {
     const startHtml = renderToStaticMarkup(<DailyQuoteCard completion={{ done: 0, planned: 3 }} />)
     expect(startHtml).toContain('新的一天，从一小步开始')
     expect(startHtml).toContain('data-daily-quote="true"')
+    expect(startHtml).toContain('data-marquee="true"')
+    expect(startHtml).toContain('h-7')
 
     const doneHtml = renderToStaticMarkup(<DailyQuoteCard completion={{ done: 3, planned: 3 }} />)
     expect(doneHtml).toContain('今天的目标都完成啦')
+
+    const staticHtml = renderToStaticMarkup(
+      <DailyQuoteCard
+        completion={{ done: 0, planned: 3 }}
+        staticQuote="慢慢来，你已经走在路上了"
+      />,
+    )
+    expect(staticHtml).toContain('慢慢来，你已经走在路上了')
   })
 })
 
