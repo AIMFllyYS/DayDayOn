@@ -72,6 +72,32 @@ export const RatingSchema = z
   .meta({ id: 'Rating' })
 export type Rating = z.infer<typeof RatingSchema>
 
+export const RatingEntrySchema = z
+  .object({ localDate: LocalDateSchema, value: RatingValueSchema })
+  .meta({ id: 'RatingEntry' })
+export type RatingEntry = z.infer<typeof RatingEntrySchema>
+
+/** GET /ratings?scope=overall&days=365 */
+export const RatingTrendQuerySchema = z.object({
+  scope: RatingScopeSchema.default('overall'),
+  days: z.coerce.number().int().min(1).max(365).default(365),
+})
+
+export const RatingTrendSchema = z
+  .object({
+    scope: RatingScopeSchema,
+    /** 按日期升序，只有记录过的日子 */
+    entries: z.array(RatingEntrySchema),
+    /** 窗口内最近一次评分 */
+    latest: RatingEntrySchema.nullable(),
+    /** 窗口内平均分（保留 1 位小数），无记录时为 null */
+    average: z.number().nullable(),
+    /** 窗口内已记录天数 */
+    count: z.number().int().min(0),
+  })
+  .meta({ id: 'RatingTrend' })
+export type RatingTrend = z.infer<typeof RatingTrendSchema>
+
 // ---------------------------------------------------------------------------
 // 每日步数（Issue #57）：与体重同构，无记录或纯网页端固定返回 todaySteps = 0
 // ---------------------------------------------------------------------------

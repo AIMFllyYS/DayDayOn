@@ -1,5 +1,5 @@
 import 'server-only'
-import { and, asc, desc, eq, gte, lt } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, lt, lte } from 'drizzle-orm'
 import type { PutWeight, WeightEntry, WeightTrend } from '@/features/metric/schemas'
 import type { LocalDate } from '@/features/shared/schemas'
 import { addDays, localDateOf } from '@/lib/time'
@@ -117,7 +117,11 @@ export async function weightTrend(
     .select(entryColumns)
     .from(bodyMetrics)
     .where(
-      and(eq(bodyMetrics.userId, userId), gte(bodyMetrics.localDate, addDays(windowStart, -8))),
+      and(
+        eq(bodyMetrics.userId, userId),
+        gte(bodyMetrics.localDate, addDays(windowStart, -8)),
+        lte(bodyMetrics.localDate, today),
+      ),
     )
     .orderBy(asc(bodyMetrics.localDate))
     .limit(400)

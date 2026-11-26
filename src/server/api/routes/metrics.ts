@@ -5,6 +5,8 @@ import {
   PutStepsSchema,
   PutWeightSchema,
   RatingSchema,
+  RatingTrendQuerySchema,
+  RatingTrendSchema,
   StepEntrySchema,
   StepTrendQuerySchema,
   StepTrendSchema,
@@ -19,7 +21,7 @@ import { requireOnboarded, requireUser } from '../middleware/auth'
 import { AUTH_ERRORS, errorResponses } from '../schemas'
 
 /*
- * 每日指标接口（PRD 2.5、7.2、7.5），D3。PUT 是覆盖写，天然幂等，不挂幂等中间件。
+ * 每日指标接口（PRD 2.5、7.2、7.5，Issue #104），D3。PUT 是覆盖写，天然幂等，不挂幂等中间件。
  */
 
 const json = <T>(schema: T) => ({ 'application/json': { schema } })
@@ -53,6 +55,17 @@ const putRatingRoute = createRoute({
   request: { body: { content: json(PutRatingSchema), required: true } },
   responses: {
     200: { content: json(RatingSchema), description: '已记录今天的满意度' },
+    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED'),
+  },
+})
+
+const ratingTrendRoute = createRoute({
+  method: 'get',
+  path: '/ratings',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: { query: RatingTrendQuerySchema },
+  responses: {
+    200: { content: json(RatingTrendSchema), description: '心情与满意度历史走势' },
     ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED'),
   },
 })
@@ -95,6 +108,10 @@ export const metricRoutes = new OpenAPIHono<AppEnv>()
       await metrics.putRating(db, c.get('user').id, c.req.valid('json'), new Date()),
       200,
     )
+  })
+  .openapi(ratingTrendRoute, async (c) => {
+    const { scope, days } = c.req.valid('query')
+    return c.json(await metrics.ratingTrend(db, c.get('user').id, scope, days, new Date()), 200)
   })
   .openapi(putStepsRoute, async (c) => {
     return c.json(

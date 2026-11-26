@@ -1,7 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { TrendLineChart, type TrendPoint } from '@/components/charts/trend-line-chart'
 import { Button, IconButton } from '@/components/ui/button'
+import { Field } from '@/components/ui/field'
+import { NumberField } from '@/components/ui/number-field'
+import { Rating, type RatingValue } from '@/components/ui/rating'
 import { Sheet } from '@/components/ui/sheet'
 import { toast } from '@/components/ui/toast'
 import {
@@ -10,6 +14,7 @@ import {
 } from '@/features/checkin/components/checkin-sheet-list'
 import type { CheckinLauncherView } from '@/features/checkin/launcher-store'
 import type { CheckinToday } from '@/features/checkin/schemas'
+import { moodLabel } from '@/features/dashboard/format'
 import { SmartActionBar } from './smart-action-bar'
 
 // 演示数据：今天计划内的 5 大板块目标与状态（形状同 GET /checkins/today）
@@ -64,10 +69,37 @@ const demo: CheckinToday = {
     },
   ],
   completion: { done: 1, planned: 5 },
-  weightGrams: null,
+  weightGrams: 52_400,
   mood: 4,
   dietPhotoGoalId: id(2),
 }
+
+const DEMO_WEIGHT_YEAR: TrendPoint[] = [
+  { date: '2026-01-12', value: 55.2 },
+  { date: '2026-02-05', value: 54.8 },
+  { date: '2026-04-18', value: 54.1 },
+  { date: '2026-05-10', value: 53.7 },
+  { date: '2026-08-02', value: 53.1 },
+  { date: '2026-09-20', value: 52.8 },
+  { date: '2026-10-25', value: 52.6 },
+  { date: '2026-11-03', value: 52.4 },
+]
+
+const DEMO_MOOD_YEAR: TrendPoint[] = [
+  { date: '2026-01-20', value: 3 },
+  { date: '2026-02-14', value: 4 },
+  { date: '2026-04-22', value: 2 },
+  { date: '2026-05-15', value: 5 },
+  { date: '2026-08-18', value: 4 },
+  { date: '2026-10-12', value: 3 },
+  { date: '2026-11-03', value: 4 },
+]
+
+const MOOD_Y_TICKS = [
+  { value: 5, label: '超棒' },
+  { value: 3, label: '一般' },
+  { value: 1, label: '很糟' },
+] as const
 
 /**
  * 打卡入口弹层（演示）：渲染正式的 CheckinSheetList（D3），数据是演示用的。
@@ -88,6 +120,10 @@ export function CheckinSheet({
   empty?: boolean
 }) {
   const [view, setView] = useState<CheckinLauncherView>('list')
+  const [weightKg, setWeightKg] = useState<number | null>(52.4)
+  const [weightPoints, setWeightPoints] = useState<TrendPoint[]>(DEMO_WEIGHT_YEAR)
+  const [mood, setMood] = useState<RatingValue | null>(4)
+  const [moodPoints, setMoodPoints] = useState<TrendPoint[]>(DEMO_MOOD_YEAR)
 
   function handleSmart(mode: 'capture' | 'upload') {
     onOpenChange(false)
@@ -110,8 +146,24 @@ export function CheckinSheet({
         onOpenChange(o)
         if (!o) setView('list')
       }}
-      title="记录点什么？"
-      description={`今天完成了 ${demo.completion.done} / ${demo.completion.planned} 个目标`}
+      title={
+        view === 'list'
+          ? '记录点什么？'
+          : view === 'weight'
+            ? '记体重'
+            : view === 'mood'
+              ? '今日心情'
+              : '今日步数'
+      }
+      description={
+        view === 'list'
+          ? `今天完成了 ${demo.completion.done} / ${demo.completion.planned} 个目标`
+          : view === 'weight'
+            ? '每天一条，再记就覆盖'
+            : view === 'mood'
+              ? '今天整体感觉怎么样？'
+              : '支持同步手机计步或手动记录今日步数'
+      }
       headerActions={
         <IconButton
           icon="clock"
@@ -160,12 +212,78 @@ export function CheckinSheet({
           }}
           onOpenView={setView}
         />
+      ) : view === 'weight' ? (
+        <div className="flex flex-col gap-3.5 py-1">
+          <TrendLineChart
+            data={weightPoints}
+            endDate={demo.localDate}
+            label="近一年体重变化"
+            unit="kg"
+            decimals={1}
+            tone="primary"
+          />
+          <Field label="今天的体重" htmlFor="pb-checkin-weight" hint="体重只有你自己看得到">
+            <NumberField
+              id="pb-checkin-weight"
+              value={weightKg}
+              onValueChange={setWeightKg}
+              min={20}
+              max={300}
+              step={0.1}
+              unit="kg"
+              format={{ maximumFractionDigits: 1 }}
+              placeholder="60.0"
+            />
+          </Field>
+          <Button
+            icon="check"
+            className="w-full"
+            onClick={() => {
+              if (weightKg === null) return
+              setWeightPoints((prev) => [
+                ...prev.filter((p) => p.date !== demo.localDate),
+                { date: demo.localDate, value: weightKg },
+              ])
+              toast.success('体重记好了（预览态已实时落点）')
+            }}
+          >
+            记下来
+          </Button>
+        </div>
+      ) : view === 'mood' ? (
+        <div className="flex flex-col gap-3.5 py-1">
+          <TrendLineChart
+            data={moodPoints}
+            endDate={demo.localDate}
+            label="近一年心情变化"
+            tone="primary"
+            yDomain={[1, 5]}
+            yTicks={MOOD_Y_TICKS}
+            formatPointValue={(v) => `${v} 分 · ${moodLabel(v)}`}
+            defaultSummary={`近一年 · 均分 ${(
+              moodPoints.reduce((s, p) => s + p.value, 0) / Math.max(1, moodPoints.length)
+            ).toFixed(1)} · 记录 ${moodPoints.length} 天`}
+          />
+          <Rating
+            value={mood}
+            onValueChange={(v) => {
+              setMood(v)
+              setMoodPoints((prev) => [
+                ...prev.filter((p) => p.date !== demo.localDate),
+                { date: demo.localDate, value: v },
+              ])
+              toast.success('今日心情已记录（预览态已实时落点）')
+            }}
+            label="今日心情"
+            tone="primary"
+            className="justify-between"
+          />
+          <p className="text-tiny text-muted">只能评今天，再评一次会覆盖</p>
+        </div>
       ) : (
         <div className="flex flex-col gap-3 py-2">
           <p className="text-caption text-muted">
-            正式弹层在这里切换成
-            {view === 'weight' ? '记体重' : view === 'mood' ? '今日心情' : '今日步数'}
-            面板（同一个弹层，不开第二层）。
+            正式弹层在这里切换成今日步数面板（同一个弹层，不开第二层）。
           </p>
         </div>
       )}

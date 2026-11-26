@@ -1,5 +1,6 @@
 import type { GoalStatus } from '@/features/goal/schemas'
 import type { RankRange } from '@/features/rank/schemas'
+import type { RatingScope } from '@/features/shared/schemas'
 import type { TodoStatus } from '@/features/todo/schemas'
 
 /*
@@ -28,6 +29,7 @@ export const keys = {
   metrics: {
     all: ['metrics'] as const,
     weight: (days: number) => ['metrics', 'weight', { days }] as const,
+    ratings: (scope: RatingScope, days: number) => ['metrics', 'ratings', { scope, days }] as const,
     steps: (days: number) => ['metrics', 'steps', { days }] as const,
   },
   dashboard: {

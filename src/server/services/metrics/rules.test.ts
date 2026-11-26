@@ -3,6 +3,7 @@ import {
   isStepsInRange,
   isWeightInRange,
   needsWeightConfirm,
+  ratingSummary,
   stepSummary,
   weightSummary,
 } from './rules'
@@ -51,6 +52,36 @@ describe('体重走势摘要', () => {
     expect(
       weightSummary([e('2026-10-30', 60_000), e('2026-11-01', 60_200)], '2026-10-01').deltaGrams7d,
     ).toBeNull()
+  })
+})
+
+describe('心情与满意度走势摘要', () => {
+  it('空记录返回 latest/average 为 null 且 count 为 0', () => {
+    expect(ratingSummary('overall', [])).toEqual({
+      scope: 'overall',
+      entries: [],
+      latest: null,
+      average: null,
+      count: 0,
+    })
+  })
+
+  it('按升序记录计算最近一条、记录天数与保留一位小数的均分', () => {
+    const res = ratingSummary('overall', [
+      { localDate: '2026-02-10', value: 3 },
+      { localDate: '2026-06-15', value: 4 },
+      { localDate: '2026-11-26', value: 5 },
+    ])
+    expect(res.count).toBe(3)
+    expect(res.latest).toEqual({ localDate: '2026-11-26', value: 5 })
+    expect(res.average).toBe(4)
+
+    const fractional = ratingSummary('overall', [
+      { localDate: '2026-11-24', value: 4 },
+      { localDate: '2026-11-25', value: 5 },
+      { localDate: '2026-11-26', value: 4 },
+    ])
+    expect(fractional.average).toBe(4.3)
   })
 })
 

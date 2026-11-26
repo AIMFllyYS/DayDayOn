@@ -20,6 +20,7 @@ import {
   ReadonlyCalendarDemo,
   StatesDemo,
   TimeRangeDemo,
+  TrendLineChartDemo,
 } from './_demos'
 
 export const metadata: Metadata = { title: '数据与时间' }
@@ -233,6 +234,14 @@ export default function DataPage() {
         description="自研 SVG + d3-shape（只用 line、area、curveMonotoneX），比例尺自己写。每张图都有 aria-label 和可见的数值摘要。"
       >
         <div className="grid gap-3 md:grid-cols-2">
+          <Specimen
+            ann="playbook.data.charts.trend"
+            label="TrendLineChart · 近一年走势（体重 / 心情 Dock）"
+            note="按真实日历天数映射横轴；超过 30 天空窗以浅虚线桥接；顶部固定读数条支持悬停、触控划动与键盘左右键，加 data-base-ui-swipe-ignore 不与抽屉手势冲突"
+            className="md:col-span-2"
+          >
+            <TrendLineChartDemo />
+          </Specimen>
           <Specimen
             ann="playbook.data.charts.line"
             label="LineChart · 体重"
