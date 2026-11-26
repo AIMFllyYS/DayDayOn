@@ -9,6 +9,7 @@
 ## 现有文档
 
 - [roadmap.md](./roadmap.md) — v0.1 路线图：M0 收尾初始化 → M1 基础组件库 → M2 板块专用组件 → M3 业务基础设施 → M4 MVP 功能 → M5 上线
-- [plan-demo-init-alignment.md](./plan-demo-init-alignment.md) — demo-init 新版流程的重走进度、Phase 3 调研结论、批量结算清单
+- [plan-mvp-build.md](./plan-mvp-build.md) — MVP 多 Agent 并行落地计划（已完成归档）
+- [plan-demo-init-alignment.md](./plan-demo-init-alignment.md) — demo-init 新版流程的重走进度、Phase 3 调研结论与批量结算记录（已完成归档）
 
 项目范围与 MVP 见 [ADR-0003](../adr/0003-project-scope.md)。

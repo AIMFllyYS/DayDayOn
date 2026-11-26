@@ -1,6 +1,6 @@
 # lessons — Base UI（@base-ui/react）
 
-> 适用版本：@base-ui/react@1.9.0（M1 安装）。以下条目来自 2026-10-31 对官方文档的核对，尚未在本项目代码里踩到；实战中证实或推翻后更新本文件。
+> 适用版本：@base-ui/react@1.9.0。以下条目已结合官方文档与 `src/components/ui/` 实战封装核对维护。
 
 ### 旧包名 @base-ui-components/react
 - 症状：照训练数据或旧教程写 `@base-ui-components/react`，装到的是旧包。

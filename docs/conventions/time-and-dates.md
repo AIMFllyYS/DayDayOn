@@ -1,6 +1,6 @@
 # 时间与日期规范
 
-> 日期：2026-10-31 · 状态：初版。本文档由初始化时联网调研生成，条目未经实战验证，踩坑后按 [lessons 机制](../lessons/README.md)修订。
+> 日期：2026-10-31 · 2026-11-26 同步实测状态 · 状态：现行（已在实战中验证并随 [lessons 机制](../lessons/README.md) 持续修订）。
 > 依据：[ADR-0008](../adr/0008-date-time-calc.md)（date-fns 4 + @date-fns/tz）、[ADR-0007](../adr/0007-date-time-picker.md)（原生输入 + React DayPicker）、[ADR-0020](../adr/0020-jobs.md)（周期键）、[ADR-0002](../adr/0002-account-quota-risk.md) 第 5 节（北京时间周一重置）。
 > 官方资料（2026-10-31 抓取）：`@date-fns/tz` README（`TZDate`、`tz()`）、React DayPicker 本地化文档。库的坑见 [lessons/date-fns.md](../lessons/date-fns.md)、[lessons/react-day-picker.md](../lessons/react-day-picker.md)。
 

@@ -1,6 +1,6 @@
 # 测试规范
 
-> 日期：2026-10-31 · 状态：初版。本文档由初始化时联网调研生成，条目未经实战验证，踩坑后按 [lessons 机制](../lessons/README.md)修订。
+> 日期：2026-10-31 · 2026-11-26 同步实测状态 · 状态：现行（已在实战中验证并随 [lessons 机制](../lessons/README.md) 持续修订）。
 > 依据：[ADR-0018](../adr/0018-testing.md)（Vitest 5）。
 > 官方资料（2026-10-31 抓取）：Next 16.4 自带文档的 Vitest 指南、Vite 配置文档（`resolve.tsconfigPaths`）、AI SDK Testing 文档、`@hono/zod-openapi` README（`app.request()`）、vitest@5.0.5 的 registry 数据。库的坑见 [lessons/vitest.md](../lessons/vitest.md)。
 

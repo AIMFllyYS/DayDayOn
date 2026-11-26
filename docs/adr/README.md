@@ -40,12 +40,12 @@
 | [0019](./0019-pwa.md) | PWA：原生 manifest + 手写 Service Worker | Accepted |
 | [0020](./0020-jobs.md) | 定时任务：周期键懒计算 + 系统 cron | Accepted |
 | [0021](./0021-preset-avatars.md) | 头像：只用预设头像 | Accepted |
-| [0022](./0022-welcome-splash-app.md) | 落地页、开屏、App 图标与 APK 分发 | Proposed |
+| [0022](./0022-welcome-splash-app.md) | 落地页、开屏、App 图标与 APK 分发 | Accepted |
 | [0023](./0023-captcha.md) | 人机验证与风控频控升级：自托管「治愈手账」点选弹窗验证 | Accepted |
-| [0024](./0024-agent-chat.md) | Agent 对话：悬浮团团、工具调用与联网搜索（推翻 ADR-0003「联网搜索暂不做」） | Proposed |
-| [0025](./0025-ai-output-rendering.md) | AI 输出渲染：Markdown、KaTeX、Mermaid | Proposed |
+| [0024](./0024-agent-chat.md) | Agent 对话：悬浮团团、工具调用与联网搜索（推翻 ADR-0003「联网搜索暂不做」） | Accepted |
+| [0025](./0025-ai-output-rendering.md) | AI 输出渲染：Markdown、KaTeX、Mermaid | Accepted |
 | [0026](./0026-friends-system.md) | 好友体系（6 位 10 分钟持久化配对码、双向完全透明仪表盘与 Agent 工具穿透） | Accepted |
-| [0027](./0027-agent-referee.md) | Agent 裁判与分数库：模型给事实、纯函数给结论、服务端重算入库 | Proposed |
+| [0027](./0027-agent-referee.md) | Agent 裁判与分数库：模型给事实、纯函数给结论、服务端重算入库 | Accepted |
 
 0004–0020 由 `scripts/dev/library-showcase/build.mjs --adr` 从调研结论生成草稿（已存在的不会被覆盖），对应的对比页在 [docs/designs/library-showcase/](../designs/library-showcase/index.html)。
 

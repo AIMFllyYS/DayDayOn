@@ -1,6 +1,6 @@
 # 交互原语与封装层规范
 
-> 日期：2026-10-31 · 状态：初版。本文档由初始化时联网调研生成，条目未经实战验证，踩坑后按 [lessons 机制](../lessons/README.md)修订。
+> 日期：2026-10-31 · 2026-11-26 同步最新实现 · 状态：现行（已在实战中验证并随 [lessons 机制](../lessons/README.md) 持续修订）。
 > 依据：[ADR-0004](../adr/0004-interaction-primitives.md)（Base UI）、[ADR-0005](../adr/0005-motion.md)（动效）、[ADR-0006](../adr/0006-toast.md)（Toast）、[ADR-0007](../adr/0007-date-time-picker.md)（日历）、[ADR-0010](../adr/0010-charts.md)（图表）、[ADR-0021](../adr/0021-preset-avatars.md)（预设头像）。
 > 官方资料（2026-10-31 抓取）：Base UI 的 Quick start、Drawer、Toast、Form 文档（Markdown 版）。库的坑见 [lessons/base-ui.md](../lessons/base-ui.md)。
 > 外观（色彩、字号、动效 token、组件清单、批注流程）以 [ui-design-system.md](./ui-design-system.md) 为准。本文只管第三方原语怎么接进来。
@@ -22,6 +22,9 @@
 | 表单与字段 | `form.tsx`、`field.tsx` | Form、Field |
 | 复选框 | `checkbox.tsx` | Checkbox |
 | 日历与图例 | `calendar.tsx`（导出 `Calendar` 与 `CalendarLegend`） | React DayPicker |
+| 滚轮时间选择 | `time-picker.tsx`（导出 `TimePicker`） | 自研 24 小时×分钟双列滚轮时间选择器（手账时钟面板） |
+| 平滑折叠与跑马灯 | `collapse.tsx`、`marquee-text.tsx` | CSS `grid-template-rows` 折叠（含 `inert`）与等高条件横向跑马灯（`.marquee-mask`） |
+| 报告图片分享弹层 | `report-share-sheet.tsx` | 基于 `Sheet`，支持 16:9 / 9:16 报告 PNG 预览与 APK 原生桥/Web Share 分发 |
 | 人机验证弹窗 | `turnstile.tsx`（导出 `TurnstileField`） | Base UI Dialog + 自研手账点选 `<canvas>`（ADR-0023） |
 | 媒体选择与安卓流式相册 | `use-media-picker.tsx`、`photo-album-sheet.tsx` | 自研平台自适应调度器 + `Sheet` / `Popover` |
 | 动画进场开关 Hook | `use-animated-open.ts` | 首帧 `false` 切 `true`，保证按需挂载触发 `data-starting-style` |
@@ -41,7 +44,7 @@
 
 ## 3. 懒加载与挂载生命周期
 
-- 弹层类组件（Drawer、Dialog、AlertDialog、Select、Combobox、Menu、Popover）在使用处用 `next/dynamic` 懒加载，或在第一次打开时加载。主页外壳的首屏不加载任何弹层代码。
+- 弹层类组件（Drawer、Dialog、AlertDialog、Select、Combobox、Menu、Popover）在使用处用 `next/dynamic` 懒加载，或在第一次打开时加载；通用按需挂载与空闲预热工具统一收口在 `src/lib/lazy.ts`。主页外壳的首屏不加载任何弹层代码。
 - **必须传 `loading: () => null`**：用 `next/dynamic` 懒加载弹层时，必须写 `dynamic(loader, { loading: () => null })`（块级占位用 `<Skeleton />`）。禁止裸调 `dynamic(loader)`——Next.js 16 在未传 `loading` 且未设 `ssr: false` 时不生成内部 `<Suspense>` 边界，首次挂载抛出的 Promise 会向上击穿页面级 `<Suspense fallback={<PageSkeleton />}>`，导致背景页面全屏闪屏。
 - **首次打开时挂载、关闭后保持挂载**：用 `loaded` 状态记录“是否打开过”（`if (open && !loaded) setLoaded(true); if (!loaded) return null`），关闭时只把 `open` 设为 `false`，由 Base UI 在退场动画结束后自动卸载 Portal DOM。禁止写 `{open && <Sheet open={open} />}` 或 `{open && <ConfirmDialog open={open} />}`，否则 `open` 变 `false` 瞬间组件被直接卸载，截断 `data-ending-style` 退场动画。
 - **重置表单的 `key` 放在抽屉内部**：需要每次打开抽屉时重置表单状态，必须把 `key` 挂在 `Sheet` 内部的表单子组件上（如 `<TodoSheetForm key={session} />`），禁止把 `key` 挂在 `<Sheet>` 或其外层懒加载包装组件上，否则每次打开都会销毁重建 `Drawer.Root`。
@@ -60,7 +63,7 @@
 
 - 弹层、Toast 的进退场用 Base UI 的 `data-starting-style` / `data-ending-style` 写 CSS 过渡，时长和缓动只用 ui-design-system.md 第 5 节的 token。
 - `sheet.tsx` 与 `confirm-dialog.tsx` 内部统一经 `useAnimatedOpen(open)` 驱动 Base UI Root：即使组件在 `open={true}` 状态下首次按需挂载，首帧也先以 `false` 初始化并在下一动画帧切为 `true`，确保 100% 触发 `data-starting-style` 进场动画。
-- 列表增删、页面切换用 React 的 `<ViewTransition>`。浏览器不支持时没有过渡动画，功能照常。
+- 页面转场意图统一由 `src/lib/motion.ts` 与 `src/components/layout/page-transition.tsx` 管理（`push` / `pop` / `expand` / `tab`），列表增删和同屏切换按需配合 React `<ViewTransition>`；浏览器不支持时无过渡动画，功能照常。
 - 不引入任何动效库（[libraries.md](../libraries.md) 互斥禁令）。团团的动画继续用 CSS 类。
 
 ## 6. 日历
@@ -71,7 +74,7 @@
 
 ## 7. 图表
 
-- `src/components/charts/` 自研 SVG：`LineChart`（体重、花费）、`BarChart`（运动/睡眠/得分等按天柱状图）、`WeekHeatmap`（本周板块热力表）、`Sparkline`（迷你趋势线）；营养素环复用 `ProgressRing`。
+- `src/components/charts/` 自研 SVG：`LineChart`（体重、花费）、`TrendLineChart`（近一年真实日历比例体重/心情折线图，支持 >30 天断档虚线桥接、顶部固定读数条与 `data-base-ui-swipe-ignore` 抽屉防误关）、`BarChart`（运动/睡眠/得分等按天柱状图）、`WeekHeatmap`（本周板块热力表）、`Sparkline`（迷你趋势线）；营养素环复用 `ProgressRing`。
 - `d3-shape` 只在这个目录里 import，只用 `line`、`area`、`arc` 和 `curveMonotoneX`。比例尺自己写几行线性映射（`scale.ts`），不引入 `d3-scale`。
 - 颜色只用板块色和状态色 token（`chart-tone.ts` / `tone.ts`）。每个图表都有文字替代：`aria-label`，或可见的数值摘要。
 

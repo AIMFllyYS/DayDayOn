@@ -1,6 +1,6 @@
 # 数据库与迁移规范
 
-> 日期：2026-10-31（2026-11-16 对齐最新实现） · 状态：已按最新服务端代码与部署脚本核对同步。踩坑经验见 [lessons/drizzle.md](../lessons/drizzle.md)。
+> 日期：2026-10-31（2026-11-26 对齐最新实现） · 状态：已按最新服务端代码与部署脚本核对同步。踩坑经验见 [lessons/drizzle.md](../lessons/drizzle.md)。
 > 依据：[ADR-0015](../adr/0015-data-access.md)（Drizzle ORM 0.45 + pg）、[ADR-0001](../adr/0001-ecosystem-or-standalone.md)（本机 PostgreSQL 18）、[ADR-0002](../adr/0002-account-quota-risk.md) 第 5 节（额度账本）。
 > 官方资料（2026-10-31 抓取）：drizzle-orm@0.45.4 与 drizzle-kit@0.31.11 的类型声明、Drizzle 迁移文档、Better Auth 的 Drizzle 适配器与性能指南、[PostgreSQL 18 发布说明](https://www.postgresql.org/docs/18/release-18.html)（`uuidv7()`）。
 > **注意**：Drizzle 官网现在默认展示 1.0 RC 的写法（安装命令带 `@rc`、`snakeCase.table`、`defineRelations`、`migrate(db)` 不带参数）。本项目锁定 0.45.4，照抄官网前先读 [lessons/drizzle.md](../lessons/drizzle.md)。
@@ -49,21 +49,22 @@ export const db: NodePgDatabase<typeof schema> = new Proxy({} as NodePgDatabase<
 
 ```
 src/server/db/
-├── client.ts           Proxy 懒初始化 db，导出 Tx / DbOrTx
-├── startup-migrate.ts  生产启动钩子调用的幂等迁移入口 runStartupMigrations()
+├── client.ts                 Proxy 懒初始化 db，导出 Tx / DbOrTx
+├── startup-migrate.ts        生产启动钩子调用的幂等迁移与官方公告同步入口 runStartupMigrations()
+├── announcements-catalog.ts  内置版本官方公告清单，由 runStartupMigrations() 启动幂等写入 announcements
 ├── schema/
-│   ├── index.ts        汇总导出 15 个业务与鉴权表模块
-│   ├── columns.ts      共用列：id（uuidv7）、timestamps（createdAt / updatedAt）、timestamptz
-│   ├── auth-indexes.ts 手动索引扩展位（当前为空占位 `export {}`，见第 8 节）
-│   ├── auth.ts         Better Auth CLI 生成的 6 张表（只通过 CLI 重新生成，不手改）
-│   └── <领域>.ts       14 个业务领域模块（共 30 张业务表）
-└── migrations/         drizzle-kit generate 产出的 SQL 与 meta/ 快照，全部提交
-drizzle.config.ts       schema: ./src/server/db/schema，out: ./src/server/db/migrations，dialect: postgresql
-scripts/dev/migrate.ts  本地执行迁移（pnpm db:migrate）
-scripts/dev/seed.ts     本地假数据（pnpm db:seed）
+│   ├── index.ts              汇总导出 15 个业务与鉴权表模块
+│   ├── columns.ts            共用列：id（uuidv7）、timestamps（createdAt / updatedAt）、timestamptz
+│   ├── auth-indexes.ts       手动索引扩展位（当前为空占位 `export {}`，见第 8 节）
+│   ├── auth.ts               Better Auth CLI 生成的 6 张表（只通过 CLI 重新生成，不手改）
+│   └── <领域>.ts             14 个业务领域模块（共 35 张业务表）
+└── migrations/               drizzle-kit generate 产出的 SQL 与 meta/ 快照，全部提交
+drizzle.config.ts             schema: ./src/server/db/schema，out: ./src/server/db/migrations，dialect: postgresql
+scripts/dev/migrate.ts        本地执行迁移（pnpm db:migrate）
+scripts/dev/seed.ts           本地假数据（pnpm db:seed）
 ```
 
-当前 `schema/` 下 16 个核心模块（15 个表模块 + `columns.ts`，另有 `index.ts` 与空占位 `auth-indexes.ts`）与全部 39 张表：
+当前 `schema/` 下 16 个核心模块（15 个表模块 + `columns.ts`，另有 `index.ts` 与空占位 `auth-indexes.ts`）与全部 41 张表（6 张 Better Auth 表 + 35 张业务表）：
 
 | 模块文件 | 数据表（`pgTable`） | 说明 |
 |---|---|---|

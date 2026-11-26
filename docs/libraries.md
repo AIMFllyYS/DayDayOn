@@ -2,8 +2,8 @@
 
 > 本表是依赖引入的唯一裁判：**每个关注点只有一个所有者**。表外的同类库禁止引入；要引入，先改本表（联网核实 → 负责人拍板 → 写 ADR → 更新本表 → 建 lessons 文件）。
 > AI 引入或变更任何依赖前必读本表。
-> 状态：2026-10-31 定稿。Phase 3 的 17 项建议由负责人全部采纳（ADR-0004 至 0020 为 Accepted）。证据与对比页见 [library-showcase](./designs/library-showcase/index.html)，怎么用见 [docs/conventions/](./conventions/README.md)。
-> "已安装"列为"否"的包，按 [roadmap.md](./plans/roadmap.md) 的里程碑安装，**每次安装前仍要征得负责人同意**，并重新核对版本。
+> 状态：2026-10-31 定稿 · 2026-11-26 核对同步（M1–M3 规划依赖已全部安装锁定，详见 `package.json`）。证据与对比页见 [library-showcase](./designs/library-showcase/index.html)，怎么用见 [docs/conventions/](./conventions/README.md)。
+> 后续新增、升级或移除任何依赖前，**仍必须先征得负责人同意**，并重新联网核对版本。
 
 ## 所有者总表
 
@@ -72,7 +72,7 @@
 | `vite-tsconfig-paths` | Vite 8 内置 `resolve.tsconfigPaths` |
 | `@daypicker/react` | 只是 `react-day-picker` 的转发包（依赖 `react-day-picker@10.0.2`），官网示例用这个名字；本项目装 `react-day-picker` |
 | `server-only` | Next 内部处理 `import 'server-only'`，安装是可选的（Next 文档）；Vitest 里用别名指向空模块（[testing.md](./conventions/testing.md)） |
-| `jsdom`、`@testing-library/*`、`@vitejs/plugin-react` | 不写组件单元测试，界面用 Playbook + ego-browser 验收 |
+| `jsdom`、`@testing-library/*`、`@vitejs/plugin-react` | 不引入 DOM 模拟测试栈；纯组件结构断言可在 Node 环境用 `react-dom/server` 的 `renderToStaticMarkup`（见 [testing.md](./conventions/testing.md)），完整交互由 Playbook + ego-browser 验收 |
 
 ## 互斥禁令（全部生效）
 

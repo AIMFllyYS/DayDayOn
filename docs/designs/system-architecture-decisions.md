@@ -1,6 +1,7 @@
-# DayDayOn 五层软件工程架构解析与演进决策台账（活文档）
+# DayDayOn 五层软件工程架构解析与演进决策台账（Issue #59 历史决策快照）
 
-> 日期：2026-11-10 · 状态：**核心决策已落地闭环（全天三餐统一评分、人群差异化走廊与两阶段庆祝状态机）**
+> 日期：2026-11-10 · 状态：**Issue #59 历史决策快照（不再作为活文档维护）**；后续现行规则以 [docs/conventions/](../conventions/README.md) 与 [docs/adr/](../adr/README.md) 为准。
+> **已知后续演进差异**：第 0 节中“固定凌晨 00:00 统一刷新、不由用户自定义”已于后续迭代升级为可配置日切换时间（`profiles.day_start_hour`，范围 `0–6`，默认 `4`，见 [time-and-dates.md](../conventions/time-and-dates.md) 与 [checkin-modules.md](../conventions/checkin-modules.md)）；Agent 对话/裁判步数与工具集亦已扩容（见 [ADR-0024](../adr/0024-agent-chat.md)、[ADR-0027](../adr/0027-agent-referee.md) 演进补充）。
 > 配套交互画布：[system-architecture-canvas.html](./system-architecture-canvas.html)（数据源：[canvas-data.js](./arch-canvas/canvas-data.js)）
 > 关联总纲 Issue：[#59 `fix(checkin): 打卡与 Agent 全链路状态贯通、饮食全天周期裁判与架构收敛总纲`](https://github.com/AIMFllyYS/DayDayOn/issues/59)
 
@@ -12,7 +13,7 @@
 
 1. **最简代码、最高复用、零重复造轮子**：全面复用现有 `CheckinFlow`、`FillSection`、`listCheckins`、`updateCheckin`、`streamReferee` 与 PostgreSQL `checkins` 表，不新增多余的前端子面板或冗余状态表。
 2. **唯一真实数据源（Single Source of Truth）**：所有打卡状态（含常规打卡、分餐打卡、智能拍照/上传、Agent 对话改数据、跳过本次打卡）一律收敛至 PostgreSQL `checkins` 表；前端重进打卡页或切换餐次 Tab 时直接读取数据库记录回填。
-3. **凌晨 00:00 统一刷新**：每日打卡数据固定在用户本地时区**凌晨 00:00** 刷新（`DEFAULT_DAY_START_HOUR = 0`），不由用户自定义刷新时间。
+3. **凌晨 00:00 统一刷新（历史决策，已升级）**：Issue #59 当期曾约定固定 `00:00` 刷新；后续已升级为支持用户在「我的 → 打卡与提醒」配置日切换时间 `0–6`（数据库默认 `4`，纯函数默认参数仍为 `0`），详见 [time-and-dates.md](../conventions/time-and-dates.md)。
 
 ---
 
