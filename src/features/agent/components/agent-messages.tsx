@@ -21,7 +21,7 @@ import { UserMessage } from './user-message'
  * UIMessage → AgentTurnView 的映射在 map-message.ts，草稿从 tool-draft* 的输出里取。
  */
 
-// 返回 AgentDraft 的工具：输出渲染成草稿卡（server/ai/agent-tools.ts、agent-checkin-tools.ts、agent-todo-tools.ts）
+// 返回 AgentDraft 的工具：输出渲染成草稿卡（agent-checkin-tools / agent-todo-tools / agent-metric-tools）
 const DRAFT_TOOLS = new Set([
   'draftCheckin',
   'draftUpdateCheckin',
@@ -30,6 +30,8 @@ const DRAFT_TOOLS = new Set([
   'draftUpdateTodo',
   'draftDeleteTodo',
   'draftTodoGroup',
+  'draftMetric',
+  'draftDeleteMetric',
   'draftWeight',
 ])
 const QUICK_PROMPTS = [

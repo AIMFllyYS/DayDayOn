@@ -1,15 +1,16 @@
 import 'server-only'
 import { and, asc, eq, gte, lte } from 'drizzle-orm'
-import type { PutRating, Rating, RatingTrend } from '@/features/metric/schemas'
-import type { RatingScope } from '@/features/shared/schemas'
+import type { MetricOrigin, PutRating, Rating, RatingTrend } from '@/features/metric/schemas'
+import type { LocalDate, RatingScope } from '@/features/shared/schemas'
 import { addDays, localDateOf } from '@/lib/time'
+import { ApiError } from '@/server/api/errors'
 import type { DbOrTx } from '@/server/db/client'
 import { dailyRatings } from '@/server/db/schema'
 import { loadClock } from '../checkins/clock'
-import { ratingSummary } from './rules'
+import { assertMetricDeleteAllowed, ratingSummary, resolveMetricTargetDate } from './rules'
 
 /**
- * PUT /ratings（PRD 2.5、7.2）：只能评今天（打卡日由服务端算，请求体不收日期）；
+ * PUT /ratings（PRD 2.5、7.2）：支持记录或覆盖今天/昨天的评分；
  * 同一天同一 scope 再评就覆盖。scope = overall（今日心情）或板块。
  */
 export async function putRating(
@@ -19,7 +20,7 @@ export async function putRating(
   now: Date,
 ): Promise<Rating> {
   const clock = await loadClock(db, userId)
-  const localDate = localDateOf(now, clock.timeZone, clock.dayStartHour)
+  const { localDate } = resolveMetricTargetDate(clock, now, input.localDate)
   const [row] = await db
     .insert(dailyRatings)
     .values({ userId, localDate, scope: input.scope, value: input.value })
@@ -34,6 +35,32 @@ export async function putRating(
     })
   if (!row) throw new Error('putRating：写入没有返回行')
   return row
+}
+
+/** DELETE /ratings/{localDate}?scope=overall：删除指定日期评分（origin=agent 时限制今日/昨日） */
+export async function deleteRating(
+  db: DbOrTx,
+  userId: string,
+  localDate: LocalDate,
+  scope: RatingScope,
+  origin: MetricOrigin,
+  now: Date,
+): Promise<void> {
+  const clock = await loadClock(db, userId)
+  assertMetricDeleteAllowed(clock, now, localDate, origin)
+  const deleted = await db
+    .delete(dailyRatings)
+    .where(
+      and(
+        eq(dailyRatings.userId, userId),
+        eq(dailyRatings.localDate, localDate),
+        eq(dailyRatings.scope, scope),
+      ),
+    )
+    .returning({ id: dailyRatings.id })
+  if (deleted.length === 0) {
+    throw new ApiError('NOT_FOUND', '该日期没有心情记录')
+  }
 }
 
 /**

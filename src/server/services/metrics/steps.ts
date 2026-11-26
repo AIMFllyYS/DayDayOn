@@ -1,13 +1,18 @@
 import 'server-only'
-import { and, asc, desc, eq, gte } from 'drizzle-orm'
-import type { PutSteps, StepEntry, StepTrend } from '@/features/metric/schemas'
+import { and, asc, desc, eq, gte, lte } from 'drizzle-orm'
+import type { MetricOrigin, PutSteps, StepEntry, StepTrend } from '@/features/metric/schemas'
 import type { LocalDate } from '@/features/shared/schemas'
 import { addDays, localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import type { db as Database, DbOrTx, Tx } from '@/server/db/client'
 import { stepMetrics } from '@/server/db/schema'
 import { loadClock } from '../checkins/clock'
-import { isStepsInRange, stepSummary } from './rules'
+import {
+  assertMetricDeleteAllowed,
+  isStepsInRange,
+  resolveMetricTargetDate,
+  stepSummary,
+} from './rules'
 
 const entryColumns = {
   localDate: stepMetrics.localDate,
@@ -50,7 +55,7 @@ export async function upsertSteps(
   return toEntry(row)
 }
 
-/** PUT /metrics/steps：记今天的步数 */
+/** PUT /metrics/steps：记今天或昨天的步数 */
 export async function putSteps(
   db: typeof Database,
   userId: string,
@@ -59,9 +64,28 @@ export async function putSteps(
 ): Promise<StepEntry> {
   return db.transaction(async (tx) => {
     const clock = await loadClock(tx, userId)
-    const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
-    return upsertSteps(tx, userId, today, input.steps, now)
+    const { localDate, measuredAt } = resolveMetricTargetDate(clock, now, input.localDate)
+    return upsertSteps(tx, userId, localDate, input.steps, measuredAt)
   })
+}
+
+/** DELETE /metrics/steps/{localDate}：删除指定日期步数（origin=agent 时限制今日/昨日） */
+export async function deleteSteps(
+  db: DbOrTx,
+  userId: string,
+  localDate: LocalDate,
+  origin: MetricOrigin,
+  now: Date,
+): Promise<void> {
+  const clock = await loadClock(db, userId)
+  assertMetricDeleteAllowed(clock, now, localDate, origin)
+  const deleted = await db
+    .delete(stepMetrics)
+    .where(and(eq(stepMetrics.userId, userId), eq(stepMetrics.localDate, localDate)))
+    .returning({ id: stepMetrics.id })
+  if (deleted.length === 0) {
+    throw new ApiError('NOT_FOUND', '该日期没有步数记录')
+  }
 }
 
 /** GET /metrics/steps?days=N：今天往前 N 天（含今天）的记录 + 今日步数（无记录恒为 0） */
@@ -78,7 +102,11 @@ export async function stepTrend(
     .select(entryColumns)
     .from(stepMetrics)
     .where(
-      and(eq(stepMetrics.userId, userId), gte(stepMetrics.localDate, addDays(windowStart, -8))),
+      and(
+        eq(stepMetrics.userId, userId),
+        gte(stepMetrics.localDate, addDays(windowStart, -8)),
+        lte(stepMetrics.localDate, today),
+      ),
     )
     .orderBy(asc(stepMetrics.localDate))
     .limit(400)

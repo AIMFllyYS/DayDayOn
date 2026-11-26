@@ -1,8 +1,16 @@
 'use client'
 
-import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
 import type { CheckinToday } from '@/features/checkin/schemas'
 import type {
+  MetricCalendar,
+  MetricHistory,
+  MetricKind,
   PutRating,
   PutSteps,
   PutWeight,
@@ -13,12 +21,13 @@ import type {
   WeightEntry,
   WeightTrend,
 } from '@/features/metric/schemas'
-import type { RatingScope } from '@/features/shared/schemas'
+import type { LocalDate, RatingScope } from '@/features/shared/schemas'
 import { apiFetch } from '../fetcher'
 import { keys } from '../keys'
 
 /*
- * 每日指标的查询与写操作（PRD 2.5，Issue #104），D3。
+ * 每日指标的查询与写操作（PRD 2.5，Issue #104）。
+ * 所有写入均同步更新近一年走势缓存并失效 metrics / dashboard / checkins.today。
  */
 
 function upsertWeightTrendCache(
@@ -57,6 +66,26 @@ function upsertRatingTrendCache(
   }
 }
 
+function upsertStepTrendCache(
+  old: StepTrend | undefined,
+  entry: StepEntry,
+  todayDate?: string,
+): StepTrend | undefined {
+  if (!old) return old
+  const nextEntries = [...old.entries.filter((e) => e.localDate !== entry.localDate), entry].sort(
+    (a, b) => (a.localDate < b.localDate ? -1 : a.localDate > b.localDate ? 1 : 0),
+  )
+  const isToday = todayDate
+    ? entry.localDate === todayDate
+    : entry.localDate >= (old.latest?.localDate ?? '')
+  return {
+    ...old,
+    todaySteps: isToday ? entry.steps : old.todaySteps,
+    entries: nextEntries,
+    latest: nextEntries.at(-1) ?? entry,
+  }
+}
+
 export const weightTrendQuery = (days = 30) =>
   queryOptions({
     queryKey: keys.metrics.weight(days),
@@ -67,6 +96,32 @@ export const ratingTrendQuery = (scope: RatingScope = 'overall', days = 365) =>
   queryOptions({
     queryKey: keys.metrics.ratings(scope, days),
     queryFn: () => apiFetch<RatingTrend>(`/ratings?scope=${scope}&days=${days}`),
+  })
+
+export const stepTrendQuery = (days = 30) =>
+  queryOptions({
+    queryKey: keys.metrics.steps(days),
+    queryFn: () => apiFetch<StepTrend>(`/metrics/steps?days=${days}`),
+  })
+
+/** GET /metrics/{kind}/history：游标分页历史记录，供 /metrics/[metric]「详细记录」Tab 使用 */
+export const metricHistoryQuery = (kind: MetricKind, limit = 30) =>
+  infiniteQueryOptions({
+    queryKey: keys.metrics.history(kind),
+    queryFn: ({ pageParam }) => {
+      const qs = new URLSearchParams({ limit: String(limit) })
+      if (pageParam) qs.set('cursor', pageParam)
+      return apiFetch<MetricHistory>(`/metrics/${kind}/history?${qs.toString()}`)
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+  })
+
+/** GET /metrics/{kind}/calendar?month=YYYY-MM：指标月度日历 */
+export const metricCalendarQuery = (kind: MetricKind, month: string) =>
+  queryOptions({
+    queryKey: keys.metrics.calendar(kind, month),
+    queryFn: () => apiFetch<MetricCalendar>(`/metrics/${kind}/calendar?month=${month}`),
   })
 
 export function usePutWeight() {
@@ -97,7 +152,7 @@ export function usePutRating() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: PutRating) => apiFetch<Rating>('/ratings', { method: 'PUT', json: input }),
-    // 乐观更新今日心情与近一年走势图：评分点下去立刻落点
+    // 乐观更新今日/昨日心情与近一年走势图：评分点下去立刻落点
     onMutate: async (input) => {
       const ratingTrendKey = keys.metrics.ratings(input.scope, 365)
       await Promise.all([
@@ -106,15 +161,20 @@ export function usePutRating() {
       ])
       const previousToday = qc.getQueryData<CheckinToday>(keys.checkins.today())
       const previousTrend = qc.getQueryData<RatingTrend>(ratingTrendKey)
-      if (input.scope === 'overall' && previousToday) {
+      const targetDate = input.localDate ?? previousToday?.localDate
+      if (
+        input.scope === 'overall' &&
+        previousToday &&
+        (!input.localDate || input.localDate === previousToday.localDate)
+      ) {
         qc.setQueryData<CheckinToday>(keys.checkins.today(), {
           ...previousToday,
           mood: input.value,
         })
       }
-      if (previousToday) {
+      if (targetDate) {
         qc.setQueryData<RatingTrend>(ratingTrendKey, (old) =>
-          upsertRatingTrendCache(old, previousToday.localDate, input.value),
+          upsertRatingTrendCache(old, targetDate, input.value),
         )
       }
       return { previousToday, previousTrend, ratingTrendKey }
@@ -136,20 +196,49 @@ export function usePutRating() {
   })
 }
 
-export const stepTrendQuery = (days = 30) =>
-  queryOptions({
-    queryKey: keys.metrics.steps(days),
-    queryFn: () => apiFetch<StepTrend>(`/metrics/steps?days=${days}`),
-  })
-
 export function usePutSteps() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: PutSteps) =>
       apiFetch<StepEntry>('/metrics/steps', { method: 'PUT', json: input }),
+    onSuccess: (entry) => {
+      const todayData = qc.getQueryData<CheckinToday>(keys.checkins.today())
+      qc.setQueryData<CheckinToday>(keys.checkins.today(), (old) =>
+        old && old.localDate === entry.localDate ? { ...old, steps: entry.steps } : old,
+      )
+      qc.setQueryData<StepTrend>(keys.metrics.steps(365), (old) =>
+        upsertStepTrendCache(old, entry, todayData?.localDate),
+      )
+      qc.setQueryData<StepTrend>(keys.metrics.steps(30), (old) =>
+        upsertStepTrendCache(old, entry, todayData?.localDate),
+      )
+      qc.setQueryData<StepTrend>(keys.metrics.steps(7), (old) =>
+        upsertStepTrendCache(old, entry, todayData?.localDate),
+      )
+    },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: keys.metrics.all })
       void qc.invalidateQueries({ queryKey: keys.dashboard.all })
+      void qc.invalidateQueries({ queryKey: keys.checkins.today() })
+    },
+  })
+}
+
+/** DELETE /metrics/{weight|steps}/{localDate} 或 DELETE /ratings/{localDate}?scope=overall */
+export function useDeleteMetric(kind: MetricKind) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (localDate: LocalDate) => {
+      const url =
+        kind === 'mood'
+          ? `/ratings/${localDate}?scope=overall&origin=manual`
+          : `/metrics/${kind}/${localDate}?origin=manual`
+      return apiFetch<void>(url, { method: 'DELETE' })
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: keys.metrics.all })
+      void qc.invalidateQueries({ queryKey: keys.dashboard.all })
+      void qc.invalidateQueries({ queryKey: keys.checkins.today() })
     },
   })
 }

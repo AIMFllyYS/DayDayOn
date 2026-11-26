@@ -19,8 +19,9 @@
 | `/todo/timeline` | 待办过程时间轴（含已满 30 天自动归档历史） | `(app)` | 二级 |
 | `/todo/archived` | 已归档待办（完成或放弃满 30 天自动归档） | `(app)` | 二级 |
 | `/rank` | 排行榜；`?range=week\|month` | `(app)` | 一级 |
-| `/me` | 我的 | `(app)` | 一级 |
+| `/me` | 我的（含「打卡与目标」内的「步数设置」参考虚线 Dock） | `(app)` | 一级 |
 | `/me/profile` | 个人资料（身高、体重、时区…） | `(app)` | 二级 |
+| `/metrics/[metric]` | 每日指标专属详情页（`weight` / `mood` / `steps`；默认 `?tab=stats` 统计图，`?tab=records` 详细记录与月历） | `(app)` | 二级 |
 | `/agent` | 团团（Agent 全屏对话页，与悬浮弹窗共用对话状态） | `(app)` | 二级 |
 | `/checkin/smart` | 智能识别与历史拍摄记录；`?action=capture\|upload&view=scanner\|history&sid=…&recordId=…` | `(app)` | 二级 |
 | `/notifications` | 消息与通知（打卡房间与动态、官方与系统通知、好友私聊） | `(app)` | 二级 |
@@ -39,8 +40,8 @@
 | `/download/[file]` | Android APK 安装包下载端点（支持 HTTP Range，仅放行 `download/manifest.json` 登记文件） | `download/` | Route Handler |
 | `/icons/[name]` | PWA / APK 图标与 SVG 源文件（构建时 `generateStaticParams` 预渲染） | `icons/` | Route Handler |
 
-- 偏好（主题、形象、上榜、日切换时间、提醒）在 `/me` 页内通过二级分组视图（「打卡与提醒」「外观与陪伴」等）修改，不单独开 `/me/settings`（PRD 2.11）。
-- 打卡入口（"＋"弹层）是客户端状态，不是路由；选好板块后进入 `/goals/[goalId]/checkin`，点智能拍照/上传入口进入 `/checkin/smart`。
+- 偏好（主题、形象、上榜、日切换时间、提醒、步数参考虚线）在 `/me` 页内通过二级分组视图或复用 Dock 修改，不单独开 `/me/settings`（PRD 2.11）。
+- 打卡入口（"＋"弹层）是客户端状态，不是路由；选好板块后进入 `/goals/[goalId]/checkin`，点智能拍照/上传入口进入 `/checkin/smart`，点体重/心情/步数 Dock 右上角时钟进入 `/metrics/[metric]`。
 - 一级页面就是导航项，定义在 `src/components/layout/nav-items.ts`，改这里要同步改上表。
 
 ## 3. 目录约定
@@ -56,6 +57,7 @@ src/app/
 │   ├── friends/              → /friends/[friendUserId]/goals/[goalId]（好友目标只读详情）
 │   ├── goals/                → /goals、/goals/new、/goals/[goalId]、/goals/[goalId]/checkin
 │   ├── me/                   → /me、/me/profile
+│   ├── metrics/              → /metrics/[metric]（weight / mood / steps 双 Tab 详情页）
 │   ├── notifications/        → /notifications
 │   ├── rank/                 → /rank
 │   └── todo/                 → /todo

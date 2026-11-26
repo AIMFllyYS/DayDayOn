@@ -5,16 +5,26 @@ import { isAgentEditable } from '@/features/checkin/edit-window'
 import { checkinSummary } from '@/features/checkin/format'
 import type { CheckinRevision } from '@/features/checkin/schemas'
 import type { FieldDef } from '@/features/goal/schemas'
+import { DEFAULT_DAILY_STEP_TARGET, type MetricKind } from '@/features/metric/schemas'
 import { effectiveRules, isDefaultRules } from '@/features/referee/defaults'
 import type { LocalDate } from '@/features/shared/schemas'
 import { addDays, localDateOf } from '@/lib/time'
 import { db } from '@/server/db/client'
-import { bodyMetrics, checkins, goals, profiles } from '@/server/db/schema'
+import {
+  bodyMetrics,
+  checkins,
+  dailyRatings,
+  goals,
+  profiles,
+  stepMetrics,
+} from '@/server/db/schema'
 import { checkinForDay, checkinToday } from '@/server/services/checkins/read'
 import { loadClock } from '@/server/services/checkins/clock'
 import { checkinColumns, loadFields, loadGoal, toCheckinDto } from '@/server/services/checkins/goal'
 import { listRecentRevisions, listRevisions } from '@/server/services/checkins/revisions'
 import { getFriendDashboard, listFriends } from '@/server/services/friends'
+import { ratingTrend } from '@/server/services/metrics/ratings'
+import { stepTrend } from '@/server/services/metrics/steps'
 import { weightTrend } from '@/server/services/metrics/weight'
 
 /*
@@ -32,6 +42,7 @@ export async function getProfile(userId: string) {
       heightCm: profiles.heightCm,
       mascot: profiles.mascot,
       refereeTier: profiles.refereeTier,
+      dailyStepTarget: profiles.dailyStepTarget,
     })
     .from(profiles)
     .where(eq(profiles.userId, userId))
@@ -71,12 +82,12 @@ export async function listGoals(userId: string) {
   )
 }
 
-/** 今天（含体重、心情、各目标进度、完成度） */
+/** 今天（含体重、心情、步数、各目标进度、完成度） */
 export async function getTodaySummary(userId: string, now: Date) {
   return checkinToday(db, userId, now)
 }
 
-/** 今天或昨天（补卡查漏用）各目标进度、完成度、体重、心情 */
+/** 今天或昨天（补卡查漏用）各目标进度、完成度、体重、心情、步数 */
 export async function getDaySummary(userId: string, now: Date, yesterday = false) {
   if (!yesterday) return checkinToday(db, userId, now)
   const clock = await loadClock(db, userId)
@@ -87,6 +98,110 @@ export async function getDaySummary(userId: string, now: Date, yesterday = false
 /** 最近 days 天体重 + 最近一条 + 7 天差值 */
 export async function getWeight(userId: string, now: Date, days = 30) {
   return weightTrend(db, userId, days, now)
+}
+
+/** 查询某一指标在指定打卡日的原始整数值（weight=克、mood=1..5、steps=步）；无记录返回 null */
+export async function getMetricValueOnDate(
+  userId: string,
+  metric: MetricKind,
+  localDate: LocalDate,
+): Promise<number | null> {
+  if (metric === 'weight') {
+    const [row] = await db
+      .select({ value: bodyMetrics.weightGrams })
+      .from(bodyMetrics)
+      .where(and(eq(bodyMetrics.userId, userId), eq(bodyMetrics.localDate, localDate)))
+      .limit(1)
+    return row?.value ?? null
+  }
+  if (metric === 'mood') {
+    const [row] = await db
+      .select({ value: dailyRatings.value })
+      .from(dailyRatings)
+      .where(
+        and(
+          eq(dailyRatings.userId, userId),
+          eq(dailyRatings.localDate, localDate),
+          eq(dailyRatings.scope, 'overall'),
+        ),
+      )
+      .limit(1)
+    return row?.value ?? null
+  }
+  const [row] = await db
+    .select({ value: stepMetrics.steps })
+    .from(stepMetrics)
+    .where(and(eq(stepMetrics.userId, userId), eq(stepMetrics.localDate, localDate)))
+    .limit(1)
+  return row?.value ?? null
+}
+
+/** 读取体重 / 心情 / 步数综合趋势与今日/昨日现状（供 Agent getMetrics 工具使用） */
+export async function getMetricsOverview(
+  userId: string,
+  now: Date,
+  kind: MetricKind | 'all' = 'all',
+  days = 30,
+) {
+  const clock = await loadClock(db, userId)
+  const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
+  const yesterday = addDays(today, -1)
+  const [profile, weight, mood, steps] = await Promise.all([
+    kind === 'all' || kind === 'steps' ? getProfile(userId) : Promise.resolve(null),
+    kind === 'all' || kind === 'weight'
+      ? weightTrend(db, userId, days, now)
+      : Promise.resolve(null),
+    kind === 'all' || kind === 'mood'
+      ? ratingTrend(db, userId, 'overall', days, now)
+      : Promise.resolve(null),
+    kind === 'all' || kind === 'steps' ? stepTrend(db, userId, days, now) : Promise.resolve(null),
+  ])
+
+  const dailyStepTarget = profile ? profile.dailyStepTarget : DEFAULT_DAILY_STEP_TARGET
+
+  return {
+    today,
+    yesterday,
+    editableDates: [yesterday, today] as const,
+    ...(kind === 'all' || kind === 'steps' ? { dailyStepTarget } : {}),
+    ...(weight
+      ? {
+          weight: {
+            todayGrams: weight.entries.find((e) => e.localDate === today)?.weightGrams ?? null,
+            yesterdayGrams:
+              weight.entries.find((e) => e.localDate === yesterday)?.weightGrams ?? null,
+            latest: weight.latest,
+            deltaGrams7d: weight.deltaGrams7d,
+            count: weight.entries.length,
+            recentEntries: weight.entries.slice(-30),
+          },
+        }
+      : {}),
+    ...(mood
+      ? {
+          mood: {
+            todayValue: mood.entries.find((e) => e.localDate === today)?.value ?? null,
+            yesterdayValue: mood.entries.find((e) => e.localDate === yesterday)?.value ?? null,
+            latest: mood.latest,
+            average: mood.average,
+            count: mood.count,
+            recentEntries: mood.entries.slice(-30),
+          },
+        }
+      : {}),
+    ...(steps
+      ? {
+          steps: {
+            todaySteps: steps.entries.find((e) => e.localDate === today)?.steps ?? null,
+            yesterdaySteps: steps.entries.find((e) => e.localDate === yesterday)?.steps ?? null,
+            latest: steps.latest,
+            deltaSteps7d: steps.deltaSteps7d,
+            count: steps.entries.length,
+            recentEntries: steps.entries.slice(-30),
+          },
+        }
+      : {}),
+  }
 }
 
 /** 自定义目标各字段版本的缓存读取 */

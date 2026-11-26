@@ -1,27 +1,50 @@
 'use client'
 
 import { useState } from 'react'
+import { TrendLineChart } from '@/components/charts/trend-line-chart'
 import { Button } from '@/components/ui/button'
+import { ErrorState } from '@/components/ui/error-state'
 import { Field } from '@/components/ui/field'
-import { Icon } from '@/components/ui/icon'
 import { NumberField } from '@/components/ui/number-field'
+import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
-import { STEPS_MAX, STEPS_MIN } from '@/features/metric/schemas'
+import { DEFAULT_DAILY_STEP_TARGET, STEPS_MAX, STEPS_MIN } from '@/features/metric/schemas'
+import type { LocalDate } from '@/features/shared/schemas'
 import { errorMessage, isApiError, useQuery } from '@/lib/api'
+import { useMe } from '@/lib/api/queries/me'
 import { stepTrendQuery, usePutSteps } from '@/lib/api/queries/metrics'
 import { getNativeTodaySteps, isNativeApp, requestNativePermission } from '@/lib/native'
 
-const QUICK_STEP_PRESETS = [3000, 6000, 8000, 10000] as const
-
-/**
- * 记录今日步数面板（Issue #80）：
- * - 在打卡弹层内切换展示（不叠加二级弹窗）；
- * - 安卓客户端支持一键读取并同步硬件计步器；
- * - 全端支持手动输入或快捷步数填入（兼容手表/手环/微信运动步数补录与网页端使用）。
+/*
+ * 记录今日步数面板（对齐 WeightPanel / MoodPanel）：
+ * - 上方按需懒加载近一年步数变化折线图（TrendLineChart），叠加个人步数参考虚线，保存/同步后原地实时落点；
+ * - 中部保留手动步数输入（不再展示快捷填入区）；
+ * - 下方主按钮「记下来」，原生客户端下紧接「一键同步手机计步器」。
  */
-export function StepsPanel({ onSaved }: { onSaved: () => void }) {
-  const trend = useQuery(stepTrendQuery(7))
-  const savedSteps = trend.data?.todaySteps ?? null
+
+function formatStepsAxis(v: number): string {
+  const rounded = Math.round(v)
+  if (rounded >= 10_000) return `${(rounded / 10_000).toFixed(1).replace(/\.0$/, '')}万`
+  return rounded.toLocaleString('en-US')
+}
+
+export function StepsPanel({
+  open,
+  localDate,
+  currentSteps = null,
+}: {
+  open: boolean
+  localDate: LocalDate
+  currentSteps?: number | null
+}) {
+  const trend = useQuery({ ...stepTrendQuery(365), enabled: open })
+  const { data: me } = useMe()
+  const stepTarget = me ? me.preferences.dailyStepTarget : DEFAULT_DAILY_STEP_TARGET
+
+  const savedSteps =
+    trend.data !== undefined
+      ? (trend.data.entries.find((e) => e.localDate === localDate)?.steps ?? null)
+      : currentSteps
   const [draftSteps, setDraftSteps] = useState<number | null | undefined>(undefined)
   const steps =
     draftSteps !== undefined
@@ -41,7 +64,7 @@ export function StepsPanel({ onSaved }: { onSaved: () => void }) {
       const perm = await requestNativePermission('steps')
       if (perm !== 'granted') {
         toast.error('请先开启步数权限', {
-          description: '也可在下方手动输入',
+          description: '也可在上方手动输入今日步数',
         })
         return
       }
@@ -66,7 +89,6 @@ export function StepsPanel({ onSaved }: { onSaved: () => void }) {
         {
           onSuccess: () => {
             toast.success(`已同步 ${sensorSteps.toLocaleString('en-US')} 步`)
-            onSaved()
           },
           onError: (e) => {
             toast.error(isApiError(e) ? errorMessage(e) : '同步步数失败，请稍后重试')
@@ -94,7 +116,6 @@ export function StepsPanel({ onSaved }: { onSaved: () => void }) {
       {
         onSuccess: () => {
           toast.success(`已记 ${normalized.toLocaleString('en-US')} 步`)
-          onSaved()
         },
         onError: (e) => {
           if (isApiError(e) && e.fields?.steps) {
@@ -107,28 +128,54 @@ export function StepsPanel({ onSaved }: { onSaved: () => void }) {
     )
   }
 
+  const entries = trend.data?.entries ?? []
+  const points = entries.map((e) => ({ date: e.localDate, value: e.steps }))
+  const avgSteps =
+    entries.length > 0
+      ? Math.round(entries.reduce((sum, e) => sum + e.steps, 0) / entries.length)
+      : null
+  const maxSteps = entries.length > 0 ? Math.max(...entries.map((e) => e.steps)) : null
+  const defaultSummary =
+    entries.length === 0
+      ? undefined
+      : entries.length === 1
+        ? `近一年 · ${entries[0]!.steps.toLocaleString('en-US')} 步`
+        : `近一年 · 日均 ${avgSteps?.toLocaleString('en-US')} 步 · 最高 ${maxSteps?.toLocaleString('en-US')} 步`
+
+  const yMax = Math.max(1000, ...entries.map((e) => e.steps), stepTarget ?? 0)
+
   return (
-    <div className="flex flex-col gap-4 py-1">
-      {native && (
-        <button
-          type="button"
-          disabled={syncingSensor || put.isPending}
-          onClick={() => void handleReadFromSensor()}
-          className="border-primary/25 bg-primary-soft/65 hover:bg-primary-soft text-primary-ink flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-colors disabled:opacity-60"
-        >
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="bg-primary text-on-primary flex size-9 shrink-0 items-center justify-center rounded-xl">
-              <Icon name="footprints" size={18} lineOnly />
-            </span>
-            <div className="min-w-0">
-              <p className="text-caption font-bold">
-                {syncingSensor ? '正在读取手机计步器…' : '一键同步手机计步器'}
-              </p>
-              <p className="text-tiny text-muted truncate">自动读取手机硬件传感器今日累计步数</p>
-            </div>
-          </div>
-          <Icon name="chevron-right" size={16} className="shrink-0" />
-        </button>
+    <div className="flex flex-col gap-3.5 py-1">
+      {trend.isPending ? (
+        <Skeleton className="h-[188px] w-full rounded-2xl" />
+      ) : trend.isError ? (
+        <ErrorState
+          size="compact"
+          title="近一年步数走势没加载出来"
+          message={isApiError(trend.error) ? errorMessage(trend.error) : undefined}
+          onRetry={() => void trend.refetch()}
+          retrying={trend.isRefetching}
+        />
+      ) : (
+        <TrendLineChart
+          chartId="steps"
+          data={points}
+          endDate={localDate}
+          days={365}
+          label="近一年步数变化"
+          tone="exercise"
+          unit="步"
+          yDomain={[0, Math.ceil(yMax * 1.15)]}
+          formatValue={formatStepsAxis}
+          formatPointValue={(v) => `${Math.round(v).toLocaleString('en-US')} 步`}
+          referenceLine={
+            stepTarget !== null
+              ? { value: stepTarget, label: `参考 ${stepTarget.toLocaleString('en-US')}` }
+              : null
+          }
+          defaultSummary={defaultSummary}
+          emptyText="近一年还没有步数记录，记下今天的第一条吧"
+        />
       )}
 
       <Field
@@ -136,7 +183,7 @@ export function StepsPanel({ onSaved }: { onSaved: () => void }) {
         htmlFor="checkin-steps"
         error={error}
         hint={
-          savedSteps && savedSteps > 0
+          savedSteps !== null && savedSteps > 0
             ? `当前已记录 ${savedSteps.toLocaleString('en-US')} 步，重新提交将覆盖今日记录`
             : '支持输入手机、手表或手环记录的今日步数'
         }
@@ -144,36 +191,43 @@ export function StepsPanel({ onSaved }: { onSaved: () => void }) {
         <NumberField
           id="checkin-steps"
           value={steps}
-          onValueChange={setDraftSteps}
+          onValueChange={(v) => {
+            setDraftSteps(v)
+            setError(undefined)
+          }}
           min={STEPS_MIN}
           max={STEPS_MAX}
           step={500}
           unit="步"
           format={{ maximumFractionDigits: 0 }}
-          placeholder="6000"
+          placeholder="8000"
         />
       </Field>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-tiny text-muted font-semibold">快捷填入：</span>
-        {QUICK_STEP_PRESETS.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            onClick={() => {
-              setDraftSteps(preset)
-              setError(undefined)
-            }}
-            className="border-border bg-surface-sunken hover:bg-primary-soft hover:text-primary-ink text-tiny cursor-pointer rounded-full border px-3 py-1 font-mono font-semibold transition-colors"
-          >
-            {preset.toLocaleString('en-US')} 步
-          </button>
-        ))}
-      </div>
+      <div className="flex flex-col gap-2">
+        <Button
+          icon="check"
+          className="w-full"
+          loading={put.isPending && !syncingSensor}
+          disabled={syncingSensor}
+          onClick={handleSubmit}
+        >
+          记下来
+        </Button>
 
-      <Button icon="check" className="w-full" loading={put.isPending} onClick={handleSubmit}>
-        记下来
-      </Button>
+        {native && (
+          <Button
+            variant="soft"
+            icon="footprints"
+            className="w-full"
+            loading={syncingSensor}
+            disabled={put.isPending}
+            onClick={() => void handleReadFromSensor()}
+          >
+            {syncingSensor ? '正在读取手机计步器…' : '一键同步手机计步器'}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

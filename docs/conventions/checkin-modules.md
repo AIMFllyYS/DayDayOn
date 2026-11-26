@@ -43,15 +43,17 @@ src/features/checkin/modules/         板块定义；板块目录之间互相不
 
 src/features/checkin/components/      业务容器与全局智能识别组件（无 modules/<module> 之间的 settings.tsx）
 ├── checkin-flow-page.tsx             /goals/{goalId}/checkin 路由容器（含今日/昨日补卡双态切换与覆盖提交）
-├── checkin-launcher.tsx / checkin-sheet.tsx / checkin-sheet-list.tsx   底栏「＋」弹层与体重/心情/步数面板（体重/心情含近一年走势图）
+├── checkin-launcher.tsx / checkin-sheet.tsx / checkin-sheet-list.tsx   底栏「＋」弹层与体重/心情/步数 Dock（三指标统一含近一年折线图、无返回打卡列表按钮、右上角时钟直达 /metrics/[metric]）
 ├── goal-settings-view.tsx            /goals 全局唯一目标设置（SettingsOverviewCard → 单行目标胶囊 → 卡片轮播 → 互补页底/Dock 入口）
 ├── goal-module-card.tsx              单板块目标与达标规则折叠卡（含饮食人群档位）
 ├── goal-settings-sheet.tsx / goal-settings-logic.ts   统一设置 Dock（单 Sheet 内 menu → 时间周期 / 打卡设置三级钻取）
 ├── onboarding-rules-step.tsx         新人引导「定个标准」步骤（复用 RulesEditor 与 TierPicker）
 ├── smart-checkin-page.tsx / smart-scanner.tsx / smart-magic-stream.tsx / smart-history-view.tsx / smart-action-bar.tsx
-└── goal-checkin-calendar.tsx / goal-checkin-history.tsx / weight-panel.tsx / mood-panel.tsx / steps-panel.tsx
+└── goal-checkin-calendar.tsx / goal-checkin-history.tsx / record-history-card.tsx / weight-panel.tsx / mood-panel.tsx / steps-panel.tsx
 
-src/features/agent/                   裁判流式 hook（use-referee-run.ts）、对话打卡转换（checkin-entry.ts / draft-view.ts）、待办草稿卡（todo-draft-card.tsx）、已确认持久化（confirmed-drafts.ts）、工具元信息（tool-meta.ts）
+src/features/metric/                  每日指标（体重 / 心情 / 步数）双 Tab 详情页（metric-detail-view / metric-stats-tab / metric-records-tab / metric-quick-edit-sheet）、步数参考虚线 Dock（step-target-sheet，持久化至 profiles.daily_step_target）与统计纯函数（stats.ts）
+
+src/features/agent/                   裁判流式 hook（use-referee-run.ts）、对话打卡转换（checkin-entry.ts / draft-view.ts）、待办与每日指标草稿卡（todo-draft-card.tsx / metric-draft-card.tsx）、已确认持久化（confirmed-drafts.ts）、工具元信息（tool-meta.ts）
 
 src/server/ai/referee/                裁判 Agent（ai 包只允许在 src/server/ai/）
 ├── prompt.ts                         通用提示词 + REFEREE_SKILLS（改动加 REFEREE_PROMPT_VERSION，当前 v5，含昨日补卡与覆盖重算规则）

@@ -1,13 +1,19 @@
 import 'server-only'
 import { and, asc, desc, eq, gte, lt, lte } from 'drizzle-orm'
-import type { PutWeight, WeightEntry, WeightTrend } from '@/features/metric/schemas'
+import type { MetricOrigin, PutWeight, WeightEntry, WeightTrend } from '@/features/metric/schemas'
 import type { LocalDate } from '@/features/shared/schemas'
 import { addDays, localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import type { db as Database, DbOrTx, Tx } from '@/server/db/client'
 import { bodyMetrics } from '@/server/db/schema'
 import { loadClock } from '../checkins/clock'
-import { isWeightInRange, needsWeightConfirm, weightSummary } from './rules'
+import {
+  assertMetricDeleteAllowed,
+  isWeightInRange,
+  needsWeightConfirm,
+  resolveMetricTargetDate,
+  weightSummary,
+} from './rules'
 
 export interface UpsertWeightOptions {
   /** 测量时刻（通常为 now） */
@@ -74,7 +80,7 @@ export async function upsertWeight(
   return toEntry(row)
 }
 
-/** PUT /metrics/weight：记今天的体重 */
+/** PUT /metrics/weight：记今天或昨天的体重 */
 export async function putWeight(
   db: typeof Database,
   userId: string,
@@ -83,12 +89,31 @@ export async function putWeight(
 ): Promise<WeightEntry> {
   return db.transaction(async (tx) => {
     const clock = await loadClock(tx, userId)
-    const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
-    return upsertWeight(tx, userId, today, input.weightGrams, {
-      measuredAt: now,
+    const { localDate, measuredAt } = resolveMetricTargetDate(clock, now, input.localDate)
+    return upsertWeight(tx, userId, localDate, input.weightGrams, {
+      measuredAt,
       confirmLargeChange: input.confirmLargeChange,
     })
   })
+}
+
+/** DELETE /metrics/weight/{localDate}：删除指定日期体重（origin=agent 时限制今日/昨日） */
+export async function deleteWeight(
+  db: DbOrTx,
+  userId: string,
+  localDate: LocalDate,
+  origin: MetricOrigin,
+  now: Date,
+): Promise<void> {
+  const clock = await loadClock(db, userId)
+  assertMetricDeleteAllowed(clock, now, localDate, origin)
+  const deleted = await db
+    .delete(bodyMetrics)
+    .where(and(eq(bodyMetrics.userId, userId), eq(bodyMetrics.localDate, localDate)))
+    .returning({ id: bodyMetrics.id })
+  if (deleted.length === 0) {
+    throw new ApiError('NOT_FOUND', '该日期没有体重记录')
+  }
 }
 
 /** 最近一条体重（运动消耗估算用）；没有返回 null */

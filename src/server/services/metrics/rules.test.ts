@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { ApiError } from '@/server/api/errors'
 import {
+  assertMetricDeleteAllowed,
   isStepsInRange,
   isWeightInRange,
+  isWithinTodayOrYesterday,
   needsWeightConfirm,
   ratingSummary,
+  resolveMetricTargetDate,
   stepSummary,
   weightSummary,
 } from './rules'
@@ -118,5 +122,35 @@ describe('步数范围与走势摘要', () => {
     )
     expect(res.todaySteps).toBe(8500)
     expect(res.deltaSteps7d).toBe(2500)
+  })
+})
+
+describe('每日指标今日/昨日读写与删除窗口', () => {
+  const clock = { timeZone: 'Asia/Shanghai', dayStartHour: 4 }
+  const now = new Date('2026-11-05T06:00:00.000Z') // 北京 14:00，今天 2026-11-05，昨天 2026-11-04
+
+  it('isWithinTodayOrYesterday 仅允许今天和昨天', () => {
+    expect(isWithinTodayOrYesterday('2026-11-05', '2026-11-05')).toBe(true)
+    expect(isWithinTodayOrYesterday('2026-11-04', '2026-11-05')).toBe(true)
+    expect(isWithinTodayOrYesterday('2026-11-03', '2026-11-05')).toBe(false)
+    expect(isWithinTodayOrYesterday('2026-11-06', '2026-11-05')).toBe(false)
+  })
+
+  it('resolveMetricTargetDate 缺省返回今天，传入昨天返回昨天且拒绝前天或未来', () => {
+    expect(resolveMetricTargetDate(clock, now).localDate).toBe('2026-11-05')
+    expect(resolveMetricTargetDate(clock, now, '2026-11-05').localDate).toBe('2026-11-05')
+    const y = resolveMetricTargetDate(clock, now, '2026-11-04')
+    expect(y.localDate).toBe('2026-11-04')
+    expect(y.measuredAt.toISOString()).toBe('2026-11-04T04:00:00.000Z')
+
+    expect(() => resolveMetricTargetDate(clock, now, '2026-11-03')).toThrow(ApiError)
+    expect(() => resolveMetricTargetDate(clock, now, '2026-11-06')).toThrow(ApiError)
+  })
+
+  it('assertMetricDeleteAllowed 手动删除放行任意历史日，Agent 删除仅限今日/昨日', () => {
+    expect(() => assertMetricDeleteAllowed(clock, now, '2025-01-01', 'manual')).not.toThrow()
+    expect(() => assertMetricDeleteAllowed(clock, now, '2026-11-05', 'agent')).not.toThrow()
+    expect(() => assertMetricDeleteAllowed(clock, now, '2026-11-04', 'agent')).not.toThrow()
+    expect(() => assertMetricDeleteAllowed(clock, now, '2026-11-03', 'agent')).toThrow(ApiError)
   })
 })

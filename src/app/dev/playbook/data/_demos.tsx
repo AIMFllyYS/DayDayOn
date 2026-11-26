@@ -13,6 +13,7 @@ import { Rating, type RatingValue } from '@/components/ui/rating'
 import { TimeField } from '@/components/ui/time-field'
 import { TimeRangeField } from '@/components/ui/time-range-field'
 import { moodLabel } from '@/features/dashboard/format'
+import { StepTargetSheet } from '@/features/metric/components/step-target-sheet'
 import type { NativeAlbumBucket } from '@/lib/native'
 
 /*
@@ -431,7 +432,19 @@ const PLAYBOOK_MOOD_Y_TICKS = [
   { value: 1, label: '很糟' },
 ] as const
 
+const DEMO_TREND_STEPS: TrendPoint[] = [
+  { date: '2026-01-18', value: 6500 },
+  { date: '2026-03-04', value: 9400 },
+  { date: '2026-05-12', value: 7200 },
+  { date: '2026-07-22', value: 11200 },
+  { date: '2026-09-14', value: 8600 },
+  { date: '2026-10-25', value: 5800 },
+  { date: '2026-11-02', value: 9120 },
+]
+
 export function TrendLineChartDemo() {
+  const [stepTarget, setStepTarget] = useState<number | null>(8000)
+  const [targetOpen, setTargetOpen] = useState(false)
   return (
     <div className="grid w-full gap-3 md:grid-cols-2">
       <TrendLineChart
@@ -452,6 +465,40 @@ export function TrendLineChartDemo() {
         formatPointValue={(v) => `${v} 分 · ${moodLabel(v)}`}
         defaultSummary="近一年 · 均分 3.7 · 记录 7 天"
       />
+      <div className="flex flex-col gap-2">
+        <TrendLineChart
+          data={DEMO_TREND_STEPS}
+          endDate={DEMO_TODAY}
+          label="近一年步数变化"
+          tone="exercise"
+          unit="步"
+          yDomain={[0, Math.ceil(Math.max(11200, stepTarget ?? 0) * 1.15)]}
+          formatPointValue={(v) => `${Math.round(v).toLocaleString('en-US')} 步`}
+          referenceLine={
+            stepTarget !== null
+              ? { value: stepTarget, label: `参考 ${stepTarget.toLocaleString('en-US')}` }
+              : null
+          }
+          defaultSummary="近一年 · 日均 8,260 步 · 最高 11,200 步"
+        />
+        <div className="flex items-center justify-between gap-2 px-1">
+          <span className="text-tiny text-muted">
+            参考虚线：{stepTarget !== null ? `${stepTarget.toLocaleString('en-US')} 步` : '已隐藏'}
+          </span>
+          <Button variant="soft" size="sm" icon="sliders" onClick={() => setTargetOpen(true)}>
+            打开步数设置 Dock
+          </Button>
+        </div>
+        <StepTargetSheet
+          open={targetOpen}
+          onOpenChange={setTargetOpen}
+          currentTarget={stepTarget}
+          onSave={(next) => {
+            setStepTarget(next)
+            setTargetOpen(false)
+          }}
+        />
+      </div>
       <TrendLineChart
         data={[{ date: DEMO_TODAY, value: 52.4 }]}
         endDate={DEMO_TODAY}

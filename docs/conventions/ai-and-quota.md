@@ -12,12 +12,13 @@ src/server/ai/
 ├── run.ts                   runAi() 与 preflight() / checkUserLimits() / finishRun() / reconcileStaleRuns() / rejectReusedKey() / afterSpend()
 ├── call-model.ts            底层模型调用封装（超时控制 + Zod 输出校验）
 ├── recovery.ts              结算事务重试与流水恢复纯函数
-├── run-agent.ts             streamAgentChat() 与 reserveAgentRun() / settleAgentRun()（对话与裁判共用账本，AGENT_PROMPT_VERSION = 6）
+├── run-agent.ts             streamAgentChat() 与 reserveAgentRun() / settleAgentRun()（对话与裁判共用账本，AGENT_PROMPT_VERSION = 7）
 ├── agent.ts                 buildAgent()（ToolLoopAgent，32 步上限，普通 4096 / 深度思考 8192 tokens/步，最后一步禁工具保底文字输出）
 ├── repair-tool-call.ts      createRepairToolCall()（按工具名区分长度上限，确定性修复 DeepSeek Flash 尾部截断、null 可选参数与字段类型错位）
-├── agent-tools.ts           对话 Agent 工具总装（读资料/目标/进度/好友、showStats、联网、挂载打卡与待办专项工具）
+├── agent-tools.ts           对话 Agent 工具总装（读资料/目标/进度/好友、showStats、联网、挂载打卡/待办/每日指标专项工具）
 ├── agent-checkin-tools.ts   对话 Agent 打卡专项工具（查询、留痕、增改删与昨日补卡覆盖草稿）
 ├── agent-todo-tools.ts      对话 Agent 待办专项工具（3 层渐进式读 + 单轮缓存 + draftTodo / draftUpdateTodo / draftDeleteTodo / draftTodoGroup）
+├── agent-metric-tools.ts    对话 Agent 每日指标专项工具（getMetrics + 今日/昨日 draftMetric / draftDeleteMetric 草稿）
 ├── checkin-lookups.ts       内置食物营养表、运动 MET 表等查询封装
 ├── web-search.ts            DeepSeek 官方 Search / Fetch 封装
 ├── pricing.ts               价格表（微元 / 百万 tokens）与费用计算，纯函数
@@ -35,7 +36,7 @@ src/server/quota/            （已无 guard.ts；全站/单人检查在 ai/run.
 
 src/lib/image/               compress.ts（浏览器端压缩）、size.ts（含文件头魔数嗅探）
 src/features/quota/          schemas.ts（AI_PURPOSES 等契约）、format.ts、components/（额度卡、侧栏额度条）
-src/features/agent/          前端 Agent 组件与 hook（AgentTurn、AiDraftCard、ChangeDraftCard、TodoDraftCard、FloatingPet、AgentPanel、AgentFullscreen、confirmed-drafts、useRefereeRun 等）
+src/features/agent/          前端 Agent 组件与 hook（AgentTurn、AiDraftCard、ChangeDraftCard、TodoDraftCard、MetricDraftCard、FloatingPet、AgentPanel、AgentFullscreen、confirmed-drafts、useRefereeRun 等）
 ```
 
 - 只有 `src/server/ai/` 可以 import `@ai-sdk/deepseek`；`ai` 只允许在 `src/server/ai/` 与 `src/features/agent/`（前端类型与 `DefaultChatTransport`）import；前端只有 `src/features/agent/` 可以 import `@ai-sdk/react`。

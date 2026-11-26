@@ -1,13 +1,13 @@
 import 'server-only'
 import { tool } from 'ai'
 import * as z from 'zod'
-import type { AgentDraft } from '@/features/agent/schemas'
 import { IdSchema } from '@/features/shared/schemas'
 import type { Clock } from '@/server/services/checkins/rules'
 import * as read from '@/server/services/agent/read'
 import { db } from '@/server/db/client'
 import { getInsights } from '@/server/services/insights'
 import { buildCheckinTools } from './agent-checkin-tools'
+import { buildMetricTools } from './agent-metric-tools'
 import { buildTodoTools } from './agent-todo-tools'
 import { fetchWeb, searchWeb } from './web-search'
 
@@ -15,7 +15,8 @@ import { fetchWeb, searchWeb } from './web-search'
  * Agent 工具集。每轮对话构建一次（闭包捕获 userId / now / 搜索预算）。
  * - 读工具：只查库，返回给模型看的精简 JSON。
  * - 草稿工具（draft*）：不写库，返回结构化草稿（AgentDraft），前端渲染成草稿卡，
- *   用户确认后用 confirmBody 调普通接口。打卡的新增、修改、删除、留痕在 agent-checkin-tools.ts。
+ *   用户确认后用 confirmBody 调普通接口。
+ *   打卡在 agent-checkin-tools.ts，待办在 agent-todo-tools.ts，每日指标（体重/心情/步数）在 agent-metric-tools.ts。
  * - 图表工具（showStats）：返回板块近况（features/insights），前端渲染成和主页同一种近况卡。
  * - 联网搜索 / 读网页：直接调 DeepSeek Search/Fetch，按次计费，计入额度。
  */
@@ -41,7 +42,7 @@ export function buildAgentTools(ctx: AgentToolContext) {
 
   const readProfile = tool({
     description:
-      '读取用户的个人资料：昵称、性别、出生年份、身高、吉祥物、人群档位（饮食评分按它定标准）。回答"我是谁/我的资料"时用。',
+      '读取用户的个人资料：昵称、性别、出生年份、身高、吉祥物、人群档位（饮食评分按它定标准）、每日步数参考线（dailyStepTarget）。回答"我是谁/我的资料"时用。',
     inputSchema: z.object({}),
     execute: async () => ({ profile: await read.getProfile(userId) }),
   })
@@ -55,7 +56,7 @@ export function buildAgentTools(ctx: AgentToolContext) {
 
   const todaySummary = tool({
     description:
-      '读取今天（或补卡时的昨天）的状态：各目标进度、完成度、体重、心情。回答"我今天/昨天怎么样、昨天漏了什么卡"或准备补昨天的卡前先调它。',
+      '读取今天（或补卡时的昨天）的状态：各目标进度、完成度、体重、心情、步数。回答"我今天/昨天怎么样、昨天漏了什么卡"或准备补昨天的卡前先调它。',
     inputSchema: z.object({
       yesterday: z.boolean().default(false).describe('查昨天补卡漏项时传 true，默认 false 查今天'),
     }),
@@ -82,12 +83,6 @@ export function buildAgentTools(ctx: AgentToolContext) {
     execute: async ({ from, to, goalId }) => ({
       checkins: await read.listCheckinsInRange(userId, now, { from, to, goalId }),
     }),
-  })
-
-  const weightTool = tool({
-    description: '读取最近 30 天的体重记录和 7 天差值。',
-    inputSchema: z.object({}),
-    execute: async () => ({ weight: await read.getWeight(userId, now) }),
   })
 
   // 图表：返回的数据前端直接画成近况卡（agent-messages.tsx 的 STATS_TOOLS），数字由服务端算，模型不用复述
@@ -167,26 +162,11 @@ export function buildAgentTools(ctx: AgentToolContext) {
     },
   })
 
-  // ---- 草稿工具（不写库，返回 AgentDraft） ----
-
-  const draftWeight = tool({
-    description: '把用户说的体重整理成草稿（不写入）。',
-    inputSchema: z.object({
-      weightKg: z.number().min(20).max(300).describe('体重，千克'),
-    }),
-    execute: async ({ weightKg }): Promise<AgentDraft> => ({
-      kind: 'weight',
-      weightKg,
-      confirmBody: { weightGrams: Math.round(weightKg * 1000), confirmLargeChange: true },
-    }),
-  })
-
   return {
     getUserProfile: readProfile,
     listGoals: listGoalsTool,
     getDaySummary: todaySummary,
     listCheckins: listCheckinsTool,
-    getWeight: weightTool,
     showStats: showStatsTool,
     listFriends: listFriendsTool,
     getFriendStatus: getFriendStatusTool,
@@ -194,6 +174,6 @@ export function buildAgentTools(ctx: AgentToolContext) {
     webFetch: fetchTool,
     ...buildCheckinTools({ userId, now }),
     ...buildTodoTools({ userId, now, clock }),
-    draftWeight,
+    ...buildMetricTools({ userId, now, clock }),
   }
 }

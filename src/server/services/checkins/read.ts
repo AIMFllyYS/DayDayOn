@@ -11,7 +11,7 @@ import type { RatingValueSchema } from '@/features/shared/schemas'
 import { localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import type { DbOrTx } from '@/server/db/client'
-import { bodyMetrics, checkins, dailyRatings } from '@/server/db/schema'
+import { bodyMetrics, checkins, dailyRatings, stepMetrics } from '@/server/db/schema'
 import { dayCompletion, goalDayProgress, isPlannedOn } from '@/server/services/stats'
 import type * as z from 'zod'
 import { loadClock } from './clock'
@@ -120,7 +120,7 @@ export async function checkinForDay(
 ): Promise<CheckinToday> {
   const goals = await loadActiveGoals(db, userId)
   const ids = goals.map((g) => g.id)
-  const [rows, history, weight, mood] = await Promise.all([
+  const [rows, history, weight, mood, step] = await Promise.all([
     ids.length === 0
       ? Promise.resolve([])
       : db
@@ -151,6 +151,11 @@ export async function checkinForDay(
         ),
       )
       .limit(1),
+    db
+      .select({ steps: stepMetrics.steps })
+      .from(stepMetrics)
+      .where(and(eq(stepMetrics.userId, userId), eq(stepMetrics.localDate, targetDate)))
+      .limit(1),
   ])
 
   const all: TodayGoal[] = goals.map((g) => {
@@ -174,6 +179,7 @@ export async function checkinForDay(
     completion: dayCompletion(all),
     weightGrams: weight[0]?.weightGrams ?? null,
     mood: (mood[0]?.value as RatingValue | undefined) ?? null,
+    steps: step[0]?.steps ?? null,
     // goals 已按 sortOrder 排序，第一个饮食目标就是 sortOrder 最小的
     dietPhotoGoalId: diet?.id ?? null,
   }

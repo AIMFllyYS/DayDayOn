@@ -95,7 +95,7 @@ export function MoodPanel({
         tone="primary"
         className="justify-between"
       />
-      <p className="text-tiny text-muted">只能评今天，再评一次会覆盖</p>
+      <p className="text-tiny text-muted">每天一条，再评一次会覆盖</p>
     </div>
   )
 }

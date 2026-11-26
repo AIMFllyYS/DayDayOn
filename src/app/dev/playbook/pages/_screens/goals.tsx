@@ -132,6 +132,7 @@ const demoMe = {
     remindAt: '21:00',
     remindMode: 'in-app' as const,
     refereeTier: 'balanced-glycemic' as const,
+    dailyStepTarget: 8000,
   },
 }
 
