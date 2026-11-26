@@ -4,6 +4,17 @@
 
 ---
 
+## [v0.1.17] - 2026-11-26（步数/心情/体重 Dock 统一、双 Tab 专属详情页、步数参考虚线设置与 Agent 每日指标全量 CRUD）
+
+### ✨ 新功能与体验统一
+- **数据库持久化步数参考虚线与 `/me`「步数设置」Dock**：`profiles` 新增可空 `daily_step_target` 列（默认 `8000`，迁移 `0013_huge_meltdown.sql`），复用 `GET /api/v1/me` 与 `PATCH /api/v1/me/preferences` 零新增端点持久化（并在用户数据导出中补全 `steps`）；在「我的 → 打卡与目标」的「目标设置」与「打卡与提醒」之间新增「步数设置」，复用 `<StepTargetSheet>` Dock 支持开关隐藏、步数输入与单行四档快捷预设。
+- **三大指标 Dock 统一收口（步数 / 心情 / 体重）**：`StepsPanel` 顶部复用 `<TrendLineChart>`（新增左对齐描边 `referenceLine` 防右侧数据点遮挡），移除「快捷填入」板块，原生「一键同步手机计步器」移至底部「记下来」下方并原地实时刷新落点；三大指标 Dock 统一移除底部「返回打卡列表」按钮，右上角时钟按钮分别直达 `/metrics/weight`、`/metrics/mood`、`/metrics/steps`。
+- **双 Tab 指标详情页（`/metrics/[metric]`）与共享 `<RecordHistoryCard>`**：抽离共享按日分组历史卡片 `RecordHistoryCard`（`GoalCheckinHistory` 重构为薄包装）；新增 `/metrics/weight`、`/metrics/mood`、`/metrics/steps` 专属详情页，顶部提供指标专属摘要与「记今日 / 补昨日」Dock，默认展示「统计图」Tab（基于 365 天缓存瞬时切片 30/90/365 天，零新增依赖），次选「详细记录」Tab 复用双栏月历与游标分页列表，支持手动删除任意历史日期（二次确认）。
+- **后端窗口校验与 OpenAPI 同步**：扩展 `PUT /metrics/weight`、`/ratings`、`/metrics/steps` 支持昨日覆盖写（超 2 天返回 `400 MAKEUP_NOT_ALLOWED`），新增 `DELETE`（`?origin=agent` 严控今日/昨日）与 `GET /metrics/{kind}/history`、`GET /metrics/{kind}/calendar`，顺带修复 `stepTrend` 未来日期过滤与 `/checkins/today` 补全 `steps`，同步 `docs/specs/api/openapi.json`（71 条路径）。
+- **Agent 每日指标全量读取与今日/昨日 CRUD（Prompt v7）**：新增 `src/server/ai/agent-metric-tools.ts`（`getMetrics`、`draftMetric`、`draftDeleteMetric`）、`<MetricDraftCard>`（新建 / 改前→改后覆盖修改 / 危险态删除）及 Playbook 演示稿，升级 `AGENT_PROMPT_VERSION = 7` 并同步 `repair-tool-call.ts` 与三份核心规范文档。
+
+---
+
 ## [v0.1.16] - 2026-11-26（登录态 30 天活跃留存、昨日补卡全链路、体重/心情近一年折线图、目标页一屏紧凑 Dock、治愈语录跑马灯、热力图范围修复与待办 Agent 全量 CRUD）
 
 ### 🛠️ 缺陷修复与核心架构加固

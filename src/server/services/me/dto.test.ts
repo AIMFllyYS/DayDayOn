@@ -58,14 +58,33 @@ describe('toMeDto', () => {
 
   it('库里的脏值回落到默认值，不让 /me 变成 500', () => {
     const dto = toMeDto(
-      { ...ROW, theme: 'neon', mascot: 'cat', gender: 'x', remindAt: '25:00', role: 'owner' },
+      {
+        ...ROW,
+        theme: 'neon',
+        mascot: 'cat',
+        gender: 'x',
+        remindAt: '25:00',
+        role: 'owner',
+        dailyStepTarget: -100,
+      },
       -3,
     )
     expect(MeSchema.safeParse(dto).success).toBe(true)
-    expect(dto.preferences).toMatchObject({ theme: 'caramel', mascot: 'tuan', remindAt: null })
+    expect(dto.preferences).toMatchObject({
+      theme: 'caramel',
+      mascot: 'tuan',
+      remindAt: null,
+      dailyStepTarget: 8000,
+    })
     expect(dto.profile.gender).toBeNull()
     expect(dto.role).toBe('user')
     expect(dto.streak).toBe(0)
+  })
+
+  it('步数参考虚线默认 8000，支持自定义与显式 null 隐藏', () => {
+    expect(toMeDto(ROW, 0).preferences.dailyStepTarget).toBe(8000)
+    expect(toMeDto({ ...ROW, dailyStepTarget: 10_000 }, 0).preferences.dailyStepTarget).toBe(10_000)
+    expect(toMeDto({ ...ROW, dailyStepTarget: null }, 0).preferences.dailyStepTarget).toBeNull()
   })
 })
 
@@ -75,10 +94,14 @@ describe('PATCH 入参 → 列', () => {
       nickname: '阿柚',
       avatar: null,
     })
-    expect(preferenceColumns({ remindAt: null, leaderboardOptIn: true })).toEqual({
+    expect(
+      preferenceColumns({ remindAt: null, leaderboardOptIn: true, dailyStepTarget: 12_000 }),
+    ).toEqual({
       remindAt: null,
       leaderboardOptIn: true,
+      dailyStepTarget: 12_000,
     })
+    expect(preferenceColumns({ dailyStepTarget: null })).toEqual({ dailyStepTarget: null })
   })
 
   it('dayStartHour = 0 不会被当成"没传"', () => {

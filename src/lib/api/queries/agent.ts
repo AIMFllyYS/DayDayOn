@@ -178,6 +178,34 @@ async function confirmDraft(vars: ConfirmDraftVariables): Promise<unknown> {
         json: d.confirmBody,
         idempotencyKey: key,
       })
+    case 'metric-upsert': {
+      const path =
+        d.metric === 'weight'
+          ? '/metrics/weight'
+          : d.metric === 'mood'
+            ? '/ratings'
+            : '/metrics/steps'
+      return apiFetch(path, {
+        method: 'PUT',
+        json: d.confirmBody,
+        idempotencyKey: key,
+      })
+    }
+    case 'metric-delete': {
+      const path =
+        d.metric === 'mood'
+          ? `/ratings/${encodeURIComponent(d.localDate)}?scope=overall&origin=agent`
+          : `/metrics/${d.metric}/${encodeURIComponent(d.localDate)}?origin=agent`
+      try {
+        return await apiFetch(path, { method: 'DELETE' })
+      } catch (err: unknown) {
+        // 幂等容错：若记录已被手动删除，视为删除成功
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'NOT_FOUND') {
+          return undefined
+        }
+        throw err
+      }
+    }
   }
 }
 
@@ -196,7 +224,7 @@ export function useConfirmDraft() {
         await queryClient.invalidateQueries({ queryKey: keys.todos.all })
         return
       }
-      if (kind === 'weight') {
+      if (kind === 'weight' || kind === 'metric-upsert' || kind === 'metric-delete') {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: keys.metrics.all }),
           queryClient.invalidateQueries({ queryKey: keys.dashboard.all }),

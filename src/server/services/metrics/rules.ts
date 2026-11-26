@@ -12,11 +12,57 @@ import {
   type WeightEntry,
 } from '@/features/metric/schemas'
 import type { LocalDate, RatingScope } from '@/features/shared/schemas'
-import { addDays } from '@/lib/time'
+import { addDays, combineLocal, localDateOf } from '@/lib/time'
+import { ApiError } from '@/server/api/errors'
+import type { Clock } from '../checkins/rules'
 
 /*
  * 每日指标的纯规则（PRD 2.5、3「体重异常值」+ Issue #57 每日步数 + Issue #104 心情走势）。带单测（rules.test.ts）。
  */
+
+/** 是否在用户时区的 [昨天, 今天] 可写/可补录窗口内 */
+export function isWithinTodayOrYesterday(localDate: LocalDate, today: LocalDate): boolean {
+  return localDate === today || localDate === addDays(today, -1)
+}
+
+/**
+ * 解析指标写入的目标日期：
+ * - 未传 requestedDate 时默认今天；
+ * - 传入时严格校验必须为今天或昨天，否则抛 400 MAKEUP_NOT_ALLOWED。
+ */
+export function resolveMetricTargetDate(
+  clock: Clock,
+  now: Date,
+  requestedDate?: LocalDate,
+): { localDate: LocalDate; today: LocalDate; measuredAt: Date } {
+  const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
+  if (!requestedDate || requestedDate === today) {
+    return { localDate: today, today, measuredAt: now }
+  }
+  const yesterday = addDays(today, -1)
+  if (requestedDate !== yesterday) {
+    throw new ApiError('MAKEUP_NOT_ALLOWED', '仅支持记录或修改今天和昨天的数据')
+  }
+  return {
+    localDate: yesterday,
+    today,
+    measuredAt: combineLocal(yesterday, '12:00', clock.timeZone),
+  }
+}
+
+/** Agent 发起删除时限制只允许删今天和昨天；手动删除允许任意历史日期 */
+export function assertMetricDeleteAllowed(
+  clock: Clock,
+  now: Date,
+  localDate: LocalDate,
+  origin: 'manual' | 'agent',
+): void {
+  if (origin !== 'agent') return
+  const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
+  if (!isWithinTodayOrYesterday(localDate, today)) {
+    throw new ApiError('MAKEUP_NOT_ALLOWED', '团团只能删除今天或昨天的记录，更早的请去详情页处理')
+  }
+}
 
 export function isWeightInRange(grams: number): boolean {
   return Number.isInteger(grams) && grams >= WEIGHT_MIN_GRAMS && grams <= WEIGHT_MAX_GRAMS

@@ -101,6 +101,19 @@ const toolMeta: Record<string, ToolMeta> = {
     icon: 'folder',
     tone: 'study',
   },
+  getMetrics: {
+    label: '读取每日指标',
+    verb: '正在看体重/心情/步数',
+    icon: 'chart',
+    tone: 'primary',
+  },
+  draftMetric: { label: '整理指标草稿', verb: '正在整理每日指标', icon: 'edit', tone: 'primary' },
+  draftDeleteMetric: {
+    label: '整理删指标草稿',
+    verb: '正在整理要删的指标',
+    icon: 'trash',
+    tone: 'danger',
+  },
   draftWeight: { label: '整理体重草稿', verb: '正在整理体重', icon: 'chart', tone: 'primary' },
   // 打卡裁判（server/ai/referee/tools.ts）
   lookupFoodNutrition: {

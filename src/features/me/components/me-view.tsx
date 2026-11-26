@@ -19,6 +19,7 @@ import { Switch } from '@/components/ui/switch'
 import { toast } from '@/components/ui/toast'
 import type { Me, RemindMode, UpdatePreferences } from '@/features/me/schemas'
 import { cn } from '@/lib/cn'
+import { useLazyMount } from '@/lib/lazy'
 import {
   getNativePermissions,
   isNativeApp,
@@ -36,9 +37,15 @@ import { DAY_START_OPTIONS } from '../units'
  * - 一级页聚焦个人状态卡、AI 额度卡与清晰的三大设置分组入口，避免单页堆砌过多表单控件；
  * - 二级页（「打卡与提醒」「外观与陪伴」「权限管理」「数据与关于」「账号与安全」）按需深入，
  *   统一使用 SubpageTransition（右进左出 560ms / 返回 460ms），支持手机侧滑返回；
+ * - 步数设置采用与指标一致的 <Sheet> Dock 弹层（StepTargetSheet），按需懒加载；
  * - 权限管理面板（含 Markdown 公约与弹层）采用 next/dynamic 懒加载，不占「我的」首屏体积；
  * - 选择「手机提醒」时自动校验通知权限并同步安卓系统定时推送，支持一键发送测试通知。
  */
+
+const StepTargetSheet = dynamic(
+  () => import('@/features/metric/components/step-target-sheet').then((m) => m.StepTargetSheet),
+  { loading: () => null },
+)
 
 const SelectRemindMode = dynamic(
   () => import('@/components/ui/select').then((m) => m.Select<RemindMode>),
@@ -143,6 +150,12 @@ export function MeView({
   const [navDirection, setNavDirection] = useState<'none' | 'push' | 'pop'>('none')
   const [notifPerm, setNotifPerm] = useState<PermissionStateValue>('prompt')
   const [testingPush, setTestingPush] = useState(false)
+  const [stepTargetOpen, setStepTargetOpen] = useState(false)
+  const stepTargetLoaded = useLazyMount(stepTargetOpen)
+  const stepTargetSummary =
+    prefs.dailyStepTarget !== null
+      ? `${prefs.dailyStepTarget.toLocaleString('en-US')} 步`
+      : '已隐藏'
 
   const currentTheme = themes.find((t) => t.id === prefs.theme) ?? themes[0]
   const currentMascot = mascotCharacters.find((c) => c.id === prefs.mascot) ?? mascotCharacters[0]
@@ -334,6 +347,14 @@ export function MeView({
                 label="目标设置"
                 description="打卡板块、人群档位与达标规则"
                 href="/goals"
+              />
+              <MenuItem
+                icon="footprints"
+                tone="exercise"
+                label="步数设置"
+                description="每日步数走势与统计图参考虚线"
+                value={stepTargetSummary}
+                onClick={() => setStepTargetOpen(true)}
               />
               <MenuItem
                 icon="bell"
@@ -621,6 +642,23 @@ export function MeView({
           </div>
         )}
       </SubpageTransition>
+
+      {stepTargetLoaded && (
+        <StepTargetSheet
+          open={stepTargetOpen}
+          onOpenChange={setStepTargetOpen}
+          currentTarget={prefs.dailyStepTarget}
+          onSave={(next) => {
+            onPreferencesChange({ dailyStepTarget: next })
+            toast.success(
+              next !== null
+                ? `步数参考线已设为 ${next.toLocaleString('en-US')} 步`
+                : '已隐藏步数参考虚线',
+            )
+            setStepTargetOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }

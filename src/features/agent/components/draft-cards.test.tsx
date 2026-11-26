@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { AiDraftCard } from './ai-draft-card'
 import { ChangeDraftCard } from './change-draft-card'
+import { MetricDraftCard } from './metric-draft-card'
 import { TodoChangeDraftCard, TodoDraftCard, TodoGroupDraftCard } from './todo-draft-card'
 
 const verdict = {
@@ -131,5 +132,58 @@ describe('待办草稿卡（服务端渲染）', () => {
     )
     expect(html).toContain('确认删除分组')
     expect(html).toContain('4 条将自动迁回「默认待办」')
+  })
+})
+
+describe('每日指标草稿卡（服务端渲染）', () => {
+  it('新建步数草稿展示今日日期与确认记录按钮', () => {
+    const html = renderToStaticMarkup(
+      <MetricDraftCard
+        mode="create"
+        metric="steps"
+        targetDay="today"
+        localDate="2026-11-05"
+        afterLabel="8,640 步"
+      />,
+    )
+    expect(html).toContain('记录今日步数')
+    expect(html).toContain('8,640 步')
+    expect(html).toContain('确认记录')
+  })
+
+  it('昨日体重覆盖修改草稿展示改前改后对比与覆盖提示', () => {
+    const html = renderToStaticMarkup(
+      <MetricDraftCard
+        mode="update"
+        metric="weight"
+        targetDay="yesterday"
+        localDate="2026-11-04"
+        beforeLabel="61.2 kg"
+        afterLabel="60.4 kg"
+        reason="称错了重新记"
+      />,
+    )
+    expect(html).toContain('修改昨日体重')
+    expect(html).toContain('61.2 kg')
+    expect(html).toContain('60.4 kg')
+    expect(html).toContain('覆盖修改')
+    expect(html).toContain('确认修改')
+  })
+
+  it('昨日心情删除草稿使用危险态删除按钮并写明原因', () => {
+    const html = renderToStaticMarkup(
+      <MetricDraftCard
+        mode="delete"
+        metric="mood"
+        targetDay="yesterday"
+        localDate="2026-11-04"
+        beforeLabel="2 分 · 不太好"
+        reason="点错日子了"
+      />,
+    )
+    expect(html).toContain('删除昨日心情')
+    expect(html).toContain('2 分 · 不太好')
+    expect(html).toContain('原因：点错日子了')
+    expect(html).toContain('确认删除')
   })
 })

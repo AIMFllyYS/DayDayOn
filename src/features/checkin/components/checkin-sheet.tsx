@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Button, IconButton } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
 import { Sheet } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,7 +22,8 @@ import { WeightPanel } from './weight-panel'
 
 /*
  * 打卡弹层（PRD 2.4、7.2，原型 Playbook _components/checkin-sheet.tsx）。
- * 列表 / 体重 / 心情在同一个弹层里切换内容（不开第二层弹层），视图由 launcher-store 决定。
+ * 列表 / 体重 / 心情 / 步数在同一个弹层里切换内容（不开第二层弹层），视图由 launcher-store 决定。
+ * 三个指标 Dock 统一不显示底部「返回打卡列表」，点击空白处或下拉即可收起；右上角时钟直达对应详情页。
  * 挂载点（checkin-launcher.tsx，F3）第一次打开时才懒加载本文件。
  */
 
@@ -37,6 +38,13 @@ const titles: Record<CheckinLauncherView, string> = {
   weight: '记体重',
   mood: '今日心情',
   steps: '今日步数',
+}
+
+const clockMeta: Record<CheckinLauncherView, { label: string; href: string }> = {
+  list: { label: '历史拍摄记录', href: '/checkin/smart?view=history' },
+  weight: { label: '体重统计与记录', href: '/metrics/weight' },
+  mood: { label: '心情统计与记录', href: '/metrics/mood' },
+  steps: { label: '步数统计与记录', href: '/metrics/steps' },
 }
 
 export function CheckinSheet({ open, view, onOpenChange }: CheckinSheetProps) {
@@ -57,19 +65,8 @@ export function CheckinSheet({ open, view, onOpenChange }: CheckinSheetProps) {
             ? '支持同步手机计步或手动记录今日步数'
             : undefined
 
-  const footer =
-    view === 'list' ? (
-      <SmartActionBar onNavigate={close} />
-    ) : (
-      <Button
-        variant="ghost"
-        icon="chevron-left"
-        className="w-full"
-        onClick={() => launcher.open('list')}
-      >
-        返回打卡列表
-      </Button>
-    )
+  const footer = view === 'list' ? <SmartActionBar onNavigate={close} /> : undefined
+  const clock = clockMeta[view]
 
   return (
     <Sheet
@@ -80,11 +77,11 @@ export function CheckinSheet({ open, view, onOpenChange }: CheckinSheetProps) {
       headerActions={
         <IconButton
           icon="clock"
-          label="历史拍摄记录"
+          label={clock.label}
           onClick={() => {
             close()
-            setSmartPageViewMode('history')
-            router.push('/checkin/smart?view=history')
+            if (view === 'list') setSmartPageViewMode('history')
+            router.push(clock.href)
           }}
         />
       }
@@ -123,10 +120,6 @@ function SheetBody({
   onNavigate: () => void
   onOpenView: CheckinSheetListProps['onOpenView']
 }) {
-  const launcher = useCheckinLauncher()
-  // 记完步数后回到列表；体重与心情留在当前面板方便立刻看近一年折线落点更新
-  const back = () => launcher.open('list')
-
   if (state.isPending) return <SheetSkeleton />
   if (state.isError || !state.data) {
     return (
@@ -146,7 +139,9 @@ function SheetBody({
   if (view === 'mood') {
     return <MoodPanel open={open} localDate={data.localDate} value={data.mood} />
   }
-  if (view === 'steps') return <StepsPanel onSaved={back} />
+  if (view === 'steps') {
+    return <StepsPanel open={open} localDate={data.localDate} currentSteps={data.steps ?? null} />
+  }
   if (data.goals.length === 0 && data.completion.planned === 0) {
     return (
       <div className="flex flex-col gap-3">

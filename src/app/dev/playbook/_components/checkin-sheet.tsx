@@ -95,15 +95,32 @@ const DEMO_MOOD_YEAR: TrendPoint[] = [
   { date: '2026-11-03', value: 4 },
 ]
 
+const DEMO_STEPS_YEAR: TrendPoint[] = [
+  { date: '2026-01-15', value: 6800 },
+  { date: '2026-03-08', value: 9200 },
+  { date: '2026-05-20', value: 7500 },
+  { date: '2026-07-12', value: 11200 },
+  { date: '2026-09-18', value: 8400 },
+  { date: '2026-10-28', value: 6200 },
+  { date: '2026-11-03', value: 8650 },
+]
+
 const MOOD_Y_TICKS = [
   { value: 5, label: '超棒' },
   { value: 3, label: '一般' },
   { value: 1, label: '很糟' },
 ] as const
 
+const CLOCK_META: Record<CheckinLauncherView, { label: string; route: string }> = {
+  list: { label: '历史拍摄记录', route: '/checkin/smart?view=history' },
+  weight: { label: '体重统计与记录', route: '/metrics/weight' },
+  mood: { label: '心情统计与记录', route: '/metrics/mood' },
+  steps: { label: '步数统计与记录', route: '/metrics/steps' },
+}
+
 /**
  * 打卡入口弹层（演示）：渲染正式的 CheckinSheetList（D3），数据是演示用的。
- * 底部栏已升级为左右并列的双按钮原子组件 <SmartActionBar />（左「智能拍照」、右「智能上传」）。
+ * 体重 / 心情 / 步数三个指标 Dock 统一移除底部「返回打卡列表」，点击空白处收起，右上角时钟跳转各自详情页。
  */
 export function CheckinSheet({
   open,
@@ -124,6 +141,8 @@ export function CheckinSheet({
   const [weightPoints, setWeightPoints] = useState<TrendPoint[]>(DEMO_WEIGHT_YEAR)
   const [mood, setMood] = useState<RatingValue | null>(4)
   const [moodPoints, setMoodPoints] = useState<TrendPoint[]>(DEMO_MOOD_YEAR)
+  const [steps, setSteps] = useState<number | null>(8650)
+  const [stepPoints, setStepPoints] = useState<TrendPoint[]>(DEMO_STEPS_YEAR)
 
   function handleSmart(mode: 'capture' | 'upload') {
     onOpenChange(false)
@@ -138,6 +157,8 @@ export function CheckinSheet({
       )
     }
   }
+
+  const clock = CLOCK_META[view]
 
   return (
     <Sheet
@@ -167,10 +188,10 @@ export function CheckinSheet({
       headerActions={
         <IconButton
           icon="clock"
-          label="历史拍摄记录"
+          label={clock.label}
           onClick={() => {
             onOpenChange(false)
-            toast.info('已打开「历史拍摄记录」全屏列表（/checkin/smart?view=history）')
+            toast.info(`已跳转至「${clock.label}」（${clock.route}）`)
           }}
         />
       }
@@ -181,16 +202,7 @@ export function CheckinSheet({
             onCapture={() => handleSmart('capture')}
             onUpload={() => handleSmart('upload')}
           />
-        ) : (
-          <Button
-            variant="ghost"
-            icon="chevron-left"
-            className="w-full"
-            onClick={() => setView('list')}
-          >
-            返回打卡列表
-          </Button>
-        )
+        ) : undefined
       }
     >
       {view === 'list' && empty ? (
@@ -278,13 +290,65 @@ export function CheckinSheet({
             tone="primary"
             className="justify-between"
           />
-          <p className="text-tiny text-muted">只能评今天，再评一次会覆盖</p>
+          <p className="text-tiny text-muted">每天一条，再评一次会覆盖</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3 py-2">
-          <p className="text-caption text-muted">
-            正式弹层在这里切换成今日步数面板（同一个弹层，不开第二层）。
-          </p>
+        <div className="flex flex-col gap-3.5 py-1">
+          <TrendLineChart
+            data={stepPoints}
+            endDate={demo.localDate}
+            label="近一年步数变化"
+            tone="exercise"
+            unit="步"
+            yDomain={[0, 14000]}
+            formatPointValue={(v) => `${Math.round(v).toLocaleString('en-US')} 步`}
+            referenceLine={{ value: 8000, label: '参考 8,000' }}
+            defaultSummary="近一年 · 日均 8,278 步 · 最高 11,200 步"
+          />
+          <Field label="今天的步数" htmlFor="pb-checkin-steps" hint="支持输入手机、手表或手环步数">
+            <NumberField
+              id="pb-checkin-steps"
+              value={steps}
+              onValueChange={setSteps}
+              min={0}
+              max={200000}
+              step={500}
+              unit="步"
+              format={{ maximumFractionDigits: 0 }}
+              placeholder="8000"
+            />
+          </Field>
+          <div className="flex flex-col gap-2">
+            <Button
+              icon="check"
+              className="w-full"
+              onClick={() => {
+                if (steps === null) return
+                setStepPoints((prev) => [
+                  ...prev.filter((p) => p.date !== demo.localDate),
+                  { date: demo.localDate, value: steps },
+                ])
+                toast.success(`已记 ${steps.toLocaleString('en-US')} 步（预览态已实时落点）`)
+              }}
+            >
+              记下来
+            </Button>
+            <Button
+              variant="soft"
+              icon="footprints"
+              className="w-full"
+              onClick={() => {
+                setSteps(9320)
+                setStepPoints((prev) => [
+                  ...prev.filter((p) => p.date !== demo.localDate),
+                  { date: demo.localDate, value: 9320 },
+                ])
+                toast.success('已模拟同步手机计步器 9,320 步')
+              }}
+            >
+              一键同步手机计步器
+            </Button>
+          </div>
         </div>
       )}
     </Sheet>

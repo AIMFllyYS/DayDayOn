@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "daily_step_target" integer DEFAULT 8000;

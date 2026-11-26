@@ -1,5 +1,6 @@
 import 'server-only'
 import { eq } from 'drizzle-orm'
+import { DEFAULT_DAILY_STEP_TARGET } from '@/features/metric/schemas'
 import type { Export, Me, UpdatePreferences, UpdateProfile } from '@/features/me/schemas'
 import { calendarDateOf, localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
@@ -42,13 +43,15 @@ async function loadMeRow(db: DbOrTx, userId: string): Promise<MeRow | null> {
       remindAt: profiles.remindAt,
       remindMode: profiles.remindMode,
       refereeTier: profiles.refereeTier,
+      dailyStepTarget: profiles.dailyStepTarget,
     })
     .from(user)
     .leftJoin(profiles, eq(profiles.userId, user.id))
     .where(eq(user.id, userId))
     .limit(1)
   if (!row) return null
-  // profile 行缺失（注册钩子失败、尚未补建）时按注册默认值展示
+  // profile 行缺失（注册钩子失败、尚未补建）时按注册默认值展示；行存在时保留用户主动设的 null
+  const hasProfile = row.timeZone !== null
   return {
     ...row,
     timeZone: row.timeZone ?? DEFAULT_TIME_ZONE,
@@ -58,6 +61,7 @@ async function loadMeRow(db: DbOrTx, userId: string): Promise<MeRow | null> {
     mascot: row.mascot ?? 'tuan',
     remindMode: row.remindMode ?? (row.remindAt ? 'in-app' : 'off'),
     refereeTier: row.refereeTier ?? 'balanced-glycemic',
+    dailyStepTarget: hasProfile ? row.dailyStepTarget : DEFAULT_DAILY_STEP_TARGET,
   }
 }
 

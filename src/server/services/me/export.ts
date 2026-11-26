@@ -2,7 +2,7 @@ import 'server-only'
 import { asc, eq, inArray } from 'drizzle-orm'
 import type { Checkin, CheckinRevision } from '@/features/checkin/schemas'
 import type { FieldDef, Goal } from '@/features/goal/schemas'
-import type { Rating, WeightEntry } from '@/features/metric/schemas'
+import type { Rating, StepEntry, WeightEntry } from '@/features/metric/schemas'
 import { isAutoArchived } from '@/features/todo/rules'
 import type { Todo, TodoEvent, TodoTag } from '@/features/todo/schemas'
 import type { DbOrTx } from '@/server/db/client'
@@ -13,6 +13,7 @@ import {
   dailyRatings,
   goalFieldVersions,
   goals,
+  stepMetrics,
   todoEvents,
   todoGroups,
   todos,
@@ -20,7 +21,7 @@ import {
 } from '@/server/db/schema'
 
 /*
- * GET /me/export 的数据收集（PRD 2.11）：资料之外的目标、打卡、体重、满意度、待办。
+ * GET /me/export 的数据收集（PRD 2.11）：资料之外的目标、打卡、体重、满意度、步数、待办。
  * 每条查询都按 userId 过滤，不含其他用户的任何数据；元素形状沿用各领域的 DTO。
  * 上限：一个人几年的数据量远低于这些值，只是防止异常数据把一次导出撑爆内存（database.md 第 5 节）。
  */
@@ -46,6 +47,7 @@ export interface ExportRest {
   checkinRevisions: CheckinRevision[]
   weights: WeightEntry[]
   ratings: Rating[]
+  steps: StepEntry[]
   todoGroups: ExportTodoGroup[]
   todoTags: TodoTag[]
   todos: Todo[]
@@ -264,6 +266,20 @@ async function exportTodoEvents(
   }))
 }
 
+async function exportSteps(db: DbOrTx, userId: string): Promise<StepEntry[]> {
+  const rows = await db
+    .select({
+      localDate: stepMetrics.localDate,
+      steps: stepMetrics.steps,
+      measuredAt: stepMetrics.measuredAt,
+    })
+    .from(stepMetrics)
+    .where(eq(stepMetrics.userId, userId))
+    .orderBy(asc(stepMetrics.localDate))
+    .limit(MAX_DAILY_ROWS)
+  return rows.map((s) => ({ ...s, measuredAt: iso(s.measuredAt) }))
+}
+
 export async function collectExport(db: DbOrTx, userId: string): Promise<ExportRest> {
   // 同一个连接上顺序执行：传进来的可能是事务句柄，事务里不能并发查询
   const now = new Date()
@@ -272,6 +288,7 @@ export async function collectExport(db: DbOrTx, userId: string): Promise<ExportR
   const revisions = await exportRevisions(db, userId)
   const weights = await exportWeights(db, userId)
   const ratings = await exportRatings(db, userId)
+  const steps = await exportSteps(db, userId)
   const groupList = await exportTodoGroups(db, userId)
   const tagList = await exportTodoTags(db, userId)
   const groupNames = new Map(groupList.map((g) => [g.id, g.name]))
@@ -284,6 +301,7 @@ export async function collectExport(db: DbOrTx, userId: string): Promise<ExportR
     checkinRevisions: revisions,
     weights,
     ratings,
+    steps,
     todoGroups: groupList,
     todoTags: tagList,
     todos: todoList,

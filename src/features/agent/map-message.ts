@@ -93,6 +93,33 @@ function toolSummary(toolName: string, input: unknown): string | undefined {
       if (from || to) return `${from || '…'} ~ ${to || '…'}`
       return typeof o.eventType === 'string' ? o.eventType : '近 7 天历程'
     }
+    case 'getMetrics': {
+      const kindMap: Record<string, string> = {
+        all: '全部指标',
+        weight: '体重',
+        mood: '心情',
+        steps: '步数',
+      }
+      const k = typeof o.kind === 'string' ? (kindMap[o.kind] ?? o.kind) : '全部指标'
+      const d = typeof o.days === 'number' ? `近 ${o.days} 天` : ''
+      return d ? `${k} · ${d}` : k
+    }
+    case 'draftMetric': {
+      const day = o.targetDay === 'yesterday' ? '昨日' : '今日'
+      if (o.metric === 'weight' && typeof o.weightKg === 'number')
+        return `${day}体重 ${o.weightKg} kg`
+      if (o.metric === 'mood' && typeof o.moodValue === 'number')
+        return `${day}心情 ${o.moodValue} 分`
+      if (o.metric === 'steps' && typeof o.steps === 'number') {
+        return `${day}步数 ${o.steps.toLocaleString('en-US')} 步`
+      }
+      return undefined
+    }
+    case 'draftDeleteMetric': {
+      const day = o.targetDay === 'yesterday' ? '昨日' : '今日'
+      const name = o.metric === 'weight' ? '体重' : o.metric === 'mood' ? '心情' : '步数'
+      return `删除${day}${name}`
+    }
     case 'draftWeight':
       return typeof o.weightKg === 'number' ? `${o.weightKg} kg` : undefined
     case 'getFriendStatus':

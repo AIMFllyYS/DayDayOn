@@ -475,6 +475,8 @@ export const CheckinTodaySchema = z
     weightGrams: z.number().int().nullable(),
     /** 今天的心情 1–5，没记为 null */
     mood: RatingValueSchema.nullable(),
+    /** 今天的步数，没记为 null */
+    steps: z.number().int().min(0).nullable().optional(),
     /** "拍照记一餐"直达的饮食目标（sortOrder 最小的进行中饮食目标），没有就 null */
     dietPhotoGoalId: IdSchema.nullable(),
   })

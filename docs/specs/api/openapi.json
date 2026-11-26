@@ -143,6 +143,15 @@
           },
           "refereeTier": {
             "$ref": "#/components/schemas/RefereeTier"
+          },
+          "dailyStepTarget": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1000,
+            "maximum": 100000,
+            "default": 8000
           }
         },
         "required": [
@@ -715,6 +724,14 @@
           },
           "refereeTier": {
             "$ref": "#/components/schemas/RefereeTier"
+          },
+          "dailyStepTarget": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1000,
+            "maximum": 100000
           }
         }
       },
@@ -745,6 +762,10 @@
             "items": {}
           },
           "ratings": {
+            "type": "array",
+            "items": {}
+          },
+          "steps": {
             "type": "array",
             "items": {}
           },
@@ -3257,6 +3278,13 @@
             "minimum": 1,
             "maximum": 5
           },
+          "steps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
           "dietPhotoGoalId": {
             "type": [
               "string",
@@ -3475,6 +3503,10 @@
           "confirmLargeChange": {
             "type": "boolean",
             "default": false
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date"
           }
         },
         "required": [
@@ -3559,6 +3591,10 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 5
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date"
           }
         },
         "required": [
@@ -3657,6 +3693,10 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 200000
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date"
           }
         },
         "required": [
@@ -3701,6 +3741,102 @@
           "entries",
           "latest",
           "deltaSteps7d"
+        ]
+      },
+      "MetricHistory": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricHistoryItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "MetricHistoryItem": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/MetricKind"
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "value": {
+            "type": "integer"
+          },
+          "measuredAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "kind",
+          "localDate",
+          "value",
+          "measuredAt"
+        ]
+      },
+      "MetricKind": {
+        "type": "string",
+        "enum": [
+          "weight",
+          "mood",
+          "steps"
+        ]
+      },
+      "MetricCalendar": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/MetricKind"
+          },
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricCalendarDay"
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "month",
+          "days"
+        ]
+      },
+      "MetricCalendarDay": {
+        "type": "object",
+        "properties": {
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "value": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "localDate",
+          "value"
         ]
       },
       "DashboardToday": {
@@ -7711,7 +7847,7 @@
         },
         "responses": {
           "200": {
-            "description": "已记录今天的体重",
+            "description": "已记录今天或昨天的体重",
             "content": {
               "application/json": {
                 "schema": {
@@ -7721,7 +7857,7 @@
             }
           },
           "400": {
-            "description": "VALIDATION_FAILED",
+            "description": "VALIDATION_FAILED | MAKEUP_NOT_ALLOWED",
             "content": {
               "application/json": {
                 "schema": {
@@ -7820,6 +7956,79 @@
         }
       }
     },
+    "/api/v1/metrics/weight/{localDate}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": true,
+            "name": "localDate",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manual",
+                "agent"
+              ],
+              "default": "manual"
+            },
+            "required": false,
+            "name": "origin",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已删除该日体重记录"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED | MAKEUP_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ratings": {
       "put": {
         "requestBody": {
@@ -7834,7 +8043,7 @@
         },
         "responses": {
           "200": {
-            "description": "已记录今天的满意度",
+            "description": "已记录今天或昨天的满意度",
             "content": {
               "application/json": {
                 "schema": {
@@ -7844,7 +8053,7 @@
             }
           },
           "400": {
-            "description": "VALIDATION_FAILED",
+            "description": "VALIDATION_FAILED | MAKEUP_NOT_ALLOWED",
             "content": {
               "application/json": {
                 "schema": {
@@ -7941,6 +8150,87 @@
         }
       }
     },
+    "/api/v1/ratings/{localDate}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": true,
+            "name": "localDate",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/RatingScope"
+            },
+            "required": false,
+            "name": "scope",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manual",
+                "agent"
+              ],
+              "default": "manual"
+            },
+            "required": false,
+            "name": "origin",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已删除该日心情记录"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED | MAKEUP_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/metrics/steps": {
       "put": {
         "requestBody": {
@@ -7955,7 +8245,7 @@
         },
         "responses": {
           "200": {
-            "description": "已记录今日步数",
+            "description": "已记录今天或昨天的步数",
             "content": {
               "application/json": {
                 "schema": {
@@ -7965,7 +8255,7 @@
             }
           },
           "400": {
-            "description": "VALIDATION_FAILED",
+            "description": "VALIDATION_FAILED | MAKEUP_NOT_ALLOWED",
             "content": {
               "application/json": {
                 "schema": {
@@ -8017,6 +8307,220 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StepTrend"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/steps/{localDate}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": true,
+            "name": "localDate",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "manual",
+                "agent"
+              ],
+              "default": "manual"
+            },
+            "required": false,
+            "name": "origin",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "已删除该日步数记录"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED | MAKEUP_NOT_ALLOWED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/{kind}/history": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/MetricKind"
+            },
+            "required": true,
+            "name": "kind",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "指标历史分页记录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricHistory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ACCOUNT_BANNED | ONBOARDING_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics/{kind}/calendar": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "$ref": "#/components/schemas/MetricKind"
+            },
+            "required": true,
+            "name": "kind",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            },
+            "required": true,
+            "name": "month",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "指标月度日历",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricCalendar"
                 }
               }
             }

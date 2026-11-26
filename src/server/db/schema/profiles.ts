@@ -1,4 +1,4 @@
-import { boolean, pgTable, smallint, text, uniqueIndex } from 'drizzle-orm/pg-core'
+import { boolean, integer, pgTable, smallint, text, uniqueIndex } from 'drizzle-orm/pg-core'
 import type { RefereeTier } from '../../../features/referee/schemas'
 import { user } from './auth'
 import { id, timestamps, timestamptz } from './columns'
@@ -38,6 +38,8 @@ export const profiles = pgTable(
     remindAt: text(),
     /** 打卡提醒方式：off 关闭 | in-app 应用内提醒 | native 手机端原生提醒 */
     remindMode: text().$type<RemindMode>().notNull().default('off'),
+    /** 每日步数图表参考虚线（步）；默认 8000，null 表示隐藏参考线 */
+    dailyStepTarget: integer().default(8000),
     // 可空：本地开发没有 x-real-ip 时记 127.0.0.1，老数据可能为空
     signupIp: text(),
     // 可空：注册后尚未产生会话时为空

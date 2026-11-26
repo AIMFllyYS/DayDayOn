@@ -16,6 +16,7 @@ import type { DraftItem, DraftItemErrors } from '../draft'
 import type { AgentDraft, DraftField } from '../schemas'
 import { AiDraftCard } from './ai-draft-card'
 import { ChangeDraftCard } from './change-draft-card'
+import { MetricDraftCard } from './metric-draft-card'
 import { TodoChangeDraftCard, TodoDraftCard, TodoGroupDraftCard } from './todo-draft-card'
 
 /*
@@ -47,9 +48,12 @@ function successToastText(draft: AgentDraft): string {
   switch (draft.kind) {
     case 'checkin-delete':
     case 'todo-delete':
+    case 'metric-delete':
       return '删掉了'
     case 'checkin-update':
       return '改好了'
+    case 'metric-upsert':
+      return draft.action === 'update' ? '改好了' : '已记录'
     case 'todo-update':
       return draft.action === 'complete'
         ? '已完成'
@@ -250,7 +254,25 @@ export function DraftCard({ draft, toolCallId }: { draft: AgentDraft; toolCallId
     )
   }
 
-  // draft.kind === 'weight'
+  if (draft.kind === 'metric-upsert' || draft.kind === 'metric-delete') {
+    return (
+      <MetricDraftCard
+        mode={draft.kind === 'metric-delete' ? 'delete' : draft.action}
+        metric={draft.metric}
+        targetDay={draft.targetDay}
+        localDate={draft.localDate}
+        beforeLabel={draft.beforeLabel}
+        afterLabel={draft.kind === 'metric-upsert' ? draft.afterLabel : undefined}
+        reason={draft.reason}
+        confirming={confirm.isPending}
+        confirmed={confirmed}
+        errorText={errorText}
+        onConfirm={handleConfirm}
+      />
+    )
+  }
+
+  // draft.kind === 'weight'（兼容历史旧会话消息）
   return (
     <div className="bg-surface shadow-card rounded-xl p-3.5 md:rounded-2xl md:p-4">
       <div className="mb-3 flex items-center gap-2.5">

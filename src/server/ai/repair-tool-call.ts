@@ -31,6 +31,8 @@ const INT_KEYS = new Set([
   'fieldVersion',
   'quality',
   'limit',
+  'steps',
+  'moodValue',
 ])
 
 const OPTIONAL_NON_NULL_KEYS = new Set([
@@ -49,6 +51,12 @@ const OPTIONAL_NON_NULL_KEYS = new Set([
   'days',
   'count',
   'yesterday',
+  // 每日指标工具可选非空键
+  'kind',
+  'targetDay',
+  'weightKg',
+  'moodValue',
+  'steps',
   // 待办工具可选非空键
   'groupId',
   'groupName',
