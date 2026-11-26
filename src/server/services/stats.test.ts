@@ -302,8 +302,9 @@ describe('heatmapCell', () => {
     ).toBe(0)
   })
 
-  it('没有计划但有打卡记 1', () => {
+  it('没有计划但有打卡记 1；待汇总 pending 记录不误判为满分', () => {
     expect(heatmapCell([{ planned: false }], [progress(600, 1800)])).toBe(1)
+    expect(heatmapCell([{ planned: false, pendingOnly: true }], [progress(1, 3)])).toBe(0)
   })
 
   it('都没有为 0', () => {

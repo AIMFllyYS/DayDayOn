@@ -64,20 +64,33 @@ const heatRows = [
   { module: 'study', cells: [0.3, 0, 0, 0, 0, 0, 0] },
   { module: 'custom', cells: [0, 0, 0, 0, 0, 0, 0] },
 ] as const
-// 周四的视角：前四天都有数据；archived = 打了卡但没达标（只存档）
+// 周四视角：仅展示已开启的 4 个板块 + 格级 inRange（周中开启/工作日排期/周中到期均清晰区分「不在打卡范围」）
 const NO = [false, false, false, false, false, false, false]
+const ALL_IN = [true, true, true, true, true, true, true]
 const heatRowsMidweek = [
-  { module: 'exercise', cells: [1, 1, 0.5, 1, 0, 0, 0], archived: NO },
-  { module: 'diet', cells: [0.67, 1, 1, 0.33, 0, 0, 0], archived: NO },
+  {
+    module: 'exercise',
+    cells: [1, 1, 0.5, 1, 0, 0, 0],
+    archived: NO,
+    inRange: [true, true, true, true, true, false, false],
+  },
+  {
+    module: 'diet',
+    cells: [0.67, 1, 1, 0.33, 0, 0, 0],
+    archived: NO,
+    inRange: ALL_IN,
+  },
   {
     module: 'sleep',
-    cells: [1, 0, 1, 1, 0, 0, 0],
-    archived: [false, true, false, false, false, false, false],
+    cells: [0, 0, 1, 1, 0, 0, 0],
+    archived: NO,
+    inRange: [false, false, true, true, true, true, true],
   },
   {
     module: 'study',
     cells: [0.3, 0.8, 0, 1, 0, 0, 0],
     archived: [false, false, true, false, false, false, false],
+    inRange: [true, true, true, true, false, false, false],
   },
 ] as const
 

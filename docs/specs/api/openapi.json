@@ -3791,6 +3791,12 @@
                   "items": {
                     "type": "boolean"
                   }
+                },
+                "inRange": {
+                  "type": "array",
+                  "items": {
+                    "type": "boolean"
+                  }
                 }
               },
               "required": [

@@ -1,10 +1,12 @@
 import { cn } from '@/lib/cn'
+import { isLocalDate, isoWeekday } from '@/lib/time'
 import { moduleMeta, type ModuleTone } from '@/components/ui/tone'
 import { Icon } from '@/components/ui/icon'
 
 /*
- * 本周热力图（PRD 2.7 第 4 项）：周一到周日 × 板块，格子深浅表示完成度（0–1，heatmapCell 的结果）。
- * 三种状态分开画：完成（实心，深浅表示多少）、打了没达标（虚线框 + 斜纹，archived）、没打（凹陷底）。
+ * 本周热力图（PRD 2.7 第 4 项）：周一到周日 × 活跃板块，格子深浅表示完成度（0–1，heatmapCell 的结果）。
+ * 状态分开画：完成（实心，深浅表示多少）、打了没达标（虚线框 + 斜纹，archived）、没打（凹陷底）、
+ * 未来计划日（虚线框）、不在打卡范围（极轻圆点，不计入漏打）。
  * 数据形状与 features/dashboard 的 WeekHeatmapSchema 一致，但这里按结构声明，原子层不 import 领域代码。
  * 用真正的 <table> 渲染，读屏可以按行列读；每格另有文字说明，不只靠颜色。
  */
@@ -15,13 +17,15 @@ export interface WeekHeatmapRow {
   cells: readonly number[]
   /** 与 days 一一对应：打了卡但没达标（只存档） */
   archived?: readonly boolean[]
+  /** 与 days 一一对应：是否处于打卡范围内；省略时默认全部在范围内 */
+  inRange?: readonly boolean[]
 }
 
 interface WeekHeatmapProps {
-  /** 本周七天的打卡日 YYYY-MM-DD，周一起 */
+  /** 本周的打卡日 YYYY-MM-DD */
   days: readonly string[]
   rows: readonly WeekHeatmapRow[]
-  /** 今天的打卡日：高亮这一列，之后的格子显示为"还没到" */
+  /** 今天的打卡日：高亮这一列，之后的计划格显示为"还没到" */
   today?: string
   label?: string
   /** 显示图例和摘要，默认显示 */
@@ -63,7 +67,14 @@ function shortDate(localDate: string): string {
   return m && d ? `${Number(m)}/${Number(d)}` : localDate
 }
 
-function cellText(v: number, future: boolean, archived = false): string {
+/** 按真实日期解析星期（经 src/lib/time isoWeekday），避免裁剪列时按下标错位 */
+function weekdayChar(localDate: string, fallbackIndex: number): string {
+  if (isLocalDate(localDate)) return WEEKDAY[isoWeekday(localDate) - 1] ?? ''
+  return WEEKDAY[fallbackIndex] ?? ''
+}
+
+function cellText(v: number, future: boolean, archived = false, outOfRange = false): string {
+  if (outOfRange) return '不在打卡范围'
   if (future) return '还没到'
   const level = heatLevel(v)
   if (level === 0) return archived ? '打了卡但没达标' : '没有打卡'
@@ -79,23 +90,44 @@ export function WeekHeatmap({
   showLegend = true,
   className,
 }: WeekHeatmapProps) {
+  if (rows.length === 0 || days.length === 0) {
+    return (
+      <p className={cn('text-caption text-muted py-4 text-center', className)}>
+        本周暂无打卡范围内的记录
+      </p>
+    )
+  }
+
   // 打卡日是 YYYY-MM-DD，字符串比较就是日期比较
   const isFuture = (d: string) => today !== undefined && d > today
-  const pastCells = rows.flatMap((r) => r.cells.filter((_, i) => !isFuture(days[i] ?? '')))
-  const doneCount = pastCells.filter((v) => heatLevel(v) === 3).length
-  const partialCount = pastCells.filter((v) => heatLevel(v) === 1 || heatLevel(v) === 2).length
+  const isInRange = (r: WeekHeatmapRow, i: number) => r.inRange?.[i] !== false
+
+  const hasAnyInRange = rows.some((r) => days.some((_, i) => isInRange(r, i)))
+  const hasAnyOutOfRange = rows.some((r) => days.some((_, i) => !isInRange(r, i)))
+  const pastInRangeCells = rows.flatMap((r) =>
+    r.cells.filter((_, i) => !isFuture(days[i] ?? '') && isInRange(r, i)),
+  )
+  const doneCount = pastInRangeCells.filter((v) => heatLevel(v) === 3).length
+  const partialCount = pastInRangeCells.filter(
+    (v) => heatLevel(v) === 1 || heatLevel(v) === 2,
+  ).length
   const archivedCount = rows.reduce(
     (n, r) =>
       n +
-      r.cells.filter((v, i) => !isFuture(days[i] ?? '') && heatLevel(v) === 0 && r.archived?.[i])
-        .length,
+      r.cells.filter(
+        (v, i) =>
+          !isFuture(days[i] ?? '') && isInRange(r, i) && heatLevel(v) === 0 && r.archived?.[i],
+      ).length,
     0,
   )
-  const summary =
-    doneCount + partialCount + archivedCount === 0
+  const summary = !hasAnyInRange
+    ? '本周不在目标打卡周期内，可在目标设置调整周期'
+    : doneCount + partialCount + archivedCount === 0
       ? '本周还没有打卡，今天开始也不晚'
       : `本周 ${doneCount} 格全部完成，${partialCount} 格完成了一部分` +
         (archivedCount > 0 ? `，${archivedCount} 格打了没达标` : '')
+
+  const compactColumns = days.length < 7
 
   return (
     <figure className={cn('flex flex-col gap-3', className)}>
@@ -110,6 +142,7 @@ export function WeekHeatmap({
             </th>
             {days.map((d, i) => {
               const isToday = d === today
+              const wd = weekdayChar(d, i)
               return (
                 <th
                   key={d}
@@ -119,9 +152,9 @@ export function WeekHeatmap({
                     isToday ? 'text-primary-ink' : 'text-muted',
                   )}
                 >
-                  <span aria-hidden>{WEEKDAY[i] ?? ''}</span>
+                  <span aria-hidden>{wd}</span>
                   <span className="sr-only">
-                    周{WEEKDAY[i] ?? ''} {shortDate(d)}
+                    周{wd} {shortDate(d)}
                     {isToday ? '（今天）' : ''}
                   </span>
                   {isToday && (
@@ -148,26 +181,39 @@ export function WeekHeatmap({
                 {days.map((d, i) => {
                   const v = r.cells[i] ?? 0
                   const future = isFuture(d)
+                  const outOfRange = !isInRange(r, i)
                   const level = heatLevel(v)
-                  const archived = !future && level === 0 && (r.archived?.[i] ?? false)
+                  const archived =
+                    !outOfRange && !future && level === 0 && (r.archived?.[i] ?? false)
+                  const wd = weekdayChar(d, i)
+                  const text = cellText(v, future, archived, outOfRange)
                   return (
                     <td key={d} className="p-0">
                       <span
-                        title={`${meta.label} · 周${WEEKDAY[i] ?? ''}：${cellText(v, future, archived)}`}
+                        data-out-of-range={outOfRange ? 'true' : undefined}
+                        title={`${meta.label} · 周${wd}：${text}`}
                         className={cn(
                           'flex aspect-square w-full items-center justify-center rounded-md',
-                          future
-                            ? 'border-border border border-dashed'
-                            : archived
-                              ? 'border-warning/70 bg-warning-soft border border-dashed bg-[repeating-linear-gradient(135deg,transparent_0_4px,color-mix(in_oklab,var(--color-warning)_35%,transparent)_4px_5px)]'
-                              : level === 0
-                                ? 'bg-surface-sunken'
-                                : levelClass[r.module][level],
-                          d === today && 'ring-primary/50 ring-2',
+                          compactColumns && 'mx-auto max-w-10',
+                          outOfRange
+                            ? 'bg-transparent'
+                            : future
+                              ? 'border-border border border-dashed'
+                              : archived
+                                ? 'border-warning/70 bg-warning-soft border border-dashed bg-[repeating-linear-gradient(135deg,transparent_0_4px,color-mix(in_oklab,var(--color-warning)_35%,transparent)_4px_5px)]'
+                                : level === 0
+                                  ? 'bg-surface-sunken'
+                                  : levelClass[r.module][level],
+                          d === today &&
+                            (outOfRange ? 'ring-border/70 ring-1' : 'ring-primary/50 ring-2'),
                         )}
                       >
-                        {level === 3 && !future && <Icon name="check" size={12} />}
-                        <span className="sr-only">{cellText(v, future, archived)}</span>
+                        {outOfRange ? (
+                          <span aria-hidden className="bg-border/70 size-1.5 rounded-full" />
+                        ) : (
+                          level === 3 && !future && <Icon name="check" size={12} />
+                        )}
+                        <span className="sr-only">{text}</span>
                       </span>
                     </td>
                   )
@@ -181,6 +227,15 @@ export function WeekHeatmap({
         <figcaption className="text-tiny text-muted flex flex-wrap items-center justify-between gap-2">
           <span>{summary}</span>
           <span aria-hidden className="flex items-center gap-1">
+            {hasAnyOutOfRange && (
+              <>
+                <span className="inline-flex size-3 items-center justify-center">
+                  <span className="bg-border/70 size-1.5 rounded-full" />
+                </span>
+                范围外
+                <span className="ml-1.5" />
+              </>
+            )}
             <span className="border-warning/70 bg-warning-soft size-3 rounded-sm border border-dashed" />
             没达标
             <span className="ml-1.5" />
