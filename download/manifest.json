@@ -1,6 +1,6 @@
 {
-  "latest": "0.1.15",
-  "publishedAt": "2026-11-23",
+  "latest": "0.1.16",
+  "publishedAt": "2026-11-26",
   "android": {
     "version": "0.1.13",
     "minVersion": "0.1.0",
