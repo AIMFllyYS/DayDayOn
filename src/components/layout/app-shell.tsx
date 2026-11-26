@@ -77,12 +77,12 @@ export function AppShellFrame({
   return (
     <div className="flex min-h-dvh w-full max-w-full overflow-x-clip">
       <div className="sticky top-0 hidden h-dvh shrink-0 md:block">{sideNav}</div>
-      {/* 手机底部留出悬浮导航的高度（64px 导航 + 间距 + 底部安全区） */}
-      <main className="flex min-w-0 flex-1 flex-col pb-[calc(var(--safe-bottom)+6.5rem)] md:pb-8">
+      {/* 一级页有悬浮导航时自动预留 6.5rem，二级页（如 /goals）收敛至 1rem 避免无效死留白 */}
+      <main className="app-shell-main flex min-w-0 flex-1 flex-col">
         {header}
         {children}
       </main>
-      <div className="fixed inset-x-3 bottom-[calc(var(--safe-bottom)+0.75rem)] z-30 mx-auto max-w-md empty:hidden md:hidden">
+      <div className="app-bottom-nav-slot fixed inset-x-3 bottom-[calc(var(--safe-bottom)+0.75rem)] z-30 mx-auto max-w-md empty:hidden md:hidden">
         {bottomNav}
       </div>
     </div>

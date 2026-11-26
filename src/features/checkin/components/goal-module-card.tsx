@@ -130,9 +130,12 @@ export function GoalModuleCard({
   }
 
   return (
-    <Card data-goal-module-card={goal.module} className="flex h-full flex-col overflow-hidden p-0">
+    <Card
+      data-goal-module-card={goal.module}
+      className="flex h-full flex-col overflow-hidden p-0 md:p-0"
+    >
       {/* 卡片顶栏：板块图标 + 标题摘要 + 去打卡 */}
-      <div className="border-border/70 flex items-center gap-3 border-b px-4 py-3">
+      <div className="border-border/70 flex items-center gap-3 border-b px-4 py-2.5">
         <IconTile icon={moduleMeta[goal.module].icon} tone={goal.module} size="md" />
         <div className="min-w-0 flex-1">
           <p className="text-subhead truncate font-bold">{goal.title}</p>
@@ -172,23 +175,25 @@ export function GoalModuleCard({
           </button>
 
           <Collapse open={planOpen}>
-            <div className="flex flex-col gap-3 px-4 pt-1 pb-4">
-              <Field label="每日目标量" htmlFor={`sched-target-${goal.id}`}>
-                <TargetEditor
-                  id={`sched-target-${goal.id}`}
-                  module={goal.module}
-                  value={target}
-                  onValueChange={setTarget}
-                />
-              </Field>
+            <div className="flex flex-col gap-2.5 px-4 pt-1 pb-3.5">
+              <div className="grid gap-2.5 sm:grid-cols-2 sm:items-start">
+                <Field label="每日目标量" htmlFor={`sched-target-${goal.id}`}>
+                  <TargetEditor
+                    id={`sched-target-${goal.id}`}
+                    module={goal.module}
+                    value={target}
+                    onValueChange={setTarget}
+                  />
+                </Field>
 
-              <Field label="哪几天打卡" htmlFor={`sched-week-${goal.id}`}>
-                <WeekdayPicker
-                  id={`sched-week-${goal.id}`}
-                  value={weekdays}
-                  onValueChange={setWeekdays}
-                />
-              </Field>
+                <Field label="哪几天打卡" htmlFor={`sched-week-${goal.id}`}>
+                  <WeekdayPicker
+                    id={`sched-week-${goal.id}`}
+                    value={weekdays}
+                    onValueChange={setWeekdays}
+                  />
+                </Field>
+              </div>
 
               {/* 计划时段 & 单独截止日期：无嵌套卡片边框，点击直接平铺展开 TimePicker / Calendar */}
               <div className="grid grid-cols-2 gap-2">

@@ -729,6 +729,37 @@
   animation-play-state: paused;
 }
 
+/* 应用外壳主区域底距：仅当同级底部悬浮导航存在 <nav> 时预留 6.5rem，二级页仅留 1rem 避免死留白 */
+.app-shell-main {
+  padding-bottom: calc(var(--safe-bottom) + 1rem);
+}
+.app-shell-main:has(+ .app-bottom-nav-slot nav) {
+  padding-bottom: calc(var(--safe-bottom) + 6.5rem);
+}
+@media (min-width: 768px) {
+  .app-shell-main,
+  .app-shell-main:has(+ .app-bottom-nav-slot nav) {
+    padding-bottom: 1.5rem;
+  }
+}
+
+/* 目标设置页「新建自定义小目标 / 已归档的目标」严格互补断点：空间够放页面底部，否则自动收入设置 Dock */
+.goals-footer-inline {
+  display: none;
+}
+.goals-footer-dock {
+  display: block;
+}
+@media (max-width: 767px) and (min-width: 360px) and (min-height: 780px),
+  (min-width: 768px) and (min-height: 740px) {
+  .goals-footer-inline {
+    display: flex;
+  }
+  .goals-footer-dock {
+    display: none;
+  }
+}
+
 /* 骨架屏和"进行中"状态的扫光 */
 @utility bg-shimmer {
   background-image: linear-gradient(
