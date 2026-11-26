@@ -97,7 +97,7 @@ function QuadrantCardLive({
     ...todoListQuery('quadrant', { priority, ...(activeTag ? { tag: activeTag } : {}) }),
     enabled: count > 0,
   })
-  const items = query.data?.pages.flatMap((p) => p.items) ?? []
+  const items = count === 0 ? [] : (query.data?.pages.flatMap((p) => p.items) ?? [])
 
   return (
     <QuadrantCardFrame
@@ -105,7 +105,7 @@ function QuadrantCardLive({
       count={count}
       loading={count > 0 && query.isPending}
       items={items}
-      hasMore={query.hasNextPage}
+      hasMore={count > 0 && query.hasNextPage}
       loadingMore={query.isFetchingNextPage}
       onLoadMore={() => void query.fetchNextPage()}
       now={now}

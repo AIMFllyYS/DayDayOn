@@ -24,7 +24,13 @@ const INT_KEYS = new Set([
   'recentNights',
   'todayMinutesBefore',
   'durationMinutes',
+  'durationSeconds',
+  'deepMin',
+  'lightMin',
+  'heartRate',
+  'fieldVersion',
   'quality',
+  'limit',
 ])
 
 const OPTIONAL_NON_NULL_KEYS = new Set([
@@ -43,11 +49,41 @@ const OPTIONAL_NON_NULL_KEYS = new Set([
   'days',
   'count',
   'yesterday',
+  // 待办工具可选非空键
+  'groupId',
+  'groupName',
+  'newGroupName',
+  'tag',
+  'keyword',
+  'archivedOutcome',
+  'from',
+  'to',
+  'dueFrom',
+  'dueTo',
+  'cursor',
+  'limit',
+  'eventType',
+  'todoId',
+  'status',
+  'reason',
+  'action',
+  'name',
+  'newName',
+  // 打卡与裁判工具可选非空键
+  'snackTime',
+  'points',
+  'advanced',
+  'durationMinutes',
+  'facts',
+  'citations',
+  'advice',
+  'entry',
+  'goalId',
 ])
 
-const ARRAY_DEFAULT_KEYS = new Set(['citations', 'advice', 'keyPoints'])
+const ARRAY_DEFAULT_KEYS = new Set(['citations', 'advice', 'keyPoints', 'tags'])
 
-const STRING_MAX_LEN: Record<string, number> = {
+const DEFAULT_STRING_MAX_LEN: Record<string, number> = {
   name: 30,
   portion: 30,
   subject: 30,
@@ -58,6 +94,28 @@ const STRING_MAX_LEN: Record<string, number> = {
   reason: 80,
   what: 60,
   title: 120,
+}
+
+const TODO_STRING_MAX_LEN: Record<string, number> = {
+  title: 60,
+  note: 2000,
+  abandonReason: 120,
+  groupName: 24,
+  newGroupName: 24,
+  name: 24,
+  newName: 24,
+  keyword: 60,
+  tag: 16,
+  reason: 80,
+}
+
+const TOOL_STRING_MAX_LEN: Record<string, Record<string, number>> = {
+  draftTodo: TODO_STRING_MAX_LEN,
+  draftUpdateTodo: TODO_STRING_MAX_LEN,
+  draftDeleteTodo: TODO_STRING_MAX_LEN,
+  draftTodoGroup: TODO_STRING_MAX_LEN,
+  listTodos: TODO_STRING_MAX_LEN,
+  getTodoTimeline: TODO_STRING_MAX_LEN,
 }
 
 /** 去掉外层 Markdown 代码块围栏 */
@@ -194,7 +252,7 @@ function isCitationLike(v: unknown): v is { title: string; url: string } {
 }
 
 /** 递归清洗对象中的常见类型偏差（小数取整、null 清理、超长字符串截断） */
-function sanitizeValue(value: unknown, key?: string): unknown {
+function sanitizeValue(value: unknown, maxLenMap: Record<string, number>, key?: string): unknown {
   if (value === null) {
     if (key && ARRAY_DEFAULT_KEYS.has(key)) return []
     if (key && OPTIONAL_NON_NULL_KEYS.has(key)) return undefined
@@ -207,7 +265,7 @@ function sanitizeValue(value: unknown, key?: string): unknown {
   }
   if (typeof value === 'string') {
     const trimmed = value.trim()
-    const max = key ? STRING_MAX_LEN[key] : undefined
+    const max = key ? maxLenMap[key] : undefined
     if (max !== undefined && trimmed.length > max) {
       return trimmed.slice(0, max)
     }
@@ -220,12 +278,18 @@ function sanitizeValue(value: unknown, key?: string): unknown {
         .map((x) => x.trim().slice(0, 60))
         .slice(0, 5)
     }
-    return value.map((item) => sanitizeValue(item))
+    if (key === 'tags') {
+      return value
+        .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+        .map((x) => x.trim().slice(0, 16))
+        .slice(0, 5)
+    }
+    return value.map((item) => sanitizeValue(item, maxLenMap))
   }
   if (typeof value === 'object') {
     const out: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      const cleaned = sanitizeValue(v, k)
+      const cleaned = sanitizeValue(v, maxLenMap, k)
       if (cleaned !== undefined) out[k] = cleaned
     }
     return out
@@ -233,12 +297,13 @@ function sanitizeValue(value: unknown, key?: string): unknown {
   return value
 }
 
-/** 修复 submitVerdict / draftCheckin / draftUpdateCheckin 的顶层字段错位与约束 */
+/** 修复 submitVerdict / draftCheckin / draftUpdateCheckin 等工具的顶层字段错位与约束 */
 export function sanitizeToolInputObject(
   toolName: string,
   obj: Record<string, unknown>,
 ): Record<string, unknown> {
-  const cleaned = sanitizeValue(obj) as Record<string, unknown>
+  const maxLenMap = TOOL_STRING_MAX_LEN[toolName] ?? DEFAULT_STRING_MAX_LEN
+  const cleaned = sanitizeValue(obj, maxLenMap) as Record<string, unknown>
 
   if (
     toolName === 'submitVerdict' ||

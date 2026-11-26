@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { Mascot } from '@/components/mascot/mascot'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -429,20 +430,17 @@ function CustomGroupPanelContainer({
   shouldSuppressGroupClick: () => boolean
   demoAllTodos?: readonly Todo[]
 }) {
-  // 默认待办首批直接复用 overview 数据，只有用户点击「加载更多」或展开其他分组时才发分页请求
+  const [expandedMore, setExpandedMore] = useState(false)
+  const useOverviewSnapshot =
+    !demoAllTodos && isDefaultGroup && initialDefaultTodos !== undefined && !expandedMore
   const shouldFetch =
-    !demoAllTodos && open && (!isDefaultGroup || initialDefaultTodos === undefined)
+    !demoAllTodos &&
+    open &&
+    group.openCount > 0 &&
+    (!isDefaultGroup || initialDefaultTodos === undefined || expandedMore)
   const extraQuery = useInfiniteQuery({
     ...todoListQuery('open', { groupId: group.id, ...(activeTag ? { tag: activeTag } : {}) }),
     enabled: shouldFetch,
-    ...(isDefaultGroup && initialDefaultTodos
-      ? {
-          initialData: {
-            pages: [initialDefaultTodos],
-            pageParams: [null],
-          },
-        }
-      : {}),
   })
 
   let items: readonly Todo[]
@@ -458,13 +456,17 @@ function CustomGroupPanelContainer({
         t.groupId === group.id &&
         (t.dueAt === null || new Date(t.dueAt).getTime() > now.getTime()),
     )
-  } else if (isDefaultGroup && !extraQuery.data && initialDefaultTodos) {
+  } else if (group.openCount === 0) {
+    items = []
+  } else if (useOverviewSnapshot) {
     items = initialDefaultTodos.items
     hasMore = initialDefaultTodos.nextCursor !== null
-    onLoadMore = () => void extraQuery.fetchNextPage()
+    onLoadMore = () => setExpandedMore(true)
   } else {
-    items = extraQuery.data?.pages.flatMap((p) => p.items) ?? []
-    loading = shouldFetch && extraQuery.isPending
+    items =
+      extraQuery.data?.pages.flatMap((p) => p.items) ??
+      (isDefaultGroup ? (initialDefaultTodos?.items ?? []) : [])
+    loading = shouldFetch && extraQuery.isPending && items.length === 0
     hasMore = extraQuery.hasNextPage
     loadingMore = extraQuery.isFetchingNextPage
     onLoadMore = () => void extraQuery.fetchNextPage()
@@ -554,7 +556,9 @@ function SystemBucketPanel({
         }
         return t.status === status
       })
-    : (query.data?.pages.flatMap((p) => p.items) ?? [])
+    : count === 0
+      ? []
+      : (query.data?.pages.flatMap((p) => p.items) ?? [])
 
   return (
     <TodoGroupPanel
@@ -570,7 +574,7 @@ function SystemBucketPanel({
       loading={!demoAllTodos && open && count > 0 && query.isPending}
       items={items}
       emptyText={emptyText}
-      hasMore={!demoAllTodos && query.hasNextPage}
+      hasMore={!demoAllTodos && count > 0 && query.hasNextPage}
       loadingMore={!demoAllTodos && query.isFetchingNextPage}
       onLoadMore={!demoAllTodos ? () => void query.fetchNextPage() : undefined}
       showGroupBadge

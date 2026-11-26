@@ -143,6 +143,70 @@ export const TodoDraftSchema = z
   .meta({ id: 'TodoDraft' })
 export type TodoDraft = z.infer<typeof TodoDraftSchema>
 
+/** 待办改前 / 改后一句话快照 */
+export const TodoDraftSnapshotSchema = z
+  .object({
+    title: z.string(),
+    status: z.enum(['open', 'done', 'abandoned']),
+    groupName: z.string(),
+    priority: z.enum([
+      'urgent-important',
+      'important-not-urgent',
+      'urgent-not-important',
+      'not-important-not-urgent',
+    ]),
+    dueAt: z.string().nullable(),
+    tags: z.array(z.string()).default([]),
+    note: z.string().nullable().optional(),
+    abandonReason: z.string().nullable().optional(),
+    isArchived: z.boolean().optional(),
+  })
+  .meta({ id: 'TodoDraftSnapshot' })
+export type TodoDraftSnapshot = z.infer<typeof TodoDraftSnapshotSchema>
+
+/** draftUpdateTodo：修改待办内容、四象限、标签、移组，或完成/放弃/恢复（含恢复 30 天归档） */
+export const TodoUpdateDraftSchema = z
+  .object({
+    kind: z.literal('todo-update'),
+    todoId: z.string(),
+    action: z.enum(['edit', 'complete', 'abandon', 'reopen']),
+    reason: z.string(),
+    before: TodoDraftSnapshotSchema,
+    after: TodoDraftSnapshotSchema,
+    isNewGroup: z.boolean().optional(),
+    /** 变更明细行 */
+    changes: z.array(DraftFieldSchema).default([]),
+    confirmBody: z.record(z.string(), z.unknown()),
+  })
+  .meta({ id: 'TodoUpdateDraft' })
+export type TodoUpdateDraft = z.infer<typeof TodoUpdateDraftSchema>
+
+/** draftDeleteTodo：删除一条待办（过程时间轴保留删除快照） */
+export const TodoDeleteDraftSchema = z
+  .object({
+    kind: z.literal('todo-delete'),
+    todoId: z.string(),
+    reason: z.string(),
+    before: TodoDraftSnapshotSchema,
+  })
+  .meta({ id: 'TodoDeleteDraft' })
+export type TodoDeleteDraft = z.infer<typeof TodoDeleteDraftSchema>
+
+/** draftTodoGroup：新建 / 重命名 / 删除自定义待办分组 */
+export const TodoGroupDraftSchema = z
+  .object({
+    kind: z.literal('todo-group'),
+    action: z.enum(['create', 'rename', 'delete']),
+    groupId: z.string().optional(),
+    name: z.string(),
+    newName: z.string().optional(),
+    affectedTodoCount: z.number().int().min(0).optional(),
+    reason: z.string().optional(),
+    confirmBody: z.record(z.string(), z.unknown()).optional(),
+  })
+  .meta({ id: 'TodoGroupDraft' })
+export type TodoGroupDraft = z.infer<typeof TodoGroupDraftSchema>
+
 export const WeightDraftSchema = z
   .object({
     kind: z.literal('weight'),
@@ -158,6 +222,9 @@ export const AgentDraftSchema = z
     CheckinUpdateDraftSchema,
     CheckinDeleteDraftSchema,
     TodoDraftSchema,
+    TodoUpdateDraftSchema,
+    TodoDeleteDraftSchema,
+    TodoGroupDraftSchema,
     WeightDraftSchema,
   ])
   .meta({ id: 'AgentDraft' })
