@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { TrendLineChart, type TrendPoint } from '@/components/charts/trend-line-chart'
 import { Button } from '@/components/ui/button'
 import { Calendar, CalendarLegend, type CalendarMark } from '@/components/ui/calendar'
 import { DateField } from '@/components/ui/date-field'
@@ -11,6 +12,7 @@ import { PhotoAlbumSheet, type AlbumGridItem } from '@/components/ui/photo-album
 import { Rating, type RatingValue } from '@/components/ui/rating'
 import { TimeField } from '@/components/ui/time-field'
 import { TimeRangeField } from '@/components/ui/time-range-field'
+import { moodLabel } from '@/features/dashboard/format'
 import type { NativeAlbumBucket } from '@/lib/native'
 
 /*
@@ -398,6 +400,72 @@ export function RatingFeedbackDemo() {
         1 很糟：整组抖一下并轻震 · 2 不太好：表情摇一摇 · 3 一般：波浪起伏 · 4 / 5：撒彩纸。
         开启系统「减少动态效果」时只保留选中状态。
       </p>
+    </div>
+  )
+}
+
+const DEMO_TREND_WEIGHT: TrendPoint[] = [
+  { date: '2025-12-10', value: 55.6 },
+  { date: '2026-01-05', value: 55.1 },
+  { date: '2026-03-18', value: 54.2 },
+  { date: '2026-04-09', value: 53.9 },
+  { date: '2026-07-12', value: 53.3 },
+  { date: '2026-09-20', value: 52.8 },
+  { date: '2026-10-18', value: 52.5 },
+  { date: '2026-11-02', value: 52.4 },
+]
+
+const DEMO_TREND_MOOD: TrendPoint[] = [
+  { date: '2026-01-12', value: 3 },
+  { date: '2026-02-02', value: 4 },
+  { date: '2026-04-20', value: 2 },
+  { date: '2026-05-08', value: 5 },
+  { date: '2026-08-14', value: 4 },
+  { date: '2026-10-25', value: 3 },
+  { date: '2026-11-02', value: 5 },
+]
+
+const PLAYBOOK_MOOD_Y_TICKS = [
+  { value: 5, label: '超棒' },
+  { value: 3, label: '一般' },
+  { value: 1, label: '很糟' },
+] as const
+
+export function TrendLineChartDemo() {
+  return (
+    <div className="grid w-full gap-3 md:grid-cols-2">
+      <TrendLineChart
+        data={DEMO_TREND_WEIGHT}
+        endDate={DEMO_TODAY}
+        label="近一年体重变化"
+        unit="kg"
+        decimals={1}
+        tone="primary"
+      />
+      <TrendLineChart
+        data={DEMO_TREND_MOOD}
+        endDate={DEMO_TODAY}
+        label="近一年心情变化"
+        tone="primary"
+        yDomain={[1, 5]}
+        yTicks={PLAYBOOK_MOOD_Y_TICKS}
+        formatPointValue={(v) => `${v} 分 · ${moodLabel(v)}`}
+        defaultSummary="近一年 · 均分 3.7 · 记录 7 天"
+      />
+      <TrendLineChart
+        data={[{ date: DEMO_TODAY, value: 52.4 }]}
+        endDate={DEMO_TODAY}
+        label="单点体重走势"
+        unit="kg"
+        decimals={1}
+        tone="primary"
+      />
+      <TrendLineChart
+        data={[]}
+        endDate={DEMO_TODAY}
+        label="近一年体重变化"
+        emptyText="近一年还没有体重记录，记下今天的第一条吧"
+      />
     </div>
   )
 }

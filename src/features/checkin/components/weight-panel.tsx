@@ -1,27 +1,33 @@
 'use client'
 
 import { useState } from 'react'
+import { TrendLineChart } from '@/components/charts/trend-line-chart'
 import { Button } from '@/components/ui/button'
+import { ErrorState } from '@/components/ui/error-state'
 import { Field } from '@/components/ui/field'
 import { NumberField } from '@/components/ui/number-field'
+import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
 import { WEIGHT_MAX_GRAMS, WEIGHT_MIN_GRAMS } from '@/features/metric/schemas'
-import { errorMessage, isApiError } from '@/lib/api'
-import { usePutWeight } from '@/lib/api/queries/metrics'
+import type { LocalDate } from '@/features/shared/schemas'
+import { errorMessage, isApiError, useQuery } from '@/lib/api'
+import { usePutWeight, weightTrendQuery } from '@/lib/api/queries/metrics'
 import { gramsToKg, kgToGrams } from '../format'
 
 /*
- * 记体重（PRD 2.5）：千克一位小数输入，存克。和上一条差超过 3 kg 时服务端 409，
- * 这里问"和上次差了 X kg，确认没输错吗？"，确认后带 confirmLargeChange 重提。
- * 在打卡弹层里切换显示，不再开第二层弹层（PRD 2.4），所以确认也写在面板里。
+ * 记体重（PRD 2.5，Issue #104）：
+ * - 上方按需懒加载展示近一年体重变化折线图（TrendLineChart），保存后留在当前面板实时落点；
+ * - 下方千克一位小数输入，存克；与上一条差超过 3 kg 时服务端 409，在面板内完成二次确认。
  */
 
 export function WeightPanel({
+  open,
+  localDate,
   currentGrams,
-  onSaved,
 }: {
+  open: boolean
+  localDate: LocalDate
   currentGrams: number | null
-  onSaved: () => void
 }) {
   const [kg, setKg] = useState<number | null>(
     currentGrams === null ? null : gramsToKg(currentGrams),
@@ -29,6 +35,7 @@ export function WeightPanel({
   const [confirmFrom, setConfirmFrom] = useState<number | null>(null)
   const [error, setError] = useState<string>()
   const put = usePutWeight()
+  const trend = useQuery({ ...weightTrendQuery(365), enabled: open })
 
   function submit(confirmLargeChange: boolean) {
     if (kg === null) return setError('先填一下体重')
@@ -40,8 +47,8 @@ export function WeightPanel({
       { weightGrams: grams, confirmLargeChange },
       {
         onSuccess: () => {
+          setConfirmFrom(null)
           toast.success('体重记好了')
-          onSaved()
         },
         onError: (e) => {
           if (isApiError(e) && e.code === 'WEIGHT_CHANGE_UNCONFIRMED') {
@@ -76,8 +83,37 @@ export function WeightPanel({
     )
   }
 
+  const points = (trend.data?.entries ?? []).map((e) => ({
+    date: e.localDate,
+    value: gramsToKg(e.weightGrams),
+  }))
+
   return (
-    <div className="flex flex-col gap-4 py-1">
+    <div className="flex flex-col gap-3.5 py-1">
+      {trend.isPending ? (
+        <Skeleton className="h-[188px] w-full rounded-2xl" />
+      ) : trend.isError ? (
+        <ErrorState
+          size="compact"
+          title="近一年体重走势没加载出来"
+          message={isApiError(trend.error) ? errorMessage(trend.error) : undefined}
+          onRetry={() => void trend.refetch()}
+          retrying={trend.isRefetching}
+        />
+      ) : (
+        <TrendLineChart
+          chartId="weight"
+          data={points}
+          endDate={localDate}
+          days={365}
+          label="近一年体重变化"
+          unit="kg"
+          decimals={1}
+          tone="primary"
+          emptyText="近一年还没有体重记录，记下今天的第一条吧"
+        />
+      )}
+
       <Field label="今天的体重" htmlFor="checkin-weight" error={error} hint="体重只有你自己看得到">
         <NumberField
           id="checkin-weight"
