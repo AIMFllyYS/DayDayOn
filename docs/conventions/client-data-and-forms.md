@@ -1,6 +1,6 @@
 # 客户端数据与表单规范
 
-> 日期：2026-10-31 · 状态：初版。本文档由初始化时联网调研生成，条目未经实战验证，踩坑后按 [lessons 机制](../lessons/README.md)修订。
+> 日期：2026-10-31 · 2026-11-26 同步实测状态 · 状态：现行（已在实战中验证并随 [lessons 机制](../lessons/README.md) 持续修订）。
 > 依据：[ADR-0012](../adr/0012-client-data.md)（TanStack Query 5）、[ADR-0009](../adr/0009-forms.md)（Base UI Form / Field + zod，不引入表单库）、[ADR-0013](../adr/0013-validation.md)（zod 4）、[ADR-0006](../adr/0006-toast.md)（Toast）。
 > 官方资料（2026-10-31 抓取）：TanStack Query 的 Advanced Server Rendering 与 Query Options 指南、Base UI Form 文档、`@hono/zod-openapi` README（RPC 模式）。库的坑见 [lessons/tanstack-query.md](../lessons/tanstack-query.md)、[lessons/zod.md](../lessons/zod.md)、[lessons/base-ui.md](../lessons/base-ui.md)。
 

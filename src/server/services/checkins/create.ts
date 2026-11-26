@@ -18,6 +18,7 @@ import {
   judgeDiet,
 } from '@/features/referee/rules/diet'
 import { detectCalc, estimateKcal, metOf } from '@/features/referee/rules/exercise'
+import { noteChars } from '@/features/referee/rules/study'
 import type { DietDishFact, Facts, Verdict } from '@/features/referee/schemas'
 import { judgeInputOf } from '@/features/referee/subject'
 import type { LocalDate } from '@/features/shared/schemas'
@@ -467,6 +468,62 @@ export async function reconcileDailyDiet(
 }
 
 /**
+ * 学习模块全天碎片重算：任何增 / 改 / 删操作后，按当日剩余全部学习记录的累计时长与单条内容实质重新核定 isValid，
+ * 确保达标时历史碎片自动转正、改短或删除跌破门槛时自动撤销有效态。
+ */
+export async function reconcileDailyStudy(
+  tx: DbOrTx,
+  userId: string,
+  goal: GoalRow,
+  localDate: LocalDate,
+  currentRow: CheckinRow | null,
+): Promise<CheckinRow | null> {
+  if (goal.module !== 'study') return currentRow
+
+  const allRows = await tx
+    .select(checkinColumns)
+    .from(checkins)
+    .where(
+      and(
+        eq(checkins.userId, userId),
+        eq(checkins.goalId, goal.id),
+        eq(checkins.localDate, localDate),
+      ),
+    )
+  if (allRows.length === 0) return currentRow
+
+  const rules = effectiveRules('study', goal.refereeRules)
+  const studyRows = allRows.filter((r) => r.payload.module === 'study')
+  const totalMinutes = Math.round(
+    studyRows.reduce((sum, r) => sum + (r.durationSeconds ?? 0), 0) / 60,
+  )
+  const timeOk = totalMinutes >= rules.minFocusMinutes
+
+  let updatedCurrent: CheckinRow | null = currentRow
+  for (const r of studyRows) {
+    // 经裁判批准的「跳过打卡」记录不随累计时长被撤销
+    if (r.note?.startsWith('[跳过打卡]') && r.isValid) continue
+    const contentCheck = r.verdict?.checks.find((c) => c.id === 'content')
+    const contentOk =
+      contentCheck !== undefined
+        ? contentCheck.ok
+        : r.payload.module === 'study' && noteChars(r.payload.points ?? []) >= rules.minNoteChars
+    const nextValid = timeOk && contentOk
+    if (r.isValid !== nextValid) {
+      const [updated] = await tx
+        .update(checkins)
+        .set({ isValid: nextValid })
+        .where(and(eq(checkins.id, r.id), eq(checkins.userId, userId)))
+        .returning(checkinColumns)
+      if (updated && currentRow && r.id === currentRow.id) {
+        updatedCurrent = updated
+      }
+    }
+  }
+  return updatedCurrent
+}
+
+/**
  * POST /goals/{goalId}/checkins（PRD 2.4、3、7.2）。
  * 打卡日 = localDateOf(occurredAt, 资料时区, 日切换时间)；补卡只能补昨天（isMakeup）。
  * 饮食同一天同一餐次再次提交时直接硬覆盖（Upsert）该餐记录，并触发全天总分结算与硬覆盖。
@@ -599,10 +656,16 @@ export async function createCheckin(
 
       let row: CheckinRow | undefined
       if (existingRow) {
+        // 覆盖昨日原本正常打过的非睡眠记录时，保留原 occurredAt 与原 isMakeup=false，避免误伤排行与同分排序
+        const preservedOccurredAt =
+          effectiveInput.module !== 'sleep' && !existingRow.isMakeup
+            ? existingRow.occurredAt
+            : draft.occurredAt
         const [updated] = await tx
           .update(checkins)
           .set({
             ...draft,
+            occurredAt: preservedOccurredAt,
             aiRunId: draft.aiRunId ?? existingRow.aiRunId,
             durationSeconds: effectiveDuration,
             count: effectiveCount,
@@ -621,7 +684,7 @@ export async function createCheckin(
           userId,
           action: 'update',
           origin: effectiveInput.origin,
-          reason: '同日记录硬覆盖更新',
+          reason: effectiveInput.isMakeup ? '补卡覆盖更新已有记录' : '同日记录硬覆盖更新',
           before: toCheckinDto(existingRow),
           after: checkin,
         })
@@ -647,25 +710,13 @@ export async function createCheckin(
         .returning(checkinColumns)
       if (!inserted) throw new Error('createCheckin：写入没有返回行')
 
-      // 学习模块：当碎片化学习累加后本次达成有效，将当日此前暂存的碎片学习记录同步标记为有效，使全天累计时长完整计入进度
-      if (
-        effectiveInput.module === 'study' &&
-        verdict.isValid &&
-        sameDayRows.some((r) => !r.isValid)
-      ) {
-        await tx
-          .update(checkins)
-          .set({ isValid: true })
-          .where(
-            and(
-              eq(checkins.userId, userId),
-              eq(checkins.goalId, goalId),
-              eq(checkins.localDate, localDate),
-            ),
-          )
+      let reconciled = inserted
+      if (effectiveInput.module === 'study') {
+        reconciled = (await reconcileDailyStudy(tx, userId, goal, localDate, inserted)) ?? inserted
+      } else if (effectiveInput.module === 'diet') {
+        reconciled = (await reconcileDailyDiet(tx, userId, goal, localDate, inserted)) ?? inserted
       }
-
-      row = (await reconcileDailyDiet(tx, userId, goal, localDate, inserted)) ?? inserted
+      row = reconciled
       const checkin = toCheckinDto(row)
       await recordRevision(tx, {
         userId,

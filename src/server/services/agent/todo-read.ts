@@ -3,16 +3,26 @@ import { and, eq } from 'drizzle-orm'
 import { TODO_PRIORITY_META, dueStatus } from '@/features/todo/rules'
 import type { Todo, TodoEventType, TodoPriority, TodoStatus } from '@/features/todo/schemas'
 import { addDays, calendarDateOf } from '@/lib/time'
+import { ApiError } from '@/server/api/errors'
 import { db } from '@/server/db/client'
 import { todoGroups } from '@/server/db/schema'
 import { getTodoById, getTodoOverview, listTodoEvents, listTodos } from '@/server/services/todos'
 import { loadUserTimeZone } from '@/server/services/todos/defaults'
+import {
+  previewDeleteTodo,
+  previewTodoCreateLimits,
+  previewTodoGroup,
+  previewUpdateTodo,
+  type PreviewTodoGroupInput,
+  type PreviewUpdateTodoInput,
+} from '@/server/services/todos/preview'
 
 /*
  * Agent 待办专项只读查询适配层（独立封装，不与打卡 read.ts 混写）：
  * - 渐进式披露第 1 层：getAgentTodoOverview（轻量索引 + 计数 + Top 5 紧急待办）
- * - 渐进式披露第 2 层：listAgentTodos（按桶/分组/四象限/标签/关键词/日期分页，仅返回精简字段 + 60 字备注预览）
+ * - 渐进式披露第 2 层：listAgentTodos（按桶/分组/四象限/标签/关键词/创建日/截止日分页，精简投影 + 60 字备注预览）
  * - 渐进式披露第 3 层：getAgentTodoDetail（完整 2000 字备注 + 单条历程）与 getAgentTodoTimeline（过程事件流，覆盖已归档）
+ * - 写操作草稿预检：previewAgentTodoUpdate / previewAgentTodoDelete / previewAgentTodoGroup（全部只读不写库）
  */
 
 const NOTE_PREVIEW_MAX = 60
@@ -28,6 +38,7 @@ function projectTodoLean(t: Todo, now: Date) {
   return {
     id: t.id,
     title: t.title,
+    groupId: t.groupId,
     groupName: t.groupName,
     priority: t.priority,
     priorityLabel: TODO_PRIORITY_META[t.priority].label,
@@ -35,6 +46,7 @@ function projectTodoLean(t: Todo, now: Date) {
     status: t.status,
     dueAt: t.dueAt,
     dueStatus: t.status === 'open' ? dueStatus(t.dueAt, now) : 'none',
+    createdAt: t.createdAt,
     doneAt: t.doneAt,
     abandonedAt: t.abandonedAt,
     abandonReason: t.abandonReason,
@@ -76,7 +88,7 @@ export async function getAgentTodoOverview(userId: string, now: Date) {
       soonCount: g.soonCount,
     })),
     counts: overview.counts,
-    tags: overview.tags.map((t) => t.name),
+    tags: overview.tags.map((t) => ({ id: t.id, name: t.name })),
     urgentPreview: [...previewMap.values()],
   }
 }
@@ -95,6 +107,8 @@ export async function listAgentTodos(
     archivedOutcome?: 'done' | 'abandoned'
     from?: string
     to?: string
+    dueFrom?: string
+    dueTo?: string
     cursor?: string
     limit?: number
   },
@@ -121,7 +135,7 @@ export async function listAgentTodos(
     db,
     userId,
     {
-      status: params.status ?? 'open',
+      status: params.status ?? 'active',
       groupId: resolvedGroupId,
       priority: params.priority,
       tag: params.tag,
@@ -129,6 +143,8 @@ export async function listAgentTodos(
       archivedOutcome: params.archivedOutcome,
       from: params.from,
       to: params.to,
+      dueFrom: params.dueFrom,
+      dueTo: params.dueTo,
       cursor: params.cursor,
       limit,
     },
@@ -161,11 +177,14 @@ export async function getAgentTodoDetail(userId: string, now: Date, todoId: stri
         meta: e.meta,
       })),
     }
-  } catch {
-    return {
-      found: false as const,
-      error: '没找到这条待办（可能已删除，可用 getTodoTimeline 查历史过程记录）',
+  } catch (err: unknown) {
+    if (err instanceof ApiError && err.code === 'TODO_NOT_FOUND') {
+      return {
+        found: false as const,
+        error: '没找到这条待办（可能已删除，可用 getTodoTimeline 查历史过程记录）',
+      }
     }
+    throw err
   }
 }
 
@@ -229,4 +248,29 @@ export async function lookupUserTodoGroupByName(userId: string, groupName: strin
     .where(and(eq(todoGroups.userId, userId), eq(todoGroups.name, trimmed)))
     .limit(1)
   return group ?? null
+}
+
+export async function checkAgentTodoCreateLimits(userId: string, creatingNewGroup: boolean) {
+  return previewTodoCreateLimits(db, userId, creatingNewGroup)
+}
+
+export async function previewAgentTodoUpdate(
+  userId: string,
+  input: PreviewUpdateTodoInput,
+  now: Date,
+) {
+  return previewUpdateTodo(db, userId, input, now)
+}
+
+export async function previewAgentTodoDelete(
+  userId: string,
+  todoId: string,
+  reason: string,
+  now: Date,
+) {
+  return previewDeleteTodo(db, userId, todoId, reason, now)
+}
+
+export async function previewAgentTodoGroup(userId: string, input: PreviewTodoGroupInput) {
+  return previewTodoGroup(db, userId, input)
 }

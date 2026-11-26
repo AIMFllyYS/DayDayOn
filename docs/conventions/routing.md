@@ -1,6 +1,6 @@
 # 路由统一规范
 
-> 日期：2026-10-31 · 2026-11-16 按当前代码库路由同步修订 · 状态：现行。
+> 日期：2026-10-31 · 2026-11-26 按当前代码库路由同步修订 · 状态：现行。
 > Next.js 本身的约定（`params` 要 `await`、Cache Components 等）见 [nextjs-16-patterns.md](./nextjs-16-patterns.md)。
 
 ## 1. 原则
@@ -15,7 +15,7 @@
 | 路径 | 页面 / 端点 | 路由组 / 目录 | 导航 |
 |---|---|---|---|
 | `/` | 主页（仪表盘） | `(app)` | 一级 |
-| `/todo` | 待办；`?view=log` 切换为时间日志，`?mode=quadrant` 切换四象限视图 | `(app)` | 一级 |
+| `/todo` | 待办；`?view=log` 切换为时间日志，`?mode=quadrant` 切换四象限视图，`?new=1` 直开新建待办抽屉 | `(app)` | 一级 |
 | `/todo/timeline` | 待办过程时间轴（含已满 30 天自动归档历史） | `(app)` | 二级 |
 | `/todo/archived` | 已归档待办（完成或放弃满 30 天自动归档） | `(app)` | 二级 |
 | `/rank` | 排行榜；`?range=week\|month` | `(app)` | 一级 |
@@ -27,11 +27,11 @@
 | `/goals` | 目标设置（默认渲染目标设置页；`?status=archived` 查看已归档目标列表） | `(app)` | 二级 |
 | `/goals/new` | 新建目标；`?module=…` | `(app)` | 二级 |
 | `/goals/[goalId]` | 目标详情与历史 | `(app)` | 二级 |
-| `/goals/[goalId]/checkin` | 打卡表单（手动 / 智能拍照 / 智能上传）；`?mode=photo&meal=…` | `(app)` | 二级 |
+| `/goals/[goalId]/checkin` | 打卡表单（手动 / 智能拍照 / 智能上传 / 昨日补卡）；`?mode=photo&meal=…&makeup=1` | `(app)` | 二级 |
 | `/friends/[friendUserId]/goals/[goalId]` | 好友目标详情与打卡历史（只读，顶栏居中显示「`<昵称>的目标详情`」，ADR-0026） | `(app)` | 二级 |
 | `/welcome` | 落地页（不要求登录；未登录打开 `/` 时由 proxy 送到这里，ADR-0022） | `(marketing)` | 无；应用内入口是「我的 → 数据与关于 → 关于 DayDayOn」 |
 | `/login` | 邮箱验证码登录 | `(auth)` | 无 |
-| `/onboarding` | 新人引导（六步） | `(auth)` | 无 |
+| `/onboarding` | 新人引导（七步） | `(auth)` | 无 |
 | `/privacy` | 隐私说明（静态，不要求登录） | `(auth)` | 无 |
 | `/admin` | 后台首页（额度监控） | `admin/` | 后台侧栏 |
 | `/admin/users`、`/admin/codes`、`/admin/settings` | 用户与封禁、兑换码、全站配置 | `admin/` | 后台侧栏 |

@@ -103,7 +103,7 @@ export function useExerciseForm(props?: ModuleFormProps): ModuleFormApi {
   const [autoOpen, setAutoOpen] = useState<string | null>(null)
   const { favs, setFavs, resetFavs } = useFavorites('exercise', DEFAULT_FAVS)
 
-  const syncKey = `${savedLatest?.id ?? 'none'}`
+  const syncKey = `${props?.today ?? ''}:${savedLatest?.id ?? 'none'}`
   const [seenSyncKey, setSeenSyncKey] = useState<string>(syncKey)
   if (syncKey !== seenSyncKey) {
     setSeenSyncKey(syncKey)

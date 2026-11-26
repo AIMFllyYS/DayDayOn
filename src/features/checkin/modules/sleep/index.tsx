@@ -26,7 +26,7 @@ interface Adv {
   hrvMs: number | null
 }
 
-function useSleepForm({ clock, today, todayCheckins }: ModuleFormProps): ModuleFormApi {
+function useSleepForm({ clock, today, isMakeup, todayCheckins }: ModuleFormProps): ModuleFormApi {
   const savedLatest = todayCheckins?.find((c) => c.payload.module === 'sleep')
   const savedSleep = savedLatest?.payload.module === 'sleep' ? savedLatest.payload : null
   const [start, setStart] = useState(() =>
@@ -45,7 +45,7 @@ function useSleepForm({ clock, today, todayCheckins }: ModuleFormProps): ModuleF
     remPct: savedSleep?.advanced?.remPct ?? null,
     hrvMs: savedSleep?.advanced?.hrvMs ?? null,
   }))
-  const syncKey = `${savedLatest?.id ?? 'none'}`
+  const syncKey = `${today}:${savedLatest?.id ?? 'none'}`
   const [seenSyncKey, setSeenSyncKey] = useState<string>(syncKey)
   if (syncKey !== seenSyncKey) {
     setSeenSyncKey(syncKey)
@@ -95,7 +95,7 @@ function useSleepForm({ clock, today, todayCheckins }: ModuleFormProps): ModuleF
       icon: 'sleep',
       independent: true,
       filled: quality !== null,
-      summary: quality ? `${quality} 星` : '给昨晚打个分',
+      summary: quality ? `${quality} 星` : isMakeup ? '给前晚打个分' : '给昨晚打个分',
       content: (
         <>
           <Rating value={quality} onValueChange={setQuality} tone="sleep" label="睡眠质量" />

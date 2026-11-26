@@ -125,6 +125,89 @@ describe('map-message: toTurnParts & toTurnView', () => {
       isStreamingTurn([{ type: 'text', text: '你好', state: 'done' }] as UIMessage['parts']),
     ).toBe(false)
   })
+
+  it('正确提取新增待办读写工具的活动条摘要', () => {
+    const rawParts = [
+      {
+        type: 'tool-listTodos',
+        toolCallId: 't1',
+        state: 'output-available',
+        input: { status: 'active', keyword: '高数' },
+        output: { items: [] },
+      },
+      {
+        type: 'tool-draftUpdateTodo',
+        toolCallId: 't2',
+        state: 'output-available',
+        input: { todoId: 'id-1', status: 'done', reason: '已完成' },
+        output: { kind: 'todo-update' },
+      },
+      {
+        type: 'tool-draftDeleteTodo',
+        toolCallId: 't3',
+        state: 'output-available',
+        input: { todoId: 'id-1', reason: '重复记了' },
+        output: { kind: 'todo-delete' },
+      },
+      {
+        type: 'tool-draftTodoGroup',
+        toolCallId: 't4',
+        state: 'output-available',
+        input: { action: 'rename', name: '旧组', newName: '新组' },
+        output: { kind: 'todo-group' },
+      },
+    ] as unknown as UIMessage['parts']
+
+    const parts = toTurnParts(rawParts)
+    expect(parts.map((p) => (p.type === 'tool' ? p.summary : null))).toEqual([
+      '「高数」',
+      '已完成',
+      '重复记了',
+      '重命名 新组',
+    ])
+  })
+
+  it('正确提取昨日汇总与昨日补卡草稿的活动条摘要', () => {
+    const rawParts = [
+      {
+        type: 'tool-getTodaySummary',
+        toolCallId: 'm1',
+        state: 'output-available',
+        input: { yesterday: true },
+        output: { localDate: '2026-11-04' },
+      },
+      {
+        type: 'tool-getTodaySummary',
+        toolCallId: 'm2',
+        state: 'output-available',
+        input: { yesterday: false },
+        output: { localDate: '2026-11-05' },
+      },
+      {
+        type: 'tool-draftCheckin',
+        toolCallId: 'm3',
+        state: 'output-available',
+        input: {
+          goalId: 'g1',
+          isMakeup: true,
+          entry: {
+            module: 'sleep',
+            bedAt: '2026-11-03T15:00:00Z',
+            wakeAt: '2026-11-03T23:00:00Z',
+            quality: 4,
+          },
+        },
+        output: { kind: 'checkin' },
+      },
+    ] as unknown as UIMessage['parts']
+
+    const parts = toTurnParts(rawParts)
+    expect(parts.map((p) => (p.type === 'tool' ? p.summary : null))).toEqual([
+      '昨天',
+      '今天',
+      '补卡 · 睡眠',
+    ])
+  })
 })
 
 describe('formatChatError', () => {

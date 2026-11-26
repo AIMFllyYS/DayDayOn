@@ -13,11 +13,12 @@ import { localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import type { db as Database, DbOrTx } from '@/server/db/client'
 import { checkins } from '@/server/db/schema'
-import { buildDraft, judgeCheckin, reconcileDailyDiet } from './create'
+import { buildDraft, judgeCheckin, reconcileDailyDiet, reconcileDailyStudy } from './create'
 import { loadClock } from './clock'
 import { checkinColumns, loadGoal, toCheckinDto, type CheckinRow, type GoalRow } from './goal'
 import { recordRevision } from './revisions'
 import { intakeKcalOf, isUniqueViolation, type Clock } from './rules'
+import { todayStudyMinutes } from '@/server/services/referee/read'
 
 /*
  * 修改与删除打卡（checkin-modules.md 第 7 节）。
@@ -70,20 +71,59 @@ export async function planReplace(
   replaceInput: CreateCheckin,
   clock: Clock,
   now: Date,
+  noteOverride?: string | null,
 ): Promise<{ set: Partial<typeof checkins.$inferInsert>; verdict: Verdict }> {
   if (goal.status !== 'active') throw invalid('goalId', '这个目标已经归档了，不能再改')
   if (replaceInput.module !== current.module) throw invalid('replace', '板块不能改')
+  if (
+    current.payload.module === 'diet' &&
+    replaceInput.module === 'diet' &&
+    replaceInput.mealType !== current.payload.mealType
+  ) {
+    const sameDay = await db
+      .select({ id: checkins.id, payload: checkins.payload })
+      .from(checkins)
+      .where(
+        and(
+          eq(checkins.userId, userId),
+          eq(checkins.goalId, goal.id),
+          eq(checkins.localDate, current.localDate),
+        ),
+      )
+      .limit(20)
+    const collision = sameDay.find(
+      (r) =>
+        r.id !== current.id &&
+        r.payload.module === 'diet' &&
+        r.payload.mealType === replaceInput.mealType,
+    )
+    if (collision) {
+      throw new ApiError('CHECKIN_EXISTS', '这一天的该餐次已经记过了，请直接修改那一条记录')
+    }
+  }
   const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
+  const effectiveNote =
+    noteOverride !== undefined
+      ? noteOverride
+      : replaceInput.note !== undefined
+        ? replaceInput.note
+        : current.note
   const replace: CreateCheckin = {
     ...replaceInput,
+    note: effectiveNote,
     isMakeup: current.localDate !== today,
     source: current.source,
     aiRunId: current.aiRunId ?? undefined,
     parsedText: current.parsedText ?? undefined,
   }
   const draft = await buildDraft(db, userId, goal, replace, clock, now)
+  const priorMinutesToday =
+    current.module === 'study'
+      ? await todayStudyMinutes(db, userId, goal.id, current.localDate, current.id)
+      : undefined
   const verdict = await judgeCheckin(db, userId, goal, replace, clock, {
     localDate: current.localDate,
+    priorMinutesToday,
   })
   const set: Partial<typeof checkins.$inferInsert> = {
     payload: draft.payload,
@@ -106,18 +146,22 @@ export async function planReplace(
   return { set, verdict }
 }
 
-/** 只改了饮食条目时，用原记录拼出一份创建请求体给裁判重算（旧事实对不上新条目，按规则离线判定） */
-function dietReplay(
+/** 只改了饮食条目或备注时，用原记录拼出一份创建请求体给裁判重算（旧事实对不上新条目时按规则离线判定） */
+export function dietReplay(
   current: CheckinRow,
   items: NonNullable<UpdateCheckin['items']>,
+  note?: string | null,
 ): CreateCheckin {
   const payload = current.payload as Extract<CheckinPayload, { module: 'diet' }>
+  const storedFacts = current.verdict?.facts?.module === 'diet' ? current.verdict.facts : undefined
   return {
     module: 'diet',
     method: payload.method,
     mealType: payload.mealType,
     items,
     ...(payload.snackTime ? { snackTime: payload.snackTime } : {}),
+    ...(note !== undefined ? { note } : { note: current.note }),
+    ...(storedFacts && items === payload.items ? { facts: storedFacts } : {}),
     isMakeup: current.isMakeup,
     source: current.source,
     origin: 'manual',
@@ -141,11 +185,20 @@ export async function updateCheckin(
       const set: Partial<typeof checkins.$inferInsert> = {}
 
       if (input.replace !== undefined) {
-        const plan = await planReplace(tx, userId, goal, current, input.replace, clock, now)
+        const plan = await planReplace(
+          tx,
+          userId,
+          goal,
+          current,
+          input.replace,
+          clock,
+          now,
+          input.note,
+        )
         Object.assign(set, plan.set)
       } else if (input.items !== undefined) {
         if (current.payload.module !== 'diet') throw invalid('items', '只有饮食打卡能改条目')
-        const replay = dietReplay(current, input.items)
+        const replay = dietReplay(current, input.items, input.note)
         const verdict = await judgeCheckin(tx, userId, goal, replay, clock, {
           localDate: current.localDate,
         })
@@ -163,7 +216,12 @@ export async function updateCheckin(
         .where(and(eq(checkins.id, checkinId), eq(checkins.userId, userId)))
         .returning(checkinColumns)
       if (!row) throw new ApiError('CHECKIN_NOT_FOUND', '打卡不存在')
-      const reconciled = (await reconcileDailyDiet(tx, userId, goal, row.localDate, row)) ?? row
+      let reconciled = row
+      if (goal.module === 'diet') {
+        reconciled = (await reconcileDailyDiet(tx, userId, goal, row.localDate, row)) ?? row
+      } else if (goal.module === 'study') {
+        reconciled = (await reconcileDailyStudy(tx, userId, goal, row.localDate, row)) ?? row
+      }
       const after = toCheckinDto(reconciled)
       await recordRevision(tx, {
         userId,
@@ -197,6 +255,9 @@ export async function deleteCheckin(
     if (current.module === 'diet') {
       const goal = await loadGoal(tx, userId, current.goalId)
       await reconcileDailyDiet(tx, userId, goal, current.localDate, null)
+    } else if (current.module === 'study') {
+      const goal = await loadGoal(tx, userId, current.goalId)
+      await reconcileDailyStudy(tx, userId, goal, current.localDate, null)
     }
     await recordRevision(tx, {
       userId,

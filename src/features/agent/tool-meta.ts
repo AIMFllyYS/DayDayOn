@@ -83,6 +83,24 @@ const toolMeta: Record<string, ToolMeta> = {
     tone: 'neutral',
   },
   draftTodo: { label: '整理待办草稿', verb: '正在整理待办', icon: 'todo', tone: 'neutral' },
+  draftUpdateTodo: {
+    label: '整理改待办草稿',
+    verb: '正在整理待办变更',
+    icon: 'edit',
+    tone: 'primary',
+  },
+  draftDeleteTodo: {
+    label: '整理删待办草稿',
+    verb: '正在整理要删的待办',
+    icon: 'trash',
+    tone: 'danger',
+  },
+  draftTodoGroup: {
+    label: '整理待办分组草稿',
+    verb: '正在整理待办分组',
+    icon: 'folder',
+    tone: 'study',
+  },
   draftWeight: { label: '整理体重草稿', verb: '正在整理体重', icon: 'chart', tone: 'primary' },
   // 打卡裁判（server/ai/referee/tools.ts）
   lookupFoodNutrition: {

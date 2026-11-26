@@ -29,7 +29,7 @@ vi.mock('@/server/services/metrics', () => {
     called.count += 1
     return {}
   }
-  return { putWeight: touch, weightTrend: touch, putRating: touch }
+  return { putWeight: touch, weightTrend: touch, putRating: touch, ratingTrend: touch }
 })
 
 const { checkinRoutes } = await import('./checkins')
@@ -80,6 +80,9 @@ describe('没登录：指标接口一律 401', () => {
       jsonInit('PUT', { scope: 'overall', value: 4 }),
     )
     expect(res.status).toBe(401)
+  })
+  it('GET /ratings', async () => {
+    expect((await metricRoutes.request('/ratings?scope=overall&days=365')).status).toBe(401)
   })
   it('service 一次都没被调用', () => {
     expect(called.count).toBe(0)

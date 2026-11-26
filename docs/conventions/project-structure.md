@@ -10,7 +10,7 @@
 .
 ├── src/
 │   ├── proxy.ts                    # Next.js 16 请求代理：入口重定向（未登录 / → /welcome，其余 → /login）
-│   ├── instrumentation.ts          # Next.js 服务启动钩子：幂等执行 Drizzle 数据库迁移
+│   ├── instrumentation.ts          # Next.js 服务启动钩子：幂等执行 Drizzle 数据库迁移与官方公告目录同步
 │   ├── app/                        # 路由层：只放路由文件
 │   │   ├── layout.tsx              # 根 layout（含 <html> <body> 与开屏内联脚本）
 │   │   ├── loading.tsx / error.tsx / not-found.tsx / global-error.tsx
@@ -26,8 +26,8 @@
 │   │   │   ├── agent/              # AI 助手（对话与智能识图打卡）
 │   │   │   ├── checkin/            # 打卡页（含 smart 智能识图打卡）
 │   │   │   ├── friends/            # 好友只读子页（好友目标详情 /friends/[friendUserId]/goals/[goalId]）
-│   │   │   ├── goals/              # 目标管理（列表、新建、详情）
-│   │   │   ├── todo/               # 待办
+│   │   │   ├── goals/              # 目标管理（列表、新建、详情、打卡与昨日补卡）
+│   │   │   ├── todo/               # 待办（清单/日志/四象限、archived/、timeline/）
 │   │   │   ├── rank/               # 排行榜
 │   │   │   ├── notifications/      # 全屏消息中心与官方通知
 │   │   │   └── me/                 # 我的（设置、个人资料、检查更新）
@@ -43,7 +43,7 @@
 │   │       └── v1/[[...route]]/    # 只把请求转给 Hono（src/server/api/），见 api-conventions.md
 │   ├── components/
 │   │   ├── ui/                     # 原子组件：无业务逻辑（组件库选型见 docs/libraries.md）
-│   │   ├── layout/                 # 应用外壳：底部导航、侧栏、顶栏、开屏控制器、品牌图标
+│   │   ├── layout/                 # 应用外壳：底部导航、侧栏、顶栏、开屏控制器、页面转场（page-transition.tsx）、品牌图标
 │   │   ├── mascot/                 # 吉祥物团团：绘制、静态版、互动版、预设头像
 │   │   ├── charts/                 # 自研 SVG 图表，d3-shape 的唯一入口
 │   │   └── markdown/               # AI 输出渲染：react-markdown / KaTeX / Mermaid 唯一封装入口
@@ -55,21 +55,21 @@
 │   │   ├── app-update/             # 版本检查、更新日志解析与端内更新弹窗
 │   │   ├── auth/                   # 登录、验证码、人机校验交互
 │   │   ├── chat/                   # 好友聊天与打卡房间消息
-│   │   ├── checkin/                # 打卡记录、智能识图打卡与动态表单
-│   │   ├── dashboard/              # 仪表盘与今日概览卡片
+│   │   ├── checkin/                # 打卡记录、昨日补卡、智能识图打卡与动态表单
+│   │   ├── dashboard/              # 仪表盘、今日概览卡片与顶部问候语跑马灯
 │   │   ├── diet/                   # 饮食打卡与 AI 饮食识别草稿
 │   │   ├── friend/                 # 好友关系与互动
-│   │   ├── goal/                   # 目标配置、周期规则与 SchemaForm
+│   │   ├── goal/                   # 目标配置、周期规则、设置 Dock 与 SchemaForm
 │   │   ├── insights/               # 趋势统计与图表分析
 │   │   ├── me/                     # 个人资料、主题/吉祥物偏好、设置多级菜单
-│   │   ├── metric/                 # 量化指标记录（体重、步数等）
+│   │   ├── metric/                 # 量化指标记录（体重、心情近一年趋势与步数）
 │   │   ├── notification/           # 消息通知中心与官方公告
-│   │   ├── onboarding/             # 新用户初始化引导
+│   │   ├── onboarding/             # 新用户七步初始化引导
 │   │   ├── quota/                  # AI 额度查看与兑换
 │   │   ├── rank/                   # 好友排行榜
 │   │   ├── referee/                # AI 裁判规则与判定
 │   │   ├── shared/                 # 跨领域共享辅助组件与常量
-│   │   ├── todo/                   # 待办清单
+│   │   ├── todo/                   # 待办清单、分组、标签与四象限/时间轴
 │   │   └── welcome/                # 落地页展示模块与下载信息
 │   ├── server/                     # server-only 代码，文件顶部 import 'server-only'
 │   │   ├── env.ts                  # zod 校验环境变量，服务端只从这里读
@@ -94,12 +94,15 @@
 │   │   ├── cn.ts                   # 自研 className 拼接
 │   │   ├── entry-redirect.ts       # 入口路由重定向纯规则函数
 │   │   ├── fonts.ts                # next/font/local 字体配置
+│   │   ├── lazy.ts                 # 懒加载与空闲预热工具（ui-primitives.md 第 3 节）
+│   │   ├── motion.ts               # 页面转场意图管理（push / pop / expand / tab）
 │   │   ├── native.ts               # Android 原生能力桥（window.DayDayOnNative）唯一封装层
+│   │   ├── qr.ts                   # 零依赖纯 TS QR Code 编码器（分享海报二维码）
 │   │   ├── semver.ts               # SemVer 版本号比较
 │   │   ├── splash.ts               # PWA 开屏判断与内联脚本
 │   │   └── theme.ts                # 主题与吉祥物偏好读写
 │   └── test/                       # Vitest 测试桩（如 server-only-stub.ts）
-├── android/                        # Android Kotlin 原生混合外壳工程与离线构建脚本（build-apk.ps1）
+├── android/                        # Android Kotlin 原生混合外壳工程、文档（README.md）与离线构建脚本（build-apk.ps1）
 ├── download/                       # 版本清单（manifest.json）、更新日志（CHANGELOG.md）与本地 APK 输出（apk/）
 ├── docs/
 │   ├── plans/                      # 计划、路线图、里程碑

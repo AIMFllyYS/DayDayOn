@@ -65,6 +65,37 @@ describe('analysisPrompt', () => {
     ).toBe('帮我审核这条「好好吃饭」跳过本次打卡申请，跳过理由：肠胃炎医嘱禁食休息')
   })
 
+  it('昨日补卡：在分析与跳过提示词中明确标出昨日补卡', () => {
+    expect(
+      analysisPrompt(
+        '早点睡',
+        {
+          module: 'sleep',
+          bedAt: '2026-11-03T15:00:00Z',
+          wakeAt: '2026-11-03T23:00:00Z',
+          quality: 4,
+          isMakeup: true,
+        },
+        'Asia/Shanghai',
+      ),
+    ).toBe('帮我分析这条「早点睡」昨日补卡：23:00 入睡，07:00 起床，质量 4 分')
+
+    expect(
+      analysisPrompt(
+        '动一动',
+        {
+          module: 'exercise',
+          category: '跳过打卡',
+          intensity: 'easy',
+          durationSeconds: 60,
+          skipReason: '昨天发烧休息',
+          isMakeup: true,
+        },
+        'Asia/Shanghai',
+      ),
+    ).toBe('帮我审核这条「动一动」昨日补卡跳过申请，跳过理由：昨天发烧休息')
+  })
+
   it('checkinToInput：将数据库已存饮食打卡还原为输入结构', () => {
     expect(
       checkinToInput({

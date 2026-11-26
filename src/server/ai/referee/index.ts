@@ -53,6 +53,10 @@ export interface StreamRefereeInput {
   goalId: string
   module: Module
   today: LocalDate
+  /** 实际要裁判的打卡日（补昨日卡时为昨天） */
+  targetDay?: LocalDate
+  /** 覆盖修改已存在的学习记录时排除自身 id */
+  excludeCheckinId?: string
   timeZone: string
   weightKg: number | null
   judgeBase: Omit<JudgeInput, 'facts' | 'extras'>
@@ -98,6 +102,8 @@ export async function streamReferee(input: StreamRefereeInput): Promise<Response
     goalId: input.goalId,
     module: input.module,
     today: input.today,
+    targetDay: input.targetDay ?? input.today,
+    excludeCheckinId: input.excludeCheckinId,
     timeZone: input.timeZone,
     weightKg: input.weightKg,
     search,

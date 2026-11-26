@@ -10,6 +10,7 @@ import { Stamp } from '@/components/ui/stamp'
 import { moduleMeta, moduleTones } from '@/components/ui/tone'
 import {
   FieldDemo,
+  MarqueeDemo,
   MenuDemo,
   RatingDemo,
   ReportShareDemo,
@@ -281,6 +282,13 @@ export default function ComponentsPage() {
 
       <Section ann="playbook.components.states" title="加载与空状态">
         <div className="grid gap-3 md:grid-cols-2">
+          <Specimen
+            ann="playbook.components.marquee"
+            label="MarqueeText · 等高单行条件跑马灯"
+            note="固定 h-7 单行不撑高；短句静止无遮罩，仅溢出 > 2px 时启用双轨无缝滚动与边缘渐隐，悬停/按压暂停，减少动态效果降级为截断"
+          >
+            <MarqueeDemo />
+          </Specimen>
           <Specimen
             ann="playbook.components.share-sheet"
             label="ReportShareSheet · 原生报告分享与底部 Dock"

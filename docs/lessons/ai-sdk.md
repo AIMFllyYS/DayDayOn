@@ -1,6 +1,6 @@
 # lessons — AI SDK 与 DeepSeek（ai、@ai-sdk/deepseek、@ai-sdk/react）
 
-> 适用版本：ai@7.0.159、@ai-sdk/deepseek@3.0.77、@ai-sdk/react@4.0.163（M3 安装）。以下条目来自 2026-10-31 对 AI SDK 文档和 DeepSeek「模型 & 价格」页的核对，尚未在本项目代码里踩到。
+> 适用版本：ai@7.0.159、@ai-sdk/deepseek@3.0.77、@ai-sdk/react@4.0.163。以下条目已结合官方文档与 `src/server/ai/` 实战使用核对维护。
 
 ### 字符串模型 id 走了 Vercel AI Gateway
 - 症状：`model: 'deepseek/deepseek-flash'` 要求 `AI_GATEWAY_API_KEY`，或请求绕道 Vercel。

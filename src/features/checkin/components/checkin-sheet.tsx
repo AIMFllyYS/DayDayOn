@@ -91,6 +91,7 @@ export function CheckinSheet({ open, view, onOpenChange }: CheckinSheetProps) {
       footer={footer}
     >
       <SheetBody
+        open={open}
         view={view}
         state={today}
         onNavigate={close}
@@ -110,18 +111,20 @@ interface QueryState {
 }
 
 function SheetBody({
+  open,
   view,
   state,
   onNavigate,
   onOpenView,
 }: {
+  open: boolean
   view: CheckinLauncherView
   state: QueryState
   onNavigate: () => void
   onOpenView: CheckinSheetListProps['onOpenView']
 }) {
   const launcher = useCheckinLauncher()
-  // 记完体重 / 心情后回到列表
+  // 记完步数后回到列表；体重与心情留在当前面板方便立刻看近一年折线落点更新
   const back = () => launcher.open('list')
 
   if (state.isPending) return <SheetSkeleton />
@@ -137,8 +140,12 @@ function SheetBody({
     )
   }
   const data = state.data
-  if (view === 'weight') return <WeightPanel currentGrams={data.weightGrams} onSaved={back} />
-  if (view === 'mood') return <MoodPanel value={data.mood} onSaved={back} />
+  if (view === 'weight') {
+    return <WeightPanel open={open} localDate={data.localDate} currentGrams={data.weightGrams} />
+  }
+  if (view === 'mood') {
+    return <MoodPanel open={open} localDate={data.localDate} value={data.mood} />
+  }
   if (view === 'steps') return <StepsPanel onSaved={back} />
   if (data.goals.length === 0 && data.completion.planned === 0) {
     return (

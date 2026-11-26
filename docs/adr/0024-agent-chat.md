@@ -60,3 +60,9 @@ ADR-0003 把「联网搜索」列为 v0.2 暂不做。本 ADR 推翻这一条：
 
 - 联网搜索按次计费上线后，核对真实花费与 5000 微元/次的估算是否一致。
 - 悬浮团团的手势若被证明误触率高，重审「点击 vs 拖动 vs 长按」的判定阈值。
+
+## 演进补充（2026-11-26）
+
+- **预算上限与提示词版本**：`ToolLoopAgent` 已扩容至 `MAX_STEPS = 32`、常规每步 `MAX_OUTPUT_TOKENS_PER_STEP = 4096`（深度思考模式 `8192`）、单轮联网上限 `MAX_SEARCHES_PER_TURN = 15`，系统提示词演进至 `AGENT_PROMPT_VERSION = 6`，并接入按工具维度差异化截断容量的 `repair-tool-call.ts`（文本/长草稿参数 2000 字符）。
+- **待办完整 CRUD 草稿**：`agent-todo-tools.ts` 补齐 `draftUpdateTodo`、`draftDeleteTodo`、`draftTodoGroup` 及配套 `<TodoDraftCard>` 与 `confirmed-drafts.ts`（按 `toolCallId` 幂等防重复提交）。
+- **昨日补卡与先读后改契约**：提示词与工具描述明确补卡/改卡必须先调读工具核对已有记录；昨日已有记录允许通过覆盖流重新提交并触发裁判重算，禁止未核对直接覆盖。

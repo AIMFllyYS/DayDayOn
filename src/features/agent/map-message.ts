@@ -15,23 +15,84 @@ function toolSummary(toolName: string, input: unknown): string | undefined {
       return typeof o.query === 'string' ? o.query : undefined
     case 'webFetch':
       return typeof o.url === 'string' ? o.url : undefined
+    case 'getTodaySummary':
+      return o.yesterday === true ? '昨天' : '今天'
     case 'draftCheckin': {
       // 新格式在 entry 里；老会话里的草稿是 data
       const data = (o.entry ?? o.data) as Record<string, unknown> | undefined
-      if (data?.module === 'diet') return '饮食'
-      if (data?.module === 'exercise') {
+      let label: string | undefined
+      if (data?.module === 'diet') label = '饮食'
+      else if (data?.module === 'exercise') {
         const first = Array.isArray(data.items) ? (data.items[0] as { name?: unknown }) : undefined
-        if (typeof first?.name === 'string') return first.name
-        return typeof data.category === 'string' ? data.category : '运动'
-      }
-      if (data?.module === 'custom') return '自定义'
-      return data?.module === 'sleep' ? '睡眠' : data?.module === 'study' ? '学习' : undefined
+        label =
+          typeof first?.name === 'string'
+            ? first.name
+            : typeof data.category === 'string'
+              ? data.category
+              : '运动'
+      } else if (data?.module === 'custom') label = '自定义'
+      else if (data?.module === 'sleep') label = '睡眠'
+      else if (data?.module === 'study') label = '学习'
+      if (!label) return o.isMakeup === true ? '补卡' : undefined
+      return o.isMakeup === true ? `补卡 · ${label}` : label
     }
     case 'draftUpdateCheckin':
     case 'draftDeleteCheckin':
       return typeof o.reason === 'string' ? o.reason : undefined
     case 'draftTodo':
       return typeof o.title === 'string' ? o.title : undefined
+    case 'draftUpdateTodo':
+    case 'draftDeleteTodo':
+      return typeof o.reason === 'string' ? o.reason : undefined
+    case 'draftTodoGroup': {
+      const target =
+        typeof o.newName === 'string' ? o.newName : typeof o.name === 'string' ? o.name : ''
+      const act =
+        o.action === 'create'
+          ? '新建'
+          : o.action === 'rename'
+            ? '重命名'
+            : o.action === 'delete'
+              ? '删除'
+              : ''
+      return target ? `${act ? `${act} ` : ''}${target}` : undefined
+    }
+    case 'listTodos': {
+      const parts: string[] = []
+      if (typeof o.groupName === 'string') parts.push(o.groupName)
+      if (typeof o.keyword === 'string') parts.push(`「${o.keyword}」`)
+      if (typeof o.tag === 'string') parts.push(`#${o.tag}`)
+      if (typeof o.dueFrom === 'string' || typeof o.dueTo === 'string') {
+        parts.push(
+          `截止 ${typeof o.dueFrom === 'string' ? o.dueFrom : '…'}~${typeof o.dueTo === 'string' ? o.dueTo : '…'}`,
+        )
+      } else if (typeof o.from === 'string' || typeof o.to === 'string') {
+        parts.push(
+          `${typeof o.from === 'string' ? o.from : '…'}~${typeof o.to === 'string' ? o.to : '…'}`,
+        )
+      }
+      if (parts.length === 0 && typeof o.status === 'string') {
+        const statusMap: Record<string, string> = {
+          active: '全部进行中',
+          open: '进行中',
+          overdue: '已过期',
+          done: '已完成',
+          abandoned: '已放弃',
+          archived: '已归档',
+          quadrant: '四象限',
+        }
+        return statusMap[o.status] ?? o.status
+      }
+      return parts.length > 0 ? parts.join(' · ') : undefined
+    }
+    case 'getTodoDetail':
+      return typeof o.todoId === 'string' ? '查看备注与历程' : undefined
+    case 'getTodoTimeline': {
+      const from = typeof o.from === 'string' ? o.from : ''
+      const to = typeof o.to === 'string' ? o.to : ''
+      if (from || to) return `${from || '…'} ~ ${to || '…'}`
+      return typeof o.eventType === 'string' ? o.eventType : '近 7 天历程'
+    }
     case 'draftWeight':
       return typeof o.weightKg === 'number' ? `${o.weightKg} kg` : undefined
     case 'getFriendStatus':

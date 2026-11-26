@@ -138,4 +138,37 @@ describe('createRepairToolCall: 覆盖生产真实 DeepSeek Flash 畸形输出',
     })
     expect(result).toBeNull()
   })
+
+  it('draftTodo / draftUpdateTodo 保留 2000 字长备注不被 200 字误截断，同时清理 null 可选字段并截断超长标题', async () => {
+    const longNote = '这是一段很长的实验步骤说明。'.repeat(40) // > 500 字，远超 200 字
+    const longTitle = 'A'.repeat(80)
+    const raw = JSON.stringify({
+      title: longTitle,
+      note: longNote,
+      groupName: null,
+      tags: null,
+      priority: 'urgent-important',
+    })
+    const repaired = await runRepair('draftTodo', raw)
+    expect(repaired).not.toBeNull()
+    const parsed = JSON.parse(repaired!.input) as Record<string, unknown>
+    expect(parsed.note).toBe(longNote)
+    expect(String(parsed.title).length).toBe(60)
+    expect('groupName' in parsed).toBe(false)
+    expect(parsed.tags).toEqual([])
+  })
+
+  it('listTodos / draftUpdateTodo 清理 DeepSeek 误填的 null 可选查询参数', async () => {
+    const raw = JSON.stringify({
+      status: 'active',
+      groupName: null,
+      keyword: null,
+      dueFrom: null,
+      limit: null,
+    })
+    const repaired = await runRepair('listTodos', raw)
+    expect(repaired).not.toBeNull()
+    const parsed = JSON.parse(repaired!.input) as Record<string, unknown>
+    expect(parsed).toEqual({ status: 'active' })
+  })
 })

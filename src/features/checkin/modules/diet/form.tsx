@@ -95,11 +95,13 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
         ) ?? null)
       : null
 
-  // 凌晨 0 点前重进页面或切换餐次时，直接读取数据库已存的该餐次记录；切换到未打卡餐次时清空表单
+  // 凌晨 0 点前重进页面、切换餐次或切入补卡日时，直接读取数据库已存的该餐次记录；切换到未打卡餐次时清空表单
+  const activeDay = props?.today ?? ''
+  const dayLabel = props?.isMakeup ? '昨日' : '今日'
   const savedMeal = props?.todayCheckins?.find(
     (c) => c.payload.module === 'diet' && c.payload.mealType === mealType,
   )
-  const syncKey = `${mealType}:${savedMeal?.id ?? 'none'}`
+  const syncKey = `${activeDay}:${mealType}:${savedMeal?.id ?? 'none'}`
   const [seenSyncKey, setSeenSyncKey] = useState<string | null>(null)
   if (syncKey !== seenSyncKey) {
     setSeenSyncKey(syncKey)
@@ -209,7 +211,7 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
             className="shrink-0"
           />
           <span className="truncate">
-            今日三餐已集齐
+            {dayLabel}三餐已集齐
             {settledRow.score !== null ? ` · ${settledRow.score.toFixed(1)} 分` : ''}
           </span>
         </span>
@@ -221,7 +223,7 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
       <div className="border-diet/30 bg-diet-soft/60 text-diet-ink text-tiny flex items-center justify-between gap-2 rounded-xl border px-3 py-1.5 font-semibold">
         <span className="flex min-w-0 items-center gap-1.5 truncate">
           <Icon name="clock" size={14} className="shrink-0" />
-          <span className="truncate">三餐打齐后结算今日总分</span>
+          <span className="truncate">三餐打齐后结算{dayLabel}总分</span>
         </span>
         <span className="font-display shrink-0 tabular-nums">{loggedMainCount} / 3 餐</span>
       </div>
@@ -276,7 +278,7 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
       const d = draft.diet
       if (!d) return null
       // 若用户已手动点击餐次（含加餐），严格锁定用户选定的餐次；
-      // 否则按 AI 识别的正餐（若该正餐今日已打卡，则自动顺延至下一个未打卡正餐，绝不自动落入加餐）
+      // 否则按 AI 识别的正餐（若该正餐当日已打卡，则自动顺延至下一个未打卡正餐，绝不自动落入加餐）
       const aiMainMeal: MainMealType = d.mealType === 'snack' ? timeMeal : d.mealType
       const targetMeal: MealType = manualMeal
         ? mealType
@@ -287,7 +289,7 @@ export function useDietForm(props?: ModuleFormProps): ModuleFormApi {
       const targetSaved = props?.todayCheckins?.find(
         (c) => c.payload.module === 'diet' && c.payload.mealType === targetMeal,
       )
-      setSeenSyncKey(`${targetMeal}:${targetSaved?.id ?? 'none'}`)
+      setSeenSyncKey(`${activeDay}:${targetMeal}:${targetSaved?.id ?? 'none'}`)
       setMeal(targetMeal)
       const list = d.items.map((i) => ({ name: i.name, portion: i.portion ?? '', kcal: i.kcal }))
       setSmartItems(list)

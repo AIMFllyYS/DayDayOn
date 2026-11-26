@@ -44,7 +44,7 @@ import type { AiRunStatus } from '@/features/quota/schemas'
  * 预占（整轮输出高分位估算 + 联网次数上限）→ ToolLoopAgent 流式 → 按实际 token + 联网次数结算 / 失败释放。
  */
 
-const AGENT_PROMPT_VERSION = 4
+const AGENT_PROMPT_VERSION = 6
 
 const ZERO_USAGE: TokenUsage = { inputMissTokens: 0, inputHitTokens: 0, outputTokens: 0 }
 /** 多步工具结果上下文的预占余量（按实际高分位预留，避免单步与步数大幅放宽后误触发 402） */

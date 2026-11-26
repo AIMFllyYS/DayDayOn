@@ -1,6 +1,6 @@
 # lessons — React DayPicker（react-day-picker）
 
-> 适用版本：react-day-picker@10.0.2（M2 安装）。以下条目来自 2026-10-31 对官方文档和 registry 的核对，尚未在本项目代码里踩到。
+> 适用版本：react-day-picker@10.0.2。以下条目已结合官方文档与 `src/components/ui/calendar.tsx` 实战封装核对维护。
 
 ### 官网示例的包名是 @daypicker/react
 - 症状：照官网示例写 `import { DayPicker } from '@daypicker/react'`，装了第二个包。

@@ -10,7 +10,7 @@ import type { LocalDate } from '@/features/shared/schemas'
 import { addDays, localDateOf } from '@/lib/time'
 import { db } from '@/server/db/client'
 import { bodyMetrics, checkins, goals, profiles } from '@/server/db/schema'
-import { checkinToday } from '@/server/services/checkins/read'
+import { checkinForDay, checkinToday } from '@/server/services/checkins/read'
 import { loadClock } from '@/server/services/checkins/clock'
 import { checkinColumns, loadFields, loadGoal, toCheckinDto } from '@/server/services/checkins/goal'
 import { listRecentRevisions, listRevisions } from '@/server/services/checkins/revisions'
@@ -76,6 +76,14 @@ export async function getTodaySummary(userId: string, now: Date) {
   return checkinToday(db, userId, now)
 }
 
+/** 今天或昨天（补卡查漏用）各目标进度、完成度、体重、心情 */
+export async function getDaySummary(userId: string, now: Date, yesterday = false) {
+  if (!yesterday) return checkinToday(db, userId, now)
+  const clock = await loadClock(db, userId)
+  const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
+  return checkinForDay(db, userId, addDays(today, -1))
+}
+
 /** 最近 days 天体重 + 最近一条 + 7 天差值 */
 export async function getWeight(userId: string, now: Date, days = 30) {
   return weightTrend(db, userId, days, now)
@@ -134,6 +142,9 @@ export async function listCheckinsInRange(
         goalId: c.goalId,
         goalTitle,
         module: c.module,
+        ...(c.payload.module === 'diet'
+          ? { mealType: c.payload.mealType, pending: c.verdict?.settlement === 'pending' }
+          : {}),
         localDate: c.localDate,
         isMakeup: c.isMakeup,
         source: c.source,

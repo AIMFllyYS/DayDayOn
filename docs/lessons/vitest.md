@@ -1,6 +1,6 @@
 # lessons — Vitest
 
-> 适用版本：vitest@5.0.5 + vite@8.x（M3 安装）。以下条目来自 2026-10-31 对 Next、Vite 官方文档的核对，尚未在本项目代码里踩到。
+> 适用版本：vitest@5.0.5 + vite@8.3.5。以下条目已结合官方文档与 `vitest.config.ts` 实战使用核对维护。
 
 ### 照 Next 指南安装 vite-tsconfig-paths
 - 症状：为了解析 `@/` 别名多装一个插件。

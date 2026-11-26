@@ -143,30 +143,58 @@ const demoOverall = {
   hasDeadline: true,
 }
 
+const FOOTER_MODES = [
+  { value: 'auto', label: '自动断点' },
+  { value: 'inline', label: '宽裕态（页底）' },
+  { value: 'dock', label: '紧凑态（收进 Dock）' },
+] as const
+
+const demoArchived: GoalDetail[] = [
+  demoGoal({
+    id: '0193f6b2-0000-7000-8000-000000000099',
+    module: 'custom',
+    title: '每天练琴 20 分钟',
+    status: 'archived',
+  }),
+]
+
 export function GoalsScreen() {
   const [view, setView] = useState<View>('settings')
+  const [footerMode, setFooterMode] = useState<'auto' | 'inline' | 'dock'>('auto')
   const [values, setValues] = useState<FieldValues>({ f1: 6 })
   const custom = DEFAULT_GOALS.custom
 
   return (
     <ApiProvider>
       <div className="flex w-full min-w-0 flex-col gap-4" data-ann="playbook.pages.goals">
-        <div className="max-w-full overflow-x-auto pb-1">
-          <SegmentedControl
-            label="目标页面"
-            size="sm"
-            options={VIEWS}
-            value={view}
-            onValueChange={setView}
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="max-w-full overflow-x-auto pb-1">
+            <SegmentedControl
+              label="目标页面"
+              size="sm"
+              options={VIEWS}
+              value={view}
+              onValueChange={setView}
+            />
+          </div>
+          {view === 'settings' && (
+            <SegmentedControl
+              label="底部入口布局"
+              size="sm"
+              options={FOOTER_MODES}
+              value={footerMode}
+              onValueChange={setFooterMode}
+            />
+          )}
         </div>
         {view === 'settings' && (
           <GoalSettingsContent
             active={demoGoals}
-            archived={[]}
+            archived={demoArchived}
             me={demoMe}
             today="2026-11-01"
             overall={demoOverall}
+            footerMode={footerMode}
           />
         )}
         {view === 'list' && <GoalListContent items={demoGoals} status="active" />}

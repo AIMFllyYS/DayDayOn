@@ -46,9 +46,11 @@ export interface ModuleFormApi {
 export interface ModuleFormProps {
   goal: CheckinGoal
   clock: CheckinClock
-  /** 今天的打卡日 */
+  /** 当前展示/提交的目标打卡日（今天或补卡时的昨天） */
   today: string
-  /** 今天已入库的打卡记录（凌晨 0 点前重进页面或切换餐次时直接读取恢复状态） */
+  /** 当前是否处于补卡模式（补昨天） */
+  isMakeup?: boolean
+  /** 当前打卡日已入库的打卡记录（重进页面、切换餐次或切入补卡时直接读取恢复状态） */
   todayCheckins?: readonly Checkin[]
   /** 外部路由指定的初始餐次（如从全局智能打卡页跳转 ?meal=lunch） */
   initialMeal?: MealType
@@ -69,8 +71,10 @@ export interface RulesEditorProps<M extends Module = Module> {
 }
 
 export interface ReportBuildContext {
-  /** 今天已入库的全部同目标打卡记录（如饮食三餐汇总报告用来汇总早/午/晚/加餐） */
+  /** 当前打卡日已入库的全部同目标打卡记录（如饮食三餐汇总报告用来汇总早/午/晚/加餐） */
   todayCheckins?: readonly Checkin[]
+  /** 当前是否处于补卡模式（补昨天） */
+  isMakeup?: boolean
 }
 
 export interface CheckinModuleDef<M extends Module = Module> {

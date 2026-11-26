@@ -83,7 +83,20 @@ export interface ConfirmDraftVariables {
   idempotencyKey?: string
 }
 
-/** 确认一张草稿：按 kind 调普通接口（新增 / 修改 / 删除打卡、待办、体重），返回新记录 */
+const LEGACY_TODO_PRIORITY: Record<string, string> = {
+  important: 'urgent-important',
+  normal: 'not-important-not-urgent',
+}
+
+function normalizeLegacyTodoConfirmBody(body: Record<string, unknown>): Record<string, unknown> {
+  const p = body.priority
+  if (typeof p === 'string' && p in LEGACY_TODO_PRIORITY) {
+    return { ...body, priority: LEGACY_TODO_PRIORITY[p] }
+  }
+  return body
+}
+
+/** 确认一张草稿：按 kind 调普通接口（新增 / 修改 / 删除打卡、待办与分组、体重），返回新记录 */
 async function confirmDraft(vars: ConfirmDraftVariables): Promise<unknown> {
   const key = vars.idempotencyKey ?? newIdempotencyKey()
   const d = vars.draft
@@ -106,7 +119,59 @@ async function confirmDraft(vars: ConfirmDraftVariables): Promise<unknown> {
       })
     }
     case 'todo':
-      return apiFetch('/todos', { method: 'POST', json: d.confirmBody, idempotencyKey: key })
+      return apiFetch('/todos', {
+        method: 'POST',
+        json: normalizeLegacyTodoConfirmBody(d.confirmBody),
+        idempotencyKey: key,
+      })
+    case 'todo-update':
+      return apiFetch(`/todos/${encodeURIComponent(d.todoId)}`, {
+        method: 'PATCH',
+        json: d.confirmBody,
+      })
+    case 'todo-delete':
+      try {
+        return await apiFetch(`/todos/${encodeURIComponent(d.todoId)}`, {
+          method: 'DELETE',
+        })
+      } catch (err: unknown) {
+        // 幂等容错：若待办已被手动删除，视为删除成功
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'TODO_NOT_FOUND') {
+          return undefined
+        }
+        throw err
+      }
+    case 'todo-group': {
+      if (d.action === 'create') {
+        return apiFetch('/todo-groups', {
+          method: 'POST',
+          json: d.confirmBody ?? { name: d.name },
+          idempotencyKey: key,
+        })
+      }
+      if (!d.groupId) throw new Error('缺少分组 ID')
+      if (d.action === 'rename') {
+        return apiFetch(`/todo-groups/${encodeURIComponent(d.groupId)}`, {
+          method: 'PATCH',
+          json: d.confirmBody ?? { name: d.newName },
+        })
+      }
+      try {
+        return await apiFetch(`/todo-groups/${encodeURIComponent(d.groupId)}`, {
+          method: 'DELETE',
+        })
+      } catch (err: unknown) {
+        if (
+          err &&
+          typeof err === 'object' &&
+          'code' in err &&
+          err.code === 'TODO_GROUP_NOT_FOUND'
+        ) {
+          return undefined
+        }
+        throw err
+      }
+    }
     case 'weight':
       return apiFetch('/metrics/weight', {
         method: 'PUT',
@@ -120,13 +185,29 @@ export function useConfirmDraft() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: confirmDraft,
-    onSettled: async () => {
-      await Promise.all([
-        ...afterCheckinChange.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
-        queryClient.invalidateQueries({ queryKey: keys.goals.all }),
-        queryClient.invalidateQueries({ queryKey: keys.todos.all }),
-        queryClient.invalidateQueries({ queryKey: keys.metrics.all }),
-      ])
+    onSettled: async (_data, _error, variables) => {
+      const kind = variables.draft.kind
+      if (
+        kind === 'todo' ||
+        kind === 'todo-update' ||
+        kind === 'todo-delete' ||
+        kind === 'todo-group'
+      ) {
+        await queryClient.invalidateQueries({ queryKey: keys.todos.all })
+        return
+      }
+      if (kind === 'weight') {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: keys.metrics.all }),
+          queryClient.invalidateQueries({ queryKey: keys.dashboard.all }),
+          queryClient.invalidateQueries({ queryKey: keys.checkins.today() }),
+        ])
+        return
+      }
+      // 打卡类草稿（afterCheckinChange 已含 keys.goals.all / dashboard / checkins / rank / me）
+      await Promise.all(
+        afterCheckinChange.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+      )
     },
   })
 }

@@ -11,7 +11,7 @@ import { LocalDateSchema, ModuleSchema, RatingValueSchema } from '@/features/sha
 /** 热力图一格：0..1（stats.heatmapCell） */
 export const HeatmapCellSchema = z.number().min(0).max(1)
 
-/** 本周热力图：周一到周日 × 五个板块 */
+/** 本周热力图：周一到周日 × 当前活跃板块 */
 export const WeekHeatmapSchema = z
   .object({
     /** 本周七天的打卡日，周一起 */
@@ -23,6 +23,8 @@ export const WeekHeatmapSchema = z
         cells: z.array(HeatmapCellSchema).length(7),
         /** 与 days 一一对应：那天打了卡但都没达标（只存档）。格子显示为「打了没达标」，和「没打」区分开 */
         archived: z.array(z.boolean()).length(7).optional(),
+        /** 与 days 一一对应：该板块当天处于用户有效打卡范围内（含实际打卡/补卡）；false 表示周期未开始、已过截止或非计划日 */
+        inRange: z.array(z.boolean()).length(7).optional(),
       }),
     ),
   })

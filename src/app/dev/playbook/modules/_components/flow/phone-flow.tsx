@@ -107,6 +107,7 @@ export function PhoneFlow({
   const [agentOpen, setAgentOpen] = useState(true)
   const [popup, setPopup] = useState(false)
   const [bonus, setBonus] = useState(0)
+  const [isMakeup, setIsMakeup] = useState(false)
   const page = stack[stack.length - 1] ?? 'fill'
   const smart = mode !== 'manual'
   const steps = config.agentSteps ?? DEFAULT_AGENT_STEPS
@@ -190,25 +191,57 @@ export function PhoneFlow({
   }
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
+    <div
+      className={cn(
+        'relative flex h-full min-h-0 flex-col overflow-hidden transition-colors duration-(--dur-base)',
+        isMakeup && 'bg-makeup-paper',
+      )}
+    >
+      {isMakeup && <div aria-hidden="true" className="makeup-grain-overlay" />}
       {page === 'fill' && (
         <>
           <PageBar
             title={`${moduleMeta[config.tone].label}打卡`}
             onBack={() => undefined}
             action={
-              settingsPage ? (
+              <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => push('settings')}
-                  className="text-tiny bg-surface-sunken text-muted hover:text-foreground inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-3 font-semibold transition-colors"
+                  aria-pressed={isMakeup}
+                  onClick={() => setIsMakeup((v) => !v)}
+                  className={cn(
+                    'ease-spring text-tiny inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 font-semibold transition-[transform,background-color,color] duration-(--dur-fast) active:scale-95',
+                    isMakeup
+                      ? 'bg-warning-soft text-warning-ink ring-warning/40 ring-1'
+                      : 'bg-surface-sunken text-muted hover:text-foreground',
+                  )}
                 >
-                  <Icon name="sliders" size={13} />
-                  设置
+                  <Icon name="undo" size={13} lineOnly />
+                  <span>{isMakeup ? '补卡中' : '补卡'}</span>
                 </button>
-              ) : undefined
+                {settingsPage && (
+                  <button
+                    type="button"
+                    onClick={() => push('settings')}
+                    className="text-tiny bg-surface-sunken text-muted hover:text-foreground inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-3 font-semibold transition-colors"
+                  >
+                    <Icon name="sliders" size={13} />
+                    设置
+                  </button>
+                )}
+              </div>
             }
           />
+          {isMakeup && (
+            <div className="shrink-0 px-3.5 pb-1.5">
+              <div className="border-warning/35 bg-warning-soft/75 text-warning-ink text-tiny flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 font-semibold">
+                <Icon name="undo" size={13} lineOnly className="shrink-0" />
+                <span className="min-w-0 flex-1 truncate">
+                  补卡模式 · 昨天 · 尚未打卡（计入连击，不计入排行）
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="shrink-0 px-3.5 pt-1">
             <Card
@@ -762,7 +795,7 @@ function EmbeddedPage({ children }: { children: ReactNode }) {
         'flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3.5 pb-6',
         '[&_.snap-x]:grid! [&_.snap-x]:grid-cols-1! [&_.snap-x]:overflow-visible! [&_.snap-x]:pb-0!',
         '[&_.snap-x]:mx-0! [&_.snap-x]:px-0! [&_.snap-x>*]:w-full!',
-        '[&_.sm\\:grid-cols-2]:grid-cols-1! [&_.sm\\:grid-cols-3]:grid-cols-1!',
+        '[&_[class*="sm:grid-cols-"]]:grid-cols-1!',
       )}
     >
       {/* 这些面板按页面宽度设计，手机里整体缩一档，卡片内的标签和标题才不会被挤出边 */}

@@ -106,7 +106,7 @@ describe('buildToday', () => {
 describe('buildHeatmap', () => {
   const days = weekDates(TODAY)
 
-  it('周一到周日 × 五个板块；格值 = 当天完成的计划目标 / 计划目标', () => {
+  it('只返回用户当前活跃板块；格值 = 当天完成的计划目标 / 计划目标', () => {
     const a = goal({ id: 'a', module: 'exercise' })
     const b = goal({ id: 'b', module: 'exercise' })
     const index = indexCheckins([
@@ -116,41 +116,105 @@ describe('buildHeatmap', () => {
     ])
     const map = buildHeatmap([a, b], index, days, TODAY)
     expect(map.days).toEqual(days)
-    expect(map.rows.map((r) => r.module)).toEqual(['exercise', 'diet', 'sleep', 'study', 'custom'])
-    const exercise = map.rows[0]?.cells
-    expect(exercise?.slice(0, 3)).toEqual([0.5, 1, 0])
-    // 没有目标的板块全是 0
-    expect(map.rows[1]?.cells).toEqual([0, 0, 0, 0, 0, 0, 0])
+    expect(map.rows.map((r) => r.module)).toEqual(['exercise'])
+    const exercise = map.rows[0]
+    expect(exercise?.cells.slice(0, 3)).toEqual([0.5, 1, 0])
+    expect(exercise?.inRange).toEqual([true, true, true, true, true, true, true])
   })
 
-  it('没有计划但有打卡：记满', () => {
+  it('非计划星期默认 inRange=false；休息日加练或补卡则 inRange=true 并记满', () => {
     const weekend = goal({
       id: 'w',
       module: 'study',
       history: [{ effectiveFrom: '2026-10-01', kind: 'count', value: 2, weekdays: [6, 7] }],
     })
     const map = buildHeatmap([weekend], indexCheckins([ck('w', '2026-10-26')]), days, TODAY)
-    expect(map.rows[3]?.cells[0]).toBe(1)
+    expect(map.rows.map((r) => r.module)).toEqual(['study'])
+    expect(map.rows[0]?.cells[0]).toBe(1)
+    expect(map.rows[0]?.inRange).toEqual([true, false, false, false, false, true, true])
   })
 
-  it('今天之后的格子为 0', () => {
-    const a = goal({ id: 'a', module: 'exercise' })
+  it('今天之后的格子为 0，且未来非计划星期 inRange=false', () => {
+    const a = goal({
+      id: 'a',
+      module: 'exercise',
+      history: [
+        { effectiveFrom: '2026-10-01', kind: 'count', value: 1, weekdays: [1, 2, 3, 4, 5] },
+      ],
+    })
     const midweek = '2026-10-28'
     const index = indexCheckins([ck('a', '2026-10-29'), ck('a', '2026-10-30')])
     const map = buildHeatmap([a], index, weekDates(midweek), midweek)
     expect(map.rows[0]?.cells.slice(3)).toEqual([0, 0, 0, 0])
+    expect(map.rows[0]?.inRange).toEqual([true, true, true, true, true, false, false])
   })
 
-  it('目标建立之前的日子不算计划内', () => {
+  it('周中建目标：建立前 inRange=false；若补昨天卡则补卡日 inRange=true 且正常点亮', () => {
     const fresh = goal({
       id: 'f',
       module: 'sleep',
       history: [{ effectiveFrom: '2026-10-30', kind: 'count', value: 1, weekdays: ALL }],
     })
     const map = buildHeatmap([fresh], new Map(), days, TODAY)
-    expect(map.rows[2]?.cells).toEqual([0, 0, 0, 0, 0, 0, 0])
-    const done = buildHeatmap([fresh], indexCheckins([ck('f', '2026-10-30')]), days, TODAY)
-    expect(done.rows[2]?.cells).toEqual([0, 0, 0, 0, 1, 0, 0])
+    expect(map.rows[0]?.cells).toEqual([0, 0, 0, 0, 0, 0, 0])
+    expect(map.rows[0]?.inRange).toEqual([false, false, false, false, true, true, true])
+
+    // 建目标当天补了前一天 10-29（isMakeup=true）
+    const withMakeup = buildHeatmap(
+      [fresh],
+      indexCheckins([ck('f', '2026-10-29', { isMakeup: true }), ck('f', '2026-10-30')]),
+      days,
+      TODAY,
+    )
+    expect(withMakeup.rows[0]?.cells).toEqual([0, 0, 0, 1, 1, 0, 0])
+    expect(withMakeup.rows[0]?.inRange).toEqual([false, false, false, true, true, true, true])
+  })
+
+  it('目标到期（deadlineDate）后的日子 inRange=false，且不拉低同板块未到期目标分母', () => {
+    const expired = goal({
+      id: 'exp',
+      module: 'exercise',
+      deadlineDate: '2026-10-28',
+    })
+    const active = goal({
+      id: 'act',
+      module: 'exercise',
+      deadlineDate: null,
+    })
+    // 只有 exp 到期：周四起全部 inRange=false
+    const single = buildHeatmap([expired], indexCheckins([ck('exp', '2026-10-28')]), days, TODAY)
+    expect(single.rows[0]?.inRange).toEqual([true, true, true, false, false, false, false])
+    expect(single.rows[0]?.cells[2]).toBe(1)
+
+    // 同板块一到期一进行中：周四（10-29）仅 active 打卡即满分 1，不被已到期的 exp 拉成 0.5
+    const combined = buildHeatmap(
+      [expired, active],
+      indexCheckins([ck('act', '2026-10-29')]),
+      days,
+      TODAY,
+    )
+    expect(combined.rows[0]?.cells[3]).toBe(1)
+  })
+
+  it('非计划日仅记 1/3 餐饮食 pending 不误判为满分 1', () => {
+    const diet = goal({
+      id: 'd',
+      module: 'diet',
+      history: [
+        { effectiveFrom: '2026-10-01', kind: 'count', value: 3, weekdays: [1, 2, 3, 4, 5] },
+      ],
+    })
+    const map = buildHeatmap(
+      [diet],
+      indexCheckins([
+        ck('d', '2026-10-31', { mealType: 'breakfast', isValid: false, pending: true }),
+      ]),
+      days,
+      TODAY,
+    )
+    expect(map.rows[0]?.cells[5]).toBe(0)
+    expect(map.rows[0]?.archived?.[5]).toBe(false)
+    expect(map.rows[0]?.inRange?.[5]).toBe(true)
   })
 })
 

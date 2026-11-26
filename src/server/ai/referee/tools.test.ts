@@ -129,4 +129,47 @@ describe('裁判工具', () => {
     )
     expect(Object.keys(tools).sort()).toEqual(['calcExerciseKcal', 'lookupMet', 'submitVerdict'])
   })
+
+  it('睡眠与学习补卡/覆盖时，裁判工具暴露 targetDay 与 excludeCheckinId 口径', () => {
+    const sleepTools = buildRefereeTools(
+      ctx({
+        module: 'sleep',
+        today: '2026-11-05',
+        targetDay: '2026-11-04',
+        judgeBase: {
+          module: 'sleep',
+          subject: {
+            bedLocal: '23:00',
+            wakeLocal: '07:00',
+            minutes: 480,
+          },
+          storedRules: null,
+          tier: 'balanced-glycemic',
+        },
+      }),
+    )
+    expect(Object.keys(sleepTools).sort()).toEqual(['getRecentSleep', 'submitVerdict'])
+
+    const studyTools = buildRefereeTools(
+      ctx({
+        module: 'study',
+        today: '2026-11-05',
+        targetDay: '2026-11-04',
+        excludeCheckinId: '0193f6b2-0000-7000-8000-00000000c099',
+        judgeBase: {
+          module: 'study',
+          subject: { topic: '算法', minutes: 30, points: ['整理复杂度'] },
+          storedRules: null,
+          tier: 'balanced-glycemic',
+          priorMinutesToday: 0,
+        },
+      }),
+    )
+    expect(Object.keys(studyTools).sort()).toEqual([
+      'getTodayStudy',
+      'submitVerdict',
+      'webFetch',
+      'webSearch',
+    ])
+  })
 })

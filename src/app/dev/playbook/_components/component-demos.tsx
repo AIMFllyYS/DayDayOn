@@ -5,6 +5,8 @@ import { Mascot } from '@/components/mascot/mascot'
 import { MascotSvg } from '@/components/mascot/mascot-svg'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Textarea } from '@/components/ui/field'
+import { Icon } from '@/components/ui/icon'
+import { MarqueeText } from '@/components/ui/marquee-text'
 import { MenuItem, MenuList } from '@/components/ui/menu-list'
 import { Rating, type RatingValue } from '@/components/ui/rating'
 import { ReportShareSheet } from '@/components/ui/report-share-sheet'
@@ -468,5 +470,55 @@ export function ReportShareDemo() {
         }
       />
     </>
+  )
+}
+
+const MARQUEE_WIDTHS = [
+  { value: 'narrow', label: '手机窄栏（260px）' },
+  { value: 'wide', label: '宽栏（全宽）' },
+] as const
+
+export function MarqueeDemo() {
+  const [widthMode, setWidthMode] = useState<'narrow' | 'wide'>('narrow')
+  const boxClass = widthMode === 'narrow' ? 'max-w-[260px]' : 'max-w-full'
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-3">
+      <SegmentedControl
+        size="sm"
+        label="演示宽度"
+        options={MARQUEE_WIDTHS}
+        value={widthMode}
+        onValueChange={setWidthMode}
+        className="w-fit"
+      />
+      <div
+        className={`flex w-full min-w-0 flex-col gap-2 transition-all duration-(--dur-base) ${boxClass}`}
+      >
+        <div className="border-primary/20 bg-primary-soft/35 flex min-w-0 items-center gap-2.5 rounded-2xl border px-3.5 py-2.5">
+          <span
+            aria-hidden="true"
+            className="bg-primary/15 text-primary-ink inline-flex size-7 shrink-0 items-center justify-center rounded-full"
+          >
+            <Icon name="sparkles" size={14} lineOnly />
+          </span>
+          <MarqueeText
+            text="新的一天，从一小步开始"
+            textClassName="text-caption text-foreground font-semibold"
+          />
+        </div>
+        <div className="border-primary/20 bg-primary-soft/35 flex min-w-0 items-center gap-2.5 rounded-2xl border px-3.5 py-2.5">
+          <span
+            aria-hidden="true"
+            className="bg-primary/15 text-primary-ink inline-flex size-7 shrink-0 items-center justify-center rounded-full"
+          >
+            <Icon name="sparkles" size={14} lineOnly />
+          </span>
+          <MarqueeText
+            text="不必把今天过成一场考试，哪怕只是按时吃饭、出门走走，也已经是很棒的一天了"
+            textClassName="text-caption text-foreground font-semibold"
+          />
+        </div>
+      </div>
+    </div>
   )
 }

@@ -82,7 +82,7 @@ Next.js App Router 支持 safe colocation by default，文件放在路由文件�
 
 ### `src/features/` 的正确用法
 
-`src/features/<domain>/` 拥有该领域的全部代码：schema、server actions、queries、client components、types、tests。路由 `app/(app)/<domain>/page.tsx` 只做组合（通常 <30 行）。
+`src/features/<domain>/` 拥有该领域的全部代码：schema、queries、client components、types、tests（业务写操作统一经 `/api/v1`，不使用 Server Actions）。路由 `app/(app)/<domain>/page.tsx` 只做组合（通常 <30 行）。
 
 **提升到 features 的条件（全部满足）**：
 1. 该领域是一个可独立命名的业务概念

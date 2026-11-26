@@ -11,7 +11,13 @@ import { InlineRow, PointsEditor } from '../../flow/fields/inputs'
 import { FavoritesSheet, TagRow, useFavorites } from '../../flow/fields/tags'
 import type { FillSectionSpec, FolderSpec, ReportSpec } from '../../flow/types'
 import { StudyRulesEditor } from '../rules-editors'
-import type { CheckinModuleDef, ModuleDocs, ModuleFormApi, ModuleFormProps } from '../types'
+import type {
+  CheckinModuleDef,
+  ModuleDocs,
+  ModuleFormApi,
+  ModuleFormProps,
+  ReportBuildContext,
+} from '../types'
 
 /*
  * 学一点（Playbook study-flow）：主题（输入 + 常学标签）→ 专注时长（单行）→ 要点逐条添加。
@@ -47,7 +53,7 @@ function useStudyForm(props?: ModuleFormProps): ModuleFormApi {
   const [sheet, setSheet] = useState(false)
   const { favs, setFavs, resetFavs } = useFavorites('study', DEFAULT_FAVS)
 
-  const syncKey = `${doneToday ? (savedLatest?.id ?? 'done') : 'fragment'}`
+  const syncKey = `${props?.today ?? ''}:${doneToday ? (savedLatest?.id ?? 'done') : 'fragment'}`
   const [seenSyncKey, setSeenSyncKey] = useState<string>(syncKey)
   if (syncKey !== seenSyncKey) {
     setSeenSyncKey(syncKey)
@@ -174,7 +180,13 @@ function studyInput(
   }
 }
 
-function buildStudyReport(verdict: Verdict, input: CreateCheckinInput): ReportSpec {
+function buildStudyReport(
+  verdict: Verdict,
+  input: CreateCheckinInput,
+  _goal?: unknown,
+  ctx?: ReportBuildContext,
+): ReportSpec {
+  const dayLabel = ctx?.isMakeup ? '昨天' : '今天'
   const m = verdict.metrics
   const facts = verdict.facts?.module === 'study' ? verdict.facts : null
   const points = input.module === 'study' ? (input.points ?? []) : []
@@ -185,9 +197,9 @@ function buildStudyReport(verdict: Verdict, input: CreateCheckinInput): ReportSp
       icon: 'clock',
       tone: 'study',
       defaultOpen: true,
-      headline: `这次 ${m.minutes ?? 0} 分钟 · 今天累计 ${m.totalMinutes ?? 0} 分钟`,
+      headline: `这次 ${m.minutes ?? 0} 分钟 · ${dayLabel}累计 ${m.totalMinutes ?? 0} 分钟`,
       rows: [
-        { label: '今天之前', value: `${m.todayMinutesBefore ?? 0} 分钟` },
+        { label: `${dayLabel}之前`, value: `${m.todayMinutesBefore ?? 0} 分钟` },
         {
           label: '累计',
           value: `${m.totalMinutes ?? 0} 分钟`,

@@ -1,6 +1,6 @@
 # lessons — Nodemailer
 
-> 适用版本：nodemailer@10.3.1 及以上（M3 安装）。以下条目来自 2026-10-31 对官网的核对，尚未在本项目代码里踩到。
+> 适用版本：nodemailer@10.3.1 及以上。以下条目已结合官方文档与 `src/server/mail/` 实战使用核对维护。
 
 ### 同时安装 @types/nodemailer
 - 症状：类型声明冲突，`pnpm typecheck` 报重复定义。

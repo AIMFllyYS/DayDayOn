@@ -36,12 +36,14 @@ export function buildConfirmPayload(params: {
   mode: CheckinInputMode
   smart: SmartFillContext | null
   verdict: Verdict
+  isMakeup?: boolean
 }): CreateCheckinInput {
   const normalized = normalizeManualSubject(params.subject, params.mode)
   const attachSmart = params.mode !== 'manual' && params.smart !== null ? params.smart : null
 
   return {
     ...normalized,
+    ...(params.isMakeup ? { isMakeup: true } : {}),
     ...(attachSmart
       ? {
           source: 'ai' as const,

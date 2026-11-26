@@ -1,6 +1,6 @@
 # lessons — Drizzle ORM（drizzle-orm、drizzle-kit）
 
-> 适用版本：drizzle-orm@0.45.4、drizzle-kit@0.31.11（M3 安装）。以下条目来自 2026-10-31 对官网文档和这两个版本类型声明的核对，尚未在本项目代码里踩到。
+> 适用版本：drizzle-orm@0.45.4、drizzle-kit@0.31.11。以下条目已结合官方文档与 `src/server/db/` 实战使用核对维护。
 
 ### 官网文档默认是 1.0 RC 的写法
 - 症状：照官网写 `snakeCase.table(…)`、`defineRelations(…)`、`migrate(db)`，在 0.45 上类型报错或不存在。

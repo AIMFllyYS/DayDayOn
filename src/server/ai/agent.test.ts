@@ -37,6 +37,10 @@ vi.mock('@/server/services/agent/todo-read', () => ({
   getAgentTodoDetail: vi.fn(),
   getAgentTodoTimeline: vi.fn(),
   lookupUserTodoGroupByName: vi.fn(async () => null),
+  checkAgentTodoCreateLimits: vi.fn(async () => undefined),
+  previewAgentTodoUpdate: vi.fn(),
+  previewAgentTodoDelete: vi.fn(),
+  previewAgentTodoGroup: vi.fn(),
 }))
 
 vi.mock('./web-search', () => ({

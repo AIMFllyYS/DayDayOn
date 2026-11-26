@@ -3,6 +3,11 @@ import { AgentTurn } from '@/features/agent/components/agent-turn'
 import { AiDraftCard } from '@/features/agent/components/ai-draft-card'
 import { ChangeDraftCard } from '@/features/agent/components/change-draft-card'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
+import {
+  TodoChangeDraftCard,
+  TodoDraftCard,
+  TodoGroupDraftCard,
+} from '@/features/agent/components/todo-draft-card'
 import { UserMessage } from '@/features/agent/components/user-message'
 import { AgentPlayback, ErrorTurnDemo } from '../_components/agent-demos'
 import { BoundedPetStage, EdgeStates, PanelLayoutDemo } from '../_components/floating-agent-demos'
@@ -226,6 +231,31 @@ export default function AgentPage() {
               advice: [],
             }}
           />
+          <AiDraftCard
+            module="sleep"
+            title="早点睡"
+            confidence={0.92}
+            estimate
+            makeupLabel="昨日补卡 · 11月4日"
+            overwriteWarning="昨天已记过一条记录（睡了 6小时30分 · 质量 3 分），确认后将覆盖原记录并重新计算达标状态"
+            fields={[
+              { label: '入睡', value: '23:10' },
+              { label: '起床', value: '07:05' },
+              { label: '睡眠质量', value: '4 分' },
+            ]}
+            verdict={{
+              isValid: true,
+              score: null,
+              scoreMax: null,
+              detail: '23:10 入睡、睡满 7.9 小时，符合早睡双门槛',
+              offline: false,
+              checks: [
+                { text: '入睡不晚于 23:30', ok: true },
+                { text: '睡眠 ≥ 7 小时', ok: true },
+              ],
+              advice: [],
+            }}
+          />
         </div>
       </Section>
 
@@ -279,6 +309,73 @@ export default function AgentPage() {
               isValid: true,
               score: null,
             }}
+          />
+        </div>
+      </Section>
+
+      <Section
+        ann="playbook.agent.draft-todo"
+        title="待办增改完弃删与分组草稿"
+        description="团团针对待办的所有写操作都以草稿卡呈现，确认后才调 /api/v1/todos 接口并自动同步列表与四象限视图。新建草稿支持长备注展开，修改/完成/放弃/恢复/删除写清变更前后，分组删除会明示迁回「默认待办」的条数。"
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <TodoDraftCard
+            title="提交计算机网络实验三报告与抓包分析"
+            groupName="课程作业"
+            isNewGroup
+            dueAt="2026-11-24T15:59:00.000Z"
+            priority="urgent-important"
+            tags={['计网', '实验']}
+            note="需要把 Wireshark 的 TCP 三次握手与慢启动曲线截图整理进附录，并在结论部分补齐丢包率对比表格，周二晚 23:59 前上传教务系统。"
+          />
+          <TodoChangeDraftCard
+            mode="update"
+            action="complete"
+            reason="用户已提交实验报告，标记为已完成"
+            before={{
+              title: '提交高数第七章习题',
+              note: null,
+              dueAt: '2026-11-24T14:00:00.000Z',
+              priority: 'important-not-urgent',
+              groupName: '默认待办',
+              tags: ['高数'],
+              status: 'open',
+              abandonReason: null,
+              isArchived: false,
+            }}
+            after={{
+              title: '提交高数第七章习题',
+              note: null,
+              dueAt: '2026-11-24T14:00:00.000Z',
+              priority: 'important-not-urgent',
+              groupName: '默认待办',
+              tags: ['高数'],
+              status: 'done',
+              abandonReason: null,
+              isArchived: false,
+            }}
+            changes={[{ label: '状态', value: '进行中 → 已完成' }]}
+          />
+          <TodoChangeDraftCard
+            mode="delete"
+            reason="记重了，保留带截止时间的那一条"
+            before={{
+              title: '买下周运动补给',
+              note: null,
+              dueAt: null,
+              priority: 'not-important-not-urgent',
+              groupName: '生活杂项',
+              tags: ['采购'],
+              status: 'open',
+              abandonReason: null,
+              isArchived: false,
+            }}
+          />
+          <TodoGroupDraftCard
+            action="delete"
+            name="临时清单"
+            affectedTodoCount={3}
+            reason="整理分组，旧待办统一收口到默认待办"
           />
         </div>
       </Section>

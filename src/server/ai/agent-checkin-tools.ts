@@ -101,15 +101,19 @@ export function buildCheckinTools(ctx: CheckinToolContext) {
 
   const getRecentSleep = tool({
     description:
-      '读某个睡眠目标最近 7 晚的入睡时刻与时长，以及入睡时刻的平均偏差（规律度，分钟）。',
-    inputSchema: z.object({ goalId: IdSchema.describe('睡眠目标 id，来自 listGoals') }),
-    execute: async ({ goalId }) =>
+      '读某个睡眠目标在目标打卡日（今天或补昨日卡时的昨天）之前最近 7 晚的入睡时刻与时长，以及入睡时刻的平均偏差（规律度，分钟）。',
+    inputSchema: z.object({
+      goalId: IdSchema.describe('睡眠目标 id，来自 listGoals'),
+      yesterday: z.boolean().default(false).describe('补昨天睡眠时传 true，按昨天往前取 7 晚'),
+    }),
+    execute: async ({ goalId, yesterday }) =>
       guard(async () => {
         const goal = await loadGoal(db, userId, goalId)
         if (goal.module !== 'sleep') throw new Error('这不是睡眠目标')
         const clock = await loadClock(db, userId)
         const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
-        return recentSleep(db, userId, goalId, today, clock.timeZone)
+        const targetDay = yesterday ? addDays(today, -1) : today
+        return recentSleep(db, userId, goalId, targetDay, clock.timeZone, targetDay)
       }),
   })
 
@@ -147,7 +151,7 @@ export function buildCheckinTools(ctx: CheckinToolContext) {
   const draftCheckin = tool({
     description:
       '把用户说的或照片里看到的「做了什么」整理成一条打卡草稿（不写入，用户确认后才生效），草稿会附上按用户达标规则算出的结论。\
-先调 listGoals 拿 goalId；按本板块的说明查好事实填进 facts（查不到就不填 facts，按规则离线判定）。一次只草拟一个目标的一条打卡。',
+先调 listGoals 拿 goalId；补昨天的卡前先查 getTodaySummary(yesterday:true) 或 listCheckins 核对昨天是否已打卡。按本板块说明查好事实填进 facts（查不到就不填 facts）。一次只草拟一个目标的一条打卡。',
     inputSchema: z.object({
       goalId: IdSchema.describe('目标 id，来自 listGoals'),
       entry: CheckinEntrySchema,
@@ -196,6 +200,10 @@ export function buildCheckinTools(ctx: CheckinToolContext) {
           fields: draftFieldsOf(p.checkin, clock.timeZone, p.fields),
           items: draftItemsOf(p.checkin),
           localDate: p.checkin.localDate,
+          isMakeup: p.checkin.isMakeup,
+          ...(p.willOverwrite
+            ? { willOverwrite: true, existingSummary: p.existingSummary ?? undefined }
+            : {}),
           verdict: verdictPreview(p.verdict),
           confirmBody: raw as Record<string, unknown>,
         }
@@ -228,7 +236,10 @@ export function buildCheckinTools(ctx: CheckinToolContext) {
         const replace = entry
           ? entryToCreateInput(
               entry,
-              { fieldVersion: goal.fieldVersion },
+              {
+                fieldVersion: goal.fieldVersion,
+                note: note !== undefined ? note : detail.note,
+              },
               { facts, citations, advice },
             )
           : undefined

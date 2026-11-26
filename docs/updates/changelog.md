@@ -4,6 +4,22 @@
 
 ---
 
+## [v0.1.16] - 2026-11-26（登录态 30 天活跃留存、昨日补卡全链路、体重/心情近一年折线图、目标页一屏紧凑 Dock、治愈语录跑马灯、热力图范围修复与待办 Agent 全量 CRUD）
+
+### 🛠️ 缺陷修复与核心架构加固
+- **30 天滑动登录态与 Android Cookie 刷盘（PR #106 / #98）**：抽离 `src/server/auth/session-config.ts`（`expiresIn: 30d`、`updateAge: 24h`）；Server Component 读会话改传 `disableRefresh: true` 防止静默刷库却丢失浏览器 Cookie；Hono 鉴权中间件启用 `returnHeaders: true` 并在 `await next()` 后透传 `Set-Cookie`；Android `MainActivity.kt` 在 `onPageFinished`/`onPause`/`onStop` 显式调用 `CookieManager.getInstance().flush()`。
+- **本周热力图打卡范围过滤与周期边界（PR #107 / #99）**：默认仅展示处于 `active` 状态的板块目标，按 `createdAt`、`weekdays` 与 `deadlineDate` 准确计算 `inRange` 区分有效范围与范围外静音格；`isoWeekday` 改为纯公历整数算法消除 Next 16 `cacheComponents` 预渲染动态中止。
+- **Agent 待办完整 CRUD 与隐藏 BUG 修复（PR #108 / #100）**：`agent-todo-tools.ts` 补齐 `draftUpdateTodo`、`draftDeleteTodo`、`draftTodoGroup` 与 `<TodoDraftCard>`（`confirmed-drafts.ts` 按 `toolCallId` 幂等防重复提交）；`repair-tool-call.ts` 按工具维度放宽长备注至 2000 字符；修复 `todo-screen.tsx` 因 `enabled: false` + `initialData` 导致默认待办分组不刷新，以及 `todo-quadrant-view.tsx` 1→0 幽灵行残留。
+
+### ✨ 新功能与交互体验升级
+- **五大打卡页昨日补卡 GUI、暖纸颗粒质感与覆盖重算（PR #109 / #101）**：五大 `/goals/[goalId]/checkin` 顶栏右上角新增补卡切换按钮（`/checkin/smart` 保持未改动），激活后整页呈现 `bg-makeup-paper` 暖复古纸底与非交互 `.makeup-grain-overlay` 颗粒层；昨日已有记录默认只读回填，修改后经 `replaceCheckinId` 触发覆盖提交与裁判重算（睡眠独立解锁防 409、学习新增 `PATCH` 覆盖并由 `reconcileDailyStudy` 按日重算）；Agent 系统提示词同步升级至 `v6`（先读后改与覆盖提示）。
+- **主页顶部百条治愈语录洗牌与等高跑马灯（PR #110 / #102）**：新增 90+12 条治愈语录库与 Fisher-Yates 无重复队列（30 秒返场冷却）；自研 `<MarqueeText>` 严格锁定 `h-7` 固定高度、纯文字净宽溢出检测、双轨无缝滚动 + `.marquee-mask` 渐隐、悬停/按住暂停与减少动态效果降级。
+- **目标设置页单屏紧凑布局与统一设置 Dock（PR #111 / #103）**：整合原独立板块选择条进入统一单 `<Sheet>` `GoalSettingsSheet`（优先展示「时间周期设置」「打卡设置」），裁剪 `.app-shell-main` 底部死白并以互补响应式规则 `.goals-footer-inline` / `.goals-footer-dock` 实现手机/桌面一屏免翻页完整呈现，矮屏自动收纳「新建自定义小目标」「已归档的目标」。
+- **今日体重与今日心情 Dock 近一年折线统计图（PR #112 / #104）**：新增 `GET /api/v1/ratings?scope=overall&days=365` 与 `weightTrend` 未来日期过滤；自研 `<TrendLineChart>`（真实日历比例 X 轴、>30 天断档虚线桥接、固定 24px 读数条、`data-base-ui-swipe-ignore` 抽屉防误关）；修复 `usePutRating` 缓存失效并移除 900ms 自动关闭定时器实现保存后实时预览折线更新。
+- **全仓项目文档治理与规范同步（PR #113 / #105）**：全量对齐 14 份 `docs/conventions/`、拍板 `ADR-0022` 等为 `Accepted`、追加 4 条 `docs/lessons/` 实战踩坑、同步 OpenAPI（66 路径 0 漂移）与 90 篇 Markdown（0 断链）；预升级 `android/` 原生壳源码至 `v0.1.16`（`versionCode = 11` / `DayDayOnApp/0.1.16`）等待本地离线签名打包。
+
+---
+
 ## [v0.1.15] - 2026-11-23（打卡分享海报各板块专属实物版式重做、全站统一页面转场动效、目标设置与好友空间体验升级）
 
 ### ✨ 分享海报全板块专属手账实物版式（PR 重做）
@@ -266,25 +282,3 @@
   - 在 `/dev/playbook/foundations` 新增“应用图标 · 品牌主印记”板块，支持在线切换三种外形（圆角、满版、自适应前景）以及 96px 到 16px 全尺寸阶梯实机清晰度检验。
 - **规范与设计文档同步**：
   - 同步更新 `ADR-0022`、`ui-design-system.md`、`pwa.md` 及设计归档文档 `docs/designs/app-icons/`。
-
----
-
-## GitHub Release Notes 文案参考 (可直接复制发版)
-
-```markdown
-## 🌟 DayDayOn 视觉焕新：全新应用图标与标签页微标上线！
-
-### 🎨 核心看点
-- **全新官方图标【连击热力·五彩织锦】**：
-  将运动、饮食、睡眠、学习四大板块凝练为缤纷温润的手账积木，中心汇聚跳动的连击火种。底色采用通透干净的晨曦奶油纸色（#fff8f0），在手机浅色/深色壁纸上均具备卓越的呼吸感与高级感。
-- **双端全尺寸高清呈现**：
-  - 网页标签页 Favicon（16/32px）焕然一新，微缩辨识度显著提升；
-  - PWA 与 Android APK 壳自适应图标无缝同步生成；
-  - 侧栏与应用内 BrandMark 细节升级。
-- **社交视觉储备【08 纸飞机】**：
-  沉淀“信笺与纸飞机”视觉资产并在 Playbook 中落地，作为后续好友互动与打卡投递的专属徽标。
-
-### 🛠️ 质量验证
-- 全站 84 个测试套件（757 个用例）全部通过。
-- 完整通过 Next.js 静态预渲染与构建验证。
-```

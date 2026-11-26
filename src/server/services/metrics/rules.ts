@@ -5,15 +5,17 @@ import {
   WEIGHT_CONFIRM_DELTA_GRAMS,
   WEIGHT_MAX_GRAMS,
   WEIGHT_MIN_GRAMS,
+  type RatingEntry,
+  type RatingTrend,
   type StepEntry,
   type StepTrend,
   type WeightEntry,
 } from '@/features/metric/schemas'
-import type { LocalDate } from '@/features/shared/schemas'
+import type { LocalDate, RatingScope } from '@/features/shared/schemas'
 import { addDays } from '@/lib/time'
 
 /*
- * 每日指标的纯规则（PRD 2.5、3「体重异常值」+ Issue #57 每日步数）。带单测（rules.test.ts）。
+ * 每日指标的纯规则（PRD 2.5、3「体重异常值」+ Issue #57 每日步数 + Issue #104 心情走势）。带单测（rules.test.ts）。
  */
 
 export function isWeightInRange(grams: number): boolean {
@@ -45,6 +47,21 @@ export function weightSummary(
     if (base) delta = latest.weightGrams - base.weightGrams
   }
   return { entries: entries.filter((e) => e.localDate >= windowStart), latest, deltaGrams7d: delta }
+}
+
+/**
+ * 满意度/心情走势摘要：entries 已按日期升序截断在查询窗口内。
+ * average 保留 1 位小数，无记录时为 null。
+ */
+export function ratingSummary(scope: RatingScope, entries: readonly RatingEntry[]): RatingTrend {
+  const count = entries.length
+  const latest = entries.at(-1) ?? null
+  if (count === 0) {
+    return { scope, entries: [], latest: null, average: null, count: 0 }
+  }
+  const sum = entries.reduce((acc, e) => acc + e.value, 0)
+  const average = Math.round((sum / count) * 10) / 10
+  return { scope, entries: [...entries], latest, average, count }
 }
 
 /**
