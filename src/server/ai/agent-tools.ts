@@ -2,6 +2,7 @@ import 'server-only'
 import { tool } from 'ai'
 import * as z from 'zod'
 import type { AgentDraft } from '@/features/agent/schemas'
+import { IdSchema } from '@/features/shared/schemas'
 import type { Clock } from '@/server/services/checkins/rules'
 import * as read from '@/server/services/agent/read'
 import { db } from '@/server/db/client'
@@ -54,15 +55,19 @@ export function buildAgentTools(ctx: AgentToolContext) {
 
   const todaySummary = tool({
     description:
-      '读取今天的状态：各目标进度、完成度、体重、心情。回答"我今天怎么样/完成了什么"时用。',
-    inputSchema: z.object({}),
-    execute: async () => ({ today: await read.getTodaySummary(userId, now) }),
+      '读取今天（或补卡时的昨天）的状态：各目标进度、完成度、体重、心情。回答"我今天/昨天怎么样、昨天漏了什么卡"或准备补昨天的卡前先调它。',
+    inputSchema: z.object({
+      yesterday: z.boolean().default(false).describe('查昨天补卡漏项时传 true，默认 false 查今天'),
+    }),
+    execute: async ({ yesterday }) => ({
+      today: await read.getDaySummary(userId, now, yesterday),
+    }),
   })
 
   const listCheckinsTool = tool({
     description:
       '读取某段日期（含两端，格式 YYYY-MM-DD）内自己的打卡记录，可只看一个目标。不填默认最近 7 天。\
-每条带 checkinId、一句话摘要、分数、是否有效（isValid=false 是未达标的存档，不计进度）和 editable（今天、昨天的才能改删）。',
+每条带 checkinId、一句话摘要、分数、是否有效（isValid=false 是未达标的存档，不计进度）、饮食餐次 mealType 与 pending，以及 editable（今天、昨天的才能改删）。',
     inputSchema: z.object({
       from: z
         .string()
@@ -72,7 +77,7 @@ export function buildAgentTools(ctx: AgentToolContext) {
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/)
         .optional(),
-      goalId: z.string().optional().describe('只看这个目标'),
+      goalId: IdSchema.optional().describe('只看这个目标（UUID，来自 listGoals）'),
     }),
     execute: async ({ from, to, goalId }) => ({
       checkins: await read.listCheckinsInRange(userId, now, { from, to, goalId }),

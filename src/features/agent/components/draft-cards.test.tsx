@@ -38,6 +38,21 @@ describe('草稿卡上的裁判结论（服务端渲染）', () => {
     expect(html).toContain('确认后按新内容重新判定是否达标')
   })
 
+  it('AiDraftCard 展示昨日补卡徽章与覆盖已有记录提醒', () => {
+    const html = renderToStaticMarkup(
+      <AiDraftCard
+        module="sleep"
+        title="早点睡"
+        confidence={0.9}
+        makeupLabel="昨日补卡 · 11月4日"
+        overwriteWarning="昨天已记过记录（睡了 6小时30分），确认后将覆盖原记录"
+        verdict={verdict}
+      />,
+    )
+    expect(html).toContain('昨日补卡 · 11月4日')
+    expect(html).toContain('确认后将覆盖原记录')
+  })
+
   it('删除草稿用危险色按钮，写明留痕会保留', () => {
     const html = renderToStaticMarkup(
       <ChangeDraftCard

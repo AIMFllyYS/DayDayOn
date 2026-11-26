@@ -12,7 +12,7 @@ import { targetDayOf } from '@/server/services/checkins/rules'
 import { latestWeightGrams } from '@/server/services/metrics/weight'
 import { loadPetName } from '@/server/services/agent/pet-name'
 import { loadRefereeTier } from './context'
-import { todayDietMeals } from './read'
+import { todayDietMeals, todayStudyMinutes } from './read'
 
 /*
  * POST /goals/{goalId}/referee：对一条还没入库的打卡做 Agent 裁判，流式返回。
@@ -32,6 +32,7 @@ export async function startReferee(input: {
   idempotencyKey: string
   goalId: string
   checkin: CreateCheckin
+  replaceCheckinId?: string
   conversation?: RefereeConversation | null
   now?: Date
 }): Promise<Response> {
@@ -61,12 +62,17 @@ export async function startReferee(input: {
   const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
   const targetDay = targetDayOf(now, clock, input.checkin.isMakeup)
   const currentMeal = input.checkin.module === 'diet' ? input.checkin.mealType : null
-  const priorDietMeals =
+  const [priorDietMeals, priorMinutesToday] = await Promise.all([
     currentMeal !== null
-      ? (await todayDietMeals(db, input.userId, goal.id, targetDay)).filter(
-          (m) => m.mealType !== currentMeal,
+      ? todayDietMeals(db, input.userId, goal.id, targetDay).then((list) =>
+          list.filter((m) => m.mealType !== currentMeal),
         )
-      : undefined
+      : Promise.resolve(undefined),
+    goal.module === 'study'
+      ? todayStudyMinutes(db, input.userId, goal.id, targetDay, input.replaceCheckinId)
+      : Promise.resolve(undefined),
+  ])
+  const otherMealsKey = input.checkin.isMakeup ? '昨日已打卡其他餐次' : '今日已打卡其他餐次'
 
   return streamReferee({
     db,
@@ -76,6 +82,8 @@ export async function startReferee(input: {
     goalId: goal.id,
     module: goal.module,
     today,
+    targetDay,
+    excludeCheckinId: input.replaceCheckinId,
     timeZone: clock.timeZone,
     weightKg: weightGrams !== null && weightGrams > 0 ? weightGrams / 1000 : null,
     judgeBase: {
@@ -84,21 +92,27 @@ export async function startReferee(input: {
       tier,
       skipReason: input.checkin.skipReason ?? null,
       ...(priorDietMeals ? { priorDietMeals } : {}),
+      ...(priorMinutesToday !== undefined ? { priorMinutesToday } : {}),
     },
     petName,
     conversation: input.conversation
-      ? { ...input.conversation, title: `${goal.title} · 打卡分析` }
+      ? {
+          ...input.conversation,
+          title: `${goal.title} · ${input.checkin.isMakeup ? '昨日补卡分析' : '打卡分析'}`,
+        }
       : null,
     brief: {
       板块: goal.module,
       目标: goal.title,
       用户当地时间: `${today} ${formatTime(now, clock.timeZone)}`,
+      目标打卡日: targetDay,
+      是否补卡: input.checkin.isMakeup,
       个人体质: TIER_LABEL[tier],
       达标规则: rules,
       待裁判的记录: subject.subject,
       ...(priorDietMeals && priorDietMeals.length > 0
         ? {
-            今日已打卡其他餐次: priorDietMeals.map((m) => ({
+            [otherMealsKey]: priorDietMeals.map((m) => ({
               mealType: m.mealType,
               items: m.items.map((i) => i.name),
             })),

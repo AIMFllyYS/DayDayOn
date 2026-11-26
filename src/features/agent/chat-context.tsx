@@ -31,6 +31,8 @@ export interface RefereeRequest {
   goalId: string
   /** 创建打卡的请求体 */
   checkin: unknown
+  /** 覆盖编辑已有打卡（如学习已达标回显后修改）时传原记录 ID */
+  replaceCheckinId?: string
   /** 会话里用户那句话 */
   text: string
   idempotencyKey: string
@@ -53,7 +55,7 @@ export interface AgentChat {
 interface ExtraBody {
   deepThink?: boolean
   idempotencyKey?: string
-  referee?: { goalId: string; checkin: unknown }
+  referee?: { goalId: string; checkin: unknown; replaceCheckinId?: string }
 }
 
 function textOf(message: UIMessage | undefined): string {
@@ -99,6 +101,9 @@ export function AgentChatProvider({
               api: `/api/v1/goals/${encodeURIComponent(extra.referee.goalId)}/referee`,
               body: {
                 checkin: extra.referee.checkin,
+                ...(extra.referee.replaceCheckinId
+                  ? { replaceCheckinId: extra.referee.replaceCheckinId }
+                  : {}),
                 idempotencyKey: extra.idempotencyKey ?? crypto.randomUUID(),
                 conversation: {
                   id,
@@ -179,7 +184,11 @@ export function AgentChatProvider({
         id,
         text: req.text,
         body: {
-          referee: { goalId: req.goalId, checkin: req.checkin },
+          referee: {
+            goalId: req.goalId,
+            checkin: req.checkin,
+            ...(req.replaceCheckinId ? { replaceCheckinId: req.replaceCheckinId } : {}),
+          },
           idempotencyKey: req.idempotencyKey,
         },
       }

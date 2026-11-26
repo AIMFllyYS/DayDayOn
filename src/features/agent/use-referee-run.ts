@@ -25,7 +25,12 @@ export interface RefereeRun {
   errorText: string | null
   /** 这次分析所在的会话 */
   conversationId: string | null
-  start: (input: { checkin: unknown; text: string; idempotencyKey: string }) => void
+  start: (input: {
+    checkin: unknown
+    replaceCheckinId?: string
+    text: string
+    idempotencyKey: string
+  }) => void
   reset: () => void
 }
 
@@ -134,8 +139,8 @@ export function useRefereeRun(goalId: string): RefereeRun {
 
   const { startReferee } = chat
   const start = useCallback<RefereeRun['start']>(
-    ({ checkin, text, idempotencyKey }) => {
-      const id = startReferee({ goalId, checkin, text, idempotencyKey })
+    ({ checkin, replaceCheckinId, text, idempotencyKey }) => {
+      const id = startReferee({ goalId, checkin, replaceCheckinId, text, idempotencyKey })
       setLatched(null)
       setRunConversation(id)
     },

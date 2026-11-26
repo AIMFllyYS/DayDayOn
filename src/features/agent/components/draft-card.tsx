@@ -144,6 +144,12 @@ export function DraftCard({ draft, toolCallId }: { draft: AgentDraft; toolCallId
   }
 
   if (draft.kind === 'checkin') {
+    const isMakeup = Boolean(draft.isMakeup || draft.confirmBody.isMakeup === true)
+    const makeupDateText = draft.localDate ? formatLocalDateLabel(draft.localDate) : '昨天'
+    const makeupLabel = isMakeup ? `昨日补卡 · ${makeupDateText}` : undefined
+    const overwriteWarning = draft.willOverwrite
+      ? `确认后将覆盖该日已有记录${draft.existingSummary ? `（原记录：${draft.existingSummary}）` : ''}并重新计算`
+      : undefined
     return (
       <AiDraftCard
         module={draft.module}
@@ -159,6 +165,8 @@ export function DraftCard({ draft, toolCallId }: { draft: AgentDraft; toolCallId
         }}
         verdict={draft.verdict}
         verdictStale={itemsEdited}
+        makeupLabel={makeupLabel}
+        overwriteWarning={overwriteWarning}
         confidence={draft.confidence}
         estimate={draft.estimate}
         confirming={confirm.isPending}

@@ -231,6 +231,31 @@ export default function AgentPage() {
               advice: [],
             }}
           />
+          <AiDraftCard
+            module="sleep"
+            title="早点睡"
+            confidence={0.92}
+            estimate
+            makeupLabel="昨日补卡 · 11月4日"
+            overwriteWarning="昨天已记过一条记录（睡了 6小时30分 · 质量 3 分），确认后将覆盖原记录并重新计算达标状态"
+            fields={[
+              { label: '入睡', value: '23:10' },
+              { label: '起床', value: '07:05' },
+              { label: '睡眠质量', value: '4 分' },
+            ]}
+            verdict={{
+              isValid: true,
+              score: null,
+              scoreMax: null,
+              detail: '23:10 入睡、睡满 7.9 小时，符合早睡双门槛',
+              offline: false,
+              checks: [
+                { text: '入睡不晚于 23:30', ok: true },
+                { text: '睡眠 ≥ 7 小时', ok: true },
+              ],
+              advice: [],
+            }}
+          />
         </div>
       </Section>
 

@@ -129,6 +129,7 @@ function dailyEnergyCopy(
   kcalMin: number,
   kcalMax: number,
   tier: RefereeTier,
+  dayLabel: string,
 ): { sub: string; tone: 'success' | 'exercise' | 'warning' } {
   if (tier === 'strict-fat-loss') {
     if (kcal <= 1350) {
@@ -151,7 +152,7 @@ function dailyEnergyCopy(
   if (tier === 'gentle-gain') {
     if (kcal < kcalMin) {
       return {
-        sub: `偏瘦/增肌期全天建议 ${kcalMin}–${kcalMax} kcal，今日能量略偏少`,
+        sub: `偏瘦/增肌期全天建议 ${kcalMin}–${kcalMax} kcal，${dayLabel}能量略偏少`,
         tone: 'warning',
       }
     }
@@ -301,6 +302,7 @@ export function buildDietReport(
   _goal?: CheckinGoal,
   ctx?: ReportBuildContext,
 ): ReportSpec {
+  const dayLabel = ctx?.isMakeup ? '昨日' : '今日'
   const meal = input.module === 'diet' ? MEAL_LABEL[input.mealType] : '本餐'
   const pending = verdict.settlement === 'pending'
   const mealsLogged = num(verdict.metrics.mealsLogged, pending ? 1 : 3)
@@ -309,10 +311,10 @@ export function buildDietReport(
   const tierCfg = TIER_CONFIG[tier]
 
   const title = pending
-    ? `${meal}营养解析 · 今日已记 ${mealsLogged}/${mealsRequired} 正餐`
+    ? `${meal}营养解析 · ${dayLabel}已记 ${mealsLogged}/${mealsRequired} 正餐`
     : verdict.score === null
-      ? `今日三餐汇总 · 已记录`
-      : `今日三餐总评 · ${verdict.score.toFixed(1)} 分`
+      ? `${dayLabel}三餐汇总 · 已记录`
+      : `${dayLabel}三餐总评 · ${verdict.score.toFixed(1)} 分`
 
   const checks: FolderSpec = {
     id: 'checks',
@@ -323,7 +325,7 @@ export function buildDietReport(
     badge: pending
       ? { text: `待汇总 ${mealsLogged}/${mealsRequired}`, tone: 'diet' }
       : verdict.isValid
-        ? { text: '今日达标', tone: 'success' }
+        ? { text: `${dayLabel}达标`, tone: 'success' }
         : { text: '未达标', tone: 'warning' },
     checks: verdict.checks.map((c) => ({ text: c.text, ok: c.ok, source: c.source })),
     note:
@@ -441,7 +443,7 @@ export function buildDietReport(
   const fatCap = Number.isFinite(tierCfg.fatCapDaily) ? tierCfg.fatCapDaily : 90
   const sodiumCap = tier === 'gentle-gain' ? 5000 : 4500
 
-  const dayEnergy = dailyEnergyCopy(dailyKcal, dailyKcalMin, dailyKcalMax, tier)
+  const dayEnergy = dailyEnergyCopy(dailyKcal, dailyKcalMin, dailyKcalMax, tier, dayLabel)
   const dayBand = giBand(dailyGi)
 
   const breakfastKcal =
@@ -464,7 +466,7 @@ export function buildDietReport(
   const dailyFolder: FolderSpec = {
     id: 'daily-summary',
     defaultOpen: true,
-    title: '今日三餐总分与热量汇总',
+    title: `${dayLabel}三餐总分与热量汇总`,
     icon: 'sparkles',
     tone: verdict.isValid ? 'success' : 'warning',
     headline:
@@ -508,7 +510,7 @@ export function buildDietReport(
   const nutrition: FolderSpec | null = hasNutritionData
     ? {
         id: 'nutrition',
-        title: '今日营养素总计',
+        title: `${dayLabel}营养素总计`,
         icon: 'heart',
         tone: 'diet',
         headline: `蛋白质 ${dailyProtein.toFixed(0)}g · 碳水 ${dailyCarb.toFixed(0)}g · 脂肪 ${dailyFat.toFixed(0)}g`,
@@ -592,7 +594,7 @@ export function buildDietReport(
     dishChildren.length > 0
       ? {
           id: 'dishes',
-          title: '今日逐菜分析',
+          title: `${dayLabel}逐菜分析`,
           icon: 'diet',
           tone: 'study',
           headline:

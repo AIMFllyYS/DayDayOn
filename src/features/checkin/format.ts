@@ -138,13 +138,16 @@ export function analysisPrompt(
   input: CreateCheckinInput,
   timeZone: string,
 ): string {
+  const makeup = input.isMakeup === true
   if (input.skipReason?.trim()) {
     const note = input.note ? `（备注：${input.note}）` : ''
-    const text = `帮我审核这条「${goalTitle}」跳过本次打卡申请，跳过理由：${input.skipReason.trim()}${note}`
+    const action = makeup ? '昨日补卡跳过申请' : '跳过本次打卡申请'
+    const text = `帮我审核这条「${goalTitle}」${action}，跳过理由：${input.skipReason.trim()}${note}`
     return text.length > ANALYSIS_PROMPT_MAX ? `${text.slice(0, ANALYSIS_PROMPT_MAX - 1)}…` : text
   }
   const note = input.note ? `（备注：${input.note}）` : ''
-  const text = `帮我分析这条「${goalTitle}」打卡：${inputBrief(input, timeZone)}${note}`
+  const action = makeup ? '昨日补卡' : '打卡'
+  const text = `帮我分析这条「${goalTitle}」${action}：${inputBrief(input, timeZone)}${note}`
   return text.length > ANALYSIS_PROMPT_MAX ? `${text.slice(0, ANALYSIS_PROMPT_MAX - 1)}…` : text
 }
 

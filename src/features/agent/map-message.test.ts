@@ -166,6 +166,48 @@ describe('map-message: toTurnParts & toTurnView', () => {
       '重命名 新组',
     ])
   })
+
+  it('正确提取昨日汇总与昨日补卡草稿的活动条摘要', () => {
+    const rawParts = [
+      {
+        type: 'tool-getTodaySummary',
+        toolCallId: 'm1',
+        state: 'output-available',
+        input: { yesterday: true },
+        output: { localDate: '2026-11-04' },
+      },
+      {
+        type: 'tool-getTodaySummary',
+        toolCallId: 'm2',
+        state: 'output-available',
+        input: { yesterday: false },
+        output: { localDate: '2026-11-05' },
+      },
+      {
+        type: 'tool-draftCheckin',
+        toolCallId: 'm3',
+        state: 'output-available',
+        input: {
+          goalId: 'g1',
+          isMakeup: true,
+          entry: {
+            module: 'sleep',
+            bedAt: '2026-11-03T15:00:00Z',
+            wakeAt: '2026-11-03T23:00:00Z',
+            quality: 4,
+          },
+        },
+        output: { kind: 'checkin' },
+      },
+    ] as unknown as UIMessage['parts']
+
+    const parts = toTurnParts(rawParts)
+    expect(parts.map((p) => (p.type === 'tool' ? p.summary : null))).toEqual([
+      '昨天',
+      '今天',
+      '补卡 · 睡眠',
+    ])
+  })
 })
 
 describe('formatChatError', () => {

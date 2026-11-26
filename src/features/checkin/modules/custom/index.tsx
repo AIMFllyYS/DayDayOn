@@ -48,13 +48,13 @@ function display(field: FieldDef, v: FieldValue | undefined): string | null {
   return String(v)
 }
 
-function useCustomForm({ goal, todayCheckins }: ModuleFormProps): ModuleFormApi {
+function useCustomForm({ goal, today, todayCheckins }: ModuleFormProps): ModuleFormApi {
   const fields = goal.fields ?? []
   const savedLatest = todayCheckins?.find((c) => c.payload.module === 'custom')
   const savedCustom = savedLatest?.payload.module === 'custom' ? savedLatest.payload : null
   const [values, setValues] = useState<FieldValues>(savedCustom?.values ?? {})
   const [note, setNote] = useState(savedLatest?.note ?? '')
-  const syncKey = `${savedLatest?.id ?? 'none'}`
+  const syncKey = `${today}:${savedLatest?.id ?? 'none'}`
   const [seenSyncKey, setSeenSyncKey] = useState<string>(syncKey)
   if (syncKey !== seenSyncKey) {
     setSeenSyncKey(syncKey)

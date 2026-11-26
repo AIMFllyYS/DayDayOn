@@ -66,6 +66,12 @@ export const CheckinDraftSchema = z
     items: z.array(DraftItemSchema).optional(),
     /** 记到哪一天（补昨天时是昨天） */
     localDate: z.string().optional(),
+    /** 是否补昨天的卡 */
+    isMakeup: z.boolean().optional(),
+    /** 确认后是否会覆盖同日已有记录（饮食同餐次 / 运动 / 睡眠 / 自定义） */
+    willOverwrite: z.boolean().optional(),
+    /** 被覆盖旧记录的一句话摘要 */
+    existingSummary: z.string().optional(),
     /** 裁判结论预览；老草稿没有 */
     verdict: DraftVerdictSchema.optional(),
     /** 普通创建打卡接口的请求体，前端确认时原样提交 */
