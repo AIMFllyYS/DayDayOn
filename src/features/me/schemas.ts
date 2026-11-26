@@ -9,7 +9,11 @@ import {
   UserIdSchema,
   WeekdaysSchema,
 } from '@/features/shared/schemas'
-import { WeightGramsSchema } from '@/features/metric/schemas'
+import {
+  DailyStepTargetSchema,
+  DEFAULT_DAILY_STEP_TARGET,
+  WeightGramsSchema,
+} from '@/features/metric/schemas'
 
 /*
  * 账号、引导、资料、偏好契约（PRD 2.2、2.11、7.1）。D1 实现。
@@ -135,6 +139,8 @@ export const PreferencesSchema = z
     remindMode: RemindModeSchema.default('off'),
     /** 个人体质档位：饮食裁判按它调整（checkin-modules.md 第 3.1 节） */
     refereeTier: RefereeTierSchema,
+    /** 每日步数图表参考虚线（步）；默认 8000，null 表示隐藏参考线 */
+    dailyStepTarget: DailyStepTargetSchema.nullable().default(DEFAULT_DAILY_STEP_TARGET),
   })
   .meta({ id: 'Preferences' })
 export type Preferences = z.infer<typeof PreferencesSchema>
@@ -232,6 +238,7 @@ export const UpdatePreferencesSchema = z
     remindAt: LocalTimeSchema.nullable(),
     remindMode: RemindModeSchema,
     refereeTier: RefereeTierSchema,
+    dailyStepTarget: DailyStepTargetSchema.nullable(),
   })
   .partial()
   .refine((p) => Object.keys(p).length > 0, { error: '没有要修改的内容' })
@@ -255,6 +262,7 @@ export const ExportSchema = z
     checkinRevisions: z.array(z.unknown()),
     weights: z.array(z.unknown()),
     ratings: z.array(z.unknown()),
+    steps: z.array(z.unknown()).optional(),
     todoGroups: z.array(z.unknown()).optional(),
     todoTags: z.array(z.unknown()).optional(),
     todos: z.array(z.unknown()),

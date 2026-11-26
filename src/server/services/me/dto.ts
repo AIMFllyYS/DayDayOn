@@ -6,6 +6,7 @@ import {
   type Me,
   type Role,
 } from '@/features/me/schemas'
+import { DailyStepTargetSchema, DEFAULT_DAILY_STEP_TARGET } from '@/features/metric/schemas'
 import { DEFAULT_REFEREE_TIER, RefereeTierSchema } from '@/features/referee/schemas'
 import { LocalTimeSchema } from '@/features/shared/schemas'
 
@@ -35,10 +36,19 @@ export interface MeRow {
   remindAt: string | null
   remindMode?: string
   refereeTier: string
+  /** null 表示主动关闭步数参考虚线；undefined（测试或老调用方未传）回落到默认 8000 */
+  dailyStepTarget?: number | null
 }
 
 function toRole(role: string | null): Role {
   return role === 'admin' ? 'admin' : 'user'
+}
+
+function resolveDailyStepTarget(raw: number | null | undefined): number | null {
+  if (raw === null) return null
+  if (raw === undefined) return DEFAULT_DAILY_STEP_TARGET
+  const parsed = DailyStepTargetSchema.safeParse(raw)
+  return parsed.success ? parsed.data : DEFAULT_DAILY_STEP_TARGET
 }
 
 export function toMeDto(row: MeRow, streak: number): Me {
@@ -76,6 +86,7 @@ export function toMeDto(row: MeRow, streak: number): Me {
       remindAt: resolvedRemindAt,
       remindMode: resolvedRemindMode,
       refereeTier: tier.success ? tier.data : DEFAULT_REFEREE_TIER,
+      dailyStepTarget: resolveDailyStepTarget(row.dailyStepTarget),
     },
     streak: Math.max(0, Math.trunc(streak)),
     createdAt: row.createdAt.toISOString(),

@@ -29,7 +29,19 @@ vi.mock('@/server/services/metrics', () => {
     called.count += 1
     return {}
   }
-  return { putWeight: touch, weightTrend: touch, putRating: touch, ratingTrend: touch }
+  return {
+    putWeight: touch,
+    weightTrend: touch,
+    deleteWeight: touch,
+    putRating: touch,
+    ratingTrend: touch,
+    deleteRating: touch,
+    putSteps: touch,
+    stepTrend: touch,
+    deleteSteps: touch,
+    listMetricHistory: touch,
+    metricCalendar: touch,
+  }
 })
 
 const { checkinRoutes } = await import('./checkins')

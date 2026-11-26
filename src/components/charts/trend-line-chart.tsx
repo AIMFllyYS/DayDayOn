@@ -31,6 +31,12 @@ export interface TrendYTick {
   label: string
 }
 
+export interface TrendReferenceLine {
+  value: number
+  /** 右端微型文字标签，例如「参考 8,000」 */
+  label?: string
+}
+
 export interface TrendLineChartProps {
   data: readonly TrendPoint[]
   /** 窗口结束日期 YYYY-MM-DD（由调用方按用户时区算好，组件不读系统时间） */
@@ -52,6 +58,8 @@ export interface TrendLineChartProps {
   yDomain?: Extent
   /** 自定义纵轴刻度与语义文案（如 超棒 / 一般 / 很糟） */
   yTicks?: readonly TrendYTick[]
+  /** 可选水平参考虚线（如每日步数参考线 8,000 步） */
+  referenceLine?: TrendReferenceLine | null
   /** 默认读数条文案（未选中任何点时展示） */
   defaultSummary?: string
   /** 0 条记录时的紧凑引导文案 */
@@ -79,6 +87,7 @@ export function TrendLineChart({
   formatPointValue,
   yDomain: fixedYDomain,
   yTicks: customYTicks,
+  referenceLine = null,
   defaultSummary,
   emptyText = '还没有记录，记下今天的第一条吧',
   singleHint = '记够 2 天就会连成近一年走势线',
@@ -161,8 +170,16 @@ export function TrendLineChart({
   const innerW = Math.max(80, width - pad.left - pad.right)
   const innerH = Math.max(48, height - pad.top - pad.bottom)
 
+  const validRef = referenceLine && Number.isFinite(referenceLine.value) ? referenceLine : null
+  const domainSourceExtent: Extent | null = rawExtent
+    ? validRef
+      ? ([Math.min(rawExtent[0], validRef.value), Math.max(rawExtent[1], validRef.value)] as const)
+      : rawExtent
+    : null
+
   const yDomain: Extent =
-    fixedYDomain ?? (rawExtent ? paddedExtent(rawExtent, 0.18, 0.8) : ([0, 1] as const))
+    fixedYDomain ??
+    (domainSourceExtent ? paddedExtent(domainSourceExtent, 0.18, 0.8) : ([0, 1] as const))
   const x = linearScale([0, spanDays], [pad.left, pad.left + innerW])
   const y = linearScale(yDomain, [pad.top + innerH, pad.top])
 
@@ -312,6 +329,35 @@ export function TrendLineChart({
               {tick.label}
             </text>
           ))}
+
+          {/* 可选水平参考虚线（如每日步数参考线） */}
+          {validRef && (
+            <g data-trend-reference-line="true">
+              <line
+                x1={pad.left}
+                x2={pad.left + innerW}
+                y1={y(validRef.value)}
+                y2={y(validRef.value)}
+                strokeWidth={1.25}
+                strokeDasharray="4 3"
+                strokeOpacity={0.65}
+                className={strokeToneClass[tone]}
+              />
+              {validRef.label && (
+                <text
+                  x={pad.left + 4}
+                  y={Math.max(pad.top + 8, y(validRef.value) - 4)}
+                  textAnchor="start"
+                  paintOrder="stroke"
+                  strokeWidth={3}
+                  strokeLinejoin="round"
+                  className="fill-muted stroke-surface-sunken font-display text-tiny font-semibold tabular-nums"
+                >
+                  {validRef.label}
+                </text>
+              )}
+            </g>
+          )}
 
           {/* 单点参考虚线 */}
           {singlePoint && (

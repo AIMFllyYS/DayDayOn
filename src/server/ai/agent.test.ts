@@ -109,8 +109,8 @@ describe('buildSystemPrompt', () => {
   })
 })
 
-describe('buildAgentTools: 待办 / 体重草稿与联网工具（打卡工具见 agent-checkin-tools.test.ts）', () => {
-  it('draftTodo 归一化 dueAt 为 UTC ISO，draftWeight 默认开启 confirmLargeChange', async () => {
+describe('buildAgentTools: 待办 / 指标草稿与联网工具（打卡工具见 agent-checkin-tools.test.ts）', () => {
+  it('draftTodo 归一化 dueAt 为 UTC ISO，并挂载每日指标工具集', async () => {
     const tools = buildAgentTools({
       userId: 'u1',
       now: NOW,
@@ -145,12 +145,9 @@ describe('buildAgentTools: 待办 / 体重草稿与联网工具（打卡工具�
       },
     })
 
-    const weightDraft = await tools.draftWeight.execute!({ weightKg: 62.4 }, toolExecCtx)
-    expect(weightDraft).toEqual({
-      kind: 'weight',
-      weightKg: 62.4,
-      confirmBody: { weightGrams: 62400, confirmLargeChange: true },
-    })
+    expect(tools.getMetrics).toBeDefined()
+    expect(tools.draftMetric).toBeDefined()
+    expect(tools.draftDeleteMetric).toBeDefined()
   })
 
   it('webSearch 累加联网次数与微元费用，超过上限返回上限提示', async () => {

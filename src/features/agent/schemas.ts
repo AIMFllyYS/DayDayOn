@@ -1,4 +1,5 @@
 import * as z from 'zod'
+import { MetricKindSchema } from '@/features/metric/schemas'
 import { SettlementStageSchema } from '@/features/referee/schemas'
 import { IdSchema, InstantSchema, ModuleSchema } from '@/features/shared/schemas'
 
@@ -222,6 +223,38 @@ export const WeightDraftSchema = z
   .meta({ id: 'WeightDraft' })
 export type WeightDraft = z.infer<typeof WeightDraftSchema>
 
+/** draftMetric：新增或覆盖修改今天/昨天的体重、心情或步数 */
+export const MetricUpsertDraftSchema = z
+  .object({
+    kind: z.literal('metric-upsert'),
+    metric: MetricKindSchema,
+    action: z.enum(['create', 'update']),
+    targetDay: z.enum(['today', 'yesterday']),
+    localDate: z.string(),
+    /** 改前展示文本；新建为 null */
+    beforeLabel: z.string().nullable(),
+    /** 改后展示文本 */
+    afterLabel: z.string(),
+    reason: z.string().optional(),
+    /** 对应 PUT /metrics/weight | /ratings | /metrics/steps 请求体 */
+    confirmBody: z.record(z.string(), z.unknown()),
+  })
+  .meta({ id: 'MetricUpsertDraft' })
+export type MetricUpsertDraft = z.infer<typeof MetricUpsertDraftSchema>
+
+/** draftDeleteMetric：删除今天/昨天的体重、心情或步数 */
+export const MetricDeleteDraftSchema = z
+  .object({
+    kind: z.literal('metric-delete'),
+    metric: MetricKindSchema,
+    targetDay: z.enum(['today', 'yesterday']),
+    localDate: z.string(),
+    beforeLabel: z.string(),
+    reason: z.string(),
+  })
+  .meta({ id: 'MetricDeleteDraft' })
+export type MetricDeleteDraft = z.infer<typeof MetricDeleteDraftSchema>
+
 export const AgentDraftSchema = z
   .discriminatedUnion('kind', [
     CheckinDraftSchema,
@@ -232,6 +265,8 @@ export const AgentDraftSchema = z
     TodoDeleteDraftSchema,
     TodoGroupDraftSchema,
     WeightDraftSchema,
+    MetricUpsertDraftSchema,
+    MetricDeleteDraftSchema,
   ])
   .meta({ id: 'AgentDraft' })
 export type AgentDraft = z.infer<typeof AgentDraftSchema>

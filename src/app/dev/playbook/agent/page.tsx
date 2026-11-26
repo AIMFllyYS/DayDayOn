@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { AgentTurn } from '@/features/agent/components/agent-turn'
 import { AiDraftCard } from '@/features/agent/components/ai-draft-card'
 import { ChangeDraftCard } from '@/features/agent/components/change-draft-card'
+import { MetricDraftCard } from '@/features/agent/components/metric-draft-card'
 import { QuotaMeter } from '@/features/agent/components/quota-meter'
 import {
   TodoChangeDraftCard,
@@ -309,6 +310,39 @@ export default function AgentPage() {
               isValid: true,
               score: null,
             }}
+          />
+        </div>
+      </Section>
+
+      <Section
+        ann="playbook.agent.draft-metric"
+        title="每日指标（体重 / 心情 / 步数）草稿"
+        description="团团针对今天和昨天的体重、心情、步数提供统一新建、覆盖修改（改前→改后对比）与删除草稿卡；超过两天引导去对应指标详情页处理。"
+      >
+        <div className="grid gap-4 md:grid-cols-3">
+          <MetricDraftCard
+            mode="create"
+            metric="steps"
+            targetDay="today"
+            localDate="2026-11-05"
+            afterLabel="9,240 步"
+          />
+          <MetricDraftCard
+            mode="update"
+            metric="weight"
+            targetDay="yesterday"
+            localDate="2026-11-04"
+            beforeLabel="61.2 kg"
+            afterLabel="60.4 kg"
+            reason="昨天称错单位了，重记一下"
+          />
+          <MetricDraftCard
+            mode="delete"
+            metric="mood"
+            targetDay="yesterday"
+            localDate="2026-11-04"
+            beforeLabel="2 分 · 不太好"
+            reason="点错日子了，帮我删掉"
           />
         </div>
       </Section>

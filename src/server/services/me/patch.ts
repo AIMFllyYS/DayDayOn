@@ -28,6 +28,7 @@ export interface PreferenceColumns {
   remindAt?: string | null
   remindMode?: RemindMode
   refereeTier?: RefereeTier
+  dailyStepTarget?: number | null
 }
 
 function pick<T extends object, K extends keyof T>(input: T, keys: readonly K[]): Partial<T> {
@@ -47,6 +48,7 @@ const PREFERENCE_KEYS = [
   'remindAt',
   'remindMode',
   'refereeTier',
+  'dailyStepTarget',
 ] as const
 
 export function profileColumns(input: UpdateProfile): ProfileColumns {
