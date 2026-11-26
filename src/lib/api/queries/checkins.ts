@@ -14,7 +14,7 @@ import type {
   CheckinToday,
   CreateCheckinInput,
   CreateCheckinResult,
-  UpdateCheckin,
+  UpdateCheckinInput,
 } from '@/features/checkin/schemas'
 import type { GoalDetail } from '@/features/goal/schemas'
 import type { Me } from '@/features/me/schemas'
@@ -179,8 +179,20 @@ export function useDeleteCheckin(goalId: string) {
 export function useUpdateCheckin() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ checkinId, patch }: { checkinId: string; patch: UpdateCheckin }) =>
+    mutationFn: ({ checkinId, patch }: { checkinId: string; patch: UpdateCheckinInput }) =>
       apiFetch<Checkin>(`/checkins/${checkinId}`, { method: 'PATCH', json: patch }),
+    onSuccess: (updated) => {
+      const dayKey = checkinDayQuery(updated.goalId, updated.localDate).queryKey
+      qc.setQueryData<CheckinHistory>(dayKey, (prevDay) => {
+        if (!prevDay) return prevDay
+        const idx = prevDay.items.findIndex((c) => c.id === updated.id)
+        if (idx < 0) return prevDay
+        return {
+          ...prevDay,
+          items: prevDay.items.map((c, i) => (i === idx ? updated : c)),
+        }
+      })
+    },
     onSettled: () => invalidateAfterCheckin(qc),
   })
 }

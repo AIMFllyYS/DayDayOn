@@ -112,10 +112,12 @@ export async function goalCalendar(
 
 type RatingValue = z.infer<typeof RatingValueSchema>
 
-/** GET /checkins/today：打卡弹层（PRD 2.4、7.2） */
-export async function checkinToday(db: DbOrTx, userId: string, now: Date): Promise<CheckinToday> {
-  const clock = await loadClock(db, userId)
-  const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
+/** 指定打卡日（今天或补卡的昨天）各目标进度、完成度、体重与心情 */
+export async function checkinForDay(
+  db: DbOrTx,
+  userId: string,
+  targetDate: string,
+): Promise<CheckinToday> {
   const goals = await loadActiveGoals(db, userId)
   const ids = goals.map((g) => g.id)
   const [rows, history, weight, mood] = await Promise.all([
@@ -127,7 +129,7 @@ export async function checkinToday(db: DbOrTx, userId: string, now: Date): Promi
           .where(
             and(
               eq(checkins.userId, userId),
-              eq(checkins.localDate, today),
+              eq(checkins.localDate, targetDate),
               inArray(checkins.goalId, ids),
             ),
           )
@@ -136,7 +138,7 @@ export async function checkinToday(db: DbOrTx, userId: string, now: Date): Promi
     db
       .select({ weightGrams: bodyMetrics.weightGrams })
       .from(bodyMetrics)
-      .where(and(eq(bodyMetrics.userId, userId), eq(bodyMetrics.localDate, today)))
+      .where(and(eq(bodyMetrics.userId, userId), eq(bodyMetrics.localDate, targetDate)))
       .limit(1),
     db
       .select({ value: dailyRatings.value })
@@ -144,7 +146,7 @@ export async function checkinToday(db: DbOrTx, userId: string, now: Date): Promi
       .where(
         and(
           eq(dailyRatings.userId, userId),
-          eq(dailyRatings.localDate, today),
+          eq(dailyRatings.localDate, targetDate),
           eq(dailyRatings.scope, 'overall'),
         ),
       )
@@ -152,22 +154,22 @@ export async function checkinToday(db: DbOrTx, userId: string, now: Date): Promi
   ])
 
   const all: TodayGoal[] = goals.map((g) => {
-    const target = targetFor(g, history.get(g.id), today)
+    const target = targetFor(g, history.get(g.id), targetDate)
     const ofGoal = rows.filter((r) => r.goalId === g.id).map(toStatCheckin)
     return {
       goalId: g.id,
       module: g.module,
       title: g.title,
       target: { kind: target.kind, value: target.value },
-      planned: isPlannedOn(target, today),
+      planned: isPlannedOn(target, targetDate),
       progress: goalDayProgress(target, g.module, ofGoal),
       sortOrder: g.sortOrder,
     }
   })
   const diet = goals.find((g) => g.module === 'diet')
   return {
-    localDate: today,
-    // 弹层的行 = 今天计划内的进行中目标（PRD 7.2）
+    localDate: targetDate,
+    // 弹层的行 = 当天计划内的进行中目标（PRD 7.2）
     goals: all.filter((g) => g.planned),
     completion: dayCompletion(all),
     weightGrams: weight[0]?.weightGrams ?? null,
@@ -175,4 +177,11 @@ export async function checkinToday(db: DbOrTx, userId: string, now: Date): Promi
     // goals 已按 sortOrder 排序，第一个饮食目标就是 sortOrder 最小的
     dietPhotoGoalId: diet?.id ?? null,
   }
+}
+
+/** GET /checkins/today：打卡弹层（PRD 2.4、7.2） */
+export async function checkinToday(db: DbOrTx, userId: string, now: Date): Promise<CheckinToday> {
+  const clock = await loadClock(db, userId)
+  const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
+  return checkinForDay(db, userId, today)
 }

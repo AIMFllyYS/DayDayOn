@@ -5788,6 +5788,10 @@
             "type": "string",
             "format": "uuid"
           },
+          "replaceCheckinId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "conversation": {
             "type": "object",
             "properties": {

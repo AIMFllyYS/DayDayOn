@@ -33,6 +33,10 @@ export interface RefereeToolContext {
   goalId: string
   module: Module
   today: LocalDate
+  /** 实际要裁判的打卡日（正常打卡等于 today，补卡时等于昨天） */
+  targetDay?: LocalDate
+  /** 覆盖修改已存在的学习记录时排除自身 id，避免重复累加 */
+  excludeCheckinId?: string
   timeZone: string
   weightKg: number | null
   search: SearchBudget
@@ -89,6 +93,7 @@ function webTools(search: SearchBudget): ToolSet {
 }
 
 function moduleTools(ctx: RefereeToolContext): ToolSet {
+  const targetDay = ctx.targetDay ?? ctx.today
   switch (ctx.module) {
     case 'diet':
       return {
@@ -131,18 +136,26 @@ function moduleTools(ctx: RefereeToolContext): ToolSet {
       return {
         getRecentSleep: tool({
           description:
-            '读这个睡眠目标最近 7 晚的入睡时刻与时长，并给出入睡时刻的平均偏差（分钟）。',
+            '读这个睡眠目标在目标打卡日之前最近 7 晚的入睡时刻与时长，并给出入睡时刻的平均偏差（分钟，已排除目标日自身旧行）。',
           inputSchema: z.object({}),
-          execute: async () => recentSleep(ctx.db, ctx.userId, ctx.goalId, ctx.today, ctx.timeZone),
+          execute: async () =>
+            recentSleep(ctx.db, ctx.userId, ctx.goalId, targetDay, ctx.timeZone, targetDay),
         }),
       }
     case 'study':
       return {
         getTodayStudy: tool({
-          description: '读今天这个学习目标之前已经记过的分钟数（碎片学习累加）。',
+          description: '读目标打卡日（今天或补卡时的昨天）此前已记过的学习分钟数（碎片学习累加）。',
           inputSchema: z.object({}),
           execute: async () => ({
-            todayMinutesBefore: await todayStudyMinutes(ctx.db, ctx.userId, ctx.goalId, ctx.today),
+            localDate: targetDay,
+            todayMinutesBefore: await todayStudyMinutes(
+              ctx.db,
+              ctx.userId,
+              ctx.goalId,
+              targetDay,
+              ctx.excludeCheckinId,
+            ),
           }),
         }),
         ...webTools(ctx.search),

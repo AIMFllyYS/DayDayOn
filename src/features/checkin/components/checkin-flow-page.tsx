@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,15 +15,18 @@ import {
   checkinMeQuery,
   checkinTodayQuery,
   useCreateCheckin,
+  useUpdateCheckin,
 } from '@/lib/api/queries/checkins'
+import { addDays } from '@/lib/time'
 import { CheckinFlow } from '../flow/checkin-flow'
 import { moduleDef } from '../modules/registry'
 import type { Checkin, CreateCheckinInput, MealType } from '../schemas'
 import type { CheckinInputMode } from './smart-scanner'
 
 /*
- * /goals/[goalId]/checkin 的数据接线：目标详情 + 今天 + 我的偏好 → CheckinFlow（checkin-modules.md 第 5 节）。
+ * /goals/[goalId]/checkin 的数据接线：目标详情 + 今天（或补卡时的昨天）+ 我的偏好 → CheckinFlow（checkin-modules.md 第 5 节）。
  * 每次确认生成新的幂等键：一次 Agent 裁判对应一次入库，重复点击由按钮 loading 拦住。
+ * 切换补卡只读昨日记录、不卸载骨架；学习板块已达标回显后修改走 PATCH replace 原地覆盖并重算当日达标态。
  */
 
 /** 周期环：设了截止日期按 起始 → 截止；没设就取下一个里程碑（7、14、21、30…天） */
@@ -40,21 +44,25 @@ export function CheckinFlowPage({
   initialMeal?: MealType
 }) {
   const router = useRouter()
+  const [isMakeup, setIsMakeup] = useState(false)
   const goal = useQuery(checkinGoalQuery(goalId))
   const today = useQuery(checkinTodayQuery())
   const me = useQuery(checkinMeQuery())
   const localDate = today.data?.localDate ?? ''
+  const yesterday = localDate ? addDays(localDate, -1) : ''
+  const activeDate = isMakeup && yesterday ? yesterday : localDate
   const dayCheckins = useQuery({
-    ...checkinDayQuery(goalId, localDate),
-    enabled: Boolean(localDate),
+    ...checkinDayQuery(goalId, activeDate),
+    enabled: Boolean(activeDate),
   })
   const create = useCreateCheckin()
+  const update = useUpdateCheckin()
 
   if (
     goal.isPending ||
     today.isPending ||
     me.isPending ||
-    (Boolean(localDate) && dayCheckins.isPending)
+    (!isMakeup && Boolean(localDate) && dayCheckins.isPending)
   ) {
     return <FlowSkeleton />
   }
@@ -101,11 +109,25 @@ export function CheckinFlowPage({
   }
   const startDate = g.createdAt.slice(0, 10)
 
-  async function confirm(input: CreateCheckinInput): Promise<Checkin> {
+  async function confirm(
+    input: CreateCheckinInput,
+    options?: { replaceCheckinId?: string },
+  ): Promise<Checkin> {
     try {
+      if (options?.replaceCheckinId) {
+        return await update.mutateAsync({
+          checkinId: options.replaceCheckinId,
+          patch: {
+            replace: input,
+            ...(input.note !== undefined ? { note: input.note } : {}),
+            origin: 'manual',
+            reason: isMakeup ? '补卡覆盖更新记录' : '覆盖更新记录',
+          },
+        })
+      }
       const result = await create.mutateAsync({
         goalId,
-        input,
+        input: isMakeup ? { ...input, isMakeup: true } : input,
         idempotencyKey: newIdempotencyKey(),
       })
       return result.checkin
@@ -126,8 +148,13 @@ export function CheckinFlowPage({
       def={def}
       goal={g}
       clock={clock}
-      today={today.data.localDate}
+      today={activeDate}
       todayCheckins={dayCheckins.data?.items ?? []}
+      isMakeup={isMakeup}
+      dayLoading={dayCheckins.isFetching && !dayCheckins.data}
+      dayError={dayCheckins.isError}
+      onRetryDay={() => void dayCheckins.refetch()}
+      onToggleMakeup={() => setIsMakeup((v) => !v)}
       tier={me.data.preferences.refereeTier}
       period={periodOf(g.validDays, startDate, g.deadlineDate)}
       initialMode={initialMode}

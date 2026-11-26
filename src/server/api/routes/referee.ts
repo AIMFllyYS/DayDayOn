@@ -3,6 +3,7 @@ import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import * as z from 'zod'
 import { CreateCheckinSchema } from '@/features/checkin/schemas'
 import { GoalIdParamSchema } from '@/features/goal/schemas'
+import { IdSchema } from '@/features/shared/schemas'
 import { startReferee } from '@/server/services/referee'
 import type { AppEnv } from '../app'
 import { requireOnboarded, requireUser } from '../middleware/auth'
@@ -12,7 +13,7 @@ import { AUTH_ERRORS, errorResponses } from '../schemas'
 /*
  * Agent 裁判接口（checkin-modules.md 第 4 节）。
  *   POST /goals/{goalId}/referee   流式（UI message stream）：预占额度 → 裁判 Agent → 结算；不写业务表
- * 请求体：{ checkin: 创建打卡的请求体, idempotencyKey, conversation? }。
+ * 请求体：{ checkin: 创建打卡的请求体, idempotencyKey, replaceCheckinId?, conversation? }。
  * 带 conversation 时分析跑在那个 Agent 会话里（不存在就新建），用户消息与分析回合都落库，历史对话里能看到。
  * 和 Agent 对话一样不走幂等中间件（流式响应体无法缓存）；重复的 idempotencyKey 在额度层被拒绝。
  */
@@ -28,6 +29,7 @@ const RefereeRequestSchema = z
   .object({
     checkin: CreateCheckinSchema,
     idempotencyKey: z.uuid(),
+    replaceCheckinId: IdSchema.optional(),
     conversation: RefereeConversationSchema.optional(),
   })
   .meta({ id: 'RefereeRequest' })
@@ -73,6 +75,7 @@ export const refereeRoutes = new OpenAPIHono<AppEnv>().openapi(refereeRoute, asy
     idempotencyKey: body.idempotencyKey,
     goalId,
     checkin: body.checkin,
+    replaceCheckinId: body.replaceCheckinId,
     conversation: body.conversation ?? null,
   })
 })

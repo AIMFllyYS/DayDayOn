@@ -1,6 +1,7 @@
 import 'server-only'
 import { and, eq } from 'drizzle-orm'
 import * as z from 'zod'
+import { checkinSummary } from '@/features/checkin/format'
 import {
   CreateCheckinSchema,
   type Checkin,
@@ -15,8 +16,8 @@ import type { DbOrTx } from '@/server/db/client'
 import { checkins } from '@/server/db/schema'
 import { buildDraft, judgeCheckin } from './create'
 import { loadClock } from './clock'
-import { loadFields, loadGoal, toCheckinDto, type GoalRow } from './goal'
-import { assertAgentWindow, loadOwnCheckin, planReplace } from './mutate'
+import { checkinColumns, loadFields, loadGoal, toCheckinDto, type GoalRow } from './goal'
+import { assertAgentWindow, dietReplay, loadOwnCheckin, planReplace } from './mutate'
 
 /*
  * Agent 草稿预览（checkin-modules.md 第 8 节）：和真正写入走同一套校验与裁判，但不写库。
@@ -36,6 +37,12 @@ export interface CreatePreview {
   checkin: Checkin
   verdict: Verdict
   fields: FieldDef[] | null
+  /** 目标打卡日已存在将被本次 POST 覆盖的记录（饮食同餐次 / 运动 / 睡眠 / 自定义） */
+  willOverwrite: boolean
+  /** 若将覆盖已有记录，展示被覆盖旧记录的一句话摘要 */
+  existingSummary: string | null
+  /** 若将覆盖已有记录，对应的既有 checkinId */
+  existingCheckinId: string | null
 }
 
 /** 新增打卡的预览：目标归属、板块、字段、睡眠时刻、补卡规则全按创建接口校验 */
@@ -62,24 +69,47 @@ export async function previewCreate(
   const clock = await loadClock(db, userId)
   const draft = await buildDraft(db, userId, goal, input, clock, now)
   const localDate = localDateOf(draft.occurredAt, clock.timeZone, clock.dayStartHour)
-  const verdict = await judgeCheckin(db, userId, goal, input, clock, { localDate })
-  if (goal.module === 'sleep') {
-    const [exists] = await db
-      .select({ id: checkins.id })
+
+  const [sameDayRows, fields] = await Promise.all([
+    db
+      .select(checkinColumns)
       .from(checkins)
-      .where(and(eq(checkins.goalId, goal.id), eq(checkins.localDate, localDate)))
-      .limit(1)
-    if (exists) {
-      throw new ApiError(
-        'CHECKIN_EXISTS',
-        `${localDate} 已经记过睡眠了（checkinId ${exists.id}），要改就用 draftUpdateCheckin`,
+      .where(
+        and(
+          eq(checkins.userId, userId),
+          eq(checkins.goalId, goal.id),
+          eq(checkins.localDate, localDate),
+        ),
       )
-    }
-  }
-  const fields =
+      .limit(50),
     goal.module === 'custom' && goal.fieldVersion !== null
-      ? await loadFields(db, goal.id, goal.fieldVersion)
-      : null
+      ? loadFields(db, goal.id, goal.fieldVersion)
+      : Promise.resolve(null),
+  ])
+
+  const priorMinutesToday =
+    input.module === 'study'
+      ? Math.round(
+          sameDayRows
+            .filter((r) => r.payload.module === 'study')
+            .reduce((sum, r) => sum + (r.durationSeconds ?? 0), 0) / 60,
+        )
+      : undefined
+
+  const verdict = await judgeCheckin(db, userId, goal, input, clock, {
+    localDate,
+    priorMinutesToday,
+  })
+
+  const existingRow =
+    input.module === 'diet'
+      ? sameDayRows.find(
+          (r) => r.payload.module === 'diet' && r.payload.mealType === input.mealType,
+        )
+      : input.module === 'sleep' || input.module === 'exercise' || input.module === 'custom'
+        ? sameDayRows[0]
+        : undefined
+
   const checkin: Checkin = {
     id: '',
     goalId: goal.id,
@@ -102,13 +132,22 @@ export async function previewCreate(
     verdict,
     createdAt: now.toISOString(),
   }
-  return { goal, input, checkin, verdict, fields }
+  return {
+    goal,
+    input,
+    checkin,
+    verdict,
+    fields,
+    willOverwrite: Boolean(existingRow),
+    existingSummary: existingRow ? checkinSummary(toCheckinDto(existingRow), fields) : null,
+    existingCheckinId: existingRow?.id ?? null,
+  }
 }
 
 export interface ChangePreview {
   goal: GoalRow
   current: Checkin
-  /** 改后的样子；只改备注时内容和结论不变 */
+  /** 改后的样子；只改备注时内容不变（饮食改备注仍重算总分与是否达标） */
   next: Checkin
   verdict: Verdict | null
   fields: FieldDef[] | null
@@ -132,7 +171,7 @@ export async function previewUpdate(
   if (change.replace !== undefined) {
     const parsed = CreateCheckinSchema.safeParse(change.replace)
     if (!parsed.success) throw validationError(parsed.error)
-    const plan = await planReplace(db, userId, goal, row, parsed.data, clock, now)
+    const plan = await planReplace(db, userId, goal, row, parsed.data, clock, now, change.note)
     verdict = plan.verdict
     next = {
       ...next,
@@ -147,8 +186,15 @@ export async function previewUpdate(
       ...(plan.set.occurredAt ? { occurredAt: plan.set.occurredAt.toISOString() } : {}),
       ...(plan.set.note !== undefined ? { note: plan.set.note ?? null } : {}),
     }
-  } else if (goal.status !== 'active') {
-    throw new ApiError('VALIDATION_FAILED', `目标「${goal.title}」已经归档了，不能再改`)
+  } else {
+    if (goal.status !== 'active') {
+      throw new ApiError('VALIDATION_FAILED', `目标「${goal.title}」已经归档了，不能再改`)
+    }
+    if (change.note !== undefined && goal.module === 'diet' && row.payload.module === 'diet') {
+      const replay = dietReplay(row, row.payload.items, change.note)
+      verdict = await judgeCheckin(db, userId, goal, replay, clock, { localDate: row.localDate })
+      next = { ...next, score: verdict.score, isValid: verdict.isValid, verdict }
+    }
   }
   if (change.note !== undefined) next = { ...next, note: change.note }
   const fieldVersion = next.fieldVersion ?? current.fieldVersion

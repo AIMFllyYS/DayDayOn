@@ -32,7 +32,7 @@ import { judgeInputOf } from '@/features/referee/subject'
 import type { Module } from '@/features/shared/schemas'
 import { newIdempotencyKey } from '@/lib/api'
 import { cn } from '@/lib/cn'
-import { calendarDateOf, sleepRangeForDay } from '@/lib/time'
+import { calendarDateOf, formatLocalDateLabel, sleepRangeForDay } from '@/lib/time'
 import type { CheckinClock, CheckinGoal, SmartFillContext } from '../components/form-types'
 import {
   CheckinModeTabs,
@@ -78,8 +78,17 @@ export interface CheckinFlowProps {
   goal: CheckinGoal & { refereeRules: unknown }
   clock: CheckinClock
   today: string
-  /** 今天已入库的打卡记录（凌晨 0 点前重进页面或切换餐次时直接从数据库恢复状态） */
+  /** 当前展示打卡日已入库的打卡记录（重进页面、切换餐次或切入补卡日时直接从数据库恢复状态） */
   todayCheckins?: readonly Checkin[]
+  /** 是否处于昨日补卡模式（仅 5 个单独打卡页启用；/checkin/smart 不传） */
+  isMakeup?: boolean
+  /** 切入补卡日首次读取昨日记录中 */
+  dayLoading?: boolean
+  /** 读取目标打卡日记录失败 */
+  dayError?: boolean
+  onRetryDay?: () => void
+  /** 提供时在顶部 PageBar 右上角展示「补卡 / 补卡中」切换胶囊按钮 */
+  onToggleMakeup?: () => void
   tier: RefereeTier
   /** 打卡周期：有效天数 / 周期总天数 */
   period: { done: number; total: number }
@@ -105,8 +114,11 @@ export interface CheckinFlowProps {
   registerSubPageBack?: (handler: () => boolean) => () => void
   /** 当前是否存在未确认入库的草稿或裁判结论（供外层顶栏返回守卫同步状态） */
   onUnconfirmedChange?: (unconfirmed: boolean) => void
-  /** 确认入库；返回服务端重算后的记录 */
-  onConfirm: (input: CreateCheckinInput) => Promise<Checkin>
+  /** 确认入库；返回服务端重算后的记录。学习已达标回显后修改时传 replaceCheckinId 走 PATCH 原地覆盖 */
+  onConfirm: (
+    input: CreateCheckinInput,
+    options?: { replaceCheckinId?: string },
+  ) => Promise<Checkin>
   onBack: () => void
 }
 
@@ -198,11 +210,14 @@ function useWide(ref: React.RefObject<HTMLElement | null>): boolean {
 
 export function CheckinFlow(props: CheckinFlowProps) {
   const { def, goal, clock, today, todayCheckins, tier, period } = props
+  const isMakeup = props.isMakeup === true
+  const dayLabel = isMakeup ? '昨日' : '今日'
   const tone = def.tone
   const form = def.useForm({
     goal,
     clock,
     today,
+    isMakeup,
     todayCheckins,
     initialMeal: props.initialMeal,
   })
@@ -262,25 +277,39 @@ export function CheckinFlow(props: CheckinFlowProps) {
   const [agentOpen, setAgentOpen] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState<Checkin | null>(savedFromDb)
+  const [savedBaseFp, setSavedBaseFp] = useState<string | null>(null)
   const [popup, setPopup] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [shareLoaded, setShareLoaded] = useState(false)
   if (shareOpen && !shareLoaded) setShareLoaded(true)
   const [skipReason, setSkipReason] = useState('')
 
-  // 切换子维度（如从早餐切到午餐）或初始数据库记录到位时，同步当前子维度的已入库状态并清理旧识别上下文
-  const activeSyncKey = `${form.activeKey ?? 'default'}:${savedFromDb?.id ?? 'none'}`
+  // 切换打卡日（今日 ↔ 补卡昨日）、切换子维度（餐次）或数据库记录到位时，同步已入库状态并清理旧上下文；
+  // 若已存在 saved 记录且用户直接修改了展开中的独立分区（如睡眠入睡/起床/评分），立即作废旧分析解锁重新提交。
+  const activeSyncKey = `${today}:${form.activeKey ?? 'default'}:${savedFromDb?.id ?? 'none'}`
   const [seenSyncKey, setSeenSyncKey] = useState<string>(activeSyncKey)
+  const liveFp = JSON.stringify(form.toInput())
   if (!saving && activeSyncKey !== seenSyncKey) {
     setSeenSyncKey(activeSyncKey)
     setSaved(savedFromDb)
     setSubject(savedFromDb ? checkinToInput(savedFromDb) : null)
+    setSavedBaseFp(null)
     setSmart(null)
     setScanPhase('idle')
     setLensVersion((v) => v + 1)
     setOpenId(!savedFromDb && mode === 'manual' ? (form.sections[0]?.id ?? null) : null)
+    setIndOpen({})
     setSkipReason('')
     referee.reset()
+  } else if (!saving && saved !== null) {
+    if (savedBaseFp === null) {
+      if (liveFp !== 'null') setSavedBaseFp(liveFp)
+    } else if (liveFp !== savedBaseFp) {
+      setSaved(null)
+      setSubject(null)
+      setSavedBaseFp(null)
+      referee.reset()
+    }
   }
 
   const rootRef = useRef<HTMLDivElement>(null)
@@ -309,13 +338,16 @@ export function CheckinFlow(props: CheckinFlowProps) {
     })
   }, [registerSubPageBack])
 
+  // 学习板块当日已达标并回显了最新记录时，修改后覆盖该条并重算当日达标态，避免重复计入同一条时长
+  const studyReplaceId = goal.module === 'study' ? (savedFromDb?.id ?? null) : null
+
   const priorStudyMinutes = useMemo(() => {
     if (goal.module !== 'study' || !todayCheckins) return 0
     const sec = todayCheckins
-      .filter((c) => c.payload.module === 'study')
+      .filter((c) => c.payload.module === 'study' && c.id !== studyReplaceId)
       .reduce((sum, c) => sum + (c.durationSeconds ?? 0), 0)
     return Math.round(sec / 60)
-  }, [goal.module, todayCheckins])
+  }, [goal.module, todayCheckins, studyReplaceId])
 
   const priorDietMeals = useMemo<PriorDietMeal[]>(() => {
     if (goal.module !== 'diet' || !todayCheckins) return []
@@ -385,6 +417,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
   })
 
   function startAnalyze(override?: CreateCheckinInput | null) {
+    if (props.dayLoading) return
     const trimmedSkip = !isSmart ? skipReason.trim() : ''
     const rawInput =
       override ??
@@ -392,18 +425,23 @@ export function CheckinFlow(props: CheckinFlowProps) {
       (trimmedSkip ? buildSkipFallbackInput(goal, clock, today, form.activeKey, form.note) : null)
     if (!rawInput) return
     const normalizedInput = normalizeManualSubject(rawInput, mode)
-    const input: CreateCheckinInput = trimmedSkip
-      ? { ...normalizedInput, skipReason: trimmedSkip }
+    const withMakeup: CreateCheckinInput = isMakeup
+      ? { ...normalizedInput, isMakeup: true }
       : normalizedInput
+    const input: CreateCheckinInput = trimmedSkip
+      ? { ...withMakeup, skipReason: trimmedSkip }
+      : withMakeup
     setOpenId(null)
     setIndOpen(
       Object.fromEntries(form.sections.filter((s) => s.independent).map((s) => [s.id, false])),
     )
     setAgentOpen(true)
     setSaved(null)
+    setSavedBaseFp(null)
     setSubject(input)
     referee.start({
       checkin: input,
+      replaceCheckinId: studyReplaceId ?? undefined,
       text: analysisPrompt(goal.title, input, clock.timeZone),
       idempotencyKey: newIdempotencyKey(),
     })
@@ -413,6 +451,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
     if (subject === null && saved === null) return
     setSaved(null)
     setSubject(null)
+    setSavedBaseFp(null)
     referee.reset()
   }
 
@@ -440,12 +479,16 @@ export function CheckinFlow(props: CheckinFlowProps) {
     if (!subject || !verdict || saving) return
     setSaving(true)
     try {
-      const result = await props.onConfirm(buildConfirmPayload({ subject, mode, smart, verdict }))
+      const result = await props.onConfirm(
+        buildConfirmPayload({ subject, mode, smart, verdict, isMakeup }),
+        studyReplaceId ? { replaceCheckinId: studyReplaceId } : undefined,
+      )
       const savedKey =
         result.payload.module === 'diet' ? result.payload.mealType : (form.activeKey ?? 'default')
-      setSeenSyncKey(`${savedKey}:${result.id}`)
+      setSeenSyncKey(`${today}:${savedKey}:${result.id}`)
       setSmart(null)
       setSaved(result)
+      setSavedBaseFp(null)
       if (result.verdict?.settlement === 'pending') {
         setAgentOpen(false)
         const logged =
@@ -456,7 +499,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
           typeof result.verdict.metrics.mealsRequired === 'number'
             ? result.verdict.metrics.mealsRequired
             : 3
-        toast.success(`已记录（${logged}/${req} 餐）`)
+        toast.success(`${isMakeup ? '已补录' : '已记录'}（${logged}/${req} 餐）`)
       } else {
         setPopup(true)
       }
@@ -485,9 +528,9 @@ export function CheckinFlow(props: CheckinFlowProps) {
 
   // 承接来自 /checkin/smart 的预识别结果：自动填入对应板块表单并立即启动团团科学裁判与统一报告渲染
   const appliedInitialSmartRef = useRef<string | null>(null)
-  const initialSmartBridgeRef = useRef({ form, todayCheckins, savedFromDb, startAnalyze })
+  const initialSmartBridgeRef = useRef({ form, today, todayCheckins, savedFromDb, startAnalyze })
   useEffect(() => {
-    initialSmartBridgeRef.current = { form, todayCheckins, savedFromDb, startAnalyze }
+    initialSmartBridgeRef.current = { form, today, todayCheckins, savedFromDb, startAnalyze }
   })
   const initialSmartResult = props.initialSmart?.result ?? null
   useEffect(() => {
@@ -515,7 +558,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
                 (c) => c.payload.module === 'diet' && c.payload.mealType === next.mealType,
               ) ?? null)
             : cur.savedFromDb
-        setSeenSyncKey(`${nextKey}:${nextSaved?.id ?? 'none'}`)
+        setSeenSyncKey(`${cur.today}:${nextKey}:${nextSaved?.id ?? 'none'}`)
         cur.startAnalyze(next)
       } else {
         setOpenId(cur.form.sections[0]?.id ?? null)
@@ -556,9 +599,12 @@ export function CheckinFlow(props: CheckinFlowProps) {
     ),
   }
 
-  const canSubmit = form.canSubmit || (!isSmart && skipReason.trim().length > 0)
+  const canSubmit =
+    !props.dayLoading &&
+    !props.dayError &&
+    (form.canSubmit || (!isSmart && skipReason.trim().length > 0))
   const report =
-    verdict && subject ? def.buildReport(verdict, subject, goal, { todayCheckins }) : null
+    verdict && subject ? def.buildReport(verdict, subject, goal, { todayCheckins, isMakeup }) : null
   const activeVerdict = saved?.verdict ?? verdict
   const isPendingSettlement = activeVerdict?.settlement === 'pending'
   const savedValid = saved?.isValid ?? verdict?.isValid ?? false
@@ -571,14 +617,69 @@ export function CheckinFlow(props: CheckinFlowProps) {
     activeVerdict !== null &&
     activeVerdict.score !== null &&
     typeof activeVerdict.metrics.dailyKcal === 'number'
+  const makeupDateLabel = today ? formatLocalDateLabel(today) : '昨天'
+  const makeupStatusText = props.dayError
+    ? `补卡模式 · ${makeupDateLabel} · 读取昨日记录失败`
+    : props.dayLoading
+      ? `补卡模式 · ${makeupDateLabel} · 正在读取昨日记录…`
+      : savedFromDb
+        ? `补卡模式 · ${makeupDateLabel} · 昨日已打卡，修改后可重新覆盖计算`
+        : todayCheckins && todayCheckins.length > 0
+          ? `补卡模式 · ${makeupDateLabel} · 昨日已有部分记录，可继续补录或覆盖`
+          : `补卡模式 · ${makeupDateLabel} · 昨日未打卡（计入连击，不计入排行）`
 
   return (
     <div ref={rootRef} className="relative flex h-full min-h-0 w-full flex-1 overflow-hidden">
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div
+        className={cn(
+          'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden transition-colors duration-(--dur-base)',
+          isMakeup && 'bg-makeup-paper',
+        )}
+      >
+        {isMakeup && <div aria-hidden="true" className="makeup-grain-overlay" />}
         {page === 'fill' && (
           <>
             {!props.hidePageBar && (
-              <PageBar title={`${moduleMeta[tone].label}打卡`} onBack={back} />
+              <PageBar
+                title={`${moduleMeta[tone].label}打卡`}
+                onBack={back}
+                action={
+                  props.onToggleMakeup ? (
+                    <button
+                      type="button"
+                      aria-pressed={isMakeup}
+                      data-makeup-toggle="true"
+                      onClick={props.onToggleMakeup}
+                      className={cn(
+                        'ease-spring text-tiny inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 font-semibold transition-[transform,background-color,color] duration-(--dur-fast) active:scale-95',
+                        isMakeup
+                          ? 'bg-warning-soft text-warning-ink ring-warning/40 ring-1'
+                          : 'bg-surface-sunken text-muted hover:text-foreground',
+                      )}
+                    >
+                      <Icon name="undo" size={13} lineOnly />
+                      <span>{isMakeup ? '补卡中' : '补卡'}</span>
+                    </button>
+                  ) : undefined
+                }
+              />
+            )}
+            {isMakeup && (
+              <div className="shrink-0 px-4 pb-1.5" data-makeup-banner="true">
+                <div className="border-warning/35 bg-warning-soft/75 text-warning-ink text-tiny flex items-center gap-1.5 rounded-xl border px-3 py-1.5 font-semibold">
+                  <Icon name="undo" size={13} lineOnly className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{makeupStatusText}</span>
+                  {props.dayError && props.onRetryDay && (
+                    <button
+                      type="button"
+                      onClick={props.onRetryDay}
+                      className="text-warning-ink shrink-0 font-bold underline underline-offset-2"
+                    >
+                      重试
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
             {props.topSlot && <div className="shrink-0 px-4 pt-1.5 pb-1">{props.topSlot}</div>}
 
@@ -685,7 +786,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
                                 c.payload.module === 'diet' && c.payload.mealType === next.mealType,
                             ) ?? null)
                           : savedFromDb
-                      setSeenSyncKey(`${nextKey}:${nextSaved?.id ?? 'none'}`)
+                      setSeenSyncKey(`${today}:${nextKey}:${nextSaved?.id ?? 'none'}`)
                       startAnalyze(next)
                     } else if (hasDraft) {
                       setOpenId(form.sections[0]?.id ?? null)
@@ -796,7 +897,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
                       className="w-full"
                       onClick={() => push('report')}
                     >
-                      {hasDailySummary ? '查看今日总报告' : '查看分析'}
+                      {hasDailySummary ? `查看${dayLabel}总报告` : '查看分析'}
                     </Button>
                   )
                 ) : verdict?.settlement === 'pending' ? (
@@ -807,7 +908,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
                     loading={saving}
                     onClick={() => void confirm()}
                   >
-                    {`保存本餐记录（今日 ${String(verdict.metrics.mealsLogged ?? 1)}/${String(verdict.metrics.mealsRequired ?? 3)}）`}
+                    {`保存${isMakeup ? '昨日该餐' : '本餐记录'}（${dayLabel} ${String(verdict.metrics.mealsLogged ?? 1)}/${String(verdict.metrics.mealsRequired ?? 3)}）`}
                   </Button>
                 ) : (
                   <Button
@@ -819,9 +920,19 @@ export function CheckinFlow(props: CheckinFlowProps) {
                   >
                     {verdict?.isValid
                       ? verdict.score !== null
-                        ? `确认完成今日打卡（总分 ${verdict.score.toFixed(1)} 分）`
-                        : '确认有效打卡'
-                      : '仅保存记录（不计有效打卡）'}
+                        ? isMakeup
+                          ? `确认${savedFromDb ? '覆盖昨日打卡' : '完成昨日补卡'}（总分 ${verdict.score.toFixed(1)} 分）`
+                          : `确认完成今日打卡（总分 ${verdict.score.toFixed(1)} 分）`
+                        : isMakeup
+                          ? savedFromDb
+                            ? '确认覆盖昨日打卡'
+                            : '确认完成昨日补卡'
+                          : '确认有效打卡'
+                      : isMakeup
+                        ? savedFromDb
+                          ? '仅覆盖昨日记录（不计有效打卡）'
+                          : '仅保存昨日记录（不计有效打卡）'
+                        : '仅保存记录（不计有效打卡）'}
                   </Button>
                 )}
               </div>
@@ -952,16 +1063,20 @@ export function CheckinFlow(props: CheckinFlowProps) {
             <p className="text-subhead font-bold">
               {hasDailySummary
                 ? savedValid
-                  ? '今日三餐集齐！打卡成功，连击 +1'
-                  : '今日三餐已汇总存档，暂未达有效线'
+                  ? `${dayLabel}三餐集齐！${isMakeup ? '补卡成功，已更新连击' : '打卡成功，连击 +1'}`
+                  : `${dayLabel}三餐已汇总存档，暂未达有效线`
                 : savedValid
-                  ? '打卡成功，连击 +1'
-                  : '已存档，今天先不盖章'}
+                  ? isMakeup
+                    ? '昨日补卡成功，已更新连击'
+                    : '打卡成功，连击 +1'
+                  : isMakeup
+                    ? '昨日记录已存档，暂不盖章'
+                    : '已存档，今天先不盖章'}
             </p>
             {hasDailySummary && activeVerdict && activeVerdict.score !== null && (
               <div className="border-border bg-surface-sunken/80 flex w-full flex-col gap-2.5 rounded-2xl border p-3 text-left">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-caption font-bold">今日饮食全天总分</span>
+                  <span className="text-caption font-bold">{dayLabel}饮食全天总分</span>
                   <span
                     className={cn(
                       'font-display text-heading font-bold tabular-nums',
@@ -1010,7 +1125,7 @@ export function CheckinFlow(props: CheckinFlowProps) {
                   push('report')
                 }}
               >
-                {hasDailySummary ? '查看今日总报告' : '查看分析'}
+                {hasDailySummary ? `查看${dayLabel}总报告` : '查看分析'}
               </Button>
               {/* 「完成」只收起结果弹层，留在打卡页；回哪里由用户自己点返回 */}
               <Button variant="ghost" className="w-full" onClick={() => setPopup(false)}>

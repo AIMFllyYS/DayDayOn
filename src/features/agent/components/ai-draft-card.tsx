@@ -55,6 +55,10 @@ interface AiDraftCardProps {
   verdict?: DraftVerdict
   /** 用户改过条目后，预览结论不再准确：入库时按新条目重新判定 */
   verdictStale?: boolean
+  /** 补卡标签，如「昨日补卡 · 11月4日」 */
+  makeupLabel?: string
+  /** 若确认后将覆盖同日已有记录，展示被覆盖旧记录的提醒文案 */
+  overwriteWarning?: string
   className?: string
 }
 
@@ -89,6 +93,8 @@ export function AiDraftCard({
   estimate = false,
   verdict,
   verdictStale = false,
+  makeupLabel,
+  overwriteWarning,
   className,
 }: AiDraftCardProps) {
   const meta = moduleMeta[module]
@@ -105,14 +111,38 @@ export function AiDraftCard({
   }
 
   return (
-    <div className={cn('bg-surface shadow-card rounded-xl p-3.5 md:rounded-2xl md:p-4', className)}>
+    <div
+      className={cn(
+        'bg-surface shadow-card rounded-xl p-3.5 md:rounded-2xl md:p-4',
+        makeupLabel && 'ring-warning/35 ring-1',
+        className,
+      )}
+    >
       <div className="mb-3 flex items-center gap-2.5">
         <IconTile icon={meta.icon} tone={module} size="sm" />
-        <p className="min-w-0 flex-1 truncate font-semibold">{title}</p>
-        <Badge tone={confirmed ? 'success' : 'primary'} icon={confirmed ? 'check' : 'custom'}>
-          {confirmed ? '已记录' : 'AI 草稿'}
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold">{title}</p>
+          {makeupLabel && (
+            <p className="text-tiny text-warning-ink mt-0.5 flex items-center gap-1 truncate font-semibold">
+              <Icon name="undo" size={12} lineOnly className="shrink-0" />
+              <span className="truncate">{makeupLabel}</span>
+            </p>
+          )}
+        </div>
+        <Badge
+          tone={confirmed ? 'success' : makeupLabel ? 'warning' : 'primary'}
+          icon={confirmed ? 'check' : makeupLabel ? 'undo' : 'custom'}
+        >
+          {confirmed ? '已记录' : makeupLabel ? '昨日补卡' : 'AI 草稿'}
         </Badge>
       </div>
+
+      {overwriteWarning && !confirmed && (
+        <p className="bg-warning-soft text-tiny text-warning-ink mb-2.5 flex items-start gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold">
+          <Icon name="alert" size={14} className="mt-0.5 shrink-0" />
+          <span className="min-w-0 flex-1 break-words">{overwriteWarning}</span>
+        </p>
+      )}
 
       {items === undefined ? (
         <ReadonlyFields fields={fields} />

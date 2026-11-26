@@ -15,6 +15,10 @@ const mocks = vi.hoisted(() => ({
   previewUpdate: vi.fn(),
   previewDelete: vi.fn(),
   getCheckinDetail: vi.fn(),
+  recentSleep: vi.fn<
+    (...args: unknown[]) => Promise<{ nights: unknown[]; regularityMinutes: number | null }>
+  >(() => Promise.resolve({ nights: [], regularityMinutes: null })),
+  todayStudyMinutes: vi.fn<(...args: unknown[]) => Promise<number>>(() => Promise.resolve(0)),
   goal: { id: '', module: 'sleep', title: '早点睡', status: 'active', fieldVersion: null } as {
     id: string
     module: string
@@ -40,8 +44,8 @@ vi.mock('@/server/services/agent/read', () => ({
 }))
 vi.mock('@/server/services/metrics/weight', () => ({ latestWeightGrams: async () => 60_000 }))
 vi.mock('@/server/services/referee/read', () => ({
-  recentSleep: async () => ({ nights: [], regularityMinutes: null }),
-  todayStudyMinutes: async () => 0,
+  recentSleep: (...a: unknown[]) => mocks.recentSleep(...a),
+  todayStudyMinutes: (...a: unknown[]) => mocks.todayStudyMinutes(...a),
 }))
 
 const { buildCheckinTools } = await import('./agent-checkin-tools')
@@ -247,6 +251,91 @@ describe('draftUpdateCheckin / draftDeleteCheckin', () => {
       localDate: '2026-11-04',
       reason: '重复记了',
       before: { summary: '睡了 8小时 · 质量 4 分', isValid: true },
+    })
+  })
+
+  it('同时传 entry 和 note 时，previewUpdate 收到含 note 的 replace 与 patch.note', async () => {
+    const current = sleepCheckin('2026-11-04')
+    mocks.getCheckinDetail.mockResolvedValueOnce({ found: true, goalId: GOAL_SLEEP })
+    mocks.previewUpdate.mockResolvedValueOnce({
+      goal: mocks.goal,
+      current,
+      next: { ...current, note: '早睡改了备注' },
+      verdict,
+      fields: null,
+    })
+    const tools = buildCheckinTools({ userId: 'u1', now: NOW })
+    const draft = await tools.draftUpdateCheckin.execute!(
+      {
+        checkinId: CHECKIN,
+        entry: {
+          module: 'sleep',
+          bedAt: '2026-11-03T23:00:00+08:00',
+          wakeAt: '2026-11-04T07:00:00+08:00',
+          quality: 5,
+        },
+        note: '早睡改了备注',
+        reason: '补写睡眠质量与备注',
+      },
+      ctx,
+    )
+    const patchArg = mocks.previewUpdate.mock.calls[0]![3]
+    expect(patchArg).toMatchObject({
+      note: '早睡改了备注',
+      replace: { module: 'sleep', quality: 5, note: '早睡改了备注' },
+    })
+    expect(draft).toMatchObject({
+      kind: 'checkin-update',
+      confirmBody: { note: '早睡改了备注', origin: 'agent' },
+    })
+  })
+})
+
+describe('补卡与覆盖元信息', () => {
+  it('getRecentSleep 传 yesterday=true 时以昨天为目标日并排除昨天自身记录', async () => {
+    const tools = buildCheckinTools({ userId: 'u1', now: NOW })
+    await tools.getRecentSleep.execute!({ goalId: GOAL_SLEEP, yesterday: true }, ctx)
+    expect(mocks.recentSleep).toHaveBeenCalledWith(
+      expect.anything(),
+      'u1',
+      GOAL_SLEEP,
+      '2026-11-04',
+      'Asia/Shanghai',
+      '2026-11-04',
+    )
+  })
+
+  it('draftCheckin 透传 isMakeup / willOverwrite / existingSummary 供草稿卡警示', async () => {
+    mocks.previewCreate.mockResolvedValueOnce({
+      goal: { ...mocks.goal, id: GOAL_SLEEP },
+      input: {},
+      checkin: { ...sleepCheckin('2026-11-04'), isMakeup: true },
+      verdict,
+      fields: null,
+      willOverwrite: true,
+      existingSummary: '睡了 6小时30分 · 质量 3 分',
+      existingCheckinId: CHECKIN,
+    })
+    const tools = buildCheckinTools({ userId: 'u1', now: NOW })
+    const draft = await tools.draftCheckin.execute!(
+      {
+        goalId: GOAL_SLEEP,
+        entry: {
+          module: 'sleep',
+          bedAt: '2026-11-03T23:00:00+08:00',
+          wakeAt: '2026-11-04T07:00:00+08:00',
+          quality: 4,
+        },
+        isMakeup: true,
+        confidence: 0.9,
+      },
+      ctx,
+    )
+    expect(draft).toMatchObject({
+      kind: 'checkin',
+      isMakeup: true,
+      willOverwrite: true,
+      existingSummary: '睡了 6小时30分 · 质量 3 分',
     })
   })
 })

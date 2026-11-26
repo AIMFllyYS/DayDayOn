@@ -15,17 +15,26 @@ function toolSummary(toolName: string, input: unknown): string | undefined {
       return typeof o.query === 'string' ? o.query : undefined
     case 'webFetch':
       return typeof o.url === 'string' ? o.url : undefined
+    case 'getTodaySummary':
+      return o.yesterday === true ? '昨天' : '今天'
     case 'draftCheckin': {
       // 新格式在 entry 里；老会话里的草稿是 data
       const data = (o.entry ?? o.data) as Record<string, unknown> | undefined
-      if (data?.module === 'diet') return '饮食'
-      if (data?.module === 'exercise') {
+      let label: string | undefined
+      if (data?.module === 'diet') label = '饮食'
+      else if (data?.module === 'exercise') {
         const first = Array.isArray(data.items) ? (data.items[0] as { name?: unknown }) : undefined
-        if (typeof first?.name === 'string') return first.name
-        return typeof data.category === 'string' ? data.category : '运动'
-      }
-      if (data?.module === 'custom') return '自定义'
-      return data?.module === 'sleep' ? '睡眠' : data?.module === 'study' ? '学习' : undefined
+        label =
+          typeof first?.name === 'string'
+            ? first.name
+            : typeof data.category === 'string'
+              ? data.category
+              : '运动'
+      } else if (data?.module === 'custom') label = '自定义'
+      else if (data?.module === 'sleep') label = '睡眠'
+      else if (data?.module === 'study') label = '学习'
+      if (!label) return o.isMakeup === true ? '补卡' : undefined
+      return o.isMakeup === true ? `补卡 · ${label}` : label
     }
     case 'draftUpdateCheckin':
     case 'draftDeleteCheckin':

@@ -1,5 +1,5 @@
 import 'server-only'
-import { and, desc, eq, gte } from 'drizzle-orm'
+import { and, desc, eq, gte, lte, ne } from 'drizzle-orm'
 import type { LocalDate } from '@/features/shared/schemas'
 import { addDays, localTimeOf } from '@/lib/time'
 import type { PriorDietMeal } from '@/features/referee/rules/common'
@@ -11,13 +11,14 @@ import { checkins } from '@/server/db/schema'
  * 裁判工具要读的数据（checkin-modules.md 第 4 节）。只读当前用户、当前目标，结果给模型看，保持精简。
  */
 
-/** 最近几晚的睡眠：入睡本地时刻 + 时长，以及入睡时刻的平均偏差（规律度） */
+/** 最近几晚的睡眠：入睡本地时刻 + 时长，以及入睡时刻的平均偏差（规律度）；支持排除目标打卡日自身旧行 */
 export async function recentSleep(
   db: DbOrTx,
   userId: string,
   goalId: string,
-  today: LocalDate,
+  targetDay: LocalDate,
   timeZone: string,
+  excludeDate?: LocalDate,
 ) {
   const rows = await db
     .select({
@@ -30,7 +31,9 @@ export async function recentSleep(
       and(
         eq(checkins.userId, userId),
         eq(checkins.goalId, goalId),
-        gte(checkins.localDate, addDays(today, -7)),
+        gte(checkins.localDate, addDays(targetDay, -7)),
+        lte(checkins.localDate, targetDay),
+        excludeDate ? ne(checkins.localDate, excludeDate) : undefined,
       ),
     )
     .orderBy(desc(checkins.localDate))
@@ -58,18 +61,24 @@ export async function recentSleep(
   return { nights, regularityMinutes }
 }
 
-/** 今天这个目标已经记过的学习分钟（碎片累加） */
+/** 目标打卡日（今天或补卡的昨天）这个目标此前已记过的学习分钟（碎片累加；覆盖修改时可排除自身） */
 export async function todayStudyMinutes(
   db: DbOrTx,
   userId: string,
   goalId: string,
-  today: LocalDate,
+  targetDay: LocalDate,
+  excludeCheckinId?: string,
 ): Promise<number> {
   const rows = await db
     .select({ seconds: checkins.durationSeconds })
     .from(checkins)
     .where(
-      and(eq(checkins.userId, userId), eq(checkins.goalId, goalId), eq(checkins.localDate, today)),
+      and(
+        eq(checkins.userId, userId),
+        eq(checkins.goalId, goalId),
+        eq(checkins.localDate, targetDay),
+        excludeCheckinId ? ne(checkins.id, excludeCheckinId) : undefined,
+      ),
     )
     .limit(50)
   return Math.round(rows.reduce((s, r) => s + (r.seconds ?? 0), 0) / 60)

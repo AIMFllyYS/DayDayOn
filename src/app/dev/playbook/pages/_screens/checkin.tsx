@@ -74,6 +74,7 @@ export function CheckinScreen() {
   const [activeModule, setActiveModule] = useState<ModuleTone>('exercise')
   const [inputMode, setInputMode] = useState<CheckinInputMode>('manual')
   const [phase, setPhase] = useState<ScanPhase>('done')
+  const [isMakeup, setIsMakeup] = useState(false)
   const [stampedText, setStampedText] = useState<string | null>(null)
   const [customFileInfo, setCustomFileInfo] = useState<{
     name: string
@@ -93,11 +94,18 @@ export function CheckinScreen() {
   }, [phase])
 
   return (
-    <div className="@container flex flex-col gap-3.5 pb-6" data-ann="playbook.pages.checkin">
+    <div
+      className={cn(
+        '@container relative flex flex-col gap-3.5 overflow-hidden rounded-2xl pb-6 transition-colors duration-(--dur-base)',
+        isMakeup && 'bg-makeup-paper p-2',
+      )}
+      data-ann="playbook.pages.checkin"
+    >
+      {isMakeup && <div aria-hidden="true" className="makeup-grain-overlay rounded-2xl" />}
       {/* 顶部切换查看 5 大打卡板块（每个板块都有完全相同的顶栏 Tab） */}
       <div className="border-border bg-surface/90 flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-3 py-2">
         <span className="text-tiny font-bold">切换预览 5 大打卡方向：</span>
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           {moduleTones.map((m) => (
             <button
               key={m}
@@ -118,8 +126,29 @@ export function CheckinScreen() {
               <span>{SMART_PRESETS[m].goalTitle}</span>
             </button>
           ))}
+          <button
+            type="button"
+            aria-pressed={isMakeup}
+            onClick={() => setIsMakeup((v) => !v)}
+            className={cn(
+              'text-tiny inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold transition-all',
+              isMakeup
+                ? 'bg-warning-soft text-warning-ink ring-warning/40 ring-1'
+                : 'bg-surface-sunken text-muted hover:text-foreground',
+            )}
+          >
+            <Icon name="undo" size={13} lineOnly />
+            <span>{isMakeup ? '补卡中' : '补卡'}</span>
+          </button>
         </div>
       </div>
+
+      {isMakeup && (
+        <div className="border-warning/35 bg-warning-soft/75 text-warning-ink text-tiny flex items-center gap-1.5 rounded-xl border px-3 py-1.5 font-semibold">
+          <Icon name="undo" size={13} lineOnly className="shrink-0" />
+          <span>补卡模式 · 昨天 · 已有记录，修改提交将覆盖并重算</span>
+        </div>
+      )}
 
       {/* 目标摘要头卡 + 全板块统一 Tab 栏（手动填写 | 智能拍照 | 智能上传） */}
       <Card className="flex min-w-0 flex-col gap-2.5 p-3.5 md:p-4">
