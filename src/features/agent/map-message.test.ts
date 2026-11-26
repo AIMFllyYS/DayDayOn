@@ -125,6 +125,47 @@ describe('map-message: toTurnParts & toTurnView', () => {
       isStreamingTurn([{ type: 'text', text: '你好', state: 'done' }] as UIMessage['parts']),
     ).toBe(false)
   })
+
+  it('正确提取新增待办读写工具的活动条摘要', () => {
+    const rawParts = [
+      {
+        type: 'tool-listTodos',
+        toolCallId: 't1',
+        state: 'output-available',
+        input: { status: 'active', keyword: '高数' },
+        output: { items: [] },
+      },
+      {
+        type: 'tool-draftUpdateTodo',
+        toolCallId: 't2',
+        state: 'output-available',
+        input: { todoId: 'id-1', status: 'done', reason: '已完成' },
+        output: { kind: 'todo-update' },
+      },
+      {
+        type: 'tool-draftDeleteTodo',
+        toolCallId: 't3',
+        state: 'output-available',
+        input: { todoId: 'id-1', reason: '重复记了' },
+        output: { kind: 'todo-delete' },
+      },
+      {
+        type: 'tool-draftTodoGroup',
+        toolCallId: 't4',
+        state: 'output-available',
+        input: { action: 'rename', name: '旧组', newName: '新组' },
+        output: { kind: 'todo-group' },
+      },
+    ] as unknown as UIMessage['parts']
+
+    const parts = toTurnParts(rawParts)
+    expect(parts.map((p) => (p.type === 'tool' ? p.summary : null))).toEqual([
+      '「高数」',
+      '已完成',
+      '重复记了',
+      '重命名 新组',
+    ])
+  })
 })
 
 describe('formatChatError', () => {

@@ -34,7 +34,6 @@ import { todoGroups, todos } from '@/server/db/schema'
 import { decodeOpenCursor, decodeTimeCursor, encodeOpenCursor, encodeTimeCursor } from './cursor'
 import {
   appendTodoEvent,
-  ensureDefaultTodoGroup,
   loadUserTimeZone,
   lockUserTodos,
   resolveOrCreateGroup,
@@ -180,7 +179,7 @@ export async function listTodos(
 ): Promise<TodoList> {
   const conditions = [eq(todos.userId, userId)]
 
-  if (query.groupId !== undefined && query.status !== 'quadrant') {
+  if (query.groupId !== undefined) {
     conditions.push(eq(todos.groupId, query.groupId))
   }
   if (query.priority !== undefined) {
@@ -195,27 +194,43 @@ export async function listTodos(
     if (kw) conditions.push(kw)
   }
 
-  // 可选本地日期范围筛选（open/overdue/quadrant 按 createdAt，终态桶按 settledAt）
-  if (query.from !== undefined || query.to !== undefined) {
+  // 可选本地日期范围筛选（from/to：进行中按 createdAt、终态按 settledAt；dueFrom/dueTo：按截止时间 dueAt）
+  if (
+    query.from !== undefined ||
+    query.to !== undefined ||
+    query.dueFrom !== undefined ||
+    query.dueTo !== undefined
+  ) {
     const timeZone = await loadUserTimeZone(db, userId)
-    const timeCol =
-      query.status === 'done' || query.status === 'abandoned' || query.status === 'archived'
-        ? todos.settledAt
-        : todos.createdAt
-    if (query.from !== undefined) {
-      conditions.push(gte(timeCol, combineLocal(query.from, '00:00', timeZone)))
+    if (query.from !== undefined || query.to !== undefined) {
+      const timeCol =
+        query.status === 'done' || query.status === 'abandoned' || query.status === 'archived'
+          ? todos.settledAt
+          : todos.createdAt
+      if (query.from !== undefined) {
+        conditions.push(gte(timeCol, combineLocal(query.from, '00:00', timeZone)))
+      }
+      if (query.to !== undefined) {
+        conditions.push(lt(timeCol, combineLocal(addDays(query.to, 1), '00:00', timeZone)))
+      }
     }
-    if (query.to !== undefined) {
-      conditions.push(lt(timeCol, combineLocal(addDays(query.to, 1), '00:00', timeZone)))
+    if (query.dueFrom !== undefined || query.dueTo !== undefined) {
+      conditions.push(isNotNull(todos.dueAt))
+      if (query.dueFrom !== undefined) {
+        conditions.push(gte(todos.dueAt, combineLocal(query.dueFrom, '00:00', timeZone)))
+      }
+      if (query.dueTo !== undefined) {
+        conditions.push(lt(todos.dueAt, combineLocal(addDays(query.dueTo, 1), '00:00', timeZone)))
+      }
     }
   }
 
-  if (query.status === 'open' || query.status === 'overdue') {
+  if (query.status === 'open' || query.status === 'overdue' || query.status === 'active') {
     conditions.push(eq(todos.status, 'open'))
     if (query.status === 'open') {
       const notOverdue = or(isNull(todos.dueAt), gt(todos.dueAt, now))
       if (notOverdue) conditions.push(notOverdue)
-    } else {
+    } else if (query.status === 'overdue') {
       conditions.push(isNotNull(todos.dueAt), lte(todos.dueAt, now))
     }
 

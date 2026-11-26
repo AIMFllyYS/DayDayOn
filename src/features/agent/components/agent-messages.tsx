@@ -21,12 +21,15 @@ import { UserMessage } from './user-message'
  * UIMessage → AgentTurnView 的映射在 map-message.ts，草稿从 tool-draft* 的输出里取。
  */
 
-// 返回 AgentDraft 的工具：输出渲染成草稿卡（server/ai/agent-tools.ts、agent-checkin-tools.ts）
+// 返回 AgentDraft 的工具：输出渲染成草稿卡（server/ai/agent-tools.ts、agent-checkin-tools.ts、agent-todo-tools.ts）
 const DRAFT_TOOLS = new Set([
   'draftCheckin',
   'draftUpdateCheckin',
   'draftDeleteCheckin',
   'draftTodo',
+  'draftUpdateTodo',
+  'draftDeleteTodo',
+  'draftTodoGroup',
   'draftWeight',
 ])
 const QUICK_PROMPTS = [
@@ -35,15 +38,28 @@ const QUICK_PROMPTS = [
   '看看好友今天打卡没',
 ] as const
 
-function draftsOf(message: UIMessage): AgentDraft[] {
-  const out: AgentDraft[] = []
+interface ExtractedDraft {
+  toolCallId: string
+  draft: AgentDraft
+}
+
+function draftsOf(message: UIMessage): ExtractedDraft[] {
+  const out: ExtractedDraft[] = []
+  let idx = 0
   for (const part of message.parts as Array<Record<string, unknown> & { type?: string }>) {
     const type = part?.type
     if (typeof type !== 'string' || !type.startsWith('tool-')) continue
     if (!DRAFT_TOOLS.has(type.slice(5))) continue
     if (part.state !== 'output-available') continue
     const parsed = AgentDraftSchema.safeParse(part.output)
-    if (parsed.success) out.push(parsed.data)
+    if (parsed.success) {
+      const rawId =
+        typeof part.toolCallId === 'string' && part.toolCallId.length > 0
+          ? part.toolCallId
+          : `${message.id}-draft-${idx}`
+      out.push({ toolCallId: rawId, draft: parsed.data })
+      idx += 1
+    }
   }
   return out
 }
@@ -243,8 +259,8 @@ export function AgentMessages({
             {stats.map((s, j) => (
               <StatsBlock key={`${m.id}-stats-${j}`} data={s} />
             ))}
-            {drafts.map((d, j) => (
-              <DraftCard key={`${m.id}-${j}`} draft={d} />
+            {drafts.map((entry) => (
+              <DraftCard key={entry.toolCallId} toolCallId={entry.toolCallId} draft={entry.draft} />
             ))}
           </AgentTurn>
         )

@@ -36,7 +36,7 @@ export interface AgentToolContext {
 }
 
 export function buildAgentTools(ctx: AgentToolContext) {
-  const { userId, now, search } = ctx
+  const { userId, now, search, clock } = ctx
 
   const readProfile = tool({
     description:
@@ -188,7 +188,7 @@ export function buildAgentTools(ctx: AgentToolContext) {
     webSearch: searchTool,
     webFetch: fetchTool,
     ...buildCheckinTools({ userId, now }),
-    ...buildTodoTools({ userId, now }),
+    ...buildTodoTools({ userId, now, clock }),
     draftWeight,
   }
 }

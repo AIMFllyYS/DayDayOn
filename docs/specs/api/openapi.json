@@ -5081,6 +5081,7 @@
         "enum": [
           "open",
           "overdue",
+          "active",
           "done",
           "abandoned",
           "archived",
@@ -10737,6 +10738,24 @@
             },
             "required": false,
             "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "dueFrom",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "dueTo",
             "in": "query"
           },
           {

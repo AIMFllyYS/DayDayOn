@@ -39,12 +39,13 @@ export type TodoLifecycleStatus = z.infer<typeof TodoLifecycleStatusSchema>
 export const TODO_QUERY_STATUSES = [
   'open',
   'overdue',
+  'active',
   'done',
   'abandoned',
   'archived',
   'quadrant',
 ] as const
-/** GET /todos?status= 查询桶（兼容旧 open|done，并扩展 overdue|abandoned|archived|quadrant） */
+/** GET /todos?status= 查询桶（active = 全部进行中含已过期，兼容 open|overdue|done|abandoned|archived|quadrant） */
 export const TodoStatusSchema = z.enum(TODO_QUERY_STATUSES).meta({ id: 'TodoStatus' })
 export type TodoStatus = z.infer<typeof TodoStatusSchema>
 
@@ -245,6 +246,9 @@ export const TodoListQuerySchema = z.object({
   archivedOutcome: z.enum(['done', 'abandoned']).optional(),
   from: LocalDateSchema.optional(),
   to: LocalDateSchema.optional(),
+  /** 按截止日期（dueAt）范围筛选 YYYY-MM-DD */
+  dueFrom: LocalDateSchema.optional(),
+  dueTo: LocalDateSchema.optional(),
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
