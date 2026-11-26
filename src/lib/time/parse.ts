@@ -32,18 +32,23 @@ export interface LocalDateParts {
   day: number
 }
 
-/** 'YYYY-MM-DD' → 年月日；格式不对或日期不存在（如 2026-02-30）时抛 RangeError */
+function daysInGregorianMonth(year: number, month: number): number {
+  if (month === 2) {
+    const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+    return leap ? 29 : 28
+  }
+  return month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31
+}
+
+/** 'YYYY-MM-DD' → 年月日；格式不对或日期不存在（如 2026-02-30）时抛 RangeError（纯整数校验，兼容 Next.js 16 静态预渲染） */
 export function parseLocalDate(value: LocalDateString): LocalDateParts {
   const m = LOCAL_DATE_RE.exec(value)
   if (m) {
-    const parts = { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) }
-    const probe = new TZDate(parts.year, parts.month - 1, parts.day, 'UTC')
-    if (
-      probe.getFullYear() === parts.year &&
-      probe.getMonth() === parts.month - 1 &&
-      probe.getDate() === parts.day
-    ) {
-      return parts
+    const year = Number(m[1])
+    const month = Number(m[2])
+    const day = Number(m[3])
+    if (month >= 1 && month <= 12 && day >= 1 && day <= daysInGregorianMonth(year, month)) {
+      return { year, month, day }
     }
   }
   throw new RangeError(`无效的本地日期：${value}`)

@@ -60,12 +60,33 @@ function firstEffectiveDate(goal: DashboardGoal): LocalDate | null {
   return first
 }
 
+/** 统一的目标周期起始日：取最早生效日与创建打卡日中较早者，避免历史截断分叉 */
+function goalStartDate(goal: DashboardGoal): LocalDate | null {
+  const first = firstEffectiveDate(goal)
+  const created = goal.createdLocalDate ?? null
+  if (first === null) return created
+  if (created === null) return first
+  return compareLocalDate(created, first) < 0 ? created : first
+}
+
+/** 某天是否落在该目标的起止周期 [startDate, deadlineDate] 内（无 deadlineDate 视为持续有效） */
+function isWithinGoalPeriod(goal: DashboardGoal, date: LocalDate): boolean {
+  const start = goalStartDate(goal)
+  if (start === null || compareLocalDate(date, start) < 0) return false
+  if (goal.deadlineDate != null && compareLocalDate(date, goal.deadlineDate) > 0) return false
+  return true
+}
+
 export interface GoalDay extends GoalWithProgress {
   target: { kind: TodayGoal['target']['kind']; value: number }
+  /** 热力图口径的计划态：同时满足 [startDate, deadlineDate] 与 weekdays */
+  heatmapPlanned: boolean
   /** 当天有没有打卡记录 */
   hasCheckins: boolean
   /** 当天有打卡且全部属于已终判未达标（非待汇总 pending 态） */
   archivedOnly: boolean
+  /** 当天有打卡且全部属于待汇总 pending 态（如饮食未齐三餐），非计划日不应记满分 */
+  pendingOnly: boolean
 }
 
 /**
@@ -77,15 +98,18 @@ export function goalDay(goal: DashboardGoal, date: LocalDate, index: CheckinInde
   if (target === null) return null
   const first = firstEffectiveDate(goal)
   const existed = first !== null && compareLocalDate(date, first) >= 0
+  const scheduled = isPlannedOn(target, date)
   const ofDay = index.get(goal.id)?.get(date) ?? []
   return {
     goalId: goal.id,
     module: goal.module,
-    planned: existed && isPlannedOn(target, date),
+    planned: existed && scheduled,
+    heatmapPlanned: isWithinGoalPeriod(goal, date) && scheduled,
     progress: goalDayProgress(target, goal.module, ofDay),
     target: { kind: target.kind, value: target.value },
     hasCheckins: ofDay.length > 0,
     archivedOnly: ofDay.length > 0 && ofDay.every((c) => !c.isValid && !c.pending),
+    pendingOnly: ofDay.length > 0 && ofDay.every((c) => !c.isValid && Boolean(c.pending)),
   }
 }
 
@@ -126,9 +150,9 @@ function cmpId(a: string, b: string): number {
 }
 
 /**
- * 本周热力图（PRD 7.2）：周一到周日 × 五个板块，格值 = stats.heatmapCell。
- * 今天之后的格子为 0。days 必须是 weekDates(today) 的结果。
- * archived：那天这个板块有打卡但一条都没达标（格值为 0），界面上和「没打」分开显示。
+ * 本周热力图（PRD 7.2）：只包含用户当前活跃目标涉及的板块 × 周一到周日。
+ * inRange 标识该板块当天是否落在打卡范围内（[startDate, deadlineDate] 且命中 weekdays，或当天已有打卡/补卡），
+ * 让前端把周期外/休息日与真正的「漏打卡」清晰区分。今天之后的格子值恒为 0。
  */
 export function buildHeatmap(
   goals: readonly DashboardGoal[],
@@ -136,17 +160,27 @@ export function buildHeatmap(
   days: readonly LocalDate[],
   today: LocalDate,
 ): WeekHeatmap {
-  const rows = MODULES.map((module) => {
+  const activeModules = new Set(goals.map((g) => g.module))
+  const rows = MODULES.filter((m) => activeModules.has(m)).map((module) => {
     const ofModule = goals.filter((g) => g.module === module)
     const archived: boolean[] = []
+    const inRange: boolean[] = []
     const cells = days.map((date) => {
-      if (compareLocalDate(date, today) > 0) {
+      const isFutureDay = compareLocalDate(date, today) > 0
+      const allStates = ofModule
+        .map((g) => goalDay(g, date, index))
+        .filter((d): d is GoalDay => d !== null)
+      const hasPlanned = allStates.some((d) => d.heatmapPlanned)
+      const hasCheckins = !isFutureDay && allStates.some((d) => d.hasCheckins)
+      inRange.push(hasPlanned || hasCheckins)
+
+      if (isFutureDay) {
         archived.push(false)
         return 0
       }
-      const states = ofModule
-        .map((g) => goalDay(g, date, index))
-        .filter((d): d is GoalDay => d !== null && (d.planned || d.hasCheckins))
+      const states = allStates
+        .filter((d) => d.heatmapPlanned || d.hasCheckins)
+        .map((d) => ({ ...d, planned: d.heatmapPlanned }))
       const cell = heatmapCell(
         states,
         states.map((s) => s.progress),
@@ -154,7 +188,7 @@ export function buildHeatmap(
       archived.push(cell === 0 && states.some((s) => s.archivedOnly))
       return cell
     })
-    return { module, cells, archived }
+    return { module, cells, archived, inRange }
   })
   return { days: [...days], rows }
 }

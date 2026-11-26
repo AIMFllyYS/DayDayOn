@@ -165,11 +165,11 @@ export function countRankDays(
 
 /**
  * 热力图一格（PRD 7.2）：该板块当天已完成的计划目标数 / 当天计划目标数；
- * 没有计划但有打卡记 1；都没有为 0。返回 0..1。
+ * 没有计划但有有效/非待汇总打卡记 1；都没有为 0。返回 0..1。
  * progresses 与 goalsOfModule 按下标一一对应。
  */
 export function heatmapCell(
-  goalsOfModule: readonly Pick<GoalWithProgress, 'planned'>[],
+  goalsOfModule: readonly (Pick<GoalWithProgress, 'planned'> & { pendingOnly?: boolean })[],
   progresses: readonly GoalProgress[],
 ): number {
   if (goalsOfModule.length !== progresses.length) {
@@ -181,7 +181,7 @@ export function heatmapCell(
   goalsOfModule.forEach((g, i) => {
     const p = progresses[i]
     if (p === undefined) return
-    if (p.value > 0) anyCheckin = true
+    if (p.value > 0 && !g.pendingOnly) anyCheckin = true
     if (!g.planned) return
     planned += 1
     if (p.done) done += 1

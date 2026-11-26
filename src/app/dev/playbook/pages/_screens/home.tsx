@@ -118,8 +118,11 @@ const demo: DashboardToday = {
       { module: 'exercise', cells: [1, 1, 0, 1, 0.5, 1, 1] },
       { module: 'diet', cells: [1, 0.67, 1, 1, 0.33, 0.67, 0.67] },
       { module: 'sleep', cells: [1, 1, 1, 0, 1, 1, 1] },
-      { module: 'study', cells: [0.5, 1, 1, 0.5, 0, 0, 1] },
-      { module: 'custom', cells: [0, 0, 0, 0, 0, 0, 0] },
+      {
+        module: 'study',
+        cells: [0.5, 1, 1, 0.5, 0, 0, 1],
+        inRange: [true, true, true, true, true, false, true],
+      },
     ],
   },
   feed: [
