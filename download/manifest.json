@@ -2,11 +2,11 @@
   "latest": "0.1.18",
   "publishedAt": "2026-11-27",
   "android": {
-    "version": "0.1.13",
+    "version": "0.1.16",
     "minVersion": "0.1.0",
     "file": "DayDayOn.apk",
-    "sha256": "c44d52d7c3718e5e9408b2da29119fc8d4460942945678c0068e640667452044",
-    "size": 865405,
-    "sourceTag": "v0.1.13"
+    "sha256": "48a98f72e6bfaa75a0719f63c3f7edfaba48281e7f33eaba7de9fd82462f60d0",
+    "size": 865406,
+    "sourceTag": "v0.1.16"
   }
 }
