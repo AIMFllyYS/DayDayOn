@@ -12,10 +12,10 @@ src/server/ai/
 ├── run.ts                   runAi() 与 preflight() / checkUserLimits() / finishRun() / reconcileStaleRuns() / rejectReusedKey() / afterSpend()
 ├── call-model.ts            底层模型调用封装（超时控制 + Zod 输出校验）
 ├── recovery.ts              结算事务重试与流水恢复纯函数
-├── run-agent.ts             streamAgentChat() 与 reserveAgentRun() / settleAgentRun()（对话与裁判共用账本，AGENT_PROMPT_VERSION = 7）
+├── run-agent.ts             streamAgentChat() 与 reserveAgentRun() / settleAgentRun()（对话与裁判共用账本，AGENT_PROMPT_VERSION = 8）
 ├── agent.ts                 buildAgent()（ToolLoopAgent，32 步上限，普通 4096 / 深度思考 8192 tokens/步，最后一步禁工具保底文字输出）
 ├── repair-tool-call.ts      createRepairToolCall()（按工具名区分长度上限，确定性修复 DeepSeek Flash 尾部截断、null 可选参数与字段类型错位）
-├── agent-tools.ts           对话 Agent 工具总装（读资料/目标/进度/好友、showStats、联网、挂载打卡/待办/每日指标专项工具）
+├── agent-tools.ts           对话 Agent 工具总装（读资料/目标/进度/好友及好友每日指标 getFriendMetrics、showStats、联网、挂载打卡/待办/每日指标专项工具）
 ├── agent-checkin-tools.ts   对话 Agent 打卡专项工具（查询、留痕、增改删与昨日补卡覆盖草稿）
 ├── agent-todo-tools.ts      对话 Agent 待办专项工具（3 层渐进式读 + 单轮缓存 + draftTodo / draftUpdateTodo / draftDeleteTodo / draftTodoGroup）
 ├── agent-metric-tools.ts    对话 Agent 每日指标专项工具（getMetrics + 今日/昨日 draftMetric / draftDeleteMetric 草稿）

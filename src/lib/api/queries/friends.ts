@@ -16,11 +16,13 @@ import type {
   FriendInvite,
   FriendInvitePreview,
   FriendList,
+  FriendMetricDetail,
   PetInteractInput,
   PetInteractResult,
   PetInteractionsStatus,
 } from '@/features/friend/schemas'
 import type { Insights } from '@/features/insights/schemas'
+import type { MetricCalendar, MetricHistory, MetricKind } from '@/features/metric/schemas'
 import { apiFetch, newIdempotencyKey } from '../fetcher'
 import { keys } from '../keys'
 
@@ -28,6 +30,7 @@ import { keys } from '../keys'
  * 好友体系的客户端查询与写操作（ADR-0026）：
  * - friendsListQuery / useFriendsList：顶栏堆叠头像与好友切换面板数据源
  * - friendDashboardQuery / useFriendDashboard：查看指定好友完整今日打卡仪表盘
+ * - friendMetricDetailQuery / Calendar / History：查看指定好友体重/心情/步数只读详情
  * - useCreateFriendInvite：获取或生成 10 分钟有效的 6 位配对码
  * - usePreviewFriendInvite：输入 6 位码后预览邀请方头像与昵称（用于屏幕中央二次确认弹窗）
  * - useAcceptFriendInvite：确认接受好友邀请并失效好友列表缓存
@@ -113,6 +116,38 @@ export const friendGoalCheckinsQuery = (
       const qs = params.toString()
       return apiFetch<CheckinHistory>(
         `/friends/${encodeURIComponent(friendUserId)}/goals/${encodeURIComponent(goalId)}/checkins${qs ? `?${qs}` : ''}`,
+      )
+    },
+    getNextPageParam: (last) => last.nextCursor,
+  })
+
+export const friendMetricDetailQuery = (friendUserId: string, kind: MetricKind) =>
+  queryOptions({
+    queryKey: keys.friends.metricDetail(friendUserId, kind),
+    queryFn: () =>
+      apiFetch<FriendMetricDetail>(
+        `/friends/${encodeURIComponent(friendUserId)}/metrics/${encodeURIComponent(kind)}`,
+      ),
+  })
+
+export const friendMetricCalendarQuery = (friendUserId: string, kind: MetricKind, month: string) =>
+  queryOptions({
+    queryKey: keys.friends.metricCalendar(friendUserId, kind, month),
+    queryFn: () =>
+      apiFetch<MetricCalendar>(
+        `/friends/${encodeURIComponent(friendUserId)}/metrics/${encodeURIComponent(kind)}/calendar?month=${encodeURIComponent(month)}`,
+      ),
+  })
+
+export const friendMetricHistoryQuery = (friendUserId: string, kind: MetricKind, limit = 30) =>
+  infiniteQueryOptions({
+    queryKey: keys.friends.metricHistory(friendUserId, kind),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => {
+      const qs = new URLSearchParams({ limit: String(limit) })
+      if (pageParam) qs.set('cursor', pageParam)
+      return apiFetch<MetricHistory>(
+        `/friends/${encodeURIComponent(friendUserId)}/metrics/${encodeURIComponent(kind)}/history?${qs.toString()}`,
       )
     },
     getNextPageParam: (last) => last.nextCursor,

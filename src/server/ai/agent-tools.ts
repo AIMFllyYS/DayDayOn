@@ -117,13 +117,34 @@ export function buildAgentTools(ctx: AgentToolContext) {
 
   const getFriendStatusTool = tool({
     description:
-      '读取某位好友完整的今日打卡仪表盘（各目标进度、连续天数、本周热力图、体重、心情）以及近 N 天的打卡明细，用于和用户本人对比或回答好友打卡问题。',
+      '读取某位好友完整的今日打卡仪表盘（各目标进度、连续天数、本周热力图、体重、心情、步数）以及近 N 天的打卡明细，用于和用户本人对比或回答好友打卡问题。',
     inputSchema: z.object({
       friendIdOrNickname: z.string().min(1).describe('好友的 userId（来自 listFriends）或好友昵称'),
       days: z.number().int().min(1).max(30).default(7).describe('读取最近多少天的打卡明细'),
     }),
     execute: async ({ friendIdOrNickname, days }) =>
       await read.getFriendStatusDetail(userId, friendIdOrNickname, now, days),
+  })
+
+  const getFriendMetricsTool = tool({
+    description:
+      '只读查看某位好友的每日指标（体重 weight、心情 mood、步数 steps）今日/昨日现状、近期走势（最长 365 天）、身高与个人步数参考虚线，用于和用户对比鼓励。好友指标严禁修改或删除。',
+    inputSchema: z.object({
+      friendIdOrNickname: z.string().min(1).describe('好友的 userId（来自 listFriends）或好友昵称'),
+      kind: z
+        .enum(['all', 'weight', 'mood', 'steps'])
+        .default('all')
+        .describe('要查的指标：all（全部三项）、weight、mood 或 steps'),
+      days: z
+        .number()
+        .int()
+        .min(1)
+        .max(365)
+        .default(30)
+        .describe('统计最近多少天，默认 30，最长 365'),
+    }),
+    execute: async ({ friendIdOrNickname, kind, days }) =>
+      await read.getFriendMetricsDetail(userId, friendIdOrNickname, now, kind, days),
   })
 
   const searchTool = tool({
@@ -170,6 +191,7 @@ export function buildAgentTools(ctx: AgentToolContext) {
     showStats: showStatsTool,
     listFriends: listFriendsTool,
     getFriendStatus: getFriendStatusTool,
+    getFriendMetrics: getFriendMetricsTool,
     webSearch: searchTool,
     webFetch: fetchTool,
     ...buildCheckinTools({ userId, now }),

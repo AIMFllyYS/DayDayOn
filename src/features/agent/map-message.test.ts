@@ -70,6 +70,21 @@ describe('map-message: toTurnParts & toTurnView', () => {
       },
       { type: 'text', id: 't1', text: '已经帮你整理好草稿啦～', state: 'done' },
     ])
+
+    const friendMetricParts = toTurnParts([
+      {
+        type: 'tool-getFriendMetrics',
+        toolCallId: 'fm1',
+        state: 'output-available',
+        input: { friendIdOrNickname: '阿柚', kind: 'steps', days: 90 },
+        output: { found: true },
+      },
+    ] as unknown as UIMessage['parts'])
+    expect(friendMetricParts[0]).toMatchObject({
+      type: 'tool',
+      toolName: 'getFriendMetrics',
+      summary: '阿柚 · 步数 · 近 90 天',
+    })
   })
 
   it('status=error 时透传 errorText，非 error 时忽略 errorText', () => {

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import type { KeyboardEvent, ReactNode } from 'react'
 import { Sparkline } from '@/components/charts/sparkline'
 import { Card } from '@/components/ui/card'
@@ -14,14 +15,16 @@ import {
 } from '../format'
 
 /*
- * 体重卡、今日心情卡（PRD 2.8 第 3 项）。点卡片打开打卡弹层的对应视图（不另开弹层）。
- * 查看好友仪表盘时传入 readOnly，展示好友数据但不触发编辑弹窗（ADR-0026）。
+ * 体重卡、今日心情卡、今日步数卡（PRD 2.8 第 3 项）：
+ * - 本人视角：点击打开打卡弹层的对应指标 Dock；
+ * - 好友视角（readOnly + href）：外观与本人保持一致，点击直达好友只读指标详情页（ADR-0026）。
  */
 
-/** 可点的指标卡：Card 本身做成按钮（role=button + 键盘 Enter / 空格）；只读时为静态卡片 */
+/** 可点的指标卡：传 href 走 next/link 直达详情页；本人模式为按钮弹起 Dock；无 href 的只读态为静态卡片 */
 function MetricCard({
   title,
   onOpen,
+  href,
   ariaLabel,
   readOnly = false,
   className,
@@ -29,11 +32,30 @@ function MetricCard({
 }: {
   title: string
   onOpen: () => void
+  href?: string
   ariaLabel: string
   readOnly?: boolean
   className?: string
   children: ReactNode
 }) {
+  if (href) {
+    return (
+      <Link
+        href={href}
+        aria-label={ariaLabel}
+        className={cn(
+          'focus-visible:ring-primary/50 block rounded-2xl focus-visible:ring-2 focus-visible:outline-none',
+          className,
+        )}
+      >
+        <Card interactive className="flex h-full min-h-28 flex-col gap-1">
+          <span className="text-tiny text-muted font-semibold">{title}</span>
+          {children}
+        </Card>
+      </Link>
+    )
+  }
+
   if (readOnly) {
     return (
       <Card aria-label={ariaLabel} className={cn('flex min-h-28 flex-col gap-1', className)}>
@@ -67,10 +89,12 @@ function MetricCard({
 export function WeightCard({
   weight,
   onOpen,
+  href,
   readOnly = false,
 }: {
   weight: WeightTrend
   onOpen: () => void
+  href?: string
   readOnly?: boolean
 }) {
   const latest = weight.latest
@@ -79,8 +103,15 @@ export function WeightCard({
       <MetricCard
         title="今日体重"
         onOpen={onOpen}
+        href={href}
         readOnly={readOnly}
-        ariaLabel={readOnly ? '今日体重还没记' : '今日体重还没记，记一下'}
+        ariaLabel={
+          href
+            ? '今日体重还没记，点开查看好友体重详情'
+            : readOnly
+              ? '今日体重还没记'
+              : '今日体重还没记，记一下'
+        }
       >
         <span className="font-display text-title text-subtle font-semibold">—</span>
         <span
@@ -97,8 +128,9 @@ export function WeightCard({
     <MetricCard
       title="今日体重"
       onOpen={onOpen}
+      href={href}
       readOnly={readOnly}
-      ariaLabel={`体重 ${formatKg(latest.weightGrams)} 千克${readOnly ? '' : '，点开重新记录'}`}
+      ariaLabel={`体重 ${formatKg(latest.weightGrams)} 千克${href ? '，点开查看好友体重详情' : readOnly ? '' : '，点开重新记录'}`}
     >
       <span className="flex items-end justify-between gap-2">
         <span className="font-display text-title font-semibold tabular-nums">
@@ -130,10 +162,12 @@ export function WeightCard({
 export function MoodCard({
   mood,
   onOpen,
+  href,
   readOnly = false,
 }: {
   mood: number | null
   onOpen: () => void
+  href?: string
   readOnly?: boolean
 }) {
   if (mood === null) {
@@ -141,8 +175,15 @@ export function MoodCard({
       <MetricCard
         title="今日心情"
         onOpen={onOpen}
+        href={href}
         readOnly={readOnly}
-        ariaLabel={readOnly ? '今日心情还没记' : '今日心情还没记，记一下'}
+        ariaLabel={
+          href
+            ? '今日心情还没记，点开查看好友心情详情'
+            : readOnly
+              ? '今日心情还没记'
+              : '今日心情还没记，记一下'
+        }
       >
         <span className="font-display text-title text-subtle font-semibold">—</span>
         <span
@@ -157,8 +198,9 @@ export function MoodCard({
     <MetricCard
       title="今日心情"
       onOpen={onOpen}
+      href={href}
       readOnly={readOnly}
-      ariaLabel={`今日心情 ${moodLabel(mood)}${readOnly ? '' : '，点开重新评'}`}
+      ariaLabel={`今日心情 ${moodLabel(mood)}${href ? '，点开查看好友心情详情' : readOnly ? '' : '，点开重新评'}`}
     >
       <span className="font-display text-title font-semibold">{moodLabel(mood)}</span>
       <span className="text-tiny text-muted tabular-nums">{mood} / 5 · 已记录</span>
@@ -168,16 +210,18 @@ export function MoodCard({
 
 /**
  * 今日步数卡：位于「今日体重 / 今日心情」下方，高度与体重卡一致（min-h-28），宽度横跨两张小卡（col-span-2）。
- * 支持手机端计步同步与全端点击手动录入，消除原布局右下角留白。
+ * 支持手机端计步同步与全端点击手动录入；好友视角点击直达好友步数详情页。
  */
 export function StepsCard({
   steps,
   onOpen,
+  href,
   readOnly = false,
   className,
 }: {
   steps?: StepTrend
   onOpen?: () => void
+  href?: string
   readOnly?: boolean
   className?: string
 }) {
@@ -190,9 +234,10 @@ export function StepsCard({
     <MetricCard
       title="今日步数"
       onOpen={handleOpen}
-      readOnly={readOnly || !onOpen}
+      href={href}
+      readOnly={readOnly || (!onOpen && !href)}
       className={className}
-      ariaLabel={`今日步数 ${formatSteps(todaySteps)} 步${readOnly ? '' : '，点开记录或同步步数'}`}
+      ariaLabel={`今日步数 ${formatSteps(todaySteps)} 步${href ? '，点开查看好友步数详情' : readOnly ? '' : '，点开记录或同步步数'}`}
     >
       <span className="flex items-end justify-between gap-3">
         <span className="font-display text-title font-semibold tabular-nums">
@@ -228,7 +273,9 @@ export function StepsCard({
         {delta !== null
           ? `比上周 ${formatStepsDelta(delta)} 步`
           : todaySteps > 0
-            ? '点击更新或同步今日步数'
+            ? readOnly
+              ? '已记录今日步数'
+              : '点击更新或同步今日步数'
             : readOnly
               ? '今日 0 步'
               : '点击同步或记录今日步数'}
