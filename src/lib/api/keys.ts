@@ -56,6 +56,12 @@ export const keys = {
       goalId: string,
       range: { from?: string; to?: string } = {},
     ) => ['friends', 'goal-checkins', friendUserId, goalId, range] as const,
+    metricDetail: (friendUserId: string, kind: MetricKind) =>
+      ['friends', 'metric-detail', friendUserId, kind] as const,
+    metricCalendar: (friendUserId: string, kind: MetricKind, month: string) =>
+      ['friends', 'metric-calendar', friendUserId, kind, month] as const,
+    metricHistory: (friendUserId: string, kind: MetricKind) =>
+      ['friends', 'metric-history', friendUserId, kind] as const,
     interactions: (friendUserId: string) => ['friends', 'interactions', friendUserId] as const,
   },
   chat: {

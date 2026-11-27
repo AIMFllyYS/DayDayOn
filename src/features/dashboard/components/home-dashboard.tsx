@@ -126,11 +126,32 @@ export function HomeDashboard({
 
       <div className="grid content-start gap-3">
         <div className="grid grid-cols-2 gap-3">
-          <WeightCard weight={data.weight} onOpen={onOpenWeight} readOnly={readOnly} />
-          <MoodCard mood={data.mood} onOpen={onOpenMood} readOnly={readOnly} />
+          <WeightCard
+            weight={data.weight}
+            onOpen={onOpenWeight}
+            href={
+              friendUserId
+                ? `/friends/${encodeURIComponent(friendUserId)}/metrics/weight`
+                : undefined
+            }
+            readOnly={readOnly}
+          />
+          <MoodCard
+            mood={data.mood}
+            onOpen={onOpenMood}
+            href={
+              friendUserId ? `/friends/${encodeURIComponent(friendUserId)}/metrics/mood` : undefined
+            }
+            readOnly={readOnly}
+          />
           <StepsCard
             steps={data.steps}
             onOpen={onOpenSteps}
+            href={
+              friendUserId
+                ? `/friends/${encodeURIComponent(friendUserId)}/metrics/steps`
+                : undefined
+            }
             readOnly={readOnly}
             className="col-span-2"
           />

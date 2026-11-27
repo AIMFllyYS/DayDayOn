@@ -30,6 +30,7 @@
 | `/goals/[goalId]` | 目标详情与历史 | `(app)` | 二级 |
 | `/goals/[goalId]/checkin` | 打卡表单（手动 / 智能拍照 / 智能上传 / 昨日补卡）；`?mode=photo&meal=…&makeup=1` | `(app)` | 二级 |
 | `/friends/[friendUserId]/goals/[goalId]` | 好友目标详情与打卡历史（只读，顶栏居中显示「`<昵称>的目标详情`」，ADR-0026） | `(app)` | 二级 |
+| `/friends/[friendUserId]/metrics/[metric]` | 好友每日指标详情与历史（只读，`weight` / `mood` / `steps`，顶栏居中显示「`<昵称>的体重/心情/步数详情`」，ADR-0026） | `(app)` | 二级 |
 | `/welcome` | 落地页（不要求登录；未登录打开 `/` 时由 proxy 送到这里，ADR-0022） | `(marketing)` | 无；应用内入口是「我的 → 数据与关于 → 关于 DayDayOn」 |
 | `/login` | 邮箱验证码登录 | `(auth)` | 无 |
 | `/onboarding` | 新人引导（七步） | `(auth)` | 无 |
@@ -41,7 +42,7 @@
 | `/icons/[name]` | PWA / APK 图标与 SVG 源文件（构建时 `generateStaticParams` 预渲染） | `icons/` | Route Handler |
 
 - 偏好（主题、形象、上榜、日切换时间、提醒、步数参考虚线）在 `/me` 页内通过二级分组视图或复用 Dock 修改，不单独开 `/me/settings`（PRD 2.11）。
-- 打卡入口（"＋"弹层）是客户端状态，不是路由；选好板块后进入 `/goals/[goalId]/checkin`，点智能拍照/上传入口进入 `/checkin/smart`，点体重/心情/步数 Dock 右上角时钟进入 `/metrics/[metric]`。
+- 打卡入口（"＋"弹层）是客户端状态，不是路由；选好板块后进入 `/goals/[goalId]/checkin`，点智能拍照/上传入口进入 `/checkin/smart`，点体重/心情/步数 Dock 右上角时钟进入 `/metrics/[metric]`；好友小窝点体重/心情/步数卡直达 `/friends/[friendUserId]/metrics/[metric]`。
 - 一级页面就是导航项，定义在 `src/components/layout/nav-items.ts`，改这里要同步改上表。
 
 ## 3. 目录约定
@@ -54,7 +55,7 @@ src/app/
 │   ├── page.tsx              → /
 │   ├── agent/page.tsx        → /agent
 │   ├── checkin/smart/        → /checkin/smart
-│   ├── friends/              → /friends/[friendUserId]/goals/[goalId]（好友目标只读详情）
+│   ├── friends/              → /friends/[friendUserId]/goals/[goalId]、/friends/[friendUserId]/metrics/[metric]（好友只读详情）
 │   ├── goals/                → /goals、/goals/new、/goals/[goalId]、/goals/[goalId]/checkin
 │   ├── me/                   → /me、/me/profile
 │   ├── metrics/              → /metrics/[metric]（weight / mood / steps 双 Tab 详情页）
