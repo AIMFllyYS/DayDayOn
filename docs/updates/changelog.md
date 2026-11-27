@@ -4,6 +4,15 @@
 
 ---
 
+## [v0.1.18] - 2026-11-27（好友体重/心情/步数只读详情页与团团 Agent 好友指标读取）
+
+### ✨ 新功能与架构对齐
+- **后端好友只读指标服务与 API 契约（PR #118）**：从 `src/server/services/friends/index.ts` 抽离 `access.ts`（`assertFriendship` + `loadPublicUsers`），新增 `metrics.ts`（`getFriendMetricDetail` / `getFriendMetricCalendar` / `getFriendMetricHistory`）严格校验双向好友关系并 100% 复用 `services/metrics` 走势、月历与游标分页查询；注册 `GET /api/v1/friends/{friendUserId}/metrics/{kind}`、`/calendar`、`/history` 三条只读路由并同步 `docs/specs/api/openapi.json`（74 条路径）。
+- **好友小窝三卡与高复用只读双 Tab 详情页**：好友小窝中「今日体重 / 今日心情 / 今日步数」三张卡片保持与本人页面完全一致的外观，通过 `next/link` 点击直达 `/friends/[friendUserId]/metrics/[metric]`；复用抽离出的 `MetricDetailContent` / `MetricDetailSkeleton`，完整展示好友身高/BMI、好友步数参考虚线、近一年统计图与只读月历/记录列表（零写按钮暴露），顶栏居中显示「`<好友昵称>`的体重/心情/步数详情」且返回自动还原好友小窝（非好友直链优雅展示「暂无法查看这位好友」）。
+- **团团 Agent 只读工具 `getFriendMetrics`（Prompt v8）**：`services/agent/read.ts` 抽离 `resolveFriendForAgent` 并新增 `getFriendMetricsDetail`；`agent-tools.ts` 注册 `getFriendMetrics`（支持 1–365 天体重/心情/步数、身高与参考虚线），`owner='friend'` 省略 `editableDates` 并强化只读安全提示；前端 `tool-meta.ts` / `map-message.ts` 接入单行活动条展示；同步 `routing.md`、`ai-and-quota.md`、`ADR-0026` 三份规范与决策文档。
+
+---
+
 ## [v0.1.17] - 2026-11-26（步数/心情/体重 Dock 统一、双 Tab 专属详情页、步数参考虚线设置与 Agent 每日指标全量 CRUD）
 
 ### ✨ 新功能与体验统一
