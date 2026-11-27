@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
     getFriendGoalDetail: vi.fn(),
     getFriendGoalCalendar: vi.fn(),
     getFriendGoalCheckins: vi.fn(),
+    getFriendMetricDetail: vi.fn(),
+    getFriendMetricCalendar: vi.fn(),
+    getFriendMetricHistory: vi.fn(),
     removeFriend: vi.fn(),
   },
 }))
@@ -80,6 +83,9 @@ describe('/api/v1/friends 鉴权', () => {
     ['POST', '/api/v1/friends/invite/preview', jsonInit('POST', { code: '123456' })],
     ['POST', '/api/v1/friends/accept', jsonInit('POST', { code: '123456' })],
     ['GET', '/api/v1/friends/u2/dashboard', undefined],
+    ['GET', '/api/v1/friends/u2/metrics/weight', undefined],
+    ['GET', '/api/v1/friends/u2/metrics/steps/calendar?month=2026-11', undefined],
+    ['GET', '/api/v1/friends/u2/metrics/mood/history', undefined],
     ['DELETE', '/api/v1/friends/u2', { method: 'DELETE', headers: SAME_ORIGIN }],
   ] as const)('未登录 %s %s → 401 UNAUTHENTICATED', async (_m, path, init) => {
     const res = await app.request(path, init)
@@ -258,6 +264,79 @@ describe('/api/v1/friends 业务与校验', () => {
       'u2',
       goalId,
       expect.objectContaining({ limit: 10 }),
+    )
+  })
+
+  it('GET /friends/{id}/metrics/{kind} 返回好友指标详情、身高、步数参考线与走势', async () => {
+    const payload = {
+      kind: 'steps',
+      friend: { userId: 'u2', nickname: '阿柚', avatar: null },
+      localDate: '2026-11-26',
+      heightCm: 168,
+      dailyStepTarget: 10000,
+      steps: {
+        entries: [{ localDate: '2026-11-26', steps: 9600, measuredAt: '2026-11-26T10:00:00.000Z' }],
+        todaySteps: 9600,
+        latest: { localDate: '2026-11-26', steps: 9600, measuredAt: '2026-11-26T10:00:00.000Z' },
+        deltaSteps7d: 600,
+      },
+    }
+    mocks.service.getFriendMetricDetail.mockResolvedValue(payload)
+
+    const res = await app.request('/api/v1/friends/u2/metrics/steps')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(payload)
+    expect(mocks.service.getFriendMetricDetail).toHaveBeenCalledWith(
+      expect.anything(),
+      'u1',
+      'u2',
+      'steps',
+      expect.any(Date),
+    )
+  })
+
+  it('GET /friends/{id}/metrics/{kind} 非法 kind → 400 VALIDATION_FAILED；非好友 → 404 FRIEND_NOT_FOUND', async () => {
+    const badRes = await app.request('/api/v1/friends/u2/metrics/unknown')
+    expect(badRes.status).toBe(400)
+    expect(await badRes.json()).toMatchObject({ code: 'VALIDATION_FAILED' })
+
+    mocks.service.getFriendMetricDetail.mockRejectedValue(
+      new ApiError('FRIEND_NOT_FOUND', 'Friendship not found'),
+    )
+    const nfRes = await app.request('/api/v1/friends/u3/metrics/weight')
+    expect(nfRes.status).toBe(404)
+    expect(await nfRes.json()).toMatchObject({ code: 'FRIEND_NOT_FOUND' })
+  })
+
+  it('GET /friends/{id}/metrics/{kind}/calendar 与 /history 透传只读查询参数', async () => {
+    mocks.service.getFriendMetricCalendar.mockResolvedValue({
+      kind: 'mood',
+      month: '2026-11',
+      days: [{ localDate: '2026-11-26', value: 5 }],
+    })
+    const calRes = await app.request('/api/v1/friends/u2/metrics/mood/calendar?month=2026-11')
+    expect(calRes.status).toBe(200)
+    expect(mocks.service.getFriendMetricCalendar).toHaveBeenCalledWith(
+      expect.anything(),
+      'u1',
+      'u2',
+      'mood',
+      '2026-11',
+    )
+
+    mocks.service.getFriendMetricHistory.mockResolvedValue({
+      kind: 'weight',
+      items: [{ localDate: '2026-11-26', value: 60500, recordedAt: '2026-11-26T08:00:00.000Z' }],
+      nextCursor: null,
+    })
+    const histRes = await app.request('/api/v1/friends/u2/metrics/weight/history?limit=15')
+    expect(histRes.status).toBe(200)
+    expect(mocks.service.getFriendMetricHistory).toHaveBeenCalledWith(
+      expect.anything(),
+      'u1',
+      'u2',
+      'weight',
+      expect.objectContaining({ limit: 15 }),
     )
   })
 })

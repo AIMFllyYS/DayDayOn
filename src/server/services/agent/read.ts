@@ -136,18 +136,20 @@ export async function getMetricValueOnDate(
   return row?.value ?? null
 }
 
-/** 读取体重 / 心情 / 步数综合趋势与今日/昨日现状（供 Agent getMetrics 工具使用） */
+/** 读取体重 / 心情 / 步数综合趋势与今日/昨日现状（本人与好友只读共用） */
 export async function getMetricsOverview(
   userId: string,
   now: Date,
   kind: MetricKind | 'all' = 'all',
   days = 30,
+  owner: 'self' | 'friend' = 'self',
 ) {
   const clock = await loadClock(db, userId)
   const today = localDateOf(now, clock.timeZone, clock.dayStartHour)
   const yesterday = addDays(today, -1)
+  const needProfile = kind === 'all' || kind === 'steps' || kind === 'weight'
   const [profile, weight, mood, steps] = await Promise.all([
-    kind === 'all' || kind === 'steps' ? getProfile(userId) : Promise.resolve(null),
+    needProfile ? getProfile(userId) : Promise.resolve(null),
     kind === 'all' || kind === 'weight'
       ? weightTrend(db, userId, days, now)
       : Promise.resolve(null),
@@ -162,7 +164,8 @@ export async function getMetricsOverview(
   return {
     today,
     yesterday,
-    editableDates: [yesterday, today] as const,
+    ...(owner === 'self' ? { editableDates: [yesterday, today] as const } : {}),
+    ...(kind === 'all' || kind === 'weight' ? { heightCm: profile?.heightCm ?? null } : {}),
     ...(kind === 'all' || kind === 'steps' ? { dailyStepTarget } : {}),
     ...(weight
       ? {
@@ -372,13 +375,8 @@ export async function getFriendsOverview(userId: string, now: Date) {
   return listFriends(db, userId, now)
 }
 
-/** 读取某位好友（支持传入 friendUserId 或昵称）的完整打卡仪表盘与近 N 天打卡记录（只读） */
-export async function getFriendStatusDetail(
-  userId: string,
-  friendIdOrNickname: string,
-  now: Date,
-  days = 7,
-) {
+/** 按 userId 或昵称解析好友（校验必须在好友列表中） */
+async function resolveFriendForAgent(userId: string, friendIdOrNickname: string, now: Date) {
   const list = await listFriends(db, userId, now)
   const q = friendIdOrNickname.trim()
   const matched =
@@ -392,6 +390,19 @@ export async function getFriendStatusDetail(
       availableFriends: list.friends.map((f) => ({ userId: f.userId, nickname: f.nickname })),
     }
   }
+  return { found: true as const, friend: matched }
+}
+
+/** 读取某位好友（支持传入 friendUserId 或昵称）的完整打卡仪表盘与近 N 天打卡记录（只读） */
+export async function getFriendStatusDetail(
+  userId: string,
+  friendIdOrNickname: string,
+  now: Date,
+  days = 7,
+) {
+  const resolved = await resolveFriendForAgent(userId, friendIdOrNickname, now)
+  if (!resolved.found) return resolved
+  const matched = resolved.friend
 
   const { friend, dashboard } = await getFriendDashboard(db, userId, matched.userId, now)
   const clock = await loadClock(db, matched.userId)
@@ -410,5 +421,32 @@ export async function getFriendStatusDetail(
     dashboard,
     recentCheckins,
     note: '好友的打卡只能查看，不能修改；isValid=false 的是未达标的存档记录，不计入进度',
+  }
+}
+
+/** 只读读取某位好友的每日指标（体重 / 心情 / 步数）今日/昨日现状与近 1–365 天走势（复用 getMetricsOverview） */
+export async function getFriendMetricsDetail(
+  userId: string,
+  friendIdOrNickname: string,
+  now: Date,
+  kind: MetricKind | 'all' = 'all',
+  days = 30,
+) {
+  const resolved = await resolveFriendForAgent(userId, friendIdOrNickname, now)
+  if (!resolved.found) return resolved
+  const matched = resolved.friend
+
+  const safeDays = Math.min(365, Math.max(1, Math.floor(days)))
+  const overview = await getMetricsOverview(matched.userId, now, kind, safeDays, 'friend')
+
+  return {
+    found: true as const,
+    friend: {
+      userId: matched.userId,
+      nickname: matched.nickname,
+      avatar: matched.avatar,
+    },
+    ...overview,
+    note: '好友的每日指标（体重/心情/步数）仅支持查看和对比，不可修改、不可删除、不可替好友记录',
   }
 }

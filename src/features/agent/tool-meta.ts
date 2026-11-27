@@ -62,6 +62,12 @@ const toolMeta: Record<string, ToolMeta> = {
     icon: 'trophy',
     tone: 'primary',
   },
+  getFriendMetrics: {
+    label: '查看好友指标',
+    verb: '正在看好友体重/心情/步数',
+    icon: 'chart',
+    tone: 'primary',
+  },
   draftCheckin: { label: '整理打卡草稿', verb: '正在整理打卡', icon: 'check', tone: 'primary' },
   draftUpdateCheckin: {
     label: '整理改打卡草稿',

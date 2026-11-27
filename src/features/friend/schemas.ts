@@ -3,6 +3,12 @@ import { DashboardTodaySchema } from '@/features/dashboard/schemas'
 import { GoalDetailSchema } from '@/features/goal/schemas'
 import { MascotCharacterSchema } from '@/features/me/schemas'
 import {
+  MetricKindSchema,
+  RatingTrendSchema,
+  StepTrendSchema,
+  WeightTrendSchema,
+} from '@/features/metric/schemas'
+import {
   InstantSchema,
   LocalDateSchema,
   PublicUserSchema,
@@ -14,7 +20,7 @@ import {
  * 好友体系契约（ADR-0026）：
  * 1. 顶栏堆叠头像与好友列表（本人置顶 + 好友按添加时间排序，附今日完成度与连续打卡天数）
  * 2. 6 位 10 分钟持久化配对码（发起邀请 / 预览邀请人 / 接受邀请）
- * 3. 好友完整打卡仪表盘（完全透明公开，不可单向关闭）
+ * 3. 好友完整打卡仪表盘、只读目标详情与只读每日指标详情（完全透明公开，不可单向关闭）
  */
 
 export const FriendSummarySchema = PublicUserSchema.extend({
@@ -93,6 +99,23 @@ export const FriendGoalDetailSchema = z
   })
   .meta({ id: 'FriendGoalDetail' })
 export type FriendGoalDetail = z.infer<typeof FriendGoalDetailSchema>
+
+export const FriendMetricDetailSchema = z
+  .object({
+    kind: MetricKindSchema,
+    friend: PublicUserSchema,
+    /** 好友当前所在时区与日切换时间对应的“今天”打卡日 */
+    localDate: LocalDateSchema,
+    /** 好友身高（cm，供体重详情页计算参考 BMI） */
+    heightCm: z.number().int().nullable(),
+    /** 好友步数参考虚线（默认 8000，null 表示好友选择隐藏） */
+    dailyStepTarget: z.number().int().nullable(),
+    weight: WeightTrendSchema.optional(),
+    mood: RatingTrendSchema.optional(),
+    steps: StepTrendSchema.optional(),
+  })
+  .meta({ id: 'FriendMetricDetail' })
+export type FriendMetricDetail = z.infer<typeof FriendMetricDetailSchema>
 
 export const PetInteractionKindSchema = z
   .enum(['poke', 'feed', 'remind'])

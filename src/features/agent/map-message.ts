@@ -124,6 +124,19 @@ function toolSummary(toolName: string, input: unknown): string | undefined {
       return typeof o.weightKg === 'number' ? `${o.weightKg} kg` : undefined
     case 'getFriendStatus':
       return typeof o.friendIdOrNickname === 'string' ? o.friendIdOrNickname : undefined
+    case 'getFriendMetrics': {
+      const kindMap: Record<string, string> = {
+        all: '全部指标',
+        weight: '体重',
+        mood: '心情',
+        steps: '步数',
+      }
+      const parts: string[] = []
+      if (typeof o.friendIdOrNickname === 'string') parts.push(o.friendIdOrNickname)
+      if (typeof o.kind === 'string') parts.push(kindMap[o.kind] ?? o.kind)
+      if (typeof o.days === 'number') parts.push(`近 ${o.days} 天`)
+      return parts.length > 0 ? parts.join(' · ') : undefined
+    }
     case 'lookupFoodNutrition':
       return Array.isArray(o.names)
         ? o.names.filter((n) => typeof n === 'string').join('、')

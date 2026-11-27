@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomInt } from 'node:crypto'
-import { and, asc, count, desc, eq, gt, inArray, isNull, or } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gt, isNull, or } from 'drizzle-orm'
 import type {
   CheckinCalendar,
   CheckinHistory,
@@ -22,12 +22,15 @@ import type { PublicUser } from '@/features/shared/schemas'
 import { localDateOf } from '@/lib/time'
 import { ApiError } from '@/server/api/errors'
 import { db as defaultDb, type DbOrTx } from '@/server/db/client'
-import { friendInvites, friendships, profiles, user } from '@/server/db/schema'
+import { friendInvites, friendships, profiles } from '@/server/db/schema'
 import { goalCalendar, listCheckins } from '@/server/services/checkins/read'
 import { getDashboardToday } from '@/server/services/dashboard'
 import { getGoal } from '@/server/services/goals'
 import { getInsights } from '@/server/services/insights'
 import { recordVisitFootprint } from '@/server/services/notifications'
+import { assertFriendship, loadPublicUsers } from './access'
+
+export { getFriendMetricCalendar, getFriendMetricDetail, getFriendMetricHistory } from './metrics'
 
 /** 好友上限：最多 50 位 */
 export const MAX_FRIENDS = 50
@@ -40,36 +43,6 @@ const MASCOT_NAMES: Record<string, string> = {
   dun: '墩墩',
   mian: '绵绵',
   you: '柚柚',
-}
-
-async function loadPublicUsers(
-  db: DbOrTx,
-  userIds: string[],
-): Promise<Map<string, PublicUser & { mascot?: string | null }>> {
-  if (userIds.length === 0) return new Map()
-  const rows = await db
-    .select({
-      userId: user.id,
-      name: user.name,
-      nickname: profiles.nickname,
-      avatar: profiles.avatar,
-      mascot: profiles.mascot,
-    })
-    .from(user)
-    .leftJoin(profiles, eq(profiles.userId, user.id))
-    .where(inArray(user.id, userIds))
-
-  const map = new Map<string, PublicUser & { mascot?: string | null }>()
-  for (const r of rows) {
-    const nickname = r.nickname?.trim() || r.name?.trim() || 'DayDayOn 伙伴'
-    map.set(r.userId, {
-      userId: r.userId,
-      nickname,
-      avatar: r.avatar ?? null,
-      mascot: r.mascot ?? null,
-    })
-  }
-  return map
 }
 
 async function buildFriendSummary(
@@ -97,26 +70,6 @@ async function buildFriendSummary(
     todayMood: dash.mood,
     createdAt: friendshipCreatedAt.toISOString(),
   }
-}
-
-/** 校验双向好友关系，否则统一抛出 404 FRIEND_NOT_FOUND（不泄露目标用户存在性） */
-async function assertFriendship(
-  db: DbOrTx,
-  userId: string,
-  friendUserId: string,
-): Promise<{ createdAt: Date }> {
-  if (userId === friendUserId) {
-    throw new ApiError('FRIEND_NOT_FOUND', 'Friendship not found')
-  }
-  const [relation] = await db
-    .select({ createdAt: friendships.createdAt })
-    .from(friendships)
-    .where(and(eq(friendships.userId, userId), eq(friendships.friendId, friendUserId)))
-    .limit(1)
-  if (!relation) {
-    throw new ApiError('FRIEND_NOT_FOUND', 'Friendship not found')
-  }
-  return relation
 }
 
 /**

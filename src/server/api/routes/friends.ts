@@ -15,8 +15,16 @@ import {
   FriendInvitePreviewSchema,
   FriendInviteSchema,
   FriendListSchema,
+  FriendMetricDetailSchema,
 } from '@/features/friend/schemas'
 import { InsightsSchema } from '@/features/insights/schemas'
+import {
+  MetricCalendarQuerySchema,
+  MetricCalendarSchema,
+  MetricHistoryQuerySchema,
+  MetricHistorySchema,
+  MetricKindSchema,
+} from '@/features/metric/schemas'
 import { IdSchema, UserIdSchema } from '@/features/shared/schemas'
 import { db } from '@/server/db/client'
 import * as friendsService from '@/server/services/friends'
@@ -37,6 +45,9 @@ import { AUTH_ERRORS, errorResponses, IdempotencyHeadersSchema } from '../schema
  *   GET    /friends/{friendUserId}/goals/{goalId}              获取指定好友目标详情（只读）
  *   GET    /friends/{friendUserId}/goals/{goalId}/calendar     获取指定好友目标打卡日历（只读）
  *   GET    /friends/{friendUserId}/goals/{goalId}/checkins     获取指定好友目标打卡历史（只读）
+ *   GET    /friends/{friendUserId}/metrics/{kind}              获取指定好友每日指标详情与近一年走势（只读）
+ *   GET    /friends/{friendUserId}/metrics/{kind}/calendar     获取指定好友每日指标月度日历（只读）
+ *   GET    /friends/{friendUserId}/metrics/{kind}/history      获取指定好友每日指标历史分页（只读）
  */
 
 const json = <T extends z.ZodType>(schema: T) => ({ 'application/json': { schema } })
@@ -48,6 +59,11 @@ const FriendIdParamSchema = z.object({
 const FriendGoalParamSchema = z.object({
   friendUserId: UserIdSchema,
   goalId: IdSchema,
+})
+
+const FriendMetricParamSchema = z.object({
+  friendUserId: UserIdSchema,
+  kind: MetricKindSchema,
 })
 
 const FriendInsightsQuerySchema = z.object({
@@ -242,6 +258,56 @@ const friendGoalCheckinsRoute = createRoute({
   },
 })
 
+const friendMetricDetailRoute = createRoute({
+  method: 'get',
+  path: '/friends/{friendUserId}/metrics/{kind}',
+  tags: ['friend'],
+  summary: '获取指定好友每日指标的只读详情与近一年走势',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: {
+    params: FriendMetricParamSchema,
+  },
+  responses: {
+    200: {
+      content: json(FriendMetricDetailSchema),
+      description: '好友公开资料、好友当前打卡日、身高、步数参考虚线与近一年走势',
+    },
+    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED', 'FRIEND_NOT_FOUND', 'USER_NOT_FOUND'),
+  },
+})
+
+const friendMetricCalendarRoute = createRoute({
+  method: 'get',
+  path: '/friends/{friendUserId}/metrics/{kind}/calendar',
+  tags: ['friend'],
+  summary: '获取指定好友每日指标的月度记录日历（只读）',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: {
+    params: FriendMetricParamSchema,
+    query: MetricCalendarQuerySchema,
+  },
+  responses: {
+    200: { content: json(MetricCalendarSchema), description: '好友指标单月记录情况' },
+    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED', 'FRIEND_NOT_FOUND'),
+  },
+})
+
+const friendMetricHistoryRoute = createRoute({
+  method: 'get',
+  path: '/friends/{friendUserId}/metrics/{kind}/history',
+  tags: ['friend'],
+  summary: '获取指定好友每日指标的历史记录（只读，游标分页）',
+  middleware: [requireUser, requireOnboarded] as const,
+  request: {
+    params: FriendMetricParamSchema,
+    query: MetricHistoryQuerySchema,
+  },
+  responses: {
+    200: { content: json(MetricHistorySchema), description: '好友指标历史记录分页列表' },
+    ...errorResponses(...AUTH_ERRORS, 'VALIDATION_FAILED', 'FRIEND_NOT_FOUND'),
+  },
+})
+
 export const friendRoutes = new OpenAPIHono<AppEnv>()
   .openapi(listFriendsRoute, async (c) => {
     const data = await friendsService.listFriends(db, c.get('user').id, new Date())
@@ -322,6 +388,41 @@ export const friendRoutes = new OpenAPIHono<AppEnv>()
       c.get('user').id,
       friendUserId,
       goalId,
+      query,
+    )
+    return c.json(data, 200)
+  })
+  .openapi(friendMetricDetailRoute, async (c) => {
+    const { friendUserId, kind } = c.req.valid('param')
+    const data = await friendsService.getFriendMetricDetail(
+      db,
+      c.get('user').id,
+      friendUserId,
+      kind,
+      new Date(),
+    )
+    return c.json(data, 200)
+  })
+  .openapi(friendMetricCalendarRoute, async (c) => {
+    const { friendUserId, kind } = c.req.valid('param')
+    const { month } = c.req.valid('query')
+    const data = await friendsService.getFriendMetricCalendar(
+      db,
+      c.get('user').id,
+      friendUserId,
+      kind,
+      month,
+    )
+    return c.json(data, 200)
+  })
+  .openapi(friendMetricHistoryRoute, async (c) => {
+    const { friendUserId, kind } = c.req.valid('param')
+    const query = c.req.valid('query')
+    const data = await friendsService.getFriendMetricHistory(
+      db,
+      c.get('user').id,
+      friendUserId,
+      kind,
       query,
     )
     return c.json(data, 200)

@@ -71,6 +71,7 @@ export interface MetricStatsTabProps {
   steps?: StepTrend
   heightCm?: number | null
   dailyStepTarget: number | null
+  readOnly?: boolean
 }
 
 export function MetricStatsTab({
@@ -81,6 +82,7 @@ export function MetricStatsTab({
   steps,
   heightCm = null,
   dailyStepTarget,
+  readOnly = false,
 }: MetricStatsTabProps) {
   const [rangeStr, setRangeStr] = useState<'30' | '90' | '365'>('90')
   const days: MetricRangeDays = rangeStr === '30' ? 30 : rangeStr === '90' ? 90 : 365
@@ -107,6 +109,7 @@ export function MetricStatsTab({
           days={days}
           rangeLabel={rangeLabel}
           heightCm={heightCm}
+          readOnly={readOnly}
         />
       )}
 
@@ -126,6 +129,7 @@ export function MetricStatsTab({
           days={days}
           rangeLabel={rangeLabel}
           dailyStepTarget={dailyStepTarget}
+          readOnly={readOnly}
         />
       )}
     </div>
@@ -138,12 +142,14 @@ function WeightStatsSection({
   days,
   rangeLabel,
   heightCm,
+  readOnly,
 }: {
   entries: WeightTrend['entries']
   todayDate: LocalDate
   days: MetricRangeDays
   rangeLabel: string
   heightCm: number | null
+  readOnly: boolean
 }) {
   const sliced = filterByDays(entries, todayDate, days)
   const stats = computeWeightStats(sliced, heightCm)
@@ -225,7 +231,13 @@ function WeightStatsSection({
           <StatTile
             label="参考 BMI"
             value={stats.bmi !== null ? stats.bmi.toFixed(1) : '—'}
-            hint={heightCm ? `按身高 ${heightCm} cm 计算` : '在个人资料填身高后计算'}
+            hint={
+              heightCm
+                ? `按身高 ${heightCm} cm 计算`
+                : readOnly
+                  ? '好友未填写身高'
+                  : '在个人资料填身高后计算'
+            }
           />
         </dl>
       </Card>
@@ -348,12 +360,14 @@ function StepsStatsSection({
   days,
   rangeLabel,
   dailyStepTarget,
+  readOnly,
 }: {
   entries: StepTrend['entries']
   todayDate: LocalDate
   days: MetricRangeDays
   rangeLabel: string
   dailyStepTarget: number | null
+  readOnly: boolean
 }) {
   const sliced = filterByDays(entries, todayDate, days)
   const stats = computeStepsStats(sliced, todayDate, dailyStepTarget)
@@ -463,7 +477,9 @@ function StepsStatsSection({
             hint={
               dailyStepTarget !== null
                 ? `参考线 ${dailyStepTarget.toLocaleString('en-US')} 步`
-                : '可在步数设置中开启'
+                : readOnly
+                  ? '好友已隐藏参考虚线'
+                  : '可在步数设置中开启'
             }
           />
         </dl>

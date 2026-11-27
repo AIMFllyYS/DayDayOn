@@ -148,6 +148,11 @@ describe('buildAgentTools: 待办 / 指标草稿与联网工具（打卡工具�
     expect(tools.getMetrics).toBeDefined()
     expect(tools.draftMetric).toBeDefined()
     expect(tools.draftDeleteMetric).toBeDefined()
+    expect(tools.getFriendMetrics).toBeDefined()
+
+    const prompt = buildSystemPrompt(NOW, CLOCK)
+    expect(prompt).toContain('getFriendMetrics')
+    expect(prompt).toContain('好友的打卡和每日指标只能看')
   })
 
   it('webSearch 累加联网次数与微元费用，超过上限返回上限提示', async () => {

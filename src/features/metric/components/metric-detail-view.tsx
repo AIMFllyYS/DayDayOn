@@ -13,7 +13,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/components/ui/toast'
 import type { Tone } from '@/components/ui/tone'
 import { gramsToKg } from '@/features/checkin/format'
-import { DEFAULT_DAILY_STEP_TARGET, type MetricKind } from '@/features/metric/schemas'
+import {
+  DEFAULT_DAILY_STEP_TARGET,
+  type MetricKind,
+  type RatingTrend,
+  type StepTrend,
+  type WeightTrend,
+} from '@/features/metric/schemas'
 import type { LocalDate } from '@/features/shared/schemas'
 import { errorMessage, isApiError, useQuery } from '@/lib/api'
 import { checkinTodayQuery } from '@/lib/api/queries/checkins'
@@ -35,10 +41,9 @@ const StepTargetSheet = dynamic(
 )
 
 /*
- * /metrics/[metric] 双 Tab 详情页容器：
- * - 专属顶部指标概览头（区别于 /goals/[goalId] 目标详情页）；
- * - 双 Tab（SegmentedControl）：默认先展示「统计图」，第二 Tab「详细记录」复用日历与记录列表组件；
- * - 支持「记今日 / 补昨日」快捷 Dock，步数详情页还可原地调整数据库持久化的步数参考虚线。
+ * /metrics/[metric] 与 /friends/[friendUserId]/metrics/[metric] 共用双 Tab 详情页核心：
+ * - MetricDetailView：本人视角数据容器（含「记今日 / 补昨日」与「步数设置」写操作）；
+ * - MetricDetailContent：纯展示核心（readOnly / friendUserId 时隐藏全部写按钮与编辑抽屉，仅做透明只读浏览）。
  */
 
 type DetailTab = 'stats' | 'records'
@@ -52,23 +57,26 @@ const MOOD_LABELS = ['很糟', '不太好', '一般', '不错', '超棒'] as con
 
 const METRIC_HEADER: Record<
   MetricKind,
-  { title: string; subtitle: string; icon: IconName; tone: Tone }
+  { title: string; subtitle: string; friendSubtitle: string; icon: IconName; tone: Tone }
 > = {
   weight: {
     title: '体重记录与趋势',
     subtitle: '仅自己可见，不参与公开与排行',
+    friendSubtitle: '好友透明监督 · 仅查看，不可修改',
     icon: 'chart',
     tone: 'primary',
   },
   mood: {
     title: '心情记录与趋势',
     subtitle: '每天一记，看见自己的情绪节律',
+    friendSubtitle: '好友每日情绪曲线与心情分布（只读）',
     icon: 'heart',
     tone: 'custom',
   },
   steps: {
     title: '步数记录与趋势',
     subtitle: '每日步行轨迹、里程估算与参考线达标情况',
+    friendSubtitle: '好友每日步行轨迹、里程估算与参考线达标情况',
     icon: 'footprints',
     tone: 'exercise',
   },
@@ -83,18 +91,10 @@ function HeaderStat({ label, value }: { label: string; value: string }) {
   )
 }
 
+/** 本人视角 /metrics/[metric] 数据容器 */
 export function MetricDetailView({ kind }: { kind: MetricKind }) {
-  const searchParams = useSearchParams()
-  const initialTab: DetailTab = searchParams.get('tab') === 'records' ? 'records' : 'stats'
-  const [tab, setTab] = useState<DetailTab>(initialTab)
-  const [editDate, setEditDate] = useState<LocalDate | null>(null)
-  const editLoaded = useLazyMount(editDate !== null)
-  const [stepTargetOpen, setStepTargetOpen] = useState(false)
-  const stepTargetLoaded = useLazyMount(stepTargetOpen)
-
   const today = useQuery(checkinTodayQuery())
   const { data: me } = useMe()
-  const updatePrefs = useUpdatePreferences()
 
   const weight = useQuery({ ...weightTrendQuery(365), enabled: kind === 'weight' })
   const mood = useQuery({ ...ratingTrendQuery('overall', 365), enabled: kind === 'mood' })
@@ -120,21 +120,66 @@ export function MetricDetailView({ kind }: { kind: MetricKind }) {
     )
   }
 
-  const todayDate = today.data.localDate
+  return (
+    <MetricDetailContent
+      kind={kind}
+      todayDate={today.data.localDate}
+      weight={weight.data}
+      mood={mood.data}
+      steps={steps.data}
+      heightCm={me?.profile.heightCm ?? null}
+      dailyStepTarget={me ? me.preferences.dailyStepTarget : DEFAULT_DAILY_STEP_TARGET}
+    />
+  )
+}
+
+export interface MetricDetailContentProps {
+  kind: MetricKind
+  todayDate: LocalDate
+  weight?: WeightTrend
+  mood?: RatingTrend
+  steps?: StepTrend
+  heightCm?: number | null
+  dailyStepTarget: number | null
+  readOnly?: boolean
+  /** 好友只读模式：传入好友 userId 透传给「详细记录」Tab */
+  friendUserId?: string
+}
+
+/** 双 Tab 指标详情核心内容（本人与好友只读共用） */
+export function MetricDetailContent({
+  kind,
+  todayDate,
+  weight,
+  mood,
+  steps,
+  heightCm = null,
+  dailyStepTarget,
+  readOnly = false,
+  friendUserId,
+}: MetricDetailContentProps) {
+  const isReadOnly = readOnly || Boolean(friendUserId)
+  const searchParams = useSearchParams()
+  const initialTab: DetailTab = searchParams.get('tab') === 'records' ? 'records' : 'stats'
+  const [tab, setTab] = useState<DetailTab>(initialTab)
+  const [editDate, setEditDate] = useState<LocalDate | null>(null)
+  const editLoaded = useLazyMount(!isReadOnly && editDate !== null)
+  const [stepTargetOpen, setStepTargetOpen] = useState(false)
+  const stepTargetLoaded = useLazyMount(!isReadOnly && stepTargetOpen)
+  const updatePrefs = useUpdatePreferences()
+
   const yesterdayDate = addDays(todayDate, -1)
-  const dailyStepTarget = me ? me.preferences.dailyStepTarget : DEFAULT_DAILY_STEP_TARGET
   const meta = METRIC_HEADER[kind]
 
   let todayValue: number | null = null
   let yesterdayValue: number | null = null
   let headerStats: readonly { label: string; value: string }[] = []
 
-  if (kind === 'weight' && weight.data) {
-    todayValue = weight.data.entries.find((e) => e.localDate === todayDate)?.weightGrams ?? null
-    yesterdayValue =
-      weight.data.entries.find((e) => e.localDate === yesterdayDate)?.weightGrams ?? null
-    const latest = weight.data.latest
-    const delta7 = weight.data.deltaGrams7d
+  if (kind === 'weight' && weight) {
+    todayValue = weight.entries.find((e) => e.localDate === todayDate)?.weightGrams ?? null
+    yesterdayValue = weight.entries.find((e) => e.localDate === yesterdayDate)?.weightGrams ?? null
+    const latest = weight.latest
+    const delta7 = weight.deltaGrams7d
     headerStats = [
       {
         label: '最近记录',
@@ -149,11 +194,11 @@ export function MetricDetailView({ kind }: { kind: MetricKind }) {
               ? '持平'
               : `${delta7 > 0 ? '+' : ''}${(delta7 / 1000).toFixed(1)} kg`,
       },
-      { label: '近一年记录', value: `${weight.data.entries.length} 天` },
+      { label: '近一年记录', value: `${weight.entries.length} 天` },
     ]
-  } else if (kind === 'mood' && mood.data) {
-    todayValue = mood.data.entries.find((e) => e.localDate === todayDate)?.value ?? null
-    yesterdayValue = mood.data.entries.find((e) => e.localDate === yesterdayDate)?.value ?? null
+  } else if (kind === 'mood' && mood) {
+    todayValue = mood.entries.find((e) => e.localDate === todayDate)?.value ?? null
+    yesterdayValue = mood.entries.find((e) => e.localDate === yesterdayDate)?.value ?? null
     headerStats = [
       {
         label: '今日心情',
@@ -161,18 +206,16 @@ export function MetricDetailView({ kind }: { kind: MetricKind }) {
       },
       {
         label: '近一年均分',
-        value: mood.data.average !== null ? `${mood.data.average.toFixed(1)} 分` : '—',
+        value: mood.average !== null ? `${mood.average.toFixed(1)} 分` : '—',
       },
-      { label: '近一年记录', value: `${mood.data.count} 天` },
+      { label: '近一年记录', value: `${mood.count} 天` },
     ]
-  } else if (kind === 'steps' && steps.data) {
-    todayValue = steps.data.entries.find((e) => e.localDate === todayDate)?.steps ?? null
-    yesterdayValue = steps.data.entries.find((e) => e.localDate === yesterdayDate)?.steps ?? null
+  } else if (kind === 'steps' && steps) {
+    todayValue = steps.entries.find((e) => e.localDate === todayDate)?.steps ?? null
+    yesterdayValue = steps.entries.find((e) => e.localDate === yesterdayDate)?.steps ?? null
     const avg =
-      steps.data.entries.length > 0
-        ? Math.round(
-            steps.data.entries.reduce((s, e) => s + e.steps, 0) / steps.data.entries.length,
-          )
+      steps.entries.length > 0
+        ? Math.round(steps.entries.reduce((s, e) => s + e.steps, 0) / steps.entries.length)
         : null
     headerStats = [
       {
@@ -209,9 +252,11 @@ export function MetricDetailView({ kind }: { kind: MetricKind }) {
           <IconTile icon={meta.icon} tone={meta.tone} size="lg" />
           <div className="min-w-0 flex-1">
             <h2 className="text-heading font-bold break-words">{meta.title}</h2>
-            <p className="text-caption text-muted">{meta.subtitle}</p>
+            <p className="text-caption text-muted">
+              {isReadOnly ? meta.friendSubtitle : meta.subtitle}
+            </p>
           </div>
-          {kind === 'steps' && (
+          {!isReadOnly && kind === 'steps' && (
             <Button variant="soft" size="sm" icon="sliders" onClick={() => setStepTargetOpen(true)}>
               步数设置
             </Button>
@@ -224,14 +269,16 @@ export function MetricDetailView({ kind }: { kind: MetricKind }) {
           ))}
         </dl>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Button icon="check" onClick={() => setEditDate(todayDate)}>
-            {todayValue !== null ? '修改今日' : '记今日'}
-          </Button>
-          <Button variant="secondary" icon="clock" onClick={() => setEditDate(yesterdayDate)}>
-            {yesterdayValue !== null ? '修改昨日' : '补昨日'}
-          </Button>
-        </div>
+        {!isReadOnly && (
+          <div className="grid grid-cols-2 gap-2">
+            <Button icon="check" onClick={() => setEditDate(todayDate)}>
+              {todayValue !== null ? '修改今日' : '记今日'}
+            </Button>
+            <Button variant="secondary" icon="clock" onClick={() => setEditDate(yesterdayDate)}>
+              {yesterdayValue !== null ? '修改昨日' : '补昨日'}
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* 双 Tab 切换：默认先展示「统计图」，次选「详细记录」 */}
@@ -246,11 +293,12 @@ export function MetricDetailView({ kind }: { kind: MetricKind }) {
         <MetricStatsTab
           kind={kind}
           todayDate={todayDate}
-          weight={weight.data}
-          mood={mood.data}
-          steps={steps.data}
-          heightCm={me?.profile.heightCm ?? null}
+          weight={weight}
+          mood={mood}
+          steps={steps}
+          heightCm={heightCm}
           dailyStepTarget={dailyStepTarget}
+          readOnly={isReadOnly}
         />
       ) : (
         <MetricRecordsTab
@@ -258,11 +306,13 @@ export function MetricDetailView({ kind }: { kind: MetricKind }) {
           todayDate={todayDate}
           yesterdayDate={yesterdayDate}
           dailyStepTarget={dailyStepTarget}
-          onEditDate={(d) => setEditDate(d)}
+          readOnly={isReadOnly}
+          friendUserId={friendUserId}
+          onEditDate={isReadOnly ? undefined : (d) => setEditDate(d)}
         />
       )}
 
-      {editLoaded && (
+      {!isReadOnly && editLoaded && (
         <MetricQuickEditSheet
           open={editDate !== null}
           onOpenChange={(open) => {
@@ -277,7 +327,7 @@ export function MetricDetailView({ kind }: { kind: MetricKind }) {
         />
       )}
 
-      {kind === 'steps' && stepTargetLoaded && (
+      {!isReadOnly && kind === 'steps' && stepTargetLoaded && (
         <StepTargetSheet
           open={stepTargetOpen}
           onOpenChange={setStepTargetOpen}
@@ -307,7 +357,7 @@ export function MetricDetailView({ kind }: { kind: MetricKind }) {
   )
 }
 
-function MetricDetailSkeleton() {
+export function MetricDetailSkeleton() {
   return (
     <div role="status" aria-label="加载中" className="flex flex-col gap-4">
       <Skeleton className="h-48 w-full rounded-2xl" />
